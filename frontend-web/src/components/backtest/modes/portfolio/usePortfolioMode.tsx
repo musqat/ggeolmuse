@@ -29,6 +29,7 @@ import {
 import {
   countErrors,
   firstIssue,
+  isWeightSumBad,
   monthsIssue,
   portfolioRowIssues,
   portfolioRowMessageList,
@@ -137,14 +138,11 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
         rebalance,
       }),
     },
-    errorCount: countErrors([
-      periodMessage,
-      totalMessage,
-      ...rowMessages.flatMap(portfolioRowMessageList),
-      monthsMessage,
-      firstMessage,
-    ]),
-    saved: { rows, allocation, total, method, cadence, months, firstPick, rebalance },
+    errorCount:
+      countErrors([periodMessage, totalMessage, ...rowMessages.flatMap(portfolioRowMessageList), monthsMessage, firstMessage]) +
+      (isWeightSumBad(rows, allocation, rowMessages) ? 1 : 0),
+    // 고친 줄만 저장(고치기 전 줄은 되살린 뒤에도 보던 종목을 따라감)
+    saved: { rows: edited ?? [], allocation, total, method, cadence, months, firstPick, rebalance },
     load: (saved) => {
       const next = pickValues(DEFAULTS, saved);
       const restored = savedRows(next.rows);

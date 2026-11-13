@@ -4,7 +4,7 @@ import { MaBandStrategyForm } from '../../forms/MaBandStrategyForm';
 import { DcaConditionalResult } from '../../results/DcaConditionalResult';
 import type { ModeController, SharedModeProps } from '../types';
 import { commonFields } from '../commonFields';
-import { strategyRun } from '../strategyRun';
+import { sellRulesOf, strategyRun } from '../strategyRun';
 import { buildMaBandRequest } from './request';
 import { MA_BAND } from '../../shared/maBand';
 import { amountIssue, bandIssues, countErrors } from '../../settings/checks';
@@ -117,11 +117,19 @@ export const useMaBandMode = (shared: SharedModeProps): ModeController => {
         fxMode: options.fxMode,
         failureMessage: '이동평균 밴드 전략 실행에 실패했습니다.',
         band: { window: built.request.bandWindow, upperRate: built.request.upperRate, lowerRate: built.request.lowerRate },
+        sellRules: sellRulesOf(built.request),
       });
     },
     renderResult: (result) =>
       result.mode === 'ma-band' ? (
-        <DcaConditionalResult kind="ma-band" result={result} symbol={symbol} startDate={period.start} band={result.band} />
+        <DcaConditionalResult
+          kind="ma-band"
+          result={result}
+          symbol={symbol}
+          startDate={period.start}
+          band={result.band}
+          sellRules={result.sellRules}
+        />
       ) : null,
   };
 };

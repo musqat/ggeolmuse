@@ -19,6 +19,7 @@ import { strategyDeposits } from './assetSeries';
 import { CapitalGainsTaxFold } from './CapitalGainsTaxFold';
 import { TradeStatsCard } from './TradeStatsCard';
 import type { BandSetting } from '../shared/maBand';
+import type { SellRules } from '../shared/backtestDisplay';
 import { isSeparateSignal, signalName } from '../shared/signalSymbol';
 
 type StrategyKind = 'dca' | 'conditional' | 'ma-cross' | 'ma-band';
@@ -35,6 +36,8 @@ interface DcaConditionalResultProps {
   windows?: { short: number; long: number };
   // 실행한 요청의 밴드 평균 기간 · 위 · 아래 비율
   band?: BandSetting;
+  // 실행한 요청에서 켠 트레일링 스탑 · 부분 익절
+  sellRules?: SellRules;
 }
 
 const EMPTY_REASON: Record<StrategyKind, string> = {
@@ -83,6 +86,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   budget,
   windows,
   band,
+  sellRules,
 }) => {
   const [currency, setCurrency] = useState<MetricCurrency>('KRW');
   const investedLabel = INVESTED_LABEL[kind];
@@ -142,7 +146,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
             />
           )
         }
-        belowCards={result.tradeStats && <TradeStatsCard stats={result.tradeStats} />}
+        belowCards={result.tradeStats && <TradeStatsCard stats={result.tradeStats} sellRules={sellRules} />}
         chartTabs={[
           ...(kind === 'ma-cross'
             ? [

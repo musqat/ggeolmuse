@@ -24,6 +24,12 @@ export const cashKrw = (values: { totalAssetKrw?: number | null; currentValueKrw
 
 export { STRATEGY_NAMES } from "../comparison/catalog";
 
+// 켠 매도 규칙(트레일링 스탑 · 부분 익절)
+export interface SellRules {
+  trailing: boolean;
+  partial: boolean;
+}
+
 // 실행한 모드를 함께 담은 결과(mode 로 응답 종류를 가름)
 export type BacktestResult =
   | (SimulationResponse & { mode: "simple" })
@@ -32,6 +38,7 @@ export type BacktestResult =
       budget?: number;
       windows?: { short: number; long: number };
       band?: BandSetting;
+      sellRules?: SellRules;
     })
   | (PortfolioBacktestResponse & { mode: "portfolio" })
   | (ComparisonResponse & { mode: "compare-symbols" | "compare-strategies" });

@@ -12,7 +12,7 @@ export const usePartialTakeProfit = () => {
 
   return {
     field,
-    messages: messages.flatMap((step) => [step.gain, step.sell]),
+    messages: messages.map((step) => step.gain ?? step.sell),
     steps,
     on: hasPartialTakeProfits(steps),
     text: partialTakeProfitText(steps),

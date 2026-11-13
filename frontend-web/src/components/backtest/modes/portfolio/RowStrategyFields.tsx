@@ -12,9 +12,15 @@ interface RowStrategyProps {
   onChange: <K extends keyof PortfolioRow>(key: K, value: PortfolioRow[K]) => void;
 }
 
-// 줄 전략 고르기(방식대로인 줄은 방식이 고른 값으로 보임, 줄마다 같은 너비)
-export const RowStrategySelect = ({ n, row, onChange, method }: RowStrategyProps & { method: PortfolioMethod }) => (
-  <div className={`${VALUE_ROW} basis-32`}>
+// 줄 전략 고르기(방식대로인 줄은 방식이 고른 값으로 보임)
+export const RowStrategySelect = ({
+  n,
+  row,
+  onChange,
+  method,
+  className,
+}: RowStrategyProps & { method: PortfolioMethod; className: string }) => (
+  <div className={`${VALUE_ROW} ${className}`}>
     <span className={`${LEAD} mr-1`}>전략</span>
     <select
       className="input-inline cursor-pointer"

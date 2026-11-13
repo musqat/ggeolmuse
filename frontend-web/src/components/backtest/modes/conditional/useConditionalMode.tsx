@@ -4,7 +4,7 @@ import { ConditionalStrategyForm } from '../../forms/ConditionalStrategyForm';
 import { DcaConditionalResult } from '../../results/DcaConditionalResult';
 import type { ModeController, SharedModeProps } from '../types';
 import { commonFields } from '../commonFields';
-import { strategyRun } from '../strategyRun';
+import { sellRulesOf, strategyRun } from '../strategyRun';
 import { buildConditionalRequest } from './request';
 import { AMOUNT_UNITS, useAmountUnit, useRoundCost } from '../../shared/amountUnit';
 import { hasSellRates } from '../../shared/sellRates';
@@ -189,6 +189,7 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
         fxMode: options.fxMode,
         failureMessage: '조건부 전략 실행에 실패했습니다.',
         budget: built.request.totalInvestment,
+        sellRules: sellRulesOf(built.request),
       });
     },
     renderResult: (result) =>
@@ -199,6 +200,7 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
           symbol={symbol}
           startDate={period.start}
           budget={result.budget}
+          sellRules={result.sellRules}
         />
       ) : null,
   };

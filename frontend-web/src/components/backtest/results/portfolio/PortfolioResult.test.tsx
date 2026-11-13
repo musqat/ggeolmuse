@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { PortfolioAssetResult, PortfolioBacktestResponse } from '../../../../services/api'
+import type { PortfolioAssetResult, PortfolioBacktestResponse, TradeReason } from '../../../../services/api'
 import { PortfolioResult } from './PortfolioResult'
 
 // 자산 추이는 받은 통화 · 일별 값 수 · 넣은 돈 합만 보임
@@ -165,7 +165,7 @@ describe('PortfolioResult', () => {
     render(<PortfolioResult result={result} />)
 
     expect(screen.getByRole('heading', { name: '종목별' })).toBeInTheDocument()
-    expect(screen.getByText('평가일 환율 ₩1,385.20')).toBeInTheDocument()
+    expect(screen.getByText('리밸런싱 없음 · 평가일 환율 ₩1,385.20')).toBeInTheDocument()
     expect(within(screen.getByRole('table')).getAllByRole('columnheader').map((th) => th.textContent)).toEqual([
       '종목',
       '전략',
@@ -186,6 +186,17 @@ describe('PortfolioResult', () => {
     expect(within(other).getByRole('rowheader')).toHaveTextContent('현금 환율 차 · 양도세')
     expect(cells(other)).toEqual(['-', '-', '-', '-', '-₩260,000', '-'])
     expect(within(other).getByText('-₩260,000')).toHaveClass('text-loss')
+  })
+
+  it('종목별 표 제목 줄 오른쪽에 리밸런싱 주기를 평가일 환율 앞에 보인다', () => {
+    const { rerender } = render(<PortfolioResult result={{ ...result, rebalance: 'YEARLY' }} />)
+    expect(screen.getByText('매년 리밸런싱 · 평가일 환율 ₩1,385.20')).toBeInTheDocument()
+
+    rerender(<PortfolioResult result={{ ...result, rebalance: 'QUARTERLY' }} />)
+    expect(screen.getByText('분기마다 리밸런싱 · 평가일 환율 ₩1,385.20')).toBeInTheDocument()
+
+    rerender(<PortfolioResult result={{ ...result, rebalance: 'MONTHLY' }} />)
+    expect(screen.getByText('매달 리밸런싱 · 평가일 환율 ₩1,385.20')).toBeInTheDocument()
   })
 
   it('판 돈으로 다시 산 줄은 원금 칸에 처음 넣은 돈만 보이고 수익률은 원금 대비다', () => {
@@ -273,13 +284,41 @@ describe('PortfolioResult', () => {
     expect(value('낸 양도세')).toHaveTextContent('₩1,000,000')
     expect(card('낸 양도세')).toHaveTextContent('남은 양도세 ₩330,000')
     expect(value('매수 · 매도')).toHaveTextContent('2번 · 2번')
-    expect(card('매수 · 매도')).toHaveTextContent('배당 재투자 1번 · 양도세 납부 1번')
+    expect(screen.getByText('기간 끝 2번')).toBeInTheDocument()
+    expect(screen.getByText('배당 재투자 1번 · 양도세 납부 1번')).toBeInTheDocument()
     expect(screen.getByText('· 거래 6건')).toBeInTheDocument()
     expect(screen.getByText('예상 양도세')).toBeInTheDocument()
 
     await userEvent.click(screen.getByText('매매 내역'))
     expect(screen.getByRole('combobox', { name: '종목' })).toBeInTheDocument()
     expect(within(screen.getAllByRole('table')[1]).getAllByRole('row')).toHaveLength(7)
+  })
+
+  it('매수 · 매도 카드 아래 줄에 매도를 전략 · 익절 · 손절 · 리밸런싱 · 기간 끝 차례로 이유마다 세고 0 인 이유는 뺀다', () => {
+    const sell = (reason: TradeReason) => ({ symbol: 'SPY', reason, date: '2023-06-01', trigger: reason, shares: -1, price: 400, amount: 0, fxRate: 1300 })
+    const { rerender } = render(
+      <PortfolioResult
+        result={{
+          ...sold,
+          sellCount: 6,
+          transactions: [
+            ...result.transactions,
+            sell('PERIOD_END_SALE'),
+            sell('REBALANCE_SELL'),
+            sell('STOP_LOSS'),
+            sell('TAKE_PROFIT'),
+            sell('TAKE_PROFIT'),
+            sell('STRATEGY_SELL'),
+          ],
+        }}
+      />
+    )
+    expect(screen.getByText('전략 1번 · 익절 2번 · 손절 1번 · 리밸런싱 1번 · 기간 끝 1번')).toBeInTheDocument()
+    expect(screen.getByText('배당 재투자 1번')).toBeInTheDocument()
+
+    rerender(<PortfolioResult result={{ ...sold, sellCount: 1, transactions: [result.transactions[0], sell('TAKE_PROFIT')] }} />)
+    expect(screen.getByText('익절 1번')).toBeInTheDocument()
+    expect(screen.queryByText(/배당 재투자/)).toBeNull()
   })
 
   it('양도세를 끄면 낸 양도세 카드는 - 와 끔 안내이고 예상 양도세 칸이 없다', () => {

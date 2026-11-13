@@ -87,7 +87,7 @@ export const portfolioHow = ({ lines, cadenceLabel, rounds, daily, sell, rebalan
     `종목 ${lines.length}개`,
     lump.length > 0 && `한 번에 ${mixed ? `${lump.length}개 ` : ''}${formatReadableWon(total(lump))}`,
     dca.length > 0 && `${mixed ? `적립식 ${dca.length}개 ` : ''}${dcaHow({ unit, cadenceLabel, rounds, daily, budget: '' })}`,
-    signals.length > 0 && `${signalNames.join(' · ')} ${signals.length}개 첫 매수 신호에 ${formatReadableWon(total(signals))}`,
+    signals.length > 0 && `${signalNames.join(', ')} ${signals.length}개 첫 매수 신호에 ${formatReadableWon(total(signals))}`,
     sell,
     rebalanced && `${REBALANCE_TEXT[rebalance]}${signals.length ? '(이동평균 교차 · 밴드 빼고)' : ''}`,
   ]

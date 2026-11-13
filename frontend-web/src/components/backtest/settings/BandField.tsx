@@ -41,7 +41,7 @@ export const BandField = ({
       inputMode={numeric ? 'numeric' : 'decimal'}
       aria-label={name}
       aria-invalid={isError(own) || undefined}
-      aria-describedby={own ? describedBy : undefined}
+      aria-describedby={own && own === message ? describedBy : undefined}
       value={value}
       onChange={(e) => onChange(numeric ? digitsOnly(e.target.value) : oneDecimal(e.target.value))}
     />

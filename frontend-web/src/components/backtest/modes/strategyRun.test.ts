@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { strategyRun } from './strategyRun'
+import { sellRulesOf, strategyRun } from './strategyRun'
 
 describe('strategyRun', () => {
   it('요청을 그 API 로 보내고 결과에 모드를 담으며, 이력은 전략 시뮬레이션으로 남긴다', async () => {
@@ -41,5 +41,20 @@ describe('strategyRun', () => {
     const run = strategyRun({ request: {}, call, mode: 'ma-band', fxMode: 'auto', failureMessage: '', band })
 
     await expect(run.execute()).resolves.toEqual({ symbol: 'SPY', mode: 'ma-band', band })
+  })
+
+  it('요청에 트레일링 하락 비율 · 부분 익절 단계가 있으면 그 규칙을 켠 것으로 본다', () => {
+    expect(sellRulesOf({})).toEqual({ trailing: false, partial: false })
+    expect(sellRulesOf({ trailingStopRate: 0.1, partialTakeProfits: [] })).toEqual({ trailing: true, partial: false })
+    expect(sellRulesOf({ partialTakeProfits: [{ gainRate: 0.2, sellRate: 0.5 }] })).toEqual({ trailing: false, partial: true })
+  })
+
+  it('켠 매도 규칙을 결과에 같이 담는다', async () => {
+    const call = vi.fn().mockResolvedValue({ data: { symbol: 'SPY' } })
+    const sellRules = { trailing: true, partial: false }
+
+    const run = strategyRun({ request: {}, call, mode: 'conditional', fxMode: 'auto', failureMessage: '', sellRules })
+
+    await expect(run.execute()).resolves.toEqual({ symbol: 'SPY', mode: 'conditional', sellRules })
   })
 })

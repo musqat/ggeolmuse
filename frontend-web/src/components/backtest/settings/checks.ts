@@ -2,12 +2,12 @@ import { formatNumber, formatReadableWon } from '../../../utils/format';
 import { MAX_SHARES, parseShares } from '../shared/amountUnit';
 import { isMonthly, parseMonths, type DcaCadence } from '../shared/dcaSchedule';
 import { parseWindow } from '../shared/maWindows';
-import { parseBandPercent } from '../shared/maBand';
+import { parseBandPercent, toRate } from '../shared/maBand';
 import type { SignalChoice } from '../shared/signalSymbol';
 import { stepRate, type TakeProfitStep } from '../shared/partialTakeProfit';
 import type { BacktestOptions } from '../shared/backtestOptions';
 import type { PortfolioAllocation } from '@services/api';
-import { rowAmount, rowSymbol, rowWeight, type PortfolioRow } from '../shared/portfolioRows';
+import { isWeightSumOk, rowAmount, rowSymbol, rowWeight, type PortfolioRow } from '../shared/portfolioRows';
 
 // 칸 아래 한 줄(오류는 실행을 막고 경고는 안 막음), 글 뒤에 작은 단추 하나
 export interface FieldMessage {
@@ -108,13 +108,22 @@ export const sellIssue = (takeProfit: string, stopLoss: string): FieldMessage | 
   return null;
 };
 
-// 트레일링 스탑 칸 오류(하락 0 초과 100 미만, 팔 비율은 하락과 함께 0 초과 100 이하, 둘 다 비면 끔)
+// 요청 비율로 바꿔도 0 · 1 이 되지 않는 퍼센트 끝값(범위 안 값이 반올림으로 밖이 될 때의 칸 아래 글)
+const RATE_MIN_PERCENT = '0.000001';
+const RATE_MAX_PERCENT = '99.999999';
+
+// 트레일링 스탑 칸 오류(하락 0 초과 100 미만, 팔 비율은 하락과 함께 0 초과 100 이하, 둘 다 비면 끔, 요청 비율로 바꾼 값으로 봄)
 export const trailingIssues = (stop: string, sell: string): { stop: FieldMessage | null; sell: FieldMessage | null } => {
   const stopValue = Number(stop.trim());
   const sellValue = Number(sell.trim());
-  const sellMessage = !stop.trim() ? error('하락 비율과 함께') : sellValue > 0 && sellValue <= 100 ? null : error('0 초과 100 이하');
+  const stopRate = toRate(stopValue);
+  const sellRate = toRate(sellValue);
+  const stopRange =
+    stopValue > 0 && stopValue < 100 ? `${RATE_MIN_PERCENT} 이상 ${RATE_MAX_PERCENT} 이하` : '0 초과 100 미만';
+  const sellRange = sellValue > 0 && sellValue <= 100 ? `${RATE_MIN_PERCENT} 이상 100 이하` : '0 초과 100 이하';
+  const sellMessage = !stop.trim() ? error('하락 비율과 함께') : sellRate > 0 && sellRate <= 1 ? null : error(sellRange);
   return {
-    stop: stop.trim() && !(stopValue > 0 && stopValue < 100) ? error('0 초과 100 미만') : null,
+    stop: stop.trim() && !(stopRate > 0 && stopRate < 1) ? error(stopRange) : null,
     sell: sell.trim() ? sellMessage : null,
   };
 };
@@ -124,23 +133,37 @@ export const partialTakeProfitIssues = (
   steps: TakeProfitStep[],
 ): { gain: FieldMessage | null; sell: FieldMessage | null }[] => {
   let highest = 0;
+  let highestValue = 0;
   return steps.map((step, index) => {
     const n = index + 1;
+    const gainValue = Number(step.gain.trim());
+    const sellValue = Number(step.sell.trim());
     const gainRate = stepRate(step.gain);
     const sellRate = stepRate(step.sell);
     const gain = !step.gain.trim()
       ? error(`${n}단계 수익률 비어 있음`)
       : !(gainRate > 0)
-        ? error(`${n}단계 수익률 0 초과`)
+        ? error(gainValue > 0 ? `${n}단계 수익률 ${RATE_MIN_PERCENT} 이상` : `${n}단계 수익률 0 초과`)
         : gainRate <= highest
-          ? error(`${n}단계 수익률 앞 단계보다 크게`)
+          ? error(
+              gainValue > highestValue
+                ? `${n}단계 수익률 앞 단계보다 ${RATE_MIN_PERCENT} 이상 크게`
+                : `${n}단계 수익률 앞 단계보다 크게`,
+            )
           : null;
-    if (gainRate > highest) highest = gainRate;
+    if (gainRate > highest) {
+      highest = gainRate;
+      highestValue = gainValue;
+    }
     const sell = !step.sell.trim()
       ? error(`${n}단계 팔 비율 비어 있음`)
       : sellRate > 0 && sellRate <= 1
         ? null
-        : error(`${n}단계 팔 비율 0 초과 100 이하`);
+        : error(
+            sellValue > 0 && sellValue <= 100
+              ? `${n}단계 팔 비율 ${RATE_MIN_PERCENT} 이상 100 이하`
+              : `${n}단계 팔 비율 0 초과 100 이하`,
+          );
     return { gain, sell };
   });
 };
@@ -193,13 +216,15 @@ const rowSignalIssues = (row: PortfolioRow, n: string) => {
     return { ...none, shortWindow: prefixed('짧은 기간', windows.short), longWindow: prefixed('긴 기간', windows.long) };
   }
   if (row.strategy !== 'MA_BAND') return none;
-  const rate = (name: string, text: string) =>
-    !text.trim() ? error(`${n} ${name} 비어 있음`) : parseBandPercent(text) === undefined ? error(`${n} ${name} 0 이상 100 미만`) : null;
+  const band = bandIssues(row.bandWindow, row.upper, row.lower);
+  // 빈 비율 칸은 칸 이름 뒤 "비어 있음"
+  const rate = (name: string, text: string, message: FieldMessage | null) =>
+    message && error(`${n} ${name} ${text.trim() ? message.text : '비어 있음'}`);
   return {
     ...none,
-    bandWindow: parseWindow(row.bandWindow) === undefined ? error(`${n} 밴드 기간 2 ~ 250 사이 정수`) : null,
-    upper: rate('위 비율', row.upper),
-    lower: rate('아래 비율', row.lower),
+    bandWindow: prefixed('밴드 기간', band.window),
+    upper: rate('위 비율', row.upper, band.upper),
+    lower: rate('아래 비율', row.lower, band.lower),
   };
 };
 
@@ -241,6 +266,10 @@ export const portfolioRowIssues = (
     return { symbol, value, ...others };
   });
 
+// 비율 방식 줄 비율 합이 100 밖(줄 비율 칸 오류가 있으면 그 칸 오류로 셈)
+export const isWeightSumBad = (rows: PortfolioRow[], allocation: PortfolioAllocation, messages: PortfolioRowMessages[]) =>
+  allocation === 'WEIGHT' && messages.every((message) => !message.value) && !isWeightSumOk(rows);
+
 export const maxIssue = (max: string): FieldMessage | null => {
   if (!max.trim()) return null;
   const value = Number(max);
@@ -259,11 +288,13 @@ export const windowIssues = (short: string, long: string) => {
   };
 };
 
-// 밴드 칸 오류(평균 기간 2 ~ 250 정수, 위 · 아래 비율 0 이상 100 미만)
+// 밴드 칸 오류(평균 기간 2 ~ 250 정수, 위 · 아래 비율 0 이상 100 미만, 비율은 요청 비율로 바꾼 값으로 봄)
 export const bandIssues = (window: string, upper: string, lower: string) => {
   const rate = (text: string) => {
     if (!text.trim()) return error('% 비어 있음');
-    return parseBandPercent(text) === undefined ? error('0 이상 100 미만') : null;
+    if (parseBandPercent(text) !== undefined) return null;
+    const value = Number(text.trim());
+    return error(value >= 0 && value < 100 ? `0 이상 ${RATE_MAX_PERCENT} 이하` : '0 이상 100 미만');
   };
   return {
     window: parseWindow(window) === undefined ? error('2 ~ 250 사이 정수') : null,

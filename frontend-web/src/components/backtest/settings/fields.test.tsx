@@ -392,6 +392,22 @@ describe('TrailingStopField', () => {
     expect(sellInput()).toHaveAttribute('aria-invalid', 'true')
     expect(sellInput()).toHaveAttribute('aria-describedby', screen.getByText('하락 비율과 함께').id)
   })
+
+  it('두 칸이 함께 틀리면 칸 아래 글을 낸 하락 칸만 그 줄과 잇는다', () => {
+    render(
+      <TrailingStopField
+        stop="100"
+        onStopChange={vi.fn()}
+        sell="0"
+        onSellChange={vi.fn()}
+        messages={{ stop: { kind: 'error', text: '0 초과 100 미만' }, sell: { kind: 'error', text: '0 초과 100 이하' } }}
+      />
+    )
+
+    expect(stopInput()).toHaveAttribute('aria-describedby', screen.getByText('0 초과 100 미만').id)
+    expect(sellInput()).toHaveAttribute('aria-invalid', 'true')
+    expect(sellInput()).not.toHaveAttribute('aria-describedby')
+  })
 })
 
 describe('PartialTakeProfitField', () => {
@@ -617,6 +633,27 @@ describe('BandField', () => {
     expect(screen.getByText('밴드 2 설정')).toBeInTheDocument()
     expect(screen.getByText('2 ~ 250 사이 정수')).toBeInTheDocument()
     expect(screen.queryByText('0 이상 100 미만')).toBeNull()
+  })
+
+  it('두 칸이 함께 틀리면 칸 아래 글을 낸 앞 칸만 그 줄과 잇는다', () => {
+    const range = () => ({ kind: 'error' as const, text: '0 이상 100 미만' })
+    render(
+      <BandField
+        window="200"
+        onWindowChange={vi.fn()}
+        upper="120"
+        onUpperChange={vi.fn()}
+        lower="120"
+        onLowerChange={vi.fn()}
+        messages={{ window: null, upper: range(), lower: range() }}
+      />
+    )
+
+    const upper = screen.getByRole('textbox', { name: '위 비율(평균 대비 퍼센트)' })
+    const lower = screen.getByRole('textbox', { name: '아래 비율(평균 대비 퍼센트)' })
+    expect(upper).toHaveAttribute('aria-describedby', screen.getByText('0 이상 100 미만').id)
+    expect(lower).toHaveAttribute('aria-invalid', 'true')
+    expect(lower).not.toHaveAttribute('aria-describedby')
   })
 })
 

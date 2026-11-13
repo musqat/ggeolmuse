@@ -45,17 +45,20 @@ vi.mock('@components/backtest/results/DcaConditionalResult', () => ({
     budget,
     windows,
     band,
+    sellRules,
   }: {
     result: { mode: string };
     budget?: number;
     windows?: { short: number; long: number };
     band?: { window: number; upperRate: number; lowerRate: number };
+    sellRules?: { trailing: boolean; partial: boolean };
   }) => (
     <>
       <div>결과: {result.mode}</div>
       {budget !== undefined && <div>예산: {budget}</div>}
       {windows && <div>이동평균 기간: {`${windows.short} · ${windows.long}`}</div>}
       {band && <div>밴드: {`${band.window} · ${band.upperRate} · ${band.lowerRate}`}</div>}
+      {sellRules && <div>켠 매도 규칙: {`트레일링 ${sellRules.trailing} · 부분 익절 ${sellRules.partial}`}</div>}
     </>
   ),
 }))
@@ -806,6 +809,7 @@ describe('Backtest 페이지 칸 오류 · 요약', () => {
       trailingSellRate: 0.5,
       reinvestDividends: false,
     })
+    expect(await screen.findByText('켠 매도 규칙: 트레일링 true · 부분 익절 false')).toBeInTheDocument()
   })
 
   it('이동평균 밴드: 트레일링 하락을 지우고 팔 비율만 남기면 그 칸으로 가며 요청하지 않고, 하락을 다시 적으면 두 비율로 요청한다', async () => {
@@ -839,6 +843,7 @@ describe('Backtest 페이지 칸 오류 · 요약', () => {
     await runBacktest()
     expect(vi.mocked(backtestApi.runMaCrossStrategy).mock.calls[0][0]).toMatchObject({ trailingStopRate: 0.08 })
     expect(vi.mocked(backtestApi.runMaCrossStrategy).mock.calls[0][0]).not.toHaveProperty('trailingSellRate')
+    expect(await screen.findByText('켠 매도 규칙: 트레일링 true · 부분 익절 false')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: '설정 초기화' }))
     await selectMode('이동평균 교차')
@@ -891,6 +896,7 @@ describe('Backtest 페이지 칸 오류 · 요약', () => {
     expect(vi.mocked(backtestApi.runMaBandStrategy).mock.calls[0][0]).toMatchObject({
       partialTakeProfits: [{ gainRate: 0.1, sellRate: 0.5 }],
     })
+    expect(await screen.findByText('켠 매도 규칙: 트레일링 false · 부분 익절 true')).toBeInTheDocument()
   })
 
   it('이동평균 교차: 부분 익절 단계를 요약에 적고 요청하며, 직전 설정으로 되살리고 설정 초기화로 비운다', async () => {
@@ -1207,7 +1213,7 @@ describe('Backtest 페이지 포트폴리오', () => {
     expect(summary()).toHaveTextContent('· 이동평균 교차 1개 첫 매수 신호에 300만원 · 매년 처음 비중으로 리밸런싱(이동평균 교차 · 밴드 빼고)')
   })
 
-  it('빈 줄이 있으면 그 줄 종목 칸으로 가며 요청하지 않고, 비율 합이 100 이 아니면 알림으로 막는다', async () => {
+  it('빈 줄이 있으면 그 줄 종목 칸으로 가며 요청하지 않고, 비율 합이 100 이 아니면 고칠 칸으로 세어 첫 비율 칸으로 간다', async () => {
     renderPage()
     await selectMode('포트폴리오')
     await addRow()
@@ -1223,10 +1229,12 @@ describe('Backtest 페이지 포트폴리오', () => {
     await userEvent.click(screen.getByRole('radio', { name: '비율' }))
     fireEvent.change(rowWeight(2), { target: { value: '30' } })
     expect(screen.getByTestId('portfolio-sum')).toHaveTextContent('합계 130%')
-    expect(summary()).not.toHaveTextContent('고칠 칸')
+    expect(summary()).toHaveTextContent('고칠 칸 1개')
+    expect(screen.getByTestId('backtest-run')).toHaveAttribute('aria-disabled', 'true')
     await runBacktest()
 
-    expect(alertSpy).toHaveBeenCalledWith('비율은 줄마다 0보다 크게, 합이 100% 가 되게 넣어 주세요.')
+    expect(rowWeight(1)).toHaveFocus()
+    expect(alertSpy).not.toHaveBeenCalled()
     expect(backtestApi.runPortfolio).not.toHaveBeenCalled()
   })
 
@@ -1244,6 +1252,22 @@ describe('Backtest 페이지 포트폴리오', () => {
     expect(summary()).toHaveTextContent('고칠 칸 1개')
     await runBacktest()
     expect(backtestApi.runPortfolio).not.toHaveBeenCalled()
+  })
+
+  it('줄을 고치지 않고 실행한 직전 설정을 되살려도 첫 줄은 보던 종목을 따라간다', async () => {
+    renderPage()
+    await selectMode('포트폴리오')
+    await runBacktest()
+
+    await userEvent.click(screen.getByRole('button', { name: '설정 초기화' }))
+    await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
+    expect(modes().getByRole('radio', { name: '포트폴리오' })).toHaveAttribute('aria-checked', 'true')
+    expect(rowSymbol(1)).toHaveValue('AAPL')
+
+    await selectMode('단순')
+    await pickSymbol(screen.getByRole('combobox', { name: '종목' }), 'ms', /MSFT/)
+    await selectMode('포트폴리오')
+    expect(rowSymbol(1)).toHaveValue('MSFT')
   })
 
   it('포트폴리오 줄 · 방식 · 리밸런싱도 직전 설정으로 되살리고 설정 초기화로 처음 줄 하나로 돌린다', async () => {
