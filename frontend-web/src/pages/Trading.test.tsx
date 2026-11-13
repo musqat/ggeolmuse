@@ -7,7 +7,6 @@ import { AxiosError, type AxiosResponse } from 'axios'
 import { stockApi, tradeApi } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
 import { useAccounts } from '@/hooks/useAccounts'
-import { AuthModalProvider } from '@/contexts/AuthModalContext'
 import Trading from './Trading'
 import { notify } from '@/components/common/notify'
 
@@ -33,8 +32,8 @@ const httpError = (detail: string) =>
 let alertSpy: ReturnType<typeof vi.spyOn>
 let errorSpy: ReturnType<typeof vi.spyOn>
 
-function renderPage({ authenticated = true, accounts = [{ accountId: 3, accountName: '연습' }] } = {}) {
-  vi.mocked(useAuth).mockReturnValue({ isAuthenticated: authenticated, login: vi.fn() } as never)
+function renderPage({ accounts = [{ accountId: 3, accountName: '연습' }] } = {}) {
+  vi.mocked(useAuth).mockReturnValue({ isAuthenticated: true } as never)
   vi.mocked(useAccounts).mockReturnValue({
     accounts, selectedAccountId: accounts[0]?.accountId ?? null, setSelectedAccountId: vi.fn(),
   } as never)
@@ -43,9 +42,7 @@ function renderPage({ authenticated = true, accounts = [{ accountId: 3, accountN
   render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
-        <AuthModalProvider>
-          <Trading />
-        </AuthModalProvider>
+        <Trading />
       </MemoryRouter>
     </QueryClientProvider>
   )
@@ -70,19 +67,6 @@ beforeEach(() => {
   errorSpy = vi.spyOn(notify, 'error').mockImplementation(() => {})
 })
 afterEach(() => vi.restoreAllMocks())
-
-describe('Trading 로그인 전', () => {
-  it('안내와 로그인 버튼을 보여주고, 누르면 로그인 창을 연다', async () => {
-    renderPage({ authenticated: false })
-
-    expect(screen.getByText('로그인이 필요한 서비스입니다')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: /로그인하기/ }))
-
-    expect(screen.getByRole('button', { name: /구글로 로그인/ })).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: '회원가입' }))
-    expect(await screen.findByLabelText('닉네임')).toBeInTheDocument()
-  })
-})
 
 describe('Trading 주문', () => {
   it('종가 매수: 마지막 거래일 · 종가로 주문하고 체결 문구를 띄운 뒤 수량을 1 로 되돌린다', async () => {

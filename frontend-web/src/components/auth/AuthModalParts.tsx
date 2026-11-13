@@ -114,7 +114,7 @@ interface GoogleButtonProps {
   onError: (message: string) => void;
 }
 
-// 구글 로그인 버튼(가입도 같은 흐름)
+// 구글 로그인 버튼(가입도 같은 흐름, 로그인 뒤 지금 화면으로 돌아옴)
 export const GoogleButton: React.FC<GoogleButtonProps> = ({ label, loadingLabel, failMessage, onError }) => {
   const { loginWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -124,7 +124,7 @@ export const GoogleButton: React.FC<GoogleButtonProps> = ({ label, loadingLabel,
     onError('');
 
     try {
-      await loginWithGoogle();
+      await loginWithGoogle({ returnTo: window.location.pathname + window.location.search });
     } catch (error) {
       console.error(failMessage, error);
       onError(failMessage);

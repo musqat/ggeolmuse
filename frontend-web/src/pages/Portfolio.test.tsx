@@ -12,7 +12,6 @@ vi.mock('../services/api', () => ({
   accountsApi: { getAccountBalance: vi.fn() },
 }))
 vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }))
-vi.mock('../hooks/useAuthModal', () => ({ useAuthModal: () => ({ openLogin: vi.fn(), openSignup: vi.fn() }) }))
 vi.mock('../components/charts/portfolio/PortfolioPieChart', () => ({
   default: ({ data }: { data: { symbol: string; color: string }[] }) => (
     <p>파이 {data.map((d) => `${d.symbol}:${d.color}`).join(',')}</p>
@@ -32,10 +31,9 @@ function Where() {
 
 function renderPage({
   path = '/portfolio?accountId=3',
-  isAuthenticated = true,
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
 } = {}) {
-  vi.mocked(useAuth).mockReturnValue({ isAuthenticated } as never)
+  vi.mocked(useAuth).mockReturnValue({ isAuthenticated: true } as never)
   const view = render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[path]}>
@@ -59,13 +57,6 @@ beforeEach(() => {
 })
 
 describe('Portfolio', () => {
-  it('로그인 안 했으면 로그인 안내를 보인다', () => {
-    renderPage({ isAuthenticated: false })
-
-    expect(screen.getByText('포트폴리오 기능을 이용하시려면 먼저 로그인해주세요')).toBeInTheDocument()
-    expect(portfolioApi.getAccountPortfolio).not.toHaveBeenCalled()
-  })
-
   it('계좌를 안 골랐으면 계좌 관리로 보낸다', async () => {
     const user = userEvent.setup()
     renderPage({ path: '/portfolio' })

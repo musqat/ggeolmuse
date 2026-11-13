@@ -84,6 +84,20 @@ describe('LoginModal', () => {
     expect(screen.getByRole('button', { name: '비밀번호 숨기기' })).toBeInTheDocument()
   })
 
+  it('구글 로그인은 로그인을 시작한 화면으로 돌아오게 지금 경로를 넘긴다', async () => {
+    const user = userEvent.setup()
+    window.history.pushState({}, '', '/trading?symbol=AAPL')
+    try {
+      renderModal()
+
+      await user.click(screen.getByRole('button', { name: '구글로 로그인' }))
+
+      expect(loginWithGoogle).toHaveBeenCalledWith({ returnTo: '/trading?symbol=AAPL' })
+    } finally {
+      window.history.pushState({}, '', '/')
+    }
+  })
+
   it('구글 로그인이 실패하면 알린다', async () => {
     const user = userEvent.setup()
     vi.spyOn(console, 'error').mockImplementation(() => {})

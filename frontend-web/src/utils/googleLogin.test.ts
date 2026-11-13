@@ -89,4 +89,10 @@ describe('다시 로그인 · 돌아올 경로', () => {
     expect(take('/\\evil.example')).toBe('/')
     expect(take('https://evil.example')).toBe('/')
   })
+
+  it('콜백 화면에서 시작한 로그인은 콜백 화면 대신 홈으로 돌아온다', () => {
+    sessionStorage.setItem(OAUTH_RETURN_KEY, '/oauth/callback?error=access_denied')
+
+    expect(takeOAuthReturnPath()).toBe('/')
+  })
 })

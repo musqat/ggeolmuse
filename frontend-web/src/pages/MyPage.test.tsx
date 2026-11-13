@@ -221,18 +221,6 @@ describe('MyPage 사용자 정보', () => {
     await waitFor(() => expect(notify.success).toHaveBeenCalledWith('닉네임이 변경되었습니다.'))
     expect(notify.error).not.toHaveBeenCalled()
   })
-
-  it('로그인하지 않았으면 홈으로 보낸다', async () => {
-    renderPage({}, { auth: { isAuthenticated: false, user: null } })
-
-    expect(await screen.findByText('홈')).toBeInTheDocument()
-  })
-
-  it('로그인 확인 중이면 홈으로 보내지 않는다', () => {
-    renderPage({}, { auth: { isAuthenticated: false, isLoading: true, user: null } })
-
-    expect(screen.queryByText('홈')).toBeNull()
-  })
 })
 
 describe('MyPage 실패 문구', () => {

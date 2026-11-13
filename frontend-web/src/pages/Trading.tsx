@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
-import { LoginRequired } from '../components/common/LoginRequired';
 import TradeHistoryTab from '../components/trading/TradeHistoryTab';
 import TradingCapacityPanel from '../components/trading/TradingCapacityPanel';
 import { stockApi } from '../services/api';
@@ -87,11 +86,6 @@ const Trading: React.FC = () => {
       setLimitPrice('');
     }
   };
-
-  // 인증되지 않은 사용자를 위한 안내 화면
-  if (!isAuthenticated) {
-    return <LoginRequired description="가상 거래 서비스를 이용하시려면 먼저 로그인해주세요" />;
-  }
 
   const currentPrice = order.executionPrice;
   const totalAmount = currentPrice * Number(quantity || 0);

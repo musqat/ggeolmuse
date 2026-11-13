@@ -8,7 +8,7 @@ const authEndpoint = (origin: string) => `${origin}/auth/realms/muscathan/protoc
 
 export const oauthRedirectUri = (origin: string) => `${origin}/oauth/callback`;
 
-// 콜백 뒤 돌아갈 화면(탈퇴 재로그인이면 마이페이지)
+// 콜백 뒤 돌아갈 화면(로그인을 시작한 화면, 탈퇴 재로그인이면 마이페이지)
 export const OAUTH_RETURN_KEY = 'oauth_return_to';
 
 export type GoogleLoginOptions = {
@@ -17,11 +17,11 @@ export type GoogleLoginOptions = {
   returnTo?: string;
 };
 
-// 저장해 둔 돌아갈 경로 꺼내기(같은 출처 경로 "/..." 만, "//host" 같은 바깥 주소는 홈)
+// 저장해 둔 돌아갈 경로 꺼내기(같은 출처 경로 "/..." 만, "//host" 같은 바깥 주소와 콜백 화면은 홈)
 export const takeOAuthReturnPath = (): string => {
   const path = sessionStorage.getItem(OAUTH_RETURN_KEY);
   sessionStorage.removeItem(OAUTH_RETURN_KEY);
-  return path && /^\/(?![/\\])/.test(path) ? path : '/';
+  return path && /^\/(?![/\\])/.test(path) && !path.startsWith('/oauth/callback') ? path : '/';
 };
 
 // code_verifier 에 쓸 수 있는 문자 (RFC 7636 unreserved)

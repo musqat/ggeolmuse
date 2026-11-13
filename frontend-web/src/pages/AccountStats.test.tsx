@@ -34,7 +34,6 @@ vi.mock('../services/api', () => ({
 }))
 vi.mock('../components/account/stats/StatsBarChart', () => ({ StatsBarChart: () => <i data-testid="bars" /> }))
 vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }))
-vi.mock('../hooks/useAuthModal', () => ({ useAuthModal: () => ({ openLogin: vi.fn(), openSignup: vi.fn() }) }))
 
 const FLOW: ProfitFlowResponse = {
   points: [
@@ -124,8 +123,8 @@ const BALANCES: Record<number, { balanceKrw: number; balanceUsd: number }> = {
   5: { balanceKrw: 500_000, balanceUsd: 0 },
 }
 
-function renderPage(isAuthenticated = true) {
-  vi.mocked(useAuth).mockReturnValue({ isAuthenticated } as never)
+function renderPage() {
+  vi.mocked(useAuth).mockReturnValue({ isAuthenticated: true } as never)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
@@ -166,13 +165,6 @@ beforeEach(() => {
 })
 
 describe('AccountStats', () => {
-  it('로그인 안 했으면 로그인 안내를 보이고 수익 흐름을 묻지 않는다', () => {
-    renderPage(false)
-
-    expect(screen.getByText('계좌 통계를 보시려면 먼저 로그인해주세요')).toBeInTheDocument()
-    expect(portfolioApi.getProfitFlow).not.toHaveBeenCalled()
-  })
-
   it('처음에는 전체 계좌 · 전체 기간 수익 흐름을 불러 총자산 · 현재 수익, 최고 · 최저 수익을 그 날짜 원금 대비 % 와 함께 보인다', async () => {
     renderPage()
 

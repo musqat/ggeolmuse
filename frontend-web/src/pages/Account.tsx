@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { LoginRequired } from '../components/common/LoginRequired';
 import { PageSpinner } from '../components/common/Spinner';
 
 import { useAccountData } from '../hooks/useAccountData';
@@ -49,11 +48,6 @@ const Account: React.FC = () => {
 
     return formatBalanceAmount(amount, currency);
   };
-
-  // 로그인하지 않은 사용자
-  if (!isAuthenticated) {
-    return <LoginRequired description="계좌 관리 기능을 이용하시려면 먼저 로그인해주세요" />;
-  }
 
   if (loading) {
     return <PageSpinner />;
