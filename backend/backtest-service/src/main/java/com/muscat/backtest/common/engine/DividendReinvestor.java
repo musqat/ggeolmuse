@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
@@ -33,6 +34,22 @@ public final class DividendReinvestor {
       BigDecimal dividendTaxRate,
       BigDecimal manualPurchaseFxRate,
       BigDecimal currentFxRateValue) {
+    return reinvest(marketData, dividendHistory, transactions, symbol, firstPurchaseDate, reinvestEnabled,
+        dividendTaxRate, manualPurchaseFxRate, currentFxRateValue, exDate -> { });
+  }
+
+  // 배당락일 순서로 재투자, 배당마다 먼저 그 배당락일을 beforeDividend 에 넘김
+  public static BigDecimal reinvest(
+      MarketDataClientWrapper marketData,
+      DividendHistoryDto dividendHistory,
+      List<StrategyTransaction> transactions,
+      String symbol,
+      LocalDate firstPurchaseDate,
+      boolean reinvestEnabled,
+      BigDecimal dividendTaxRate,
+      BigDecimal manualPurchaseFxRate,
+      BigDecimal currentFxRateValue,
+      Consumer<LocalDate> beforeDividend) {
 
     final BigDecimal[] dividendsReinvestedArray = {BigDecimal.ZERO};
 
@@ -82,6 +99,7 @@ public final class DividendReinvestor {
             && !dividend.getExDate().isAfter(LocalDate.now()))
         .sorted((d1, d2) -> d1.getExDate().compareTo(d2.getExDate()))
         .forEach(dividend -> {
+          beforeDividend.accept(dividend.getExDate());
           BigDecimal sharesAtDividendDate = transactions.stream()
               .filter(tx -> BacktestCalculationUtils.receivesDividend(tx.tradedOn(), dividend.getExDate()))
               .map(StrategyTransaction::getShares)

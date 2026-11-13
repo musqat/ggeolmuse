@@ -1,6 +1,6 @@
 import type { SimulationRequest } from '@services/api';
 import type { BuildResult, RunContext } from '../types';
-import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
+import { toOptionFields, yearEndFields, type BacktestOptions } from '../../shared/backtestOptions';
 import { parseShares, type AmountUnitValues } from '../../shared/amountUnit';
 
 export interface SimpleValues extends BacktestOptions, AmountUnitValues {
@@ -43,6 +43,7 @@ export const buildSimpleRequest = (
     saleDate: effectiveSaleDate,
     ...(values.unit === 'SHARES' ? { sharesPerPurchase: shares } : { investmentAmount: investment }),
     ...toOptionFields(values),
+    ...yearEndFields(values),
   };
   return { request };
 };

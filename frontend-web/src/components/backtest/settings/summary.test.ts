@@ -306,6 +306,27 @@ describe('요약 둘째 줄', () => {
     expect(changedOptions(base, false, '모자라면 손실 종목부터 팖')).toEqual(['모자라면 손실 종목부터 팖'])
   })
 
+  it('연말 정리를 고를 수 있는 모드에서 양도세 · 연말 정리를 켜면 양도세 글 뒤에 바꾼 것으로 적고, 못 고르는 모드나 양도세를 끄면 적지 않는다', () => {
+    const base = {
+      periodEnd: 'HOLD' as const,
+      tradingFeeRate: '0',
+      dividendTax: true,
+      capitalGainsTax: true,
+      reinvestDividends: false,
+      fxMode: 'auto' as const,
+      yearEndHarvest: true,
+    }
+    expect(detailParts(base, false, '모자라면 팔아 냄', true).slice(2, 5)).toEqual([
+      { text: '양도세 22%', changed: false },
+      { text: '모자라면 팔아 냄', changed: true },
+      { text: '연말 정리', changed: true },
+    ])
+    expect(changedOptions(base, false, '', true)).toEqual(['연말 정리'])
+    expect(changedOptions(base, false, '', false)).toEqual([])
+    expect(changedOptions({ ...base, capitalGainsTax: false }, false, '', true)).toEqual(['양도세 끔'])
+    expect(changedOptions({ ...base, yearEndHarvest: false }, false, '', true)).toEqual([])
+  })
+
   it('접힌 세부 설정: 기본값도 값으로 쓰고 바꾼 것만 표시, 수수료 빈 칸은 0%', () => {
     const base = {
       periodEnd: 'HOLD' as const,

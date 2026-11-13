@@ -46,6 +46,7 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.NavigableSet;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.Function;
@@ -54,7 +55,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-// 포트폴리오 엔진: 여러 종목을 현금 하나(USD)로 날마다 양도세 납부(모자라면 판매 방식대로 매도) → 배당 → 익절 · 손절 → 이동평균 · 밴드 줄 신호 매매 → 회차 매수 → 리밸런싱 → 기간 끝 매도 → 평가 순서로 돌림
+// 포트폴리오 엔진: 여러 종목을 현금 하나(USD)로 날마다 양도세 납부(모자라면 판매 방식대로 매도) → 배당 → 익절 · 손절 → 이동평균 · 밴드 줄 신호 매매 → 회차 매수 → 리밸런싱 → 연말 정리 → 기간 끝 매도 → 평가 순서로 돌림
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -93,7 +94,10 @@ public class PortfolioEngine {
       ? new FxRateDto(valuationDate, request.getCurrentFxRate())
       : BacktestDataUtils.getFxRateAt(marketData, valuationDate);
 
-    Run run = new Run(request, lines, fxRates, valuationDate);
+    Set<LocalDate> harvestDates = YearEndHarvest.enabled(request.getCapitalGainsTax(), request.getYearEndHarvest())
+      ? YearEndHarvest.dates(dates, request.getStartDate(), valuationDate)
+      : Set.of();
+    Run run = new Run(request, lines, fxRates, valuationDate, harvestDates);
     dates.forEach(run::day);
     // 마지막 일봉 뒤 평가일까지 배당락일이 온 배당은 현금으로
     run.receiveDividends(valuationDate, false);
@@ -224,6 +228,7 @@ public class PortfolioEngine {
     private final CapitalGainsTaxPayer taxPayer;
     private final PortfolioRebalance rebalance;
     private final PortfolioTaxSale taxSale;
+    private final Set<LocalDate> harvestDates;
     private final List<StrategyTransaction> transactions = new ArrayList<>();
     private final List<Dividend> dividends = new ArrayList<>();
     private final List<Day> days = new ArrayList<>();
@@ -234,7 +239,8 @@ public class PortfolioEngine {
     private int rebalancedPeriod = Integer.MIN_VALUE;
     private StrategyTransaction lastPayment;
 
-    private Run(PortfolioRequest request, List<Line> lines, FxRates fxRates, LocalDate valuationDate) {
+    private Run(PortfolioRequest request, List<Line> lines, FxRates fxRates, LocalDate valuationDate,
+      Set<LocalDate> harvestDates) {
       this.request = request;
       this.lines = lines;
       this.targets = lines.stream().filter(line -> line.signal == null).toList();
@@ -243,9 +249,10 @@ public class PortfolioEngine {
       this.taxPayer = new CapitalGainsTaxPayer(Boolean.TRUE.equals(request.getCapitalGainsTax()));
       this.rebalance = PortfolioRebalance.orNone(request.getRebalance());
       this.taxSale = PortfolioTaxSale.orNone(request.getTaxSale());
+      this.harvestDates = harvestDates;
     }
 
-    // 양도세 납부 → 배당 → 익절 · 손절 → 신호 매매 → 회차 매수 → 리밸런싱 → 기간 끝 매도 → 평가(평가일은 마무리에서)
+    // 양도세 납부 → 배당 → 익절 · 손절 → 신호 매매 → 회차 매수 → 리밸런싱 → 연말 정리 → 기간 끝 매도 → 평가(평가일은 마무리에서)
     private void day(LocalDate date) {
       BigDecimal fx = fxOn(date);
       lines.forEach(line -> {
@@ -266,6 +273,9 @@ public class PortfolioEngine {
       if (rebalanceDue(date)) {
         rebalance(date, fx);
       }
+      if (harvestDates.contains(date)) {
+        harvest(date, fx);
+      }
       if (PeriodEnd.sells(request.getPeriodEnd())) {
         lines.stream().filter(line -> date.equals(line.candles.lastKey())).forEach(line -> sellAtEnd(line, date, fx));
       }
@@ -273,6 +283,33 @@ public class PortfolioEngine {
         BigDecimal rawUsd = lines.stream().map(Line::valueUsd).reduce(cash, BigDecimal::add);
         days.add(new Day(date, rawUsd, pendingDepositUsd));
         pendingDepositUsd = BigDecimal.ZERO;
+      }
+    }
+
+    // 그 날짜 일봉과 주식이 있는 줄(기간 끝에 그 날짜 파는 줄은 빼고)을 연말 정리 계획대로 그 날짜 종가에 팔고 다시 삼(현금 · 신호 줄 몫은 그대로)
+    private void harvest(LocalDate date, BigDecimal fx) {
+      boolean sellsAtEnd = PeriodEnd.sells(request.getPeriodEnd());
+      Map<String, Line> harvestable = new HashMap<>();
+      lines.stream()
+        .filter(line -> line.shares.signum() > 0 && line.candles.containsKey(date))
+        .filter(line -> !(sellsAtEnd && date.equals(line.candles.lastKey())))
+        .forEach(line -> harvestable.put(line.symbol, line));
+      Map<String, BigDecimal> prices = new HashMap<>();
+      harvestable.forEach((symbol, line) -> prices.put(symbol, line.lastClose));
+      for (YearEndHarvest.Sale sale : YearEndHarvest.plan(date, transactions, prices, request.getTradingFeeRate(), fx)) {
+        Line line = harvestable.get(sale.symbol());
+        YearEndHarvest.Trade trade = YearEndHarvest.trade(date, sale, line.lastClose, line.shares, line.cost,
+          request.getTradingFeeRate(), fx);
+        trade.sale().setSymbol(line.symbol);
+        trade.sale().setReason(sale.gain() ? TradeReason.HARVEST_GAIN_SELL : TradeReason.HARVEST_LOSS_SELL);
+        trade.sale().setDefaultFxDate(saleDefaultFx(date));
+        trade.rebuy().setSymbol(line.symbol);
+        trade.rebuy().setReason(sale.gain() ? TradeReason.HARVEST_GAIN_BUY : TradeReason.HARVEST_LOSS_BUY);
+        trade.rebuy().setDefaultFxDate(defaultFx(date));
+        transactions.add(trade.sale());
+        transactions.add(trade.rebuy());
+        line.shares = line.shares.add(trade.sharesChange());
+        line.cost = line.cost.add(trade.costChange());
       }
     }
 

@@ -58,6 +58,8 @@ export interface ModeController {
   reinvestNote?: string;
   // 세부 설정의 양도세 낼 현금이 모자랄 때 고르기(없으면 칸 없음)
   taxSale?: TaxSaleControl;
+  // 세부 설정의 연말 정리 칩을 보이는지
+  harvest?: boolean;
   // 직전 설정 · 설정 초기화가 저장하는 이 모드의 값
   saved: object;
   // 저장한 값(없거나 모양이 다른 칸은 기본값)

@@ -9,6 +9,7 @@ import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.BacktestDataUtils;
 import com.muscat.backtest.common.util.FxPath;
 import com.muscat.backtest.common.util.FxRates;
+import com.muscat.backtest.common.util.PriceLookup;
 import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.model.StrategyTransaction;
@@ -23,9 +24,12 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableSet;
+import java.util.TreeSet;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
-// 전략 공통 마무리: 평가일 시세 · 환율 → 총투자 · 환율 합 → 배당 재투자 → 기간 끝 매도 → 계산
+// 전략 공통 마무리: 평가일 시세 · 환율 → 총투자 · 환율 합 → 배당 재투자 · 연말 정리 → 기간 끝 매도 → 계산
 public final class StrategyFinalizer {
 
   /** 마무리 결과(거래내역 + 계산결과 + 평가일 시세 + 일별 가치 · 지표) */
@@ -69,7 +73,8 @@ public final class StrategyFinalizer {
       Map<LocalDate, OHLCPriceDto> priceMap,
       FxRates dailyFx,
       PeriodEnd periodEnd,
-      BigDecimal tradingFeeRate) {
+      BigDecimal tradingFeeRate,
+      boolean yearEndHarvest) {
 
     StockPriceDto currentPrice = BacktestDataUtils.getPriceAt(
         marketData, symbol, valuationDate);
@@ -96,9 +101,21 @@ public final class StrategyFinalizer {
         .map(t -> t.getFxRate().multiply(t.getAmount()))
         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+    NavigableSet<LocalDate> harvestDates = yearEndHarvest
+        ? YearEndHarvest.dates(priceMap, requestStart, valuationDate)
+        : new TreeSet<>();
+    Consumer<LocalDate> harvestBefore = exDate -> {
+      while (!harvestDates.isEmpty() && harvestDates.first().isBefore(exDate)) {
+        harvest(transactions, harvestDates.pollFirst(), priceMap, manualPurchaseFxRate, dailyFx, tradingFeeRate);
+      }
+    };
     BigDecimal dividendsReinvested = DividendReinvestor.reinvest(
         marketData, dividendHistory, transactions, symbol,
-        firstPurchaseDate, reinvestEnabled, dividendTaxRate, manualPurchaseFxRate, currentFxRate.rate());
+        firstPurchaseDate, reinvestEnabled, dividendTaxRate, manualPurchaseFxRate, currentFxRate.rate(), harvestBefore);
+    if (yearEndHarvest) {
+      harvestBefore.accept(valuationDate.plusDays(1));
+      transactions.sort(Comparator.comparing(StrategyTransaction::tradedOn));
+    }
 
     if (PeriodEnd.sells(periodEnd)) {
       sellAtEnd(transactions, priceMap, valuationDate, currentPrice, currentFxRate.rate(), tradingFeeRate);
@@ -123,6 +140,26 @@ public final class StrategyFinalizer {
         calculation.getTotalAssetKrw(), currentFxRate.rate());
 
     return new Result(transactions, calculation, currentPrice, performance);
+  }
+
+  // 그 날짜까지 거래로 연말 정리한 판 거래 · 다시 산 거래를 더함(그 날짜에 주식이 없거나 팔 것이 없으면 그대로)
+  private static void harvest(List<StrategyTransaction> transactions, LocalDate date,
+      Map<LocalDate, OHLCPriceDto> priceMap, BigDecimal manualFxRate, FxRates dailyFx, BigDecimal feeRate) {
+    List<StrategyTransaction> held = transactions.stream()
+        .filter(tx -> !tx.tradedOn().isAfter(date))
+        .sorted(Comparator.comparing(StrategyTransaction::tradedOn))
+        .toList();
+    BigDecimal shares = held.stream().map(StrategyTransaction::getShares).reduce(BigDecimal.ZERO, BigDecimal::add);
+    if (!Decimals.isPositive(shares)) {
+      return;
+    }
+    YearEndHarvest.Trade trade = YearEndHarvest.single(date, held, PriceLookup.effectiveClose(priceMap.get(date)),
+        shares, StrategyCalculator.holdingCost(held), feeRate,
+        manualFxRate != null ? manualFxRate : dailyFx.get(date), manualFxRate == null && dailyFx.isDefault(date));
+    if (trade != null) {
+      transactions.add(trade.sale());
+      transactions.add(trade.rebuy());
+    }
   }
 
   // 남은 주식 전량의 기간 끝 매도를 거래에 더함(환율은 평가일 환율, 실현 손익은 보유분 원가 대비, 남은 주식이 없으면 그대로)

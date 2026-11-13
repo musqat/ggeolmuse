@@ -23,8 +23,39 @@ public record CapitalGainsTax(
   @Schema(description = "세후 총 평가 (총 자산 - 남은 양도세, KRW)", example = "9670000")
   BigDecimal afterTaxValueKrw,
   @Schema(description = "세후 수익률 (%, 총 수익률과 같은 기준 금액 대비)", example = "20.88")
-  BigDecimal afterTaxReturnPercent
+  BigDecimal afterTaxReturnPercent,
+  @Schema(description = "연말 정리와 기간 끝에 한 번에 판 양도세 비교 (연말 정리를 켜고 기간이 2년 이상일 때만, 아니면 null)")
+  HarvestComparison harvestComparison
 ) {
+
+  // 연말 정리 비교 없는 양도세
+  public CapitalGainsTax(List<Year> years, BigDecimal totalTaxKrw, BigDecimal paidTaxKrw, BigDecimal unpaidTaxKrw,
+    BigDecimal cashKrw, BigDecimal stockKrw, BigDecimal afterTaxValueKrw, BigDecimal afterTaxReturnPercent) {
+    this(years, totalTaxKrw, paidTaxKrw, unpaidTaxKrw, cashKrw, stockKrw, afterTaxValueKrw, afterTaxReturnPercent,
+      null);
+  }
+
+  // 연말 정리 비교를 더한 사본
+  public CapitalGainsTax withHarvestComparison(HarvestComparison comparison) {
+    return new CapitalGainsTax(years, totalTaxKrw, paidTaxKrw, unpaidTaxKrw, cashKrw, stockKrw, afterTaxValueKrw,
+      afterTaxReturnPercent, comparison);
+  }
+
+  @Schema(description = "같은 요청을 기간 끝에 판다고 보고 연말 정리를 끈 양도세와 켠 양도세")
+  public record HarvestComparison(
+    @Schema(description = "연말 정리 없이 기간 끝에 한 번에 판 양도세 합 (KRW)", example = "4026000")
+    BigDecimal sellAtEndTaxKrw,
+    @Schema(description = "연말 정리하고 기간 끝에 판 양도세 합 (KRW)", example = "2376000")
+    BigDecimal harvestTaxKrw,
+    @Schema(description = "연말 정리로 아낀 양도세 (앞 둘의 차, 음수면 더 냄, KRW)", example = "1650000")
+    BigDecimal savedKrw
+  ) {
+
+    // 기간 끝에 한 번에 판 양도세 - 연말 정리한 양도세
+    public static HarvestComparison of(BigDecimal sellAtEndTaxKrw, BigDecimal harvestTaxKrw) {
+      return new HarvestComparison(sellAtEndTaxKrw, harvestTaxKrw, sellAtEndTaxKrw.subtract(harvestTaxKrw));
+    }
+  }
 
   @Schema(description = "한 해 양도세와 납부")
   public record Year(

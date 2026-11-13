@@ -31,6 +31,8 @@ interface DetailSettingsProps {
   messages?: DetailMessages;
   // 양도세 낼 현금이 모자랄 때 고르기(양도세를 켰을 때만 보임)
   taxSale?: TaxSaleControl;
+  // 연말 정리 칩을 보이는지(양도세를 켰을 때만)
+  harvest?: boolean;
 }
 
 const PERIOD_END_OPTIONS = [
@@ -43,8 +45,10 @@ const FX_OPTIONS = [
   { value: 'manual' as const, label: '직접 입력' },
 ];
 const LOCKED_NOTE = '익절 · 손절 · 고점 대비 하락 매도 · 부분 익절이 있으면 배당은 현금으로';
+const HARVEST_NOTE =
+  '결제가 그해 안에 끝나는 마지막 거래일(T+1, 2024-05-28 전은 T+2)에 250만원 공제를 채우거나 손실로 상계하도록 팔고 같은 값에 다시 삼';
 
-// 접는 세부 설정: 기간 끝 · 세금(· 현금이 모자라면) · 배당 · 수수료 · 환율(접힌 줄에 기본값도 값으로, 바꾼 것은 진하게)
+// 접는 세부 설정: 기간 끝 · 세금(연말 정리 · 현금이 모자라면) · 배당 · 수수료 · 환율(접힌 줄에 기본값도 값으로, 바꾼 것은 진하게)
 export const DetailSettings = ({
   options,
   open,
@@ -53,10 +57,12 @@ export const DetailSettings = ({
   reinvestNote,
   messages = {},
   taxSale,
+  harvest = false,
 }: DetailSettingsProps) => {
   const panelId = useId();
   const periodEndLabelId = useId();
   const taxLabelId = useId();
+  const harvestNoteId = useId();
   const dividendLabelId = useId();
   const dividendNoteId = useId();
   const fxLabelId = useId();
@@ -83,7 +89,7 @@ export const DetailSettings = ({
         {!open && (
           <span className="text-xs">
             {hasError && <span className="text-danger">고칠 칸 있음 · </span>}
-            {detailParts(options, reinvestLocked, taxSaleSummary(taxSale)).map((part, index) => (
+            {detailParts(options, reinvestLocked, taxSaleSummary(taxSale), harvest).map((part, index) => (
               <Fragment key={part.text}>
                 {index > 0 && ' · '}
                 {part.changed ? <b className="font-semibold text-tx-1">{part.text}</b> : <span>{part.text}</span>}
@@ -128,6 +134,23 @@ export const DetailSettings = ({
                   양도세 22%(연 250만원 공제)
                 </button>
               </div>
+              {options.capitalGainsTax && harvest && (
+                <>
+                  <button
+                    type="button"
+                    aria-pressed={options.yearEndHarvest}
+                    aria-describedby={harvestNoteId}
+                    onClick={() => options.setYearEndHarvest(!options.yearEndHarvest)}
+                    className={`mt-1.5 ${PILL(options.yearEndHarvest)}`}
+                  >
+                    {options.yearEndHarvest && <Check aria-hidden className="h-3.5 w-3.5" />}
+                    연말 정리
+                  </button>
+                  <p id={harvestNoteId} className="mt-0.5 text-xs text-tx-2">
+                    {HARVEST_NOTE}
+                  </p>
+                </>
+              )}
             </SettingField>
 
             {options.capitalGainsTax && taxSale && <TaxSaleField control={taxSale} />}

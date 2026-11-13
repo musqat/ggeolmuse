@@ -1,6 +1,6 @@
 import type { DcaStrategyRequest } from '@services/api';
 import type { BuildResult, RunContext } from '../types';
-import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
+import { toOptionFields, yearEndFields, type BacktestOptions } from '../../shared/backtestOptions';
 import { parseShares, type AmountUnitValues } from '../../shared/amountUnit';
 import { dayOfMonth, parseMonths, resolveFirstPurchase, scheduleFields, type DcaCadence } from '../../shared/dcaSchedule';
 
@@ -70,6 +70,7 @@ export const buildDcaRequest = (
     }),
     ...(budget !== undefined && { totalInvestmentLimit: budget }),
     ...toOptionFields(values),
+    ...yearEndFields(values),
   };
   return { request };
 };

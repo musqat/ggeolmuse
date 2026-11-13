@@ -18,14 +18,14 @@ interface PortfolioResultProps {
   result: PortfolioBacktestResponse;
 }
 
-// 포트폴리오 결과: 지표 카드 넷(총 평가 · 총 수익률 · 연평균 · 최대 낙폭) · 합친 자산 추이 · 종목별 표, 판 것이 있으면 매매 카드 줄 · 매매 내역 · 예상 양도세
+// 포트폴리오 결과: 지표 카드 넷(총 평가 · 총 수익률 · 연평균 · 최대 낙폭) · 합친 자산 추이 · 종목별 표, 판 것(연말 정리 포함)이 있으면 매매 카드 줄 · 매매 내역 · 예상 양도세
 export const PortfolioResult: React.FC<PortfolioResultProps> = ({ result }) => {
   const [currency, setCurrency] = useState<MetricCurrency>('KRW');
   const { metrics, other, otherLabel, hasMetrics } = pickMetrics(result, currency);
   const deposits = useMemo(() => strategyDeposits(result.transactions ?? []), [result.transactions]);
   const cagr = metrics?.cagr;
   const mdd = metrics?.mdd;
-  const sold = result.sellCount > 0;
+  const sold = (result.transactions ?? []).some((tx) => tx.shares < 0);
   const symbols = useMemo(() => result.assets.map((asset) => asset.symbol), [result.assets]);
 
   return (

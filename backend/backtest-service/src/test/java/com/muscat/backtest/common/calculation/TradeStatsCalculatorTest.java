@@ -203,6 +203,22 @@ class TradeStatsCalculatorTest {
   }
 
   @Test
+  @DisplayName("연말 정리 매도 · 재매수는 매수 · 매도 수와 사이클 끝에 세지 않고, 판 실현 손익만 그 사이클에 더한다")
+  void yearEndHarvestKeepsCycle() {
+    List<StrategyTransaction> transactions = List.of(
+      // 1000달러로 사서 연말에 전량 팔아 300달러 이익, 판 돈 1300달러로 다시 사서 이듬해 100달러 이익에 전량 매도
+      buy(on(1, 10), "10"), sell(on(12, 31), "10", "300", TransactionTrigger.HARVEST_GAIN_SELL),
+      buy(on(12, 31), "9.9", "0", "1300", "1300"), sell(on(12, 31).plusDays(31), "9.9", "100"));
+    transactions.get(2).setTrigger(TransactionTrigger.HARVEST_GAIN_BUY);
+
+    TradeStats stats = TradeStatsCalculator.of(transactions, START, on(12, 31).plusDays(31));
+
+    // 사이클 하나, 400달러 ÷ 처음 원가 1000달러, 1월 10일 ~ 2월 1일 387일
+    assertStats(stats, new TradeStats(1, 1, 1, false, 1, 0, number("100.00"), number("40.00"), null, null,
+      number("387.0"), number("0.92"), 0, 0));
+  }
+
+  @Test
   @DisplayName("시작일과 평가일이 같으면 1년 사이클 수를 비운다")
   void sameDayPeriod() {
     TradeStats stats = TradeStatsCalculator.of(List.of(buy(START, "10")), START, START);

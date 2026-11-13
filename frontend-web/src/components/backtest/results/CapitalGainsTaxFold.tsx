@@ -1,5 +1,5 @@
 import React from 'react';
-import type { CapitalGainsTax, CapitalGainsTaxYear } from '../../../services/api';
+import type { CapitalGainsTax, CapitalGainsTaxYear, HarvestComparison } from '../../../services/api';
 import { gainLossClass } from '../../../utils/gainLoss';
 import { formatKrw, formatPercent, formatSigned } from '../../../utils/format';
 import { DetailRow, DetailSection } from './DetailSection';
@@ -55,6 +55,12 @@ export const TaxYearTable: React.FC<{ years: CapitalGainsTaxYear[] }> = ({ years
     </div>
   );
 
+// 기간 끝에 한 번에 판 양도세 · 연말 정리 양도세 · 아낀 돈(더 냈으면 더 낸 돈, 같으면 차이 없음)
+const harvestText = ({ sellAtEndTaxKrw, harvestTaxKrw, savedKrw }: HarvestComparison) => {
+  const difference = savedKrw > 0 ? `${formatKrw(savedKrw)} 아낌` : savedKrw < 0 ? `${formatKrw(-savedKrw)} 더 냄` : '차이 없음';
+  return `기간 끝에 한 번에 팔았을 때 양도세 ${formatKrw(sellAtEndTaxKrw)} · 연말 정리로 ${formatKrw(harvestTaxKrw)} · ${difference}`;
+};
+
 interface CapitalGainsTaxFoldProps {
   tax: CapitalGainsTax;
   // 세후 수익률 기준(투자금 · 누적 매수액 · 원금)
@@ -63,11 +69,12 @@ interface CapitalGainsTaxFoldProps {
   sellsForTax?: boolean;
 }
 
-// 예상 양도세 접는 칸: 낸 양도세를 뺀 현금 · 주식 · 남은 양도세 · 세후 총 평가와 연도별 양도세 · 납부
+// 예상 양도세 접는 칸: 낸 양도세를 뺀 현금 · 주식 · 남은 양도세 · 세후 총 평가와 연도별 양도세 · 납부, 연말 정리 비교가 있으면 제목 아래 한 줄
 export const CapitalGainsTaxFold: React.FC<CapitalGainsTaxFoldProps> = ({ tax, returnBasis, sellsForTax = false }) => (
   <ResultFold
     title="예상 양도세"
     meta={`${formatKrw(tax.totalTaxKrw)} · 낸 ${formatKrw(tax.paidTaxKrw)} · 세후 수익률 ${formatSigned(tax.afterTaxReturnPercent, formatPercent)}`}
+    note={tax.harvestComparison && harvestText(tax.harvestComparison)}
   >
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <DetailSection title="세후">

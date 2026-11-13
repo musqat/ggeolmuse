@@ -1,7 +1,7 @@
 import type { ConditionalStrategyRequest, PriceDirection } from '@services/api';
 import { DIRECTIONS } from '../../shared/priceDirection';
 import type { BuildResult, RunContext } from '../types';
-import { taxSaleFields, toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
+import { taxSaleFields, toOptionFields, yearEndFields, type BacktestOptions } from '../../shared/backtestOptions';
 import { hasSellRates, toSellRates } from '../../shared/sellRates';
 import { hasTrailingStop, toTrailingStop } from '../../shared/trailingStop';
 import { hasPartialTakeProfits, toPartialTakeProfits, type TakeProfitStep } from '../../shared/partialTakeProfit';
@@ -91,6 +91,7 @@ export const buildConditionalRequest = (
     ...(maxCount !== undefined && { maxPurchases: maxCount }),
     ...toOptionFields(values),
     ...taxSaleFields(values),
+    ...yearEndFields(values),
     ...sell.rates,
     ...trailing.fields,
     ...partial.fields,

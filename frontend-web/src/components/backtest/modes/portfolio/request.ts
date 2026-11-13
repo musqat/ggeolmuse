@@ -8,7 +8,7 @@ import type {
   PortfolioTaxSale,
 } from '@services/api';
 import type { BuildResult, RunContext } from '../types';
-import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
+import { toOptionFields, yearEndFields, type BacktestOptions } from '../../shared/backtestOptions';
 import { dayOfMonth, parseMonths, resolveFirstPurchase, scheduleFields, type DcaCadence } from '../../shared/dcaSchedule';
 import { toSellRates } from '../../shared/sellRates';
 import { WINDOWS_ERROR, parseWindows } from '../../shared/maWindows';
@@ -149,6 +149,7 @@ export const buildPortfolioRequest = (values: PortfolioValues, ctx: RunContext):
       })),
     rebalance: values.rebalance,
     ...toOptionFields(values),
+    ...yearEndFields(values),
     ...(taxSaleOf(values) !== 'NONE' && { taxSale: values.taxSale }),
   };
   return { request };

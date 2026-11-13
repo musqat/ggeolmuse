@@ -123,4 +123,26 @@ describe('CapitalGainsTaxFold', () => {
     expect(screen.getByText('판 거래가 없어 양도세 없음')).toBeInTheDocument()
     expect(screen.queryByRole('table')).toBeNull()
   })
+
+  it('연말 정리 비교가 있으면 닫힌 채 제목 아래 작은 한 줄로 기간 끝에 한 번에 판 양도세 · 연말 정리 양도세 · 차이를 보인다', () => {
+    const compared = (savedKrw: number) => ({
+      ...tax,
+      harvestComparison: { sellAtEndTaxKrw: 4026000, harvestTaxKrw: 4026000 - savedKrw, savedKrw },
+    })
+    const { rerender } = render(<CapitalGainsTaxFold tax={compared(1650000)} returnBasis="투자금 기준" />)
+
+    const line = screen.getByText('기간 끝에 한 번에 팔았을 때 양도세 ₩4,026,000 · 연말 정리로 ₩2,376,000 · ₩1,650,000 아낌')
+    expect(line).toHaveClass('text-xs')
+    expect(line.closest('summary')).not.toBeNull()
+    rerender(<CapitalGainsTaxFold tax={compared(-12000)} returnBasis="투자금 기준" />)
+    expect(screen.getByText('기간 끝에 한 번에 팔았을 때 양도세 ₩4,026,000 · 연말 정리로 ₩4,038,000 · ₩12,000 더 냄')).toBeInTheDocument()
+    rerender(<CapitalGainsTaxFold tax={compared(0)} returnBasis="투자금 기준" />)
+    expect(screen.getByText('기간 끝에 한 번에 팔았을 때 양도세 ₩4,026,000 · 연말 정리로 ₩4,026,000 · 차이 없음')).toBeInTheDocument()
+  })
+
+  it('연말 정리 비교가 없으면 그 줄이 없다', () => {
+    render(<CapitalGainsTaxFold tax={{ ...tax, harvestComparison: null }} returnBasis="투자금 기준" />)
+
+    expect(screen.queryByText(/기간 끝에 한 번에 팔았을 때/)).toBeNull()
+  })
 })

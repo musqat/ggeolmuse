@@ -213,6 +213,22 @@ class ResponseMapperTest {
     }
 
     @Test
+    @DisplayName("거래 건수는 연말 정리 매도 · 재매수를 빼고 센다")
+    void 거래_건수_연말_정리() {
+      List<StrategyTransaction> txs = new java.util.ArrayList<>(transactions(3));
+      txs.add(StrategyTransaction.builder().date(END).actualDate(END).price(BigDecimal.TEN)
+        .shares(new BigDecimal("-1")).amount(BigDecimal.ZERO).fxRate(new BigDecimal("1300")).trigger("손실 상계 매도")
+        .build());
+      txs.add(StrategyTransaction.builder().date(END).actualDate(END).price(BigDecimal.TEN).shares(BigDecimal.ONE)
+        .amount(BigDecimal.ZERO).fxRate(new BigDecimal("1300")).trigger("손실 상계 재매수").build());
+
+      StrategyResponse result = mapper.toStrategyResponse(dcaRequest(), txs, calculation(), price("120.5"), NONE);
+
+      assertThat(result.getTotalTransactions()).isEqualTo(3);
+      assertThat(result.getTransactions()).hasSize(5);
+    }
+
+    @Test
     @DisplayName("화면이 읽지 않는 칸(전략 설명 · 재투자 배당 · 원화 잔액 · 수수료 합계 · 달러 총 수익 · 성과 요약)은 응답에 없다")
     void 안_읽는_칸_없음() throws Exception {
       StrategyResponse result = mapper.toStrategyResponse(

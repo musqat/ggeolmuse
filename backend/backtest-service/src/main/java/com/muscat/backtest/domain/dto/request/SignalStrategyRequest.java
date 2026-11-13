@@ -1,6 +1,5 @@
 package com.muscat.backtest.domain.dto.request;
 
-import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.TaxSale;
 import java.math.BigDecimal;
 import java.util.List;
@@ -20,10 +19,6 @@ public interface SignalStrategyRequest extends StrategyRequest {
   BigDecimal getTradingFeeRate();
 
   BigDecimal getDividendTaxRate();
-
-  Boolean getCapitalGainsTax();
-
-  PeriodEnd getPeriodEnd();
 
   TaxSale getTaxSale();
 

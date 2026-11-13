@@ -106,6 +106,7 @@ export const useDcaMode = (shared: SharedModeProps): ModeController => {
       }),
     },
     errorCount: countErrors([symbolMessage, periodMessage, amountMessage, budgetMessage, monthsMessage, firstMessage]),
+    harvest: true,
     saved: { amount: amountPerPurchase, unit: amountUnit.unit, shares: amountUnit.shares, budget, cadence, months, firstPick },
     load: (saved) => {
       const next = pickValues(DEFAULTS, saved);

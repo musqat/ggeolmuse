@@ -21,7 +21,7 @@ import lombok.NoArgsConstructor;
 
 @Schema(description = "이동평균 밴드 투자 전략 요청")
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class MaBandStrategyRequest implements SignalStrategyRequest {
@@ -86,6 +86,9 @@ public class MaBandStrategyRequest implements SignalStrategyRequest {
   @Schema(description = "양도세 낼 현금이 모자랄 때 (NONE 현금이 생길 때 냄, SELL 그 날짜 종가에 모자란 만큼 팔아 냄, 비우면 NONE)", example = "SELL")
   private TaxSale taxSale;
 
+  @Schema(description = "연말 정리 (양도세를 켰을 때만, 해마다 결제(2024-05-28 전 T+2, 그 뒤 T+1)가 그해 안에 끝나는 마지막 거래일에 그해 원화 실현 이익이 연 250만원 공제에 맞도록 이익 난 보유분이나 손실 난 보유분을 팔고 같은 값에 다시 삼, 비우면 끔)", example = "true")
+  private Boolean yearEndHarvest;
+
   @Schema(description = "신호 종목: 밴드를 보는 종목 (지수 ^GSPC · ^NDX 도 됨, 비우면 종목 코드)", example = "^GSPC")
   private String signalSymbol;
 
@@ -118,5 +121,10 @@ public class MaBandStrategyRequest implements SignalStrategyRequest {
   // 아래 선 비율(비우면 0.025)
   public BigDecimal lowerRateOrDefault() {
     return lowerRate != null ? lowerRate : Band.DEFAULT_RATE;
+  }
+
+  @Override
+  public MaBandStrategyRequest yearEndVariant(boolean harvest) {
+    return toBuilder().yearEndHarvest(harvest).periodEnd(PeriodEnd.SELL_AT_END).userId(null).build();
   }
 }

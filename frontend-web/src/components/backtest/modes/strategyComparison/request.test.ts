@@ -25,9 +25,15 @@ const values: StrategyComparisonValues = {
   manualPurchaseFxRate: '1300',
   manualCurrentFxRate: '1350',
   taxSale: 'NONE',
+  yearEndHarvest: false,
 }
 
 describe('buildStrategyComparisonRequest', () => {
+  it('연말 정리를 켜도 전략 비교 요청에는 싣지 않는다', () => {
+    expect(buildStrategyComparisonRequest({ ...values, capitalGainsTax: true, yearEndHarvest: true }, ctx)).not.toHaveProperty(
+      'request.yearEndHarvest'
+    )
+  })
   it('고른 순서대로 카탈로그 변환을 거친 전략을 보내고 원금은 요청 금액 하나로 보낸다', () => {
     expect(buildStrategyComparisonRequest(values, ctx)).toStrictEqual({
       request: {

@@ -1,5 +1,6 @@
 package com.muscat.backtest.domain.dto.response;
 
+import com.muscat.backtest.domain.model.StrategyTransaction;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -60,7 +61,7 @@ public class SimulationResponse {
   private BigDecimal dividendYield;
 
   // 수수료 정보
-  @Schema(description = "매매 수수료 (USD, 기간 끝에 팔면 매도 수수료 포함)", example = "18.82")
+  @Schema(description = "매매 수수료 (USD, 연말 정리 매도 · 재매수와 기간 끝 매도 수수료 포함)", example = "18.82")
   private BigDecimal tradingFee; // 매매수수료 (USD)
   @Schema(description = "매수 후 잔액 (USD, 기간 끝에 팔면 판 돈 포함)", example = "498.17")
   private BigDecimal remainingCash; // 매수 후 잔액 (USD)
@@ -80,6 +81,8 @@ public class SimulationResponse {
   private BigDecimal totalReturnKrw;
   @Schema(description = "예상 양도소득세 · 세후 평가 (요청에서 끄면 null)")
   private CapitalGainsTax capitalGainsTax;
+  @Schema(description = "연말 정리 매도 · 재매수와 기간 끝 매도 (양도세와 연말 정리를 켰을 때만, 아니면 null)")
+  private List<StrategyTransaction> transactions;
 
   // 최적 타이밍 정보
   @Schema(description = "최적 매수일 (원화 주가 기준)", example = "2024-01-10")

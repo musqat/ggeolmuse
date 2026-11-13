@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
-import { DEFAULT_OPTIONS, optionValues, taxSaleFields, toOptionFields, useBacktestOptions } from './backtestOptions'
+import { DEFAULT_OPTIONS, optionValues, taxSaleFields, toOptionFields, useBacktestOptions, yearEndFields } from './backtestOptions'
 
 describe('세부 설정 값', () => {
-  it('기본값은 끝까지 보유 · 배당세 15% · 양도세 22%(현금이 생길 때 냄) · 배당 현금 · 수수료 0% · 환율 자동이고 직접 입력 환율은 비움', () => {
+  it('기본값은 끝까지 보유 · 배당세 15% · 양도세 22%(현금이 생길 때 냄 · 연말 정리 끔) · 배당 현금 · 수수료 0% · 환율 자동이고 직접 입력 환율은 비움', () => {
     expect(DEFAULT_OPTIONS).toEqual({
       periodEnd: 'HOLD',
       reinvestDividends: false,
@@ -11,6 +11,7 @@ describe('세부 설정 값', () => {
       dividendTax: true,
       capitalGainsTax: true,
       taxSale: 'NONE',
+      yearEndHarvest: false,
       fxMode: 'auto',
       manualPurchaseFxRate: '',
       manualCurrentFxRate: '',
@@ -51,6 +52,14 @@ describe('세부 설정 값', () => {
     expect(taxSaleFields({ ...DEFAULT_OPTIONS, taxSale: 'SELL', capitalGainsTax: false })).toStrictEqual({})
     const selling = { ...DEFAULT_OPTIONS, taxSale: 'SELL' as const }
     expect(toOptionFields(selling)).not.toHaveProperty('taxSale')
+  })
+
+  it('연말 정리는 양도세를 켜고 연말 정리를 켰을 때만 yearEndHarvest 로 싣고 다른 옵션 칸에는 넣지 않는다', () => {
+    expect(yearEndFields({ ...DEFAULT_OPTIONS, yearEndHarvest: true })).toStrictEqual({ yearEndHarvest: true })
+    expect(yearEndFields(DEFAULT_OPTIONS)).toStrictEqual({})
+    expect(yearEndFields({ ...DEFAULT_OPTIONS, yearEndHarvest: true, capitalGainsTax: false })).toStrictEqual({})
+    const harvesting = { ...DEFAULT_OPTIONS, yearEndHarvest: true }
+    expect(toOptionFields(harvesting)).not.toHaveProperty('yearEndHarvest')
   })
 
   it('값만 뽑고, 저장한 값을 넣으면 없거나 모양이 다른 칸은 기본값으로 둔다', () => {

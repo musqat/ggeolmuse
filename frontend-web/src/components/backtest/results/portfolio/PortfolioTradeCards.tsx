@@ -14,15 +14,17 @@ const SELL_REASONS: [TradeReason, string][] = [
   ['TAX_SALE', '납부용'],
 ];
 
-// 포트폴리오에서 판 것이 있을 때 카드 줄: 실현 손익(판 돈) · 낸 양도세(남은 양도세) · 매수 · 매도 수(아래 이유별 매도 수 · 배당 재투자 · 양도세 납부)
+// 포트폴리오에서 판 것이 있을 때 카드 줄: 실현 손익(판 돈) · 낸 양도세(남은 양도세) · 매수 · 매도 수(아래 이유별 매도 수 · 배당 재투자 · 양도세 납부 · 연말 정리)
 export const PortfolioTradeCards: React.FC<{ result: PortfolioBacktestResponse }> = ({ result }) => {
   const tax = result.capitalGainsTax;
   const sold = result.assets.reduce((sum, asset) => sum + asset.soldKrw, 0);
   const count = (reason: TradeReason) => result.transactions.filter((tx) => tx.reason === reason).length;
   const sells = SELL_REASONS.filter(([reason]) => count(reason) > 0).map(([reason, name]) => `${name} ${count(reason)}번`);
+  const harvests = count('HARVEST_GAIN_SELL') + count('HARVEST_LOSS_SELL');
   const others = [
     count('DIVIDEND_REINVESTMENT') > 0 && `배당 재투자 ${count('DIVIDEND_REINVESTMENT')}번`,
     count('TAX_PAYMENT') > 0 && `양도세 납부 ${count('TAX_PAYMENT')}번`,
+    harvests > 0 && `연말 정리 ${harvests}번`,
   ].filter(Boolean);
 
   return (

@@ -33,11 +33,19 @@ const values: PortfolioValues = {
   manualPurchaseFxRate: '',
   manualCurrentFxRate: '',
   taxSale: 'NONE',
+  yearEndHarvest: false,
 }
 
 const options = { reinvestDividends: true, tradingFeeRate: 0.0025, dividendTaxRate: 0.15, capitalGainsTax: true, periodEnd: 'SELL_AT_END' }
 
 describe('buildPortfolioRequest', () => {
+  it('양도세 · 연말 정리를 둘 다 켰을 때만 yearEndHarvest 를 싣는다', () => {
+    expect(buildPortfolioRequest({ ...values, capitalGainsTax: true, yearEndHarvest: true }, ctx)).toMatchObject({
+      request: { capitalGainsTax: true, yearEndHarvest: true },
+    })
+    expect(buildPortfolioRequest({ ...values, capitalGainsTax: false, yearEndHarvest: true }, ctx)).not.toHaveProperty('request.yearEndHarvest')
+    expect(buildPortfolioRequest({ ...values, capitalGainsTax: true, yearEndHarvest: false }, ctx)).not.toHaveProperty('request.yearEndHarvest')
+  })
   it('양도세를 켜고 판매 방식을 고르면 taxSale 로 싣고, 정한 순서면 줄마다 판매 차례를 taxSaleOrder 로 싣는다', () => {
     const ordered = [{ ...values.rows[0], taxSaleOrder: 2 }, { ...values.rows[1], taxSaleOrder: 1 }]
 

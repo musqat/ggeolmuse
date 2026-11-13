@@ -55,6 +55,7 @@ export const useSimpleMode = (shared: SharedModeProps): ModeController => {
       how: simpleHow({ byShares, amount: initialInvestment, shares: amountUnit.shares, perRound, defaultFx }),
     },
     errorCount: countErrors([symbolMessage, periodMessage, amountMessage]),
+    harvest: true,
     saved: { amount: initialInvestment, unit: amountUnit.unit, shares: amountUnit.shares },
     load: (saved) => {
       const next = pickValues(DEFAULTS, saved);

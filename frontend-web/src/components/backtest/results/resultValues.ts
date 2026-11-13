@@ -9,17 +9,24 @@ export const DIVIDEND_REINVEST = '배당 재투자';
 // 양도세를 낸 줄의 trigger 값
 export const TAX_PAYMENT = '양도세 납부';
 
+// 연말 정리 매도 · 재매수의 trigger 값
+export const YEAR_END_HARVEST = ['공제 채우기 매도', '공제 채우기 재매수', '손실 상계 매도', '손실 상계 재매수'];
+
 // 매도 거래(수량이 음수)
 export const isSale = (tx: { shares: number }) => tx.shares < 0;
 
-// 배당 재투자 · 매도 · 양도세 납부를 뺀 매수 거래
+// 연말 정리 매도 · 재매수
+export const isYearEndHarvest = (tx: { trigger?: string }) => tx.trigger !== undefined && YEAR_END_HARVEST.includes(tx.trigger);
+
+// 배당 재투자 · 매도 · 양도세 납부 · 연말 정리를 뺀 매수 거래
 export const isPurchase = (tx: { trigger?: string; shares: number }) =>
-  tx.trigger !== DIVIDEND_REINVEST && tx.trigger !== TAX_PAYMENT && !isSale(tx);
+  tx.trigger !== DIVIDEND_REINVEST && tx.trigger !== TAX_PAYMENT && !isYearEndHarvest(tx) && !isSale(tx);
 
 export const purchaseCount = (transactions: { trigger?: string; shares: number }[]) => transactions.filter(isPurchase).length;
 
-// 매도 횟수
-export const sellCount = (transactions: { shares: number }[]) => transactions.filter(isSale).length;
+// 연말 정리를 뺀 매도 횟수
+export const sellCount = (transactions: { trigger?: string; shares: number }[]) =>
+  transactions.filter((tx) => isSale(tx) && !isYearEndHarvest(tx)).length;
 
 // 고른 통화의 지표와 그 반대 통화 지표 · 이름
 export const pickMetrics = (result: Pick<StrategyResponse, 'metricsKrw' | 'metricsUsd'>, currency: MetricCurrency) => {

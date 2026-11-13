@@ -3,6 +3,7 @@ package com.muscat.backtest.domain.strategy;
 import com.muscat.backtest.common.calculation.TradeStatsCalculator;
 import com.muscat.backtest.common.engine.CapitalGainsTaxPayer;
 import com.muscat.backtest.common.engine.StrategyFinalizer;
+import com.muscat.backtest.common.engine.YearEndHarvest;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.TaxSale;
@@ -29,6 +30,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 
 // 신호 전략 공통 매매: 시작일부터 매매 종목 일봉마다 그 날짜까지의 신호로 들고 있을지 정하고, 양도세를 낸 뒤 그 날짜 종가에
@@ -94,7 +96,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
       StrategyFinalizer.Result finalized = StrategyFinalizer.run(
         marketData, request.getSymbol(), request.getStartDate(), actualEndDate, request.getCurrentFxRate(),
         request.getPurchaseFxRate(), false, request.getDividendTaxRate(), trades.transactions(), trades.priceMap(),
-        trades.dailyFx(), request.getPeriodEnd(), request.getTradingFeeRate());
+        trades.dailyFx(), request.getPeriodEnd(), request.getTradingFeeRate(), false);
 
       log.info("{} 전략 실행 완료: {} - 거래 {}건, 수익률 {}%",
         label(), request.getSymbol(), finalized.transactions().size(), finalized.calculation().getTotalReturnPercent());
@@ -140,7 +142,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
   }
 
   // 시작일부터 매매 종목 일봉마다 그 날짜까지의 신호로 보유 여부를 정하고 양도세를 낸 뒤 사고팖(계산이 실패한 날은 이유를 남기고 다음 거래일에 다시 봄)
-  // 트레일링 스탑 다음 부분 익절을 신호로 팔지 않는 날만 보고, 다 팔면 새 매수 신호까지 사지 않음
+  // 트레일링 스탑 다음 부분 익절을 신호로 팔지 않는 날만 보고, 다 팔면 새 매수 신호까지 사지 않음, 연말 정리 날은 사고판 뒤 연말 정리
   private StrategyPurchases trade(R request, Map<LocalDate, OHLCPriceDto> priceMap, SignalPrices signalPrices,
     TradeSignal signal, LocalDate actualEndDate, CapitalGainsTaxPayer taxPayer) {
     LocalDate start = request.getStartDate();
@@ -167,6 +169,9 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
     SignalHolding target = new SignalHolding(signal, signalPrices, start);
     TrailingStop trailing = TrailingStop.of(request.getTrailingStopRate(), request.getTrailingSellRate());
     TakeProfitLadder ladder = TakeProfitLadder.of(request.getPartialTakeProfits());
+    Set<LocalDate> harvestDates = YearEndHarvest.enabled(request.getCapitalGainsTax(), request.getYearEndHarvest())
+      ? YearEndHarvest.dates(priceMap, start, actualEndDate)
+      : Set.of();
 
     for (OHLCPriceDto candle : candles) {
       LocalDate date = candle.date();
@@ -232,6 +237,17 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
               target.soldOut();
             }
           }
+        }
+        // 그 날짜 사고팔기 뒤 연말 정리
+        YearEndHarvest.Trade harvest = harvestDates.contains(date) && heldShares.signum() > 0
+          ? YearEndHarvest.single(date, transactions, PriceLookup.effectiveClose(candle), heldShares, heldCost,
+            request.getTradingFeeRate(), fx, fxRates.isDefault(date))
+          : null;
+        if (harvest != null) {
+          transactions.add(harvest.sale());
+          transactions.add(harvest.rebuy());
+          heldShares = heldShares.add(harvest.sharesChange());
+          heldCost = heldCost.add(harvest.costChange());
         }
       } catch (RuntimeException e) {
         skippedRounds.add(new SkippedRound(candle.date(), SkipReason.CALCULATION_ERROR));

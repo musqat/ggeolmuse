@@ -23,9 +23,17 @@ const values: DcaValues = {
   manualPurchaseFxRate: '1300',
   manualCurrentFxRate: '1350',
   taxSale: 'NONE',
+  yearEndHarvest: false,
 }
 
 describe('buildDcaRequest', () => {
+  it('양도세 · 연말 정리를 둘 다 켰을 때만 yearEndHarvest 를 싣는다', () => {
+    expect(buildDcaRequest({ ...values, capitalGainsTax: true, yearEndHarvest: true }, 'AAPL', ctx)).toMatchObject({
+      request: { capitalGainsTax: true, yearEndHarvest: true },
+    })
+    expect(buildDcaRequest({ ...values, capitalGainsTax: false, yearEndHarvest: true }, 'AAPL', ctx)).not.toHaveProperty('request.yearEndHarvest')
+    expect(buildDcaRequest({ ...values, capitalGainsTax: true, yearEndHarvest: false }, 'AAPL', ctx)).not.toHaveProperty('request.yearEndHarvest')
+  })
   it('종료일이 비면 오늘로 채우고, 첫 매수일이 비면 요청에서 빼고 시작일의 날짜를 매달 투자일로 보낸다', () => {
     expect(buildDcaRequest(values, 'AAPL', ctx)).toStrictEqual({
       request: {

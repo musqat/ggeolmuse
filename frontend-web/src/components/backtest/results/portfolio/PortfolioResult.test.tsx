@@ -332,6 +332,24 @@ describe('PortfolioResult', () => {
     expect(screen.queryByText('예상 양도세')).toBeNull()
   })
 
+  it('연말 정리만 팔아도 매매 카드 · 매매 내역 · 예상 양도세를 두고 매수 · 매도 카드 아래 줄에 연말 정리 수를 센다', () => {
+    const harvest = (reason: TradeReason, shares: number) => ({ symbol: 'SPY', reason, date: '2023-12-29', trigger: reason, shares, price: 400, amount: 0, fxRate: 1300 })
+    render(
+      <PortfolioResult
+        result={{
+          ...result,
+          capitalGainsTax: tax,
+          transactions: [...result.transactions, harvest('HARVEST_GAIN_SELL', -1), harvest('HARVEST_GAIN_BUY', 1)],
+        }}
+      />
+    )
+
+    expect(value('매수 · 매도')).toHaveTextContent('2번 · 0번')
+    expect(screen.getByText('배당 재투자 1번 · 연말 정리 1번')).toBeInTheDocument()
+    expect(screen.getByText('매매 내역')).toBeInTheDocument()
+    expect(screen.getByText('예상 양도세')).toBeInTheDocument()
+  })
+
   it('기본 환율로 계산한 날이 있으면 맨 위에 알린다', () => {
     render(<PortfolioResult result={{ ...result, defaultFxDates: ['2013-12-31'] }} />)
 

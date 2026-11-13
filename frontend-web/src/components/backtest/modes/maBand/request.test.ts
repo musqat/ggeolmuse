@@ -19,11 +19,19 @@ const values: MaBandValues = {
   manualPurchaseFxRate: '1300',
   manualCurrentFxRate: '1350',
   taxSale: 'NONE',
+  yearEndHarvest: false,
 }
 
 const BAND_ERROR = '밴드 기간은 2 ~ 250 사이 정수로, 위 · 아래 비율은 0 이상 100 미만으로 입력해주세요.'
 
 describe('buildMaBandRequest', () => {
+  it('양도세 · 연말 정리를 둘 다 켰을 때만 yearEndHarvest 를 싣는다', () => {
+    expect(buildMaBandRequest({ ...values, capitalGainsTax: true, yearEndHarvest: true }, 'AAPL', ctx)).toMatchObject({
+      request: { capitalGainsTax: true, yearEndHarvest: true },
+    })
+    expect(buildMaBandRequest({ ...values, capitalGainsTax: false, yearEndHarvest: true }, 'AAPL', ctx)).not.toHaveProperty('request.yearEndHarvest')
+    expect(buildMaBandRequest({ ...values, capitalGainsTax: true, yearEndHarvest: false }, 'AAPL', ctx)).not.toHaveProperty('request.yearEndHarvest')
+  })
   it('양도세를 켜고 현금이 모자랄 때 팔아 내기를 고르면 taxSale 로 싣고, 양도세를 끄면 싣지 않는다', () => {
     expect(buildMaBandRequest({ ...values, capitalGainsTax: true, taxSale: 'SELL' }, 'AAPL', ctx)).toMatchObject({
       request: { capitalGainsTax: true, taxSale: 'SELL' },

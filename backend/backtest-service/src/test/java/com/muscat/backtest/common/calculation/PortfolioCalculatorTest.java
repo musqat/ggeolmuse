@@ -106,6 +106,33 @@ class PortfolioCalculatorTest {
   }
 
   @Test
+  @DisplayName("연말 정리 매도 · 재매수는 줄 · 합계 매수 · 매도 수에 세지 않고 연말 정리만 판 결과에는 매매 통계를 싣지 않는다")
+  void yearEndHarvestNotCounted() {
+    StrategyTransaction harvestSale = sale("AAA", END, "66", "50", "3300", "300", "1300");
+    harvestSale.setReason(TradeReason.HARVEST_GAIN_SELL);
+    harvestSale.setTrigger(TransactionTrigger.HARVEST_GAIN_SELL);
+    StrategyTransaction rebuy = buy("AAA", END, "66", "50", "0", "1300");
+    rebuy.setCashUsed(number("3300"));
+    rebuy.setReason(TradeReason.HARVEST_GAIN_BUY);
+    rebuy.setTrigger(TransactionTrigger.HARVEST_GAIN_BUY);
+    PortfolioEngine.Result result = new PortfolioEngine.Result(START, END,
+      List.of(buy("AAA", START, "60", "100", "6000000", "1000"), harvestSale, rebuy), List.of(),
+      List.of(position("AAA", "6000000", "100", "66", "8580000")), number("6000000"), number("0"), number("0"),
+      number("8580000"), number("8580000"), number("1300"), new StrategyPerformance.Result(List.of(), null, null),
+      CapitalGainsTaxCalculator.Payments.NONE, List.of());
+
+    PortfolioResponse response = PortfolioCalculator.of(request(asset("AAA", "6000000")).build(), result);
+
+    assertThat(response.buyCount()).isEqualTo(1);
+    assertThat(response.sellCount()).isZero();
+    assertThat(response.assets()).singleElement().satisfies(row -> {
+      assertThat(row.buyCount()).isEqualTo(1);
+      assertThat(row.sellCount()).isZero();
+    });
+    assertThat(response.tradeStats()).isNull();
+  }
+
+  @Test
   @DisplayName("종목 줄마다 전략 · 원금 · 산 돈 · 지금 가치 · 판 돈 · 배당 · 이익 · 수익률 · 기여 · 처음과 지금 비중을 내고 나머지 이익은 따로 낸다")
   void assetRows() {
     PortfolioResponse response = PortfolioCalculator.of(

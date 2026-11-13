@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react';
 import type { SkipReason, SkippedRound, StrategyTransaction } from '../../../services/api';
 import { formatKrw, formatNumber, formatSigned, formatUsd } from '../../../utils/format';
 import { gainLossClass } from '../../../utils/gainLoss';
-import { DIVIDEND_REINVEST, TAX_PAYMENT, isPurchase, isSale } from './resultValues';
+import { DIVIDEND_REINVEST, TAX_PAYMENT, isPurchase, isSale, isYearEndHarvest } from './resultValues';
 
 const REASON_LABEL: Record<SkipReason, string> = {
   NO_PRICE: '시세 없음',
@@ -37,10 +37,11 @@ function roundsByYear(transactions: StrategyTransaction[], skippedRounds: Skippe
 const countOf = (rounds: Round[], pick: (tx: StrategyTransaction) => boolean) =>
   rounds.filter((round) => round.kind === 'bought' && pick(round.tx)).length;
 
-// 연도 줄의 횟수(0 인 쪽은 뺌)
+// 연도 줄의 횟수(0 인 쪽은 뺌, 연말 정리는 매도 · 재매수 짝마다 한 번)
 function yearCounts(rounds: Round[]): string {
   const bought = countOf(rounds, isPurchase);
-  const sold = countOf(rounds, isSale);
+  const sold = countOf(rounds, (tx) => isSale(tx) && !isYearEndHarvest(tx));
+  const harvests = countOf(rounds, (tx) => isSale(tx) && isYearEndHarvest(tx));
   const dividends = countOf(rounds, (tx) => tx.trigger === DIVIDEND_REINVEST);
   const payments = countOf(rounds, (tx) => tx.trigger === TAX_PAYMENT);
   const skipped = rounds.filter((round) => round.kind === 'skipped').length;
@@ -49,6 +50,7 @@ function yearCounts(rounds: Round[]): string {
     sold > 0 && `매도 ${sold}회`,
     dividends > 0 && `배당 재투자 ${dividends}회`,
     payments > 0 && `양도세 납부 ${payments}회`,
+    harvests > 0 && `연말 정리 ${harvests}회`,
     skipped > 0 && `미매수 ${skipped}회`,
   ]
     .filter(Boolean)

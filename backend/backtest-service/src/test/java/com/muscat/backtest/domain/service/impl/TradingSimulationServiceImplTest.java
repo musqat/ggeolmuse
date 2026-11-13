@@ -1243,6 +1243,136 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
+    @DisplayName("연말 정리를 켜면 해마다 결제가 그해 안에 끝나는 마지막 거래일에 공제를 채울 만큼 팔고 다시 산 거래와 기간 끝 매도를 싣고, 끄면 거래를 싣지 않는다")
+    void yearEndHarvestTransactions() {
+      LocalDate bought = LocalDate.of(2021, 1, 15);
+      LocalDate end = LocalDate.of(2024, 1, 31);
+      given(marketDataClientWrapper.getFxRate(anyString())).willReturn(new FxRateDto(bought, new BigDecimal("1300")));
+      given(marketDataClientWrapper.getBulkFxRates(anyList())).willAnswer(invocation -> {
+        List<String> dates = invocation.getArgument(0);
+        return dates.stream().distinct().collect(Collectors.toMap(date -> date, date -> new BigDecimal("1300")));
+      });
+      stubRange(candle(bought, "100.00"), candle(LocalDate.of(2021, 12, 29), "150.00"),
+        candle(LocalDate.of(2021, 12, 30), "150.00"), candle(LocalDate.of(2021, 12, 31), "150.00"),
+        candle(LocalDate.of(2022, 12, 28), "200.00"), candle(LocalDate.of(2022, 12, 29), "200.00"),
+        candle(LocalDate.of(2022, 12, 30), "200.00"), candle(LocalDate.of(2023, 12, 27), "250.00"),
+        candle(LocalDate.of(2023, 12, 28), "250.00"), candle(LocalDate.of(2023, 12, 29), "250.00"),
+        candle(end, "260.00"));
+      SimulationRequest.SimulationRequestBuilder request = SimulationRequest.builder().symbol(TEST_SYMBOL)
+        .purchaseDate(bought).saleDate(end).investmentAmount(new BigDecimal("13000000"))
+        .periodEnd(PeriodEnd.SELL_AT_END).capitalGainsTax(true);
+
+      SimulationResponse harvested = service.runSimulation(request.yearEndHarvest(true).build(), false);
+      SimulationResponse held = service.runSimulation(request.yearEndHarvest(false).build(), false);
+
+      assertThat(harvested.getTransactions())
+        .extracting(com.muscat.backtest.domain.model.StrategyTransaction::tradedOn,
+          com.muscat.backtest.domain.model.StrategyTransaction::getTrigger)
+        .containsExactly(
+          org.assertj.core.groups.Tuple.tuple(LocalDate.of(2021, 12, 29), "공제 채우기 매도"),
+          org.assertj.core.groups.Tuple.tuple(LocalDate.of(2021, 12, 29), "공제 채우기 재매수"),
+          org.assertj.core.groups.Tuple.tuple(LocalDate.of(2022, 12, 28), "공제 채우기 매도"),
+          org.assertj.core.groups.Tuple.tuple(LocalDate.of(2022, 12, 28), "공제 채우기 재매수"),
+          org.assertj.core.groups.Tuple.tuple(LocalDate.of(2023, 12, 27), "공제 채우기 매도"),
+          org.assertj.core.groups.Tuple.tuple(LocalDate.of(2023, 12, 27), "공제 채우기 재매수"),
+          org.assertj.core.groups.Tuple.tuple(end, "기간 끝 매도"));
+      // 100주가 150달러, 주당 이익 6만 5,000원(150 × 1300 - 13만원), 250만원 ÷ 6만 5,000원
+      assertThat(harvested.getTransactions().getFirst().getShares()).isEqualByComparingTo("-38.46153846");
+      assertThat(harvested.getShares()).isEqualByComparingTo("100");
+      assertThat(harvested.getCapitalGainsTax().years()).filteredOn(year -> year.year() < 2024).hasSize(3)
+        .allSatisfy(year -> {
+          assertThat(year.realizedGainKrw()).isEqualByComparingTo("2500000");
+          assertThat(year.taxKrw()).isEqualByComparingTo("0");
+        });
+      // 끝에 팔아 2080만원 이익 가운데 750만원은 해마다 공제 안에서 실현
+      assertThat(harvested.getCapitalGainsTax().totalTaxKrw()).isEqualByComparingTo("2376000");
+      assertThat(held.getCapitalGainsTax().totalTaxKrw()).isEqualByComparingTo("4026000");
+      assertThat(held.getTransactions()).isNull();
+    }
+
+    @Test
+    @DisplayName("끝까지 보유 요청에 연말 정리를 켜면 기간 끝에 한 번에 판 양도세 · 연말 정리하고 기간 끝에 판 양도세 · 차이를 싣고, 2년이 안 되면 싣지 않는다")
+    void yearEndHarvestComparison() {
+      LocalDate bought = LocalDate.of(2021, 1, 15);
+      LocalDate end = LocalDate.of(2024, 1, 31);
+      given(marketDataClientWrapper.getFxRate(anyString())).willReturn(new FxRateDto(bought, new BigDecimal("1300")));
+      given(marketDataClientWrapper.getBulkFxRates(anyList())).willAnswer(invocation -> {
+        List<String> dates = invocation.getArgument(0);
+        return dates.stream().distinct().collect(Collectors.toMap(date -> date, date -> new BigDecimal("1300")));
+      });
+      stubRange(candle(bought, "100.00"), candle(LocalDate.of(2021, 12, 29), "150.00"),
+        candle(LocalDate.of(2021, 12, 30), "150.00"), candle(LocalDate.of(2021, 12, 31), "150.00"),
+        candle(LocalDate.of(2022, 12, 28), "200.00"), candle(LocalDate.of(2022, 12, 29), "200.00"),
+        candle(LocalDate.of(2022, 12, 30), "200.00"), candle(LocalDate.of(2023, 1, 13), "210.00"),
+        candle(LocalDate.of(2023, 12, 27), "250.00"), candle(LocalDate.of(2023, 12, 28), "250.00"),
+        candle(LocalDate.of(2023, 12, 29), "250.00"), candle(end, "260.00"));
+      SimulationRequest.SimulationRequestBuilder request = SimulationRequest.builder().symbol(TEST_SYMBOL)
+        .purchaseDate(bought).investmentAmount(new BigDecimal("13000000")).capitalGainsTax(true).yearEndHarvest(true);
+
+      SimulationResponse held = service.runSimulation(request.saleDate(end).build(), false);
+      SimulationResponse shortPeriod = service.runSimulation(request.saleDate(LocalDate.of(2023, 1, 13)).build(), false);
+
+      // 끝까지 보유는 연말 정리만 팔아 세금 0, 기간 끝 매도 사본은 2080만원 이익을 한 번에 · 연말 정리 뒤 1330만원
+      assertThat(held.getCapitalGainsTax().totalTaxKrw()).isEqualByComparingTo("0");
+      assertThat(held.getCapitalGainsTax().harvestComparison()).isEqualTo(new CapitalGainsTax.HarvestComparison(
+        new BigDecimal("4026000"), new BigDecimal("2376000"), new BigDecimal("1650000")));
+      assertThat(held.getTransactions()).extracting(com.muscat.backtest.domain.model.StrategyTransaction::getTrigger)
+        .doesNotContain("기간 끝 매도");
+      assertThat(shortPeriod.getCapitalGainsTax().harvestComparison()).isNull();
+    }
+
+    @Test
+    @DisplayName("연말 정리 뒤 현금 배당은 연말 정리로 바뀐 주식 수로 받고, 이익 난 보유가 없는 해는 연말 정리하지 않는다")
+    void cashDividendsAfterHarvest() {
+      LocalDate bought = LocalDate.of(2021, 1, 15);
+      LocalDate june = LocalDate.of(2021, 6, 1);
+      LocalDate march = LocalDate.of(2022, 3, 1);
+      LocalDate end = LocalDate.of(2023, 1, 31);
+      given(marketDataClientWrapper.getFxRate(anyString())).willReturn(new FxRateDto(bought, new BigDecimal("1300")));
+      stubRange(candle(bought, "100.00"), candle(june, "120.00"), candle(LocalDate.of(2021, 12, 29), "150.00"),
+        candle(LocalDate.of(2021, 12, 30), "150.00"), candle(LocalDate.of(2021, 12, 31), "150.00"),
+        candle(march, "140.00"), candle(LocalDate.of(2022, 12, 28), "90.00"), candle(LocalDate.of(2022, 12, 29), "90.00"),
+        candle(LocalDate.of(2022, 12, 30), "90.00"), candle(end, "95.00"));
+      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2021-01-15", "2023-01-31")).willReturn(List.of(
+        new DividendDto(TEST_SYMBOL, june, june.plusDays(5), null, BigDecimal.ONE, "USD", "test"),
+        new DividendDto(TEST_SYMBOL, march, march.plusDays(5), null, BigDecimal.ONE, "USD", "test")));
+
+      SimulationResponse response = service.runSimulation(SimulationRequest.builder().symbol(TEST_SYMBOL)
+        .purchaseDate(bought).saleDate(end).investmentAmount(new BigDecimal("13000000"))
+        .tradingFeeRate(new BigDecimal("0.01")).capitalGainsTax(true).yearEndHarvest(true).build(), false);
+
+      // 2022년 12월은 90달러라 손실, 끝까지 보유라 기간 끝 매도 없음
+      assertThat(response.getTransactions()).extracting(com.muscat.backtest.domain.model.StrategyTransaction::getTrigger)
+        .containsExactly("공제 채우기 매도", "공제 채우기 재매수");
+      // 6월은 처음 99주, 3월은 연말 정리 수수료로 줄어든 주식 수
+      assertThat(response.getShares()).isLessThan(new BigDecimal("99"));
+      assertThat(response.getTotalDividends())
+        .isEqualByComparingTo(new BigDecimal("99").add(response.getShares()).setScale(2, java.math.RoundingMode.HALF_UP));
+    }
+
+    @Test
+    @DisplayName("연말 정리를 켜면 매매 수수료에 연말 정리 매도 · 재매수 수수료를 더한다")
+    void tradingFeeWithHarvest() {
+      LocalDate bought = LocalDate.of(2021, 1, 15);
+      LocalDate end = LocalDate.of(2022, 1, 31);
+      given(marketDataClientWrapper.getFxRate(anyString())).willReturn(new FxRateDto(bought, new BigDecimal("1300")));
+      stubRange(candle(bought, "100.00"), candle(LocalDate.of(2021, 12, 29), "150.00"),
+        candle(LocalDate.of(2021, 12, 30), "150.00"), candle(LocalDate.of(2021, 12, 31), "150.00"), candle(end, "160.00"));
+      SimulationRequest.SimulationRequestBuilder request = SimulationRequest.builder().symbol(TEST_SYMBOL)
+        .purchaseDate(bought).saleDate(end).investmentAmount(new BigDecimal("13000000"))
+        .tradingFeeRate(new BigDecimal("0.01")).capitalGainsTax(true);
+
+      SimulationResponse harvested = service.runSimulation(request.yearEndHarvest(true).build(), false);
+      SimulationResponse held = service.runSimulation(request.yearEndHarvest(false).build(), false);
+
+      // 처음 매수 수수료 + 2021년 12월 29일 공제 채우기 매도 · 재매수 수수료
+      assertThat(harvested.getTransactions()).extracting(com.muscat.backtest.domain.model.StrategyTransaction::getTrigger)
+        .containsExactly("공제 채우기 매도", "공제 채우기 재매수");
+      assertThat(harvested.getTradingFee()).isEqualByComparingTo(held.getTradingFee()
+        .add(harvested.getTransactions().get(0).getFee()).add(harvested.getTransactions().get(1).getFee()));
+    }
+
+    @Test
     @DisplayName("재투자를 켜고 기간 끝에 팔면 재투자로 늘어난 주식까지 팔고 그 주식의 원가는 배당락일 환율로 센다")
     void reinvestThenSellAtEnd() {
       stubDividend();

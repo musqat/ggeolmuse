@@ -1251,4 +1251,76 @@ class PortfolioEngineTest {
       assertThat(plain(result.totalAssetKrw())).isEqualTo("2730000");
     }
   }
+
+  @Nested
+  @DisplayName("연말 정리")
+  class YearEndHarvests {
+
+    private final LocalDate december30 = LocalDate.of(2024, 12, 30);
+    private final LocalDate december31 = LocalDate.of(2024, 12, 31);
+
+    // 종목 · 이유 · 거래일 · 주식 수
+    private List<Tuple> harvested(PortfolioEngine.Result result) {
+      return result.transactions().stream().filter(StrategyTransaction::isYearEndHarvest)
+        .map(tx -> tuple(tx.getSymbol(), tx.getReason(), tx.tradedOn(), plain(tx.getShares())))
+        .toList();
+    }
+
+    @Test
+    @DisplayName("공제를 채울 때는 결제가 그해 안에 끝나는 마지막 거래일에 평가 이익 큰 종목부터 팔고 같은 값에 다시 사며 그 날짜 일봉이 없는 종목은 건너뛴다")
+    void fillsFromBiggestGain() {
+      // AAA 130만원 · BBB 195만원 이익, CCC 는 12월 31일 일봉뿐(520만원 이익)
+      prices("AAA", candle("AAA", START, "10"), candle("AAA", december30, "20"), candle("AAA", december31, "20"));
+      prices("BBB", candle("BBB", START, "10"), candle("BBB", december30, "25"), candle("BBB", december31, "25"));
+      prices("CCC", candle("CCC", START, "10"), candle("CCC", december31, "50"));
+
+      PortfolioEngine.Result result = engine.run(request(december31, asset("AAA", "1300000"),
+        asset("BBB", "1300000"), asset("CCC", "1300000")).capitalGainsTax(true).yearEndHarvest(true).build());
+
+      // BBB 100주 전부(195만원) 뒤 남은 55만원 ÷ AAA 주당 1만 3,000원
+      assertThat(harvested(result)).containsExactly(
+        tuple("BBB", TradeReason.HARVEST_GAIN_SELL, december30, "-100"),
+        tuple("BBB", TradeReason.HARVEST_GAIN_BUY, december30, "100"),
+        tuple("AAA", TradeReason.HARVEST_GAIN_SELL, december30, "-42.3076923"),
+        tuple("AAA", TradeReason.HARVEST_GAIN_BUY, december30, "42.3076923"));
+      assertThat(result.positions()).extracting(position -> plain(position.shares())).containsExactly("100", "100", "100");
+      assertThat(plain(result.cashUsd())).isEqualTo("0");
+    }
+
+    @Test
+    @DisplayName("기간 끝에 팔면 연말 정리 날에 기간 끝 매도하는 종목은 연말 정리하지 않는다")
+    void skipsLinesSoldAtEnd() {
+      // AAA 는 12월 30일이 마지막 일봉이라 그 날짜에 기간 끝 매도
+      prices("AAA", candle("AAA", START, "10"), candle("AAA", december30, "20"));
+      prices("BBB", candle("BBB", START, "10"), candle("BBB", december30, "25"), candle("BBB", december31, "25"));
+
+      PortfolioEngine.Result result = engine.run(request(december31, asset("AAA", "1300000"), asset("BBB", "1300000"))
+        .capitalGainsTax(true).yearEndHarvest(true).periodEnd(PeriodEnd.SELL_AT_END).build());
+
+      assertThat(harvested(result)).containsExactly(
+        tuple("BBB", TradeReason.HARVEST_GAIN_SELL, december30, "-100"),
+        tuple("BBB", TradeReason.HARVEST_GAIN_BUY, december30, "100"));
+      assertThat(result.transactions()).filteredOn(tx -> tx.getReason() == TradeReason.PERIOD_END_SALE).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("손실을 상계할 때는 평가 손실 큰 종목부터 팔고, 연말 정리를 끄면 팔지 않는다")
+    void offsetsFromBiggestLoss() {
+      // DDD 익절로 650만원 이익, AAA 65만원 · BBB 208만원 손실
+      prices("AAA", candle("AAA", START, "10"), candle("AAA", december30, "5"), candle("AAA", december31, "5"));
+      prices("BBB", candle("BBB", START, "10"), candle("BBB", december30, "2"), candle("BBB", december31, "2"));
+      prices("DDD", candle("DDD", START, "10"), bar("DDD", day(1), "10", "25", "10", "20"));
+      PortfolioRequest.PortfolioRequestBuilder request = request(december31, asset("AAA", "1300000"),
+        asset("BBB", "2600000"), selling("DDD", "6500000", "1", null)).capitalGainsTax(true);
+
+      PortfolioEngine.Result result = engine.run(request.yearEndHarvest(true).build());
+
+      assertThat(harvested(result)).containsExactly(
+        tuple("BBB", TradeReason.HARVEST_LOSS_SELL, december30, "-200"),
+        tuple("BBB", TradeReason.HARVEST_LOSS_BUY, december30, "200"),
+        tuple("AAA", TradeReason.HARVEST_LOSS_SELL, december30, "-100"),
+        tuple("AAA", TradeReason.HARVEST_LOSS_BUY, december30, "100"));
+      assertThat(harvested(engine.run(request.yearEndHarvest(false).build()))).isEmpty();
+    }
+  }
 }

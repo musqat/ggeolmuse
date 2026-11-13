@@ -34,6 +34,7 @@ import com.muscat.backtest.domain.dto.request.PortfolioRequest;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.request.StrategyComparisonRequest;
 import com.muscat.backtest.domain.dto.request.SymbolComparisonRequest;
+import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
 import com.muscat.backtest.domain.dto.response.PortfolioResponse;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
@@ -41,6 +42,8 @@ import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.ComparisonItem;
 import com.muscat.backtest.domain.model.StrategyParameter;
+import com.muscat.backtest.domain.model.StrategyTransaction;
+import com.muscat.backtest.common.enums.type.TradeReason;
 import com.muscat.backtest.domain.service.TradingSimulationService;
 import com.muscat.backtest.domain.strategy.ConditionalPurchaseStrategy;
 import com.muscat.backtest.domain.strategy.DCAStrategy;
@@ -51,6 +54,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
+import org.assertj.core.groups.Tuple;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -1114,6 +1118,194 @@ class BacktestAnalysisServiceImplTest {
       backtestAnalysisService.compareStrategies(request);
 
       verify(dcaStrategy, times(2)).execute(any());
+    }
+  }
+
+
+  @Nested
+  @DisplayName("연말 정리 비교")
+  class YearEndComparisonTests {
+
+    private final LocalDate start = LocalDate.of(2021, 1, 1);
+
+    // 양도세 합만 있는 결과
+    private StrategyResponse taxed(String totalTaxKrw) {
+      return StrategyResponse.builder().capitalGainsTax(new CapitalGainsTax(List.of(), new BigDecimal(totalTaxKrw),
+        BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO)).build();
+    }
+
+    // 연말 정리를 끄고 기간 끝에 팔면 400만원, 켜고 기간 끝에 팔면 240만원, 켜고 끝까지 보유면 10만원
+    private StrategyResponse taxedBy(Boolean yearEndHarvest, PeriodEnd periodEnd) {
+      if (!Boolean.TRUE.equals(yearEndHarvest)) {
+        return taxed("4000000");
+      }
+      return taxed(periodEnd == PeriodEnd.SELL_AT_END ? "2400000" : "100000");
+    }
+
+    private DcaStrategyRequest.DcaStrategyRequestBuilder dca(LocalDate end) {
+      return DcaStrategyRequest.builder().userId("user123").symbol("SPY").startDate(start).endDate(end)
+        .amountPerPurchase(new BigDecimal("1000000")).capitalGainsTax(true).yearEndHarvest(true);
+    }
+
+    private void stubDca() {
+      given(dcaStrategy.execute(any())).willAnswer(invocation -> {
+        DcaStrategyRequest request = invocation.getArgument(0);
+        return taxedBy(request.getYearEndHarvest(), request.getPeriodEnd());
+      });
+    }
+
+    private List<Tuple> dcaRuns(int times) {
+      ArgumentCaptor<DcaStrategyRequest> runs = ArgumentCaptor.forClass(DcaStrategyRequest.class);
+      verify(dcaStrategy, times(times)).execute(runs.capture());
+      return runs.getAllValues().stream()
+        .map(run -> org.assertj.core.api.Assertions.tuple(run.getYearEndHarvest(), run.getPeriodEnd(), run.getUserId()))
+        .toList();
+    }
+
+    @Test
+    @DisplayName("끝까지 보유 요청은 연말 정리를 끄고 · 켜고 기간 끝에 판 사본을 더 돌려 양도세 차이를 싣고 이력은 원래 요청 한 번만 남긴다")
+    void holdRunsTwiceMore() {
+      stubDca();
+      DcaStrategyRequest request = dca(LocalDate.of(2023, 12, 31)).build();
+
+      StrategyResponse response = backtestAnalysisService.runDcaStrategy(request);
+
+      assertThat(response.getCapitalGainsTax().totalTaxKrw()).isEqualByComparingTo("100000");
+      assertThat(response.getCapitalGainsTax().harvestComparison()).isEqualTo(new CapitalGainsTax.HarvestComparison(
+        new BigDecimal("4000000"), new BigDecimal("2400000"), new BigDecimal("1600000")));
+      assertThat(dcaRuns(3)).containsExactly(
+        org.assertj.core.api.Assertions.tuple(true, null, "user123"),
+        org.assertj.core.api.Assertions.tuple(false, PeriodEnd.SELL_AT_END, null),
+        org.assertj.core.api.Assertions.tuple(true, PeriodEnd.SELL_AT_END, null));
+      verify(backtestHistoryUtils).saveBacktestHistory("user123", BacktestType.STRATEGY_SIMULATION, request);
+    }
+
+    @Test
+    @DisplayName("기간 끝 매도 요청은 연말 정리를 끈 사본만 더 돌리고 자기 양도세를 연말 정리 쪽으로 쓴다")
+    void sellAtEndRunsOnceMore() {
+      stubDca();
+
+      StrategyResponse response = backtestAnalysisService.runDcaStrategy(
+        dca(LocalDate.of(2023, 12, 31)).periodEnd(PeriodEnd.SELL_AT_END).build());
+
+      assertThat(response.getCapitalGainsTax().harvestComparison()).isEqualTo(new CapitalGainsTax.HarvestComparison(
+        new BigDecimal("4000000"), new BigDecimal("2400000"), new BigDecimal("1600000")));
+      assertThat(dcaRuns(2)).containsExactly(
+        org.assertj.core.api.Assertions.tuple(true, PeriodEnd.SELL_AT_END, "user123"),
+        org.assertj.core.api.Assertions.tuple(false, PeriodEnd.SELL_AT_END, null));
+    }
+
+    @Test
+    @DisplayName("종료일이 오늘 뒤면 오늘까지로 2년을 센다")
+    void futureEndUsesToday() {
+      stubDca();
+
+      StrategyResponse response = backtestAnalysisService.runDcaStrategy(dca(LocalDate.now().plusDays(10)).build());
+
+      assertThat(response.getCapitalGainsTax().harvestComparison()).isNotNull();
+      verify(dcaStrategy, times(3)).execute(any());
+    }
+
+    @Test
+    @DisplayName("기간이 2년이 안 되거나 연말 정리 · 양도세를 끄면 비교 없이 한 번만 돌린다")
+    void noComparison() {
+      stubDca();
+
+      StrategyResponse shortPeriod = backtestAnalysisService.runDcaStrategy(dca(LocalDate.of(2022, 12, 31)).build());
+      assertThat(shortPeriod.getCapitalGainsTax().harvestComparison()).isNull();
+      backtestAnalysisService.runDcaStrategy(dca(LocalDate.of(2023, 12, 31)).yearEndHarvest(false).build());
+      backtestAnalysisService.runDcaStrategy(dca(LocalDate.of(2023, 12, 31)).capitalGainsTax(false).build());
+
+      verify(dcaStrategy, times(3)).execute(any());
+    }
+
+    @Test
+    @DisplayName("조건부 · 이동평균 · 밴드 요청도 연말 정리를 끄고 기간 끝에 파는 사본으로 비교한다")
+    void otherStrategiesCompare() {
+      given(conditionalPurchaseStrategy.execute(any())).willAnswer(invocation -> {
+        ConditionalStrategyRequest request = invocation.getArgument(0);
+        return taxedBy(request.getYearEndHarvest(), request.getPeriodEnd());
+      });
+      given(maCrossStrategy.execute(any())).willAnswer(invocation -> {
+        MaCrossStrategyRequest request = invocation.getArgument(0);
+        return taxedBy(request.getYearEndHarvest(), request.getPeriodEnd());
+      });
+      given(maBandStrategy.execute(any())).willAnswer(invocation -> {
+        MaBandStrategyRequest request = invocation.getArgument(0);
+        return taxedBy(request.getYearEndHarvest(), request.getPeriodEnd());
+      });
+      LocalDate end = LocalDate.of(2023, 12, 31);
+
+      List<StrategyResponse> responses = List.of(
+        backtestAnalysisService.runConditionalStrategy(ConditionalStrategyRequest.builder().symbol("SPY")
+          .startDate(start).endDate(end).amountPerPurchase(BigDecimal.TEN).dropPercentage(new BigDecimal("0.1"))
+          .capitalGainsTax(true).yearEndHarvest(true).periodEnd(PeriodEnd.SELL_AT_END).build()),
+        backtestAnalysisService.runMaCrossStrategy(MaCrossStrategyRequest.builder().symbol("SPY").startDate(start)
+          .endDate(end).investmentAmount(BigDecimal.TEN).capitalGainsTax(true).yearEndHarvest(true)
+          .periodEnd(PeriodEnd.SELL_AT_END).build()),
+        backtestAnalysisService.runMaBandStrategy(MaBandStrategyRequest.builder().symbol("SPY").startDate(start)
+          .endDate(end).investmentAmount(BigDecimal.TEN).capitalGainsTax(true).yearEndHarvest(true)
+          .periodEnd(PeriodEnd.SELL_AT_END).build()));
+
+      assertThat(responses).extracting(response -> response.getCapitalGainsTax().harvestComparison().savedKrw())
+        .usingElementComparator(BigDecimal::compareTo)
+        .containsExactly(new BigDecimal("1600000"), new BigDecimal("1600000"), new BigDecimal("1600000"));
+    }
+
+    // 2021년 1월 4일 SPY 1만 달러어치를 산 거래와 판 거래(판 날 · 판 돈 USD · 이유)
+    private PortfolioEngine.Result engineResult(List<String[]> sales) {
+      List<StrategyTransaction> transactions = new java.util.ArrayList<>();
+      transactions.add(StrategyTransaction.builder().symbol("SPY").reason(TradeReason.BUY)
+        .date(LocalDate.of(2021, 1, 4)).actualDate(LocalDate.of(2021, 1, 4)).price(BigDecimal.TEN)
+        .shares(new BigDecimal("1000")).amount(new BigDecimal("10000000")).fxRate(new BigDecimal("1000")).build());
+      for (String[] sale : sales) {
+        LocalDate date = LocalDate.parse(sale[0]);
+        transactions.add(StrategyTransaction.builder().symbol("SPY").reason(TradeReason.PERIOD_END_SALE).date(date)
+          .actualDate(date).price(BigDecimal.TEN).shares(new BigDecimal(sale[2]).negate()).amount(BigDecimal.ZERO)
+          .proceeds(new BigDecimal(sale[1])).realizedProfit(BigDecimal.ZERO).fxRate(new BigDecimal("1000"))
+          .trigger(sale[3]).build());
+      }
+      return new PortfolioEngine.Result(LocalDate.of(2021, 1, 4), LocalDate.of(2023, 12, 29), transactions, List.of(),
+        List.of(new PortfolioEngine.Position("SPY", PortfolioStrategyType.LUMP_SUM, new BigDecimal("10000000"),
+          BigDecimal.ZERO, BigDecimal.TEN, BigDecimal.ZERO)), new BigDecimal("10000000"), BigDecimal.ZERO,
+        BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("1000"),
+        new StrategyPerformance.Result(List.of(), null, null), CapitalGainsTaxCalculator.Payments.NONE, List.of());
+    }
+
+    @Test
+    @DisplayName("포트폴리오도 끝까지 보유 요청이면 엔진을 두 번 더 돌려 기간 끝에 한 번에 판 양도세와 견준다")
+    void portfolioCompares() {
+      PortfolioRequest request = PortfolioRequest.builder().userId("user123").startDate(start)
+        .endDate(LocalDate.of(2023, 12, 31))
+        .assets(List.of(new PortfolioAsset("SPY", new BigDecimal("10000000"), null, null, null, null, null)))
+        .capitalGainsTax(true).yearEndHarvest(true).build();
+      given(portfolioEngine.run(any())).willAnswer(invocation -> {
+        PortfolioRequest run = invocation.getArgument(0);
+        if (!Boolean.TRUE.equals(run.getYearEndHarvest())) {
+          // 1000만원어치를 2000만원에 한 번에 팔아 1000만원 이익
+          return engineResult(List.<String[]>of(new String[] {"2023-12-29", "20000", "1000", "기간 끝 매도"}));
+        }
+        if (run.getPeriodEnd() == PeriodEnd.SELL_AT_END) {
+          // 2021 · 2022 연말에 250만원씩, 끝에 나머지 500만원
+          return engineResult(List.<String[]>of(new String[] {"2021-12-31", "5000", "250", "공제 채우기 매도"},
+            new String[] {"2022-12-30", "5000", "250", "공제 채우기 매도"},
+            new String[] {"2023-12-29", "10000", "500", "기간 끝 매도"}));
+        }
+        return engineResult(List.of());
+      });
+
+      PortfolioResponse response = backtestAnalysisService.runPortfolio(request);
+      PortfolioResponse sellAtEnd = backtestAnalysisService.runPortfolio(
+        request.toBuilder().periodEnd(PeriodEnd.SELL_AT_END).build());
+
+      // 750만원 × 22% · 250만원 × 22%, 기간 끝 매도 요청은 자기 양도세를 연말 정리 쪽으로
+      CapitalGainsTax.HarvestComparison expected = new CapitalGainsTax.HarvestComparison(new BigDecimal("1650000"),
+        new BigDecimal("550000"), new BigDecimal("1100000"));
+      assertThat(response.capitalGainsTax().totalTaxKrw()).isEqualByComparingTo("0");
+      assertThat(response.capitalGainsTax().harvestComparison()).isEqualTo(expected);
+      assertThat(sellAtEnd.capitalGainsTax().harvestComparison()).isEqualTo(expected);
+      verify(portfolioEngine, times(5)).run(any());
+      verify(backtestHistoryUtils).saveBacktestHistory("user123", BacktestType.STRATEGY_SIMULATION, request);
     }
   }
 

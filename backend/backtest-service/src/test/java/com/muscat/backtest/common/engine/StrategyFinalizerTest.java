@@ -88,7 +88,7 @@ class StrategyFinalizerTest {
     given(marketData.getFxRate(anyString())).willReturn(new FxRateDto(VALUATION, new BigDecimal("1350")));
 
     StrategyFinalizer.Result result = StrategyFinalizer.run(marketData, "AAPL", FIRST, VALUATION, null, null, false,
-      BigDecimal.ZERO, new ArrayList<>(), Map.of(), FxRates.EMPTY, PeriodEnd.SELL_AT_END, BigDecimal.ZERO);
+      BigDecimal.ZERO, new ArrayList<>(), Map.of(), FxRates.EMPTY, PeriodEnd.SELL_AT_END, BigDecimal.ZERO, false);
     ConditionalStrategyRequest request = ConditionalStrategyRequest.builder().symbol("AAPL").startDate(FIRST)
       .endDate(VALUATION).build();
     StrategyResponse response = result.fill(new ResponseMapper().toStrategyResponse(request, result.transactions(),
@@ -123,7 +123,7 @@ class StrategyFinalizerTest {
       given(marketData.getFxRate(anyString())).willReturn(new FxRateDto(VALUATION, new BigDecimal("1350")));
       given(marketData.getDividendHistory(eq("AAPL"), anyString(), anyString())).willReturn(List.of());
       return StrategyFinalizer.run(marketData, "AAPL", FIRST, VALUATION, null, null, false, BigDecimal.ZERO,
-        new ArrayList<>(transactions), priceMap, FxRates.EMPTY, periodEnd, new BigDecimal("0.01"));
+        new ArrayList<>(transactions), priceMap, FxRates.EMPTY, periodEnd, new BigDecimal("0.01"), false);
     }
 
     private OHLCPriceDto candle(LocalDate date, String close) {
