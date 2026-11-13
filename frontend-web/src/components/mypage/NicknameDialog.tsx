@@ -3,7 +3,9 @@ import { authApi } from '../../services/api';
 import { getServerMessage } from '../../utils/apiError';
 import { NICKNAME_HINT, NICKNAME_RULE, NICKNAME_RULE_MESSAGE } from '../../utils/nickname';
 import { notify } from '../common/notify';
-import { DialogField, FormDialog } from '../common/FormDialog';
+import { DialogActions } from '../common/DialogActions';
+import { DialogField } from '../common/DialogField';
+import { Modal } from '../common/Modal';
 
 interface NicknameDialogProps {
   initialNickname: string;
@@ -46,22 +48,25 @@ export const NicknameDialog: React.FC<NicknameDialogProps> = ({
   };
 
   return (
-    <FormDialog
+    <Modal
+      isOpen
+      onClose={onClose}
       title={title}
-      confirmLabel={confirmLabel}
-      confirmDisabled={!nickname.trim()}
-      onConfirm={handleChange}
-      onCancel={onClose}
+      footer={
+        <DialogActions onCancel={onClose} onSubmit={handleChange} submitLabel={confirmLabel} disabled={!nickname.trim()} />
+      }
     >
-      {description && <p className="text-sm text-tx-2">{description}</p>}
-      <DialogField
-        id="mypage-nickname"
-        label="새 닉네임"
-        type="text"
-        value={nickname}
-        onChange={(e) => setNickname(e.target.value)}
-        placeholder={NICKNAME_HINT}
-      />
-    </FormDialog>
+      <div className="space-y-4">
+        {description && <p className="text-sm text-tx-2">{description}</p>}
+        <DialogField
+          id="mypage-nickname"
+          label="새 닉네임"
+          type="text"
+          value={nickname}
+          onChange={(e) => setNickname(e.target.value)}
+          placeholder={NICKNAME_HINT}
+        />
+      </div>
+    </Modal>
   );
 };

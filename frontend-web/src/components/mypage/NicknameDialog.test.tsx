@@ -22,6 +22,16 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('NicknameDialog', () => {
+  it('닉네임 변경 대화 상자로 열려 새 닉네임 칸에 포커스, Esc 로 닫는다', async () => {
+    const { onClose } = renderDialog()
+
+    expect(screen.getByRole('dialog', { name: '닉네임 변경' })).toHaveAttribute('aria-modal', 'true')
+    expect(screen.getByLabelText('새 닉네임')).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
   it('규칙에 안 맞는 닉네임은 보내지 않고 서버와 같은 규칙을 알린다', async () => {
     const user = userEvent.setup()
     renderDialog()

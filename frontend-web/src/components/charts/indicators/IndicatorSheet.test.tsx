@@ -43,4 +43,20 @@ describe('IndicatorSheet', () => {
     await userEvent.click(screen.getByRole('button', { name: '닫기' }))
     expect(screen.queryByRole('dialog')).toBeNull()
   })
+
+  it('열면 첫 스위치로 포커스, 바탕은 inert · 스크롤 잠금, 닫으면 지표 단추로 포커스', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<IndicatorSheet indicators={DEFAULT_INDICATORS} onToggle={vi.fn()} />)
+
+    await user.click(screen.getByTestId('chart-indicator-button'))
+    expect(screen.getAllByRole('switch')[0]).toHaveFocus()
+    expect(container).toHaveAttribute('inert')
+    expect(document.body.style.overflow).toBe('hidden')
+    await user.keyboard('{Escape}')
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(container).not.toHaveAttribute('inert')
+    expect(document.body.style.overflow).toBe('')
+    expect(screen.getByTestId('chart-indicator-button')).toHaveFocus()
+  })
 })

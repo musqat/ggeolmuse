@@ -21,6 +21,16 @@ function renderModal(over: Partial<Props> = {}) {
 }
 
 describe('AddAssetModal', () => {
+  it('신규 종목 추가 대화 상자로 열려 티커 칸에 포커스, Esc 로 닫는다', async () => {
+    const props = renderModal()
+
+    expect(screen.getByRole('dialog', { name: '신규 종목 추가' })).toHaveAttribute('aria-modal', 'true')
+    expect(screen.getByPlaceholderText('티커 입력 (예: NVDA)')).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+
+    expect(props.onClose).toHaveBeenCalledOnce()
+  })
+
   it('티커를 대문자로 받아 조회한다', async () => {
     const user = userEvent.setup()
     const props = renderModal()

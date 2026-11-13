@@ -1,9 +1,11 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { Modal } from './Modal';
 import { dismissToast, holdToast, releaseToast, settleConfirm, useConfirmRequest, useToasts, type Toast } from './notify';
 import { DialogActions } from './DialogActions';
 import { LAYER } from '@/styles/layers';
+import { useToastHost } from './useModalDialog';
 
 const kindClass = {
   success: 'border-success',
@@ -11,19 +13,21 @@ const kindClass = {
   info: 'border-info',
 };
 
+// 단추로 포커스를 옮긴 알림과 닫은 뒤 돌아갈 자리(창이 열리고 닫혀 알림 자리가 바뀌어도 그대로)
+const returnTargets = new Map<number, HTMLElement | null>();
+
 // 알림 하나(단추가 있으면 그 단추로 포커스, 마우스 · 포커스가 있는 동안 안 닫힘, Esc 로 닫기)
 const ToastItem: React.FC<{ toast: Toast }> = ({ toast }) => {
   const { id, action } = toast;
   const actionRef = useRef<HTMLButtonElement>(null);
-  const returnTo = useRef<HTMLElement | null>(null);
   const hovered = useRef(false);
   const focused = useRef(false);
 
   useEffect(() => {
-    if (!action) return;
-    returnTo.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (!action || returnTargets.has(id)) return;
+    returnTargets.set(id, document.activeElement instanceof HTMLElement ? document.activeElement : null);
     actionRef.current?.focus();
-  }, [action]);
+  }, [action, id]);
 
   const sync = () => {
     if (!action) return;
@@ -33,8 +37,9 @@ const ToastItem: React.FC<{ toast: Toast }> = ({ toast }) => {
 
   // 닫고 단추를 누르기 전 자리로 포커스
   const close = () => {
+    const returnTo = returnTargets.get(id);
     dismissToast(id);
-    if (action && returnTo.current?.isConnected) returnTo.current.focus();
+    if (action && returnTo?.isConnected) returnTo.focus();
   };
 
   return (
@@ -58,7 +63,9 @@ const ToastItem: React.FC<{ toast: Toast }> = ({ toast }) => {
         sync();
       }}
       onKeyDown={(event) => {
-        if (event.key === 'Escape') close();
+        if (event.key !== 'Escape') return;
+        event.preventDefault();
+        close();
       }}
     >
       <p className="flex-1 whitespace-pre-line text-tx-1">{toast.message}</p>
@@ -81,23 +88,35 @@ const ToastItem: React.FC<{ toast: Toast }> = ({ toast }) => {
   );
 };
 
-// 알림 더미와 확인 창(App 에 하나)
+// 알림 더미와 확인 창(App 에 하나, 창이 열려 있으면 알림 더미는 맨 위 창 안)
 export const Notifications: React.FC = () => {
   const toasts = useToasts();
   const confirm = useConfirmRequest();
+  const toastHost = useToastHost();
+
+  // 사라진 알림의 돌아갈 자리 정리
+  useEffect(() => {
+    for (const id of returnTargets.keys()) {
+      if (!toasts.some((toast) => toast.id === id)) returnTargets.delete(id);
+    }
+  }, [toasts]);
+
+  const pile = (
+    <div
+      className="fixed top-4 right-4 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2"
+      style={{ zIndex: LAYER.toast }}
+      role="status"
+      aria-live="polite"
+    >
+      {toasts.map((toast) => (
+        <ToastItem key={toast.id} toast={toast} />
+      ))}
+    </div>
+  );
 
   return (
     <>
-      <div
-        className="fixed top-4 right-4 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2"
-        style={{ zIndex: LAYER.toast }}
-        role="status"
-        aria-live="polite"
-      >
-        {toasts.map((toast) => (
-          <ToastItem key={toast.id} toast={toast} />
-        ))}
-      </div>
+      {toastHost ? createPortal(pile, toastHost) : pile}
       {confirm && (
         <Modal
           isOpen

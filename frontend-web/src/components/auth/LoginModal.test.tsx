@@ -35,6 +35,16 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('LoginModal', () => {
+  it('로그인 대화 상자로 열려 이메일 칸에 포커스, Esc 로 닫는다', async () => {
+    const { onClose } = renderModal()
+
+    expect(screen.getByRole('dialog', { name: '로그인' })).toHaveAttribute('aria-modal', 'true')
+    expect(screen.getByLabelText('이메일')).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
   it('이메일과 비밀번호로 로그인하고 창을 닫는다', async () => {
     const user = userEvent.setup()
     const { onClose, onLogin } = renderModal()

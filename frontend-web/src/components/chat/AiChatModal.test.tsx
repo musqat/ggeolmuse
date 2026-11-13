@@ -79,6 +79,18 @@ beforeEach(() => {
 })
 
 describe('AiChatModal', () => {
+  it('AI 종목 분석 대화 상자로 열려 입력 칸에 포커스, Esc 로 닫으면 연 단추로 포커스 복귀', async () => {
+    renderModal()
+    await userEvent.click(screen.getByRole('button', { name: '채팅 열기' }))
+
+    expect(screen.getByRole('dialog', { name: 'AI 종목 분석' })).toHaveAttribute('aria-modal', 'true')
+    expect(screen.getByPlaceholderText(SYMBOL_INPUT)).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByRole('button', { name: '채팅 열기' })).toHaveFocus()
+  })
+
   it('종목을 입력하면 대화를 시작하고 남은 횟수를 보인다', async () => {
     startConversation.mockResolvedValueOnce(started('AAPL', 'Apple Inc.'))
     await openAndStart()

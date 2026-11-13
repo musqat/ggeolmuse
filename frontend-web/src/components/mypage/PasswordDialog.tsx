@@ -3,7 +3,9 @@ import { authApi } from '../../services/api';
 import { getServerMessage } from '../../utils/apiError';
 import { PASSWORD_HINT, PASSWORD_RULE, PASSWORD_RULE_MESSAGE } from '../../utils/password';
 import { notify } from '../common/notify';
-import { DialogField, FormDialog } from '../common/FormDialog';
+import { DialogActions } from '../common/DialogActions';
+import { DialogField } from '../common/DialogField';
+import { Modal } from '../common/Modal';
 
 // 마이페이지 비밀번호 변경 창
 export const PasswordDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
@@ -37,35 +39,43 @@ export const PasswordDialog: React.FC<{ onClose: () => void }> = ({ onClose }) =
   };
 
   return (
-    <FormDialog
+    <Modal
+      isOpen
+      onClose={onClose}
       title="비밀번호 변경"
-      confirmLabel="변경하기"
-      confirmDisabled={!currentPassword || !newPassword || !confirmPassword}
-      onConfirm={handleChange}
-      onCancel={onClose}
+      footer={
+        <DialogActions
+          onCancel={onClose}
+          onSubmit={handleChange}
+          submitLabel="변경하기"
+          disabled={!currentPassword || !newPassword || !confirmPassword}
+        />
+      }
     >
-      <DialogField
-        id="mypage-current-password"
-        label="현재 비밀번호"
-        type="password"
-        value={currentPassword}
-        onChange={(e) => setCurrentPassword(e.target.value)}
-      />
-      <DialogField
-        id="mypage-new-password"
-        label="새 비밀번호"
-        hint={PASSWORD_HINT}
-        type="password"
-        value={newPassword}
-        onChange={(e) => setNewPassword(e.target.value)}
-      />
-      <DialogField
-        id="mypage-confirm-password"
-        label="새 비밀번호 확인"
-        type="password"
-        value={confirmPassword}
-        onChange={(e) => setConfirmPassword(e.target.value)}
-      />
-    </FormDialog>
+      <div className="space-y-4">
+        <DialogField
+          id="mypage-current-password"
+          label="현재 비밀번호"
+          type="password"
+          value={currentPassword}
+          onChange={(e) => setCurrentPassword(e.target.value)}
+        />
+        <DialogField
+          id="mypage-new-password"
+          label="새 비밀번호"
+          hint={PASSWORD_HINT}
+          type="password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+        />
+        <DialogField
+          id="mypage-confirm-password"
+          label="새 비밀번호 확인"
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+        />
+      </div>
+    </Modal>
   );
 };

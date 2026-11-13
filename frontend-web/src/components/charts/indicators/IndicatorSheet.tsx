@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { INDICATOR_GROUPS, type IndicatorKey, type IndicatorState } from './indicators';
 import { LAYER } from '@/styles/layers';
+import { useModalDialog } from '../../common/useModalDialog';
 
 interface IndicatorSheetProps {
   indicators: IndicatorState;
@@ -13,16 +14,9 @@ interface IndicatorSheetProps {
 export const IndicatorSheet = ({ indicators, onToggle }: IndicatorSheetProps) => {
   const [open, setOpen] = useState(false);
   const active = INDICATOR_GROUPS.flatMap((group) => group.items).filter((item) => indicators[item.key]);
-
-  // Esc 로 닫기
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [open]);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useModalDialog({ open, onClose: () => setOpen(false), rootRef, panelRef });
 
   return (
     <>
@@ -46,25 +40,27 @@ export const IndicatorSheet = ({ indicators, onToggle }: IndicatorSheetProps) =>
 
       {open &&
         createPortal(
-          <div
-            className="fixed inset-0 md:hidden"
-            style={{ zIndex: LAYER.popover }}
-            role="dialog"
-            aria-modal="true"
-            aria-label="지표 설정"
-          >
+          <div ref={rootRef} className="fixed inset-0" style={{ zIndex: LAYER.popover }}>
             <div
               data-testid="chart-indicator-backdrop"
               className="absolute inset-0 bg-black/50"
               onClick={() => setOpen(false)}
             />
-            <div className="absolute inset-x-0 bottom-0 max-h-[70vh] overflow-y-auto rounded-t-2xl border-t border-line bg-surface px-4 pt-2 pb-6 text-tx-1">
+            <div
+              ref={panelRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="지표 설정"
+              tabIndex={-1}
+              className="absolute inset-x-0 bottom-0 max-h-[70vh] overflow-y-auto rounded-t-2xl border-t border-line bg-surface px-4 pt-2 pb-6 text-tx-1 focus:outline-none"
+            >
               <div className="mx-auto mb-2 h-1 w-8 rounded-full bg-line-strong" />
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold">지표</p>
                 <button
                   type="button"
                   aria-label="닫기"
+                  data-dialog-close
                   onClick={() => setOpen(false)}
                   className="p-1 text-tx-3 hover:text-tx-1"
                 >

@@ -61,7 +61,8 @@ function App() {
             <Header />
             <Notifications />
             <NicknameRequiredPrompt />
-            <main>
+            {/* 창을 닫은 뒤 돌아갈 단추가 없을 때의 포커스 자리 */}
+            <main tabIndex={-1} className="focus:outline-none">
             <PageErrorBoundary>
             <Suspense fallback={
               <div className="flex items-center justify-center min-h-screen">

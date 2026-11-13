@@ -31,6 +31,13 @@ const searchInput = () => screen.getByPlaceholderText('종목명 또는 티커 �
 const shownSymbols = () => screen.getAllByText(/^(AVGO|VZ|V)$/).map((el) => el.textContent)
 
 describe('SearchModal', () => {
+  it('종목 검색 대화 상자로 열려 검색 칸에 포커스', () => {
+    renderModal()
+
+    expect(screen.getByRole('dialog', { name: '종목 검색' })).toHaveAttribute('aria-modal', 'true')
+    expect(searchInput()).toHaveFocus()
+  })
+
   it('정확히 맞는 티커를 먼저 보인다', async () => {
     const user = userEvent.setup()
     renderModal()
