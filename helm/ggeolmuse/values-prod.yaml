@@ -199,7 +199,7 @@ services:
 
   backtestService:
     image:
-      tag: "1.8.10"
+      tag: "24ec820"
     env:
       TZ: "Asia/Seoul"
     probes:
