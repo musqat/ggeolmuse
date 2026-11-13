@@ -1,13 +1,11 @@
 package com.muscat.backtest.domain.dto.request;
 
 import com.muscat.backtest.common.constants.BacktestConstants.RequestLimit;
-import com.muscat.backtest.common.constants.BacktestConstants.SellRule;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -16,7 +14,6 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -70,28 +67,19 @@ public class ConditionalStrategyRequest implements StrategyRequest {
   private BigDecimal dropPercentage;
 
   @Schema(description = "익절 비율: 보유분 평균 단가(수수료 포함)보다 이만큼 오르면 전량 매도 (10% = 0.1, 비우면 안 함)", example = "0.1")
-  @Positive(message = "익절 비율은 0보다 커야 합니다")
   private BigDecimal takeProfitRate;
 
   @Schema(description = "손절 비율: 보유분 평균 단가(수수료 포함)보다 이만큼 내리면 전량 매도 (10% = 0.1, 비우면 안 함)", example = "0.1")
-  @Positive(message = "손절 비율은 0보다 커야 합니다")
-  @DecimalMax(value = "1", inclusive = false, message = "손절 비율은 1보다 작아야 합니다")
   private BigDecimal stopLossRate;
 
   @Schema(description = "트레일링 스탑 하락 비율: 종가가 기준가(사이클 첫 매수가에서 시작한 종가 고점, 판 뒤에는 판 값)보다 이만큼 내리면 팜 (10% = 0.1, 0 초과 1 미만, 비우면 안 함)", example = "0.1")
-  @DecimalMin(value = "0", inclusive = false, message = SellRule.TRAILING_STOP_MESSAGE)
-  @DecimalMax(value = "1", inclusive = false, message = SellRule.TRAILING_STOP_MESSAGE)
   private BigDecimal trailingStopRate;
 
   @Schema(description = "트레일링 스탑 팔 비율: 그때마다 보유의 이만큼 팜 (50% = 0.5, 0 초과 1 이하, 비우면 전량, 하락 비율과 함께)", example = "0.5")
-  @DecimalMin(value = "0", inclusive = false, message = SellRule.TRAILING_STOP_MESSAGE)
-  @DecimalMax(value = "1", message = SellRule.TRAILING_STOP_MESSAGE)
   private BigDecimal trailingSellRate;
 
   @Schema(description = "부분 익절 단계: 수익률이 낮은 단계부터 사이클에 한 번씩, 하루에 한 단계 보유의 팔 비율만큼 팜 (5단계까지, 비우면 안 함)")
-  @Size(max = SellRule.MAX_PARTIAL_TAKE_PROFITS, message = SellRule.PARTIAL_TAKE_PROFIT_MESSAGE)
-  @Valid
-  private List<@NotNull(message = SellRule.PARTIAL_TAKE_PROFIT_MESSAGE) PartialTakeProfit> partialTakeProfits;
+  private List<PartialTakeProfit> partialTakeProfits;
 
   @Schema(description = "최대 매수 횟수 (비우면 제한 없음, 예산과 먼저 닿는 쪽에서 멈춤)", example = "10")
   @Positive(message = "최대 매수 횟수는 0보다 커야 합니다")
@@ -138,22 +126,6 @@ public class ConditionalStrategyRequest implements StrategyRequest {
   @AssertTrue(message = "회당 금액과 주식 수 가운데 하나만 넣어 주세요")
   public boolean isAmountOrShares() {
     return (amountPerPurchase == null) != (sharesPerPurchase == null);
-  }
-
-  // 팔 비율은 하락 비율과 함께
-  @JsonIgnore
-  @Schema(hidden = true)
-  @AssertTrue(message = SellRule.TRAILING_STOP_MESSAGE)
-  public boolean isTrailingSellWithStop() {
-    return trailingSellRate == null || trailingStopRate != null;
-  }
-
-  // 부분 익절 수익률은 앞 단계보다 큼
-  @JsonIgnore
-  @Schema(hidden = true)
-  @AssertTrue(message = SellRule.PARTIAL_TAKE_PROFIT_MESSAGE)
-  public boolean isPartialTakeProfitAscending() {
-    return PartialTakeProfit.ascending(partialTakeProfits);
   }
 
   // 회당 금액 · 주식 수 표시("100000원" · "2주")

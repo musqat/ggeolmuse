@@ -545,6 +545,17 @@ class MaCrossStrategyTest {
     }
 
     @Test
+    @DisplayName("소문자 · 앞뒤 공백 신호 종목은 대문자로 시세를 받고 차트 종목도 대문자다")
+    void upperCasesSignalSymbol() {
+      stubSignalMarket(crossing(), signalCrossing());
+
+      StrategyResponse response = strategy.execute(request(7).signalSymbol(" ^idx ").build());
+
+      verify(marketDataClient).getOHLCPriceRange(SIGNAL, START.minusDays(18).toString(), START.plusDays(7).toString());
+      assertThat(response.getSignalChart().symbol()).isEqualTo(SIGNAL);
+    }
+
+    @Test
     @DisplayName("신호가 매매 종목이 쉬는 날 나면 매매 종목의 다음 거래일 종가에 사고판다")
     void tradesOnNextTradingDay() {
       // 매매 종목은 1 · 4 · 6일째가 쉬는 날

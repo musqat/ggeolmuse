@@ -164,13 +164,13 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 ## 테스트
 
-백엔드 **2,519 개**, 프론트 **1,517 개**, E2E **68 개**.
+백엔드 **2,531 개**, 프론트 **1,517 개**, E2E **68 개**.
 
 | 서비스 | 테스트 |
 |---|---|
 | market-data-service | 559 |
 | user-service | 440 |
-| backtest-service | 863 |
+| backtest-service | 875 |
 | trade-service | 412 |
 | gateway-server | 21 |
 | config-server | 5 |

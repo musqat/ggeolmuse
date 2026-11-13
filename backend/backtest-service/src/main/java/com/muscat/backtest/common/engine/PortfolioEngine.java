@@ -208,7 +208,7 @@ public class PortfolioEngine {
   // 평가일 전 하루의 반올림 전 가치(USD)와 앞 날 다음부터 그 날짜까지의 입금(USD)
   private record Day(LocalDate date, BigDecimal rawUsd, BigDecimal depositUsd) {}
 
-  // 한 번 돌리는 동안의 현금(USD, 신호 줄 몫 포함) · 거래 · 배당 · 넣은 돈 · 일별 가치 · 마지막으로 리밸런싱한 주기
+  // 한 번 돌리는 동안의 현금(USD, 신호 줄 몫 포함) · 거래 · 배당 · 넣은 돈 · 일별 가치 · 마지막으로 리밸런싱한 주기 · 마지막 납부 줄
   private static final class Run {
     private final PortfolioRequest request;
     private final List<Line> lines;
@@ -225,6 +225,7 @@ public class PortfolioEngine {
     private BigDecimal pendingDepositUsd = BigDecimal.ZERO;
     private boolean bought;
     private int rebalancedPeriod = Integer.MIN_VALUE;
+    private StrategyTransaction lastPayment;
 
     private Run(PortfolioRequest request, List<Line> lines, FxRates fxRates, LocalDate valuationDate) {
       this.request = request;
@@ -245,12 +246,7 @@ public class PortfolioEngine {
           line.lastClose = PriceLookup.effectiveClose(candle);
         }
       });
-      StrategyTransaction payment = taxPayer.pay(date, transactions, cash, fx, fxRates.isDefault(date));
-      if (payment != null) {
-        payment.setReason(TradeReason.TAX_PAYMENT);
-        transactions.add(payment);
-        payTax(payment.getTaxPaid());
-      }
+      payDueTax(date, fx);
       receiveDividends(date, Boolean.TRUE.equals(request.getReinvestDividends()));
       lines.forEach(line -> sellOrFollow(line, date, fx));
       for (Line line : lines) {
@@ -270,6 +266,22 @@ public class PortfolioEngine {
         days.add(new Day(date, rawUsd, pendingDepositUsd));
         pendingDepositUsd = BigDecimal.ZERO;
       }
+    }
+
+    // 그 날짜까지 납부일이 온 남은 양도세를 현금에서 냄(그 날짜에 또 내면 그 날짜 납부 줄에 더함)
+    private void payDueTax(LocalDate date, BigDecimal fx) {
+      StrategyTransaction payment = taxPayer.pay(date, transactions, cash, fx, fxRates.isDefault(date));
+      if (payment == null) {
+        return;
+      }
+      if (lastPayment != null && date.equals(lastPayment.getDate())) {
+        lastPayment.setTaxPaid(lastPayment.getTaxPaid().add(payment.getTaxPaid()));
+      } else {
+        payment.setReason(TradeReason.TAX_PAYMENT);
+        transactions.add(payment);
+        lastPayment = payment;
+      }
+      payTax(payment.getTaxPaid());
     }
 
     // 배당락일이 그 날짜까지 온 배당을 전날까지 든 주식으로 받아 세후 달러를 현금에, 재투자면 그 날짜 그 종목 종가로 삼
@@ -292,7 +304,7 @@ public class PortfolioEngine {
           cash = cash.add(afterTax);
           OHLCPriceDto candle = line.candles.get(date);
           if (reinvest && candle != null) {
-            reinvest(line, exDate, candle, afterTax, fx);
+            reinvest(line, exDate, candle, afterTax);
           }
         }
       }
@@ -306,20 +318,21 @@ public class PortfolioEngine {
         : BigDecimal.ZERO;
     }
 
-    // 받은 배당 전부로 그 일봉 종가에 삼(수수료 없음)
-    private void reinvest(Line line, LocalDate exDate, OHLCPriceDto candle, BigDecimal usd, BigDecimal fx) {
+    // 받은 배당 전부로 그 일봉 날짜 종가 · 환율에 삼(수수료 없음)
+    private void reinvest(Line line, LocalDate exDate, OHLCPriceDto candle, BigDecimal usd) {
       BigDecimal price = PriceLookup.effectiveClose(candle);
+      LocalDate bought = candle.date();
       StrategyTransaction tx = StrategyTransaction.builder()
         .symbol(line.symbol)
         .reason(TradeReason.DIVIDEND_REINVESTMENT)
         .date(exDate)
-        .actualDate(candle.date())
+        .actualDate(bought)
         .price(price)
         .shares(usd.divide(price, 8, RoundingMode.HALF_UP))
         .amount(BigDecimal.ZERO)
         .cashUsed(usd)
-        .fxRate(fx)
-        .defaultFxDate(defaultFx(exDate))
+        .fxRate(fxOn(bought))
+        .defaultFxDate(defaultFx(bought))
         .trigger(TransactionTrigger.DIVIDEND_REINVESTMENT)
         .build();
       record(line, tx);
@@ -469,7 +482,7 @@ public class PortfolioEngine {
       return period > rebalance.period(allBought) && period > rebalancedPeriod;
     }
 
-    // 신호 줄 빼고 목표 = 그 줄들 사이 처음 비중 × (그 줄들 평가 합 + 공용 현금), 넘는 줄을 먼저 팔고 모자란 줄을 요청 순서로 남은 공용 현금만큼 삼(1달러 미만 매매는 건너뜀)
+    // 신호 줄 빼고 목표 = 그 줄들 사이 처음 비중 × (그 줄들 평가 합 + 공용 현금), 넘는 줄을 먼저 팔아 남은 양도세를 내고 모자란 줄을 요청 순서로 남은 공용 현금만큼 삼(1달러 미만 매매는 건너뜀)
     private void rebalance(LocalDate date, BigDecimal fx) {
       rebalancedPeriod = rebalance.period(date);
       BigDecimal plannedSum = targets.stream().map(line -> line.plannedKrw).reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -483,6 +496,7 @@ public class PortfolioEngine {
           sellExcess(targets.get(i), excess, date, fx);
         }
       }
+      payDueTax(date, fx);
       for (int i = 0; i < targets.size(); i++) {
         BigDecimal spend = gaps.get(i).min(freeCash());
         if (spend.compareTo(Portfolio.MIN_REBALANCE_USD) >= 0) {

@@ -15,7 +15,7 @@ import java.util.List;
  */
 public final class BacktestRequestValidator {
 
-  // 지수 심볼 앞말(^GSPC · ^NDX)
+  // 지수 심볼 첫 글자(^GSPC · ^NDX)
   private static final String INDEX_PREFIX = "^";
 
   private BacktestRequestValidator() {}

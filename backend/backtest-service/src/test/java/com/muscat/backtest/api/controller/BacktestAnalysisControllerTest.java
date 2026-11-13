@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -28,11 +29,16 @@ import com.muscat.backtest.domain.dto.request.MaBandStrategyRequest;
 import com.muscat.backtest.domain.dto.request.MaCrossStrategyRequest;
 import com.muscat.backtest.domain.dto.request.PartialTakeProfit;
 import com.muscat.backtest.domain.dto.request.PortfolioRequest;
+import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.ComparisonItem;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
 import com.muscat.backtest.domain.dto.response.PortfolioResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.service.BacktestAnalysisService;
+import com.muscat.backtest.domain.strategy.ConditionalPurchaseStrategy;
+import com.muscat.backtest.domain.strategy.MaBandStrategy;
+import com.muscat.backtest.domain.strategy.MaCrossStrategy;
+import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
@@ -342,17 +348,28 @@ class BacktestAnalysisControllerTest {
   @ParameterizedTest(name = "{0}")
   @CsvSource(delimiter = '|', value = {
     "원금 없음|\"shortWindow\":5",
-    "원금 0|\"investmentAmount\":0",
-    "짧은 기간 1|\"investmentAmount\":10000000,\"shortWindow\":1",
-    "긴 기간 251|\"investmentAmount\":10000000,\"longWindow\":251",
-    "두 기간이 같음|\"investmentAmount\":10000000,\"shortWindow\":60,\"longWindow\":60",
-    "짧은 기간 70 · 긴 기간 비움|\"investmentAmount\":10000000,\"shortWindow\":70"})
-  @DisplayName("이동평균 교차 전략의 원금이 없거나 0 이거나 기간이 2 ~ 250 밖이거나 짧은 기간이 긴 기간보다 작지 않으면 400 이고 서비스까지 가지 않는다")
+    "원금 0|\"investmentAmount\":0"})
+  @DisplayName("이동평균 교차 전략의 원금이 없거나 0 이면 400 이고 서비스까지 가지 않는다")
   void maCrossRejected(String label, String fields) throws Exception {
     postJson("/strategy/ma-cross", "{\"symbol\":\"AAPL\"," + PERIOD + "," + fields + "}")
       .andExpect(status().isBadRequest());
 
     verify(backtestAnalysisService, never()).runMaCrossStrategy(any());
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @CsvSource(delimiter = '|', value = {
+    "짧은 기간 1|\"shortWindow\":1",
+    "긴 기간 251|\"longWindow\":251",
+    "두 기간이 같음|\"shortWindow\":60,\"longWindow\":60",
+    "짧은 기간 70 · 긴 기간 비움|\"shortWindow\":70"})
+  @DisplayName("이동평균 교차 전략의 기간이 2 ~ 250 밖이거나 짧은 기간이 긴 기간보다 작지 않으면 400 과 INVALID_MA_WINDOWS")
+  void maCrossWindowsRejected(String label, String fields) throws Exception {
+    runStrategies();
+
+    postJson("/strategy/ma-cross", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":10000000," + fields + "}")
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.errorCode").value("INVALID_MA_WINDOWS"));
   }
 
   @Test
@@ -389,14 +406,8 @@ class BacktestAnalysisControllerTest {
   @ParameterizedTest(name = "{0}")
   @CsvSource(delimiter = '|', value = {
     "원금 없음|\"bandWindow\":200",
-    "원금 0|\"investmentAmount\":0",
-    "평균 기간 1|\"investmentAmount\":10000000,\"bandWindow\":1",
-    "평균 기간 251|\"investmentAmount\":10000000,\"bandWindow\":251",
-    "위 비율 음수|\"investmentAmount\":10000000,\"upperRate\":-0.01",
-    "위 비율 1|\"investmentAmount\":10000000,\"upperRate\":1",
-    "아래 비율 음수|\"investmentAmount\":10000000,\"lowerRate\":-0.01",
-    "아래 비율 1|\"investmentAmount\":10000000,\"lowerRate\":1"})
-  @DisplayName("이동평균 밴드 전략의 원금이 없거나 0 이거나 평균 기간이 2 ~ 250 밖이거나 비율이 0 이상 1 미만 밖이면 400 이고 서비스까지 가지 않는다")
+    "원금 0|\"investmentAmount\":0"})
+  @DisplayName("이동평균 밴드 전략의 원금이 없거나 0 이면 400 이고 서비스까지 가지 않는다")
   void maBandRejected(String label, String fields) throws Exception {
     postJson("/strategy/ma-band", "{\"symbol\":\"SPY\"," + PERIOD + "," + fields + "}")
       .andExpect(status().isBadRequest());
@@ -404,7 +415,50 @@ class BacktestAnalysisControllerTest {
     verify(backtestAnalysisService, never()).runMaBandStrategy(any());
   }
 
-  // 경로마다 트레일링 스탑 칸 앞까지의 요청 본문
+  @ParameterizedTest(name = "{0}")
+  @CsvSource(delimiter = '|', value = {
+    "평균 기간 1|\"bandWindow\":1",
+    "평균 기간 251|\"bandWindow\":251",
+    "위 비율 음수|\"upperRate\":-0.01",
+    "위 비율 1|\"upperRate\":1",
+    "아래 비율 음수|\"lowerRate\":-0.01",
+    "아래 비율 1|\"lowerRate\":1"})
+  @DisplayName("이동평균 밴드 전략의 평균 기간이 2 ~ 250 밖이거나 비율이 0 이상 1 미만 밖이면 400 과 INVALID_BAND")
+  void maBandRangeRejected(String label, String fields) throws Exception {
+    runStrategies();
+
+    postJson("/strategy/ma-band", "{\"symbol\":\"SPY\"," + PERIOD + ",\"investmentAmount\":10000000," + fields + "}")
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.errorCode").value("INVALID_BAND"));
+  }
+
+  // 서비스 자리에서 실제 전략을 돌림(칸 검사는 시세를 받기 전에 끝남)
+  private void runStrategies() {
+    MarketDataClientWrapper marketData = mock(MarketDataClientWrapper.class);
+    ResponseMapper responseMapper = mock(ResponseMapper.class);
+    given(backtestAnalysisService.runConditionalStrategy(any())).willAnswer(call ->
+      new ConditionalPurchaseStrategy(marketData, responseMapper).execute(call.getArgument(0)));
+    given(backtestAnalysisService.runMaCrossStrategy(any())).willAnswer(call ->
+      new MaCrossStrategy(marketData, responseMapper).execute(call.getArgument(0)));
+    given(backtestAnalysisService.runMaBandStrategy(any())).willAnswer(call ->
+      new MaBandStrategy(marketData, responseMapper).execute(call.getArgument(0)));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @CsvSource(delimiter = '|', value = {
+    "익절 비율 0|\"takeProfitRate\":0",
+    "손절 비율 0|\"stopLossRate\":0",
+    "손절 비율 1|\"stopLossRate\":1"})
+  @DisplayName("조건부 매수 전략의 익절 비율이 0 이하이거나 손절 비율이 0 초과 1 미만 밖이면 400 과 INVALID_SELL_RATE")
+  void sellRatesRejected(String label, String fields) throws Exception {
+    runStrategies();
+
+    postJson("/strategy/conditional", sellingBody("conditional") + "," + fields + "}")
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.errorCode").value("INVALID_SELL_RATE"));
+  }
+
+  // 경로마다 매도 규칙 칸 앞까지의 요청 본문
   private static String sellingBody(String path) {
     return switch (path) {
       case "conditional" -> "{\"symbol\":\"AAPL\"," + PERIOD + ",\"amountPerPurchase\":100000,\"dropPercentage\":0.05";
@@ -443,14 +497,13 @@ class BacktestAnalysisControllerTest {
     "ma-cross|팔 비율만|\"trailingSellRate\":0.5",
     "ma-band|팔 비율 1 초과|\"trailingStopRate\":0.1,\"trailingSellRate\":1.01",
     "ma-band|팔 비율만|\"trailingSellRate\":0.5"})
-  @DisplayName("트레일링 스탑 하락 비율이 0 초과 1 미만 밖이거나 팔 비율이 0 초과 1 이하 밖이거나 팔 비율만 있으면 400 이고 서비스까지 가지 않는다")
+  @DisplayName("트레일링 스탑 하락 비율이 0 초과 1 미만 밖이거나 팔 비율이 0 초과 1 이하 밖이거나 팔 비율만 있으면 400 과 INVALID_TRAILING_STOP")
   void trailingStopRejected(String path, String label, String fields) throws Exception {
-    postJson("/strategy/" + path, sellingBody(path) + "," + fields + "}")
-      .andExpect(status().isBadRequest());
+    runStrategies();
 
-    verify(backtestAnalysisService, never()).runConditionalStrategy(any());
-    verify(backtestAnalysisService, never()).runMaCrossStrategy(any());
-    verify(backtestAnalysisService, never()).runMaBandStrategy(any());
+    postJson("/strategy/" + path, sellingBody(path) + "," + fields + "}")
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.errorCode").value("INVALID_TRAILING_STOP"));
   }
 
   @Test
@@ -479,20 +532,20 @@ class BacktestAnalysisControllerTest {
   @CsvSource(delimiter = '|', value = {
     "conditional|6단계|[{\"gainRate\":0.1,\"sellRate\":0.1},{\"gainRate\":0.2,\"sellRate\":0.1},{\"gainRate\":0.3,\"sellRate\":0.1},{\"gainRate\":0.4,\"sellRate\":0.1},{\"gainRate\":0.5,\"sellRate\":0.1},{\"gainRate\":0.6,\"sellRate\":0.1}]",
     "conditional|수익률 0|[{\"gainRate\":0,\"sellRate\":0.5}]",
+    "conditional|수익률 내림|[{\"gainRate\":0.3,\"sellRate\":0.5},{\"gainRate\":0.2,\"sellRate\":0.5}]",
     "ma-cross|수익률이 앞 단계와 같음|[{\"gainRate\":0.2,\"sellRate\":0.5},{\"gainRate\":0.2,\"sellRate\":0.5}]",
     "ma-cross|팔 비율 0|[{\"gainRate\":0.2,\"sellRate\":0}]",
     "ma-cross|수익률 비움|[{\"gainRate\":0.1,\"sellRate\":0.5},{\"sellRate\":0.5}]",
     "ma-band|팔 비율 1 초과|[{\"gainRate\":0.2,\"sellRate\":1.01}]",
     "ma-band|팔 비율 비움|[{\"gainRate\":0.2}]",
     "ma-band|비운 단계|[null]"})
-  @DisplayName("부분 익절이 6단계 이상이거나 수익률이 0 초과 오름차순이 아니거나 팔 비율이 0 초과 1 이하 밖이거나 비운 칸이 있으면 400 이고 서비스까지 가지 않는다")
+  @DisplayName("부분 익절이 6단계 이상이거나 수익률이 0 초과 오름차순이 아니거나 팔 비율이 0 초과 1 이하 밖이거나 비운 칸이 있으면 400 과 INVALID_PARTIAL_TAKE_PROFIT")
   void partialTakeProfitsRejected(String path, String label, String steps) throws Exception {
-    postJson("/strategy/" + path, sellingBody(path) + ",\"partialTakeProfits\":" + steps + "}")
-      .andExpect(status().isBadRequest());
+    runStrategies();
 
-    verify(backtestAnalysisService, never()).runConditionalStrategy(any());
-    verify(backtestAnalysisService, never()).runMaCrossStrategy(any());
-    verify(backtestAnalysisService, never()).runMaBandStrategy(any());
+    postJson("/strategy/" + path, sellingBody(path) + ",\"partialTakeProfits\":" + steps + "}")
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.errorCode").value("INVALID_PARTIAL_TAKE_PROFIT"));
   }
 
   @Test

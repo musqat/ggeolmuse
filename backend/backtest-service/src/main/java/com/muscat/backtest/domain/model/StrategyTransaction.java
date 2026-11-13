@@ -18,24 +18,24 @@ public class StrategyTransaction {
   private String symbol;                // 거래 종목 (포트폴리오만)
   @JsonInclude(JsonInclude.Include.NON_NULL)
   private TradeReason reason;           // 거래 이유 (포트폴리오만)
-  private LocalDate date;               // 계획된 매수일
+  private LocalDate date;               // 계획된 거래일
   private LocalDate actualDate;         // 실제 거래일 (주말/휴장일 조정)
   private BigDecimal price;             // USD 주가
-  private BigDecimal shares;            // 매수 주식수
+  private BigDecimal shares;            // 매수 · 매도 수량
   private BigDecimal amount;            // 투자금액 (KRW)
   private BigDecimal fxRate;            // 당시 환율
-  private String trigger;               // 매수 트리거 (적립식: "월정액" · "매주 정액" · "매달 2주", 조건부: "5%하락")
+  private String trigger;               // 거래 이유 ("월정액" · "5%하락" · "골든 크로스" · "양도세 납부" 등)
   private BigDecimal fee;               // 매매 수수료 (USD, 배당 재투자는 null)
   private BigDecimal proceeds;          // 매도로 받은 돈 (USD, 수수료 뺀 값, 매수는 null)
-  private BigDecimal cashUsed;          // 매수에 쓴 판 돈 (USD, 새 돈만 넣었으면 null)
+  private BigDecimal cashUsed;          // 매수에 쓴 현금 (USD, 새 돈만 넣었으면 null)
   private BigDecimal realizedProfit;    // 매도 실현 손익 (USD, 매수는 null)
-  private BigDecimal taxPaid;           // 판 돈에서 낸 양도세 (USD, 양도세 납부가 아니면 null)
+  private BigDecimal taxPaid;           // 현금에서 낸 양도세 (USD, 양도세 납부가 아니면 null)
 
   // 환율이 없어 기본 환율로 산 날(아니면 null)
   @JsonIgnore
   private LocalDate defaultFxDate;
 
-  // 배당 대상 판정용 날짜(주말에 계획해 월요일에 샀으면 월요일)
+  // 배당 대상 판정 · 매매 통계 순서 날짜(주말에 계획해 월요일에 샀으면 월요일)
   public LocalDate tradedOn() {
     return actualDate != null ? actualDate : date;
   }
@@ -52,7 +52,7 @@ public class StrategyTransaction {
     return taxPaid != null;
   }
 
-  // 그 날짜 계좌 현금 변화(USD, 매도로 받은 돈 - 매수에 쓴 판 돈 - 낸 양도세)
+  // 그 날짜 계좌 현금 변화(USD, 매도로 받은 돈 - 매수에 쓴 현금 - 낸 양도세)
   @JsonIgnore
   public BigDecimal cashChange() {
     BigDecimal in = proceeds != null ? proceeds : BigDecimal.ZERO;
@@ -60,10 +60,12 @@ public class StrategyTransaction {
     return in.subtract(out).subtract(taxPaid != null ? taxPaid : BigDecimal.ZERO);
   }
 
-  // 매수 원가(USD, 넣은 원화를 그 날짜 환율로 바꾼 값 + 쓴 판 돈, 수수료 포함, 배당 재투자는 0)
+  // 매수 원가(USD, 넣은 원화를 그 날짜 환율로 바꾼 값 + 쓴 현금, 수수료 포함)
   @JsonIgnore
   public BigDecimal costUsd() {
-    BigDecimal deposit = amount.signum() > 0 ? amount.divide(fxRate, 8, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+    BigDecimal deposit = amount != null && amount.signum() > 0
+      ? amount.divide(fxRate, 8, RoundingMode.HALF_UP)
+      : BigDecimal.ZERO;
     return cashUsed != null ? deposit.add(cashUsed) : deposit;
   }
 }
