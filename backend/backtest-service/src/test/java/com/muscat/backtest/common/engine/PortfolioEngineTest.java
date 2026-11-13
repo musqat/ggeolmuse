@@ -564,6 +564,28 @@ class PortfolioEngineTest {
     }
 
     @Test
+    @DisplayName("배당락일이 거래일이 아니면 다음 거래일 종가에 그 날짜 환율로 재투자하고 받은 배당은 배당락일 환율로 남긴다")
+    void reinvestsAtNextTradingDayFx() {
+      LocalDate saturday = day(5);
+      LocalDate monday = day(7);
+      prices("AAA", candle("AAA", day(0), "10"), candle("AAA", monday, "12.5"));
+      dividends("AAA", dividend("AAA", saturday, "1"));
+      given(marketData.getBulkFxRates(any())).willReturn(Map.of(day(0).toString(), FX,
+        saturday.toString(), new BigDecimal("1320"), monday.toString(), new BigDecimal("1340")));
+      given(marketData.getFxRate(monday.toString())).willReturn(new FxRateDto(monday, new BigDecimal("1340")));
+
+      PortfolioEngine.Result result = engine.run(PortfolioRequest.builder().startDate(START).endDate(monday)
+        .assets(List.of(asset("AAA", "1300000"))).reinvestDividends(true).build());
+
+      StrategyTransaction reinvestment = result.transactions().get(1);
+      assertThat(tuple(reinvestment.getReason(), reinvestment.getDate(), reinvestment.tradedOn(),
+        plain(reinvestment.getShares()), plain(reinvestment.getFxRate()), reinvestment.getDefaultFxDate()))
+        .isEqualTo(tuple(TradeReason.DIVIDEND_REINVESTMENT, saturday, monday, "8", "1340", null));
+      assertThat(result.dividends()).extracting(d -> tuple(d.exDate(), plain(d.amountUsd()), plain(d.fxRate())))
+        .containsExactly(tuple(saturday, "100", "1320"));
+    }
+
+    @Test
     @DisplayName("재투자를 켜도 그 종목 일봉이 없는 날 받은 배당은 현금으로 둔다")
     void keepsCashWithoutCandle() {
       prices("AAA", candle("AAA", day(0), "10"), candle("AAA", day(2), "10"));
@@ -801,6 +823,84 @@ class PortfolioEngineTest {
           tuple("BBB", TradeReason.PERIOD_END_SALE, APR2, "-150", "1450"));
       assertThat(plain(result.currentFxRate())).isEqualTo("1500");
       assertThat(result.defaultFxDates()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("리밸런싱 날 납부일이 지난 남은 양도세는 넘는 종목을 판 돈에서 먼저 내고 남은 공용 현금으로 모자란 종목을 산다")
+    void paysDueTaxBeforeRebalanceBuy() {
+      LocalDate due = LocalDate.of(2026, 5, 1);
+      prices("AAA", candle("AAA", START, "10"), candle("AAA", JAN2, "10"), candle("AAA", due, "12"));
+      prices("BBB", candle("BBB", START, "10"), candle("BBB", JAN2, "25"), candle("BBB", due, "25"));
+
+      PortfolioEngine.Result result = engine.run(request(due, asset("AAA", "7800000"), asset("BBB", "5200000"))
+        .rebalance(PortfolioRebalance.YEARLY).capitalGainsTax(true).build());
+
+      // 2025년 1월 2일 BBB 3600 달러어치를 팔아 실현 이익 280만 8천원, 판 돈은 모두 AAA 를 사는 데 써 납부일 현금 0
+      assertThat(result.transactions()).extracting(tx -> tuple(tx.getSymbol(), tx.getReason(), tx.tradedOn()))
+        .containsExactly(tuple("AAA", TradeReason.BUY, START), tuple("BBB", TradeReason.BUY, START),
+          tuple("BBB", TradeReason.REBALANCE_SELL, JAN2), tuple("AAA", TradeReason.REBALANCE_BUY, JAN2),
+          tuple("AAA", TradeReason.REBALANCE_SELL, due), tuple(null, TradeReason.TAX_PAYMENT, due),
+          tuple("BBB", TradeReason.REBALANCE_BUY, due));
+      // 공제 뒤 30만 8천원의 22% 6만 7,760원 ÷ 1300, AAA 768 달러 판 돈에서 내고 남은 돈으로 BBB
+      assertThat(plain(result.transactions().get(5).getTaxPaid())).isEqualTo("52.12");
+      assertThat(plain(result.transactions().get(6).getCashUsed())).isEqualTo("715.88");
+      assertThat(result.taxPayments().paidKrw()).containsOnlyKeys(2025);
+      assertThat(plain(result.taxPayments().paidKrw().get(2025))).isEqualTo("67760");
+      assertThat(plain(result.cashUsd())).isEqualTo("0");
+    }
+
+    @Test
+    @DisplayName("리밸런싱 날 현금으로 다 못 낸 양도세를 넘는 종목을 판 돈에서 마저 내도 그 날짜 납부 줄은 하나다")
+    void mergesRebalanceDayTaxPayments() {
+      LocalDate june = LocalDate.of(2025, 6, 2);
+      LocalDate due = LocalDate.of(2026, 5, 1);
+      prices("AAA", candle("AAA", START, "10"), candle("AAA", JAN2, "10"), candle("AAA", june, "10"),
+        candle("AAA", due, "12"));
+      prices("BBB", candle("BBB", START, "10"), candle("BBB", JAN2, "25"), candle("BBB", due, "25"));
+      // 960주 × 0.02 달러 = 19.2 달러 현금
+      dividends("AAA", dividend("AAA", june, "0.02"));
+
+      PortfolioEngine.Result result = engine.run(request(due, asset("AAA", "7800000"), asset("BBB", "5200000"))
+        .rebalance(PortfolioRebalance.YEARLY).capitalGainsTax(true).build());
+
+      assertThat(result.transactions()).extracting(tx -> tuple(tx.getSymbol(), tx.getReason(), tx.tradedOn()))
+        .containsExactly(tuple("AAA", TradeReason.BUY, START), tuple("BBB", TradeReason.BUY, START),
+          tuple("BBB", TradeReason.REBALANCE_SELL, JAN2), tuple("AAA", TradeReason.REBALANCE_BUY, JAN2),
+          tuple(null, TradeReason.TAX_PAYMENT, due), tuple("AAA", TradeReason.REBALANCE_SELL, due),
+          tuple("BBB", TradeReason.REBALANCE_BUY, due));
+      // 현금 19.2 달러 + AAA 768 달러 판 돈에서 32.92 달러
+      assertThat(plain(result.transactions().get(4).getTaxPaid())).isEqualTo("52.12");
+      assertThat(plain(result.transactions().get(6).getCashUsed())).isEqualTo("735.08");
+      assertThat(plain(result.taxPayments().paidKrw().get(2025))).isEqualTo("67760");
+      assertThat(plain(result.cashUsd())).isEqualTo("0");
+    }
+
+    @Test
+    @DisplayName("리밸런싱 매도 · 기간 끝 매도 날이 기본 환율 날이면 양도세를 켰을 때만 그 매도를 기본 환율 날로 남긴다")
+    void saleDefaultFxOnlyWithTax() {
+      LocalDate april3 = LocalDate.of(2024, 4, 3);
+      prices("AAA", candle("AAA", START, "10"), candle("AAA", APR1, "20"), candle("AAA", APR2, "20"));
+      prices("BBB", candle("BBB", START, "10"), candle("BBB", APR1, "10"), candle("BBB", APR2, "10"));
+      // 4월 1일 · 2일 환율 없음
+      given(marketData.getBulkFxRates(any())).willReturn(Map.of(START.toString(), FX));
+      given(marketData.getFxRate(april3.toString())).willReturn(new FxRateDto(april3, new BigDecimal("1500")));
+      PortfolioRequest.PortfolioRequestBuilder request = PortfolioRequest.builder().startDate(START).endDate(april3)
+        .assets(List.of(asset("AAA", "1300000"), asset("BBB", "1300000"))).rebalance(PortfolioRebalance.MONTHLY)
+        .periodEnd(PeriodEnd.SELL_AT_END);
+
+      PortfolioEngine.Result off = engine.run(request.build());
+      PortfolioEngine.Result on = engine.run(request.capitalGainsTax(true).build());
+
+      assertThat(off.transactions()).extracting(tx -> tuple(tx.getReason(), tx.getDefaultFxDate())).containsExactly(
+        tuple(TradeReason.BUY, null), tuple(TradeReason.BUY, null), tuple(TradeReason.REBALANCE_SELL, null),
+        tuple(TradeReason.REBALANCE_BUY, APR1), tuple(TradeReason.PERIOD_END_SALE, null),
+        tuple(TradeReason.PERIOD_END_SALE, null));
+      assertThat(off.defaultFxDates()).containsExactly(APR1);
+      assertThat(on.transactions()).extracting(tx -> tuple(tx.getReason(), tx.getDefaultFxDate())).containsExactly(
+        tuple(TradeReason.BUY, null), tuple(TradeReason.BUY, null), tuple(TradeReason.REBALANCE_SELL, APR1),
+        tuple(TradeReason.REBALANCE_BUY, APR1), tuple(TradeReason.PERIOD_END_SALE, APR2),
+        tuple(TradeReason.PERIOD_END_SALE, APR2));
+      assertThat(on.defaultFxDates()).containsExactly(APR1, APR2);
     }
 
     @Test
