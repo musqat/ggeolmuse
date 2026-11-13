@@ -10,6 +10,7 @@ import com.muscat.backtest.common.enums.type.PortfolioMethod;
 import com.muscat.backtest.common.enums.type.PortfolioRebalance;
 import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
 import com.muscat.backtest.common.enums.type.StrategyType;
+import com.muscat.backtest.common.enums.type.TaxSale;
 import com.muscat.backtest.domain.model.StrategyParameter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -99,6 +100,23 @@ class StrategyRequestJsonTest {
       .contains("\"trailingStopRate\":0.1").doesNotContain("trailingSellWithStop");
     assertThat(objectMapper.writeValueAsString(maBand))
       .contains("\"trailingStopRate\":0.15", "\"trailingSellRate\":1").doesNotContain("trailingSellWithStop");
+  }
+
+  @Test
+  @DisplayName("조건부 · 이동평균 교차 · 밴드는 양도세 판매 설정을 이력 JSON 에 저장하고 다시 읽는다")
+  void taxSaleSaved() throws Exception {
+    ConditionalStrategyRequest conditional = conditional();
+    conditional.setTaxSale(TaxSale.SELL);
+    MaCrossStrategyRequest maCross = maCross();
+    maCross.setTaxSale(TaxSale.SELL);
+    MaBandStrategyRequest maBand = maBand();
+    maBand.setTaxSale(TaxSale.NONE);
+
+    assertThat(objectMapper.writeValueAsString(conditional)).contains("\"taxSale\":\"SELL\"");
+    assertThat(objectMapper.writeValueAsString(maCross)).contains("\"taxSale\":\"SELL\"");
+    assertThat(objectMapper.readValue(objectMapper.writeValueAsString(maBand), MaBandStrategyRequest.class).getTaxSale())
+      .isEqualTo(TaxSale.NONE);
+    assertThat(maCross().getTaxSale()).isNull();
   }
 
   @Test

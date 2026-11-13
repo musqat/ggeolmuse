@@ -17,6 +17,7 @@ import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.StrategyType;
+import com.muscat.backtest.common.enums.type.TaxSale;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.request.PartialTakeProfit;
@@ -390,6 +391,72 @@ class MaCrossStrategyTest {
       assertThat(tax.unpaidTaxKrw()).isEqualByComparingTo("246900");
       assertThat(tax.afterTaxValueKrw()).isEqualByComparingTo("-246900");
       assertThat(tax.afterTaxReturnPercent()).isEqualByComparingTo("-118.99");
+    }
+
+    @Test
+    @DisplayName("판매 설정이 SELL 이면 납부일에 현금이 없을 때 모자란 만큼 그 날짜 종가에 팔아 양도세를 다 내고 남은 주식은 신호대로 들고 있는다")
+    void sellsSharesForTax() {
+      // 6일째 골든 크로스(80)에 판 돈 전부로 다시 사 납부일(423일째)에 현금 0
+      stubMarket(taxedCrossing(day(6, "80"), day(423, "81"), day(424, "82")));
+
+      StrategyResponse response = strategy.execute(request(424).capitalGainsTax(true).taxSale(TaxSale.SELL).build());
+
+      // 434.92달러 ÷ 81달러
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(1), "10", "골든 크로스", "100"),
+        tuple(START.plusDays(4), "49", "데드 크로스", "-100"),
+        tuple(START.plusDays(6), "80", "골든 크로스", "61.25"),
+        tuple(DUE, "81", "양도세 납부용 매도", "-5.36938272"),
+        tuple(DUE, "0", "양도세 납부", "0"));
+      assertThat(executed().getLast().getTaxPaid()).isEqualByComparingTo("434.92");
+      // 2025년은 납부용 매도의 실현 이익(주당 원가 10만 4,000원)
+      CapitalGainsTax tax = response.getCapitalGainsTax();
+      assertThat(tax.years()).containsExactly(
+        new CapitalGainsTax.Year(2024, new BigDecimal("5070000"), new BigDecimal("2500000"), new BigDecimal("565400"),
+          DUE, new BigDecimal("565400")),
+        new CapitalGainsTax.Year(2025, new BigDecimal("6980"), new BigDecimal("6980"), new BigDecimal("0"), null,
+          BigDecimal.ZERO));
+      assertThat(tax.unpaidTaxKrw()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("판매 설정이 SELL 이어도 모자란 만큼이 보유보다 많으면 전부 팔아 있는 만큼 내고 다음 골든 크로스에도 사지 않는다")
+    void sellsAllForTax() {
+      // 납부일 종가 4 라 61.25주가 245달러, 424일째 데드 크로스 · 426일째 골든 크로스(50)
+      stubMarket(taxedCrossing(day(6, "80"), day(423, "4"), day(424, "5"), day(425, "3"), day(426, "50")));
+
+      StrategyResponse response = strategy.execute(request(426).capitalGainsTax(true).taxSale(TaxSale.SELL).build());
+
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(1), "10", "골든 크로스", "100"),
+        tuple(START.plusDays(4), "49", "데드 크로스", "-100"),
+        tuple(START.plusDays(6), "80", "골든 크로스", "61.25"),
+        tuple(DUE, "4", "양도세 납부용 매도", "-61.25"),
+        tuple(DUE, "0", "양도세 납부", "0"));
+      assertThat(executed().getLast().getTaxPaid()).isEqualByComparingTo("245");
+      assertThat(response.getCapitalGainsTax().unpaidTaxKrw()).isEqualByComparingTo("246900");
+    }
+
+    @Test
+    @DisplayName("판매 설정이 SELL 이고 납부용 매도로 다 팔면 판 돈이 조금 남아도 그 날짜와 신호가 이어지는 날에는 사지 않고 다음 골든 크로스에 산다")
+    void waitsForNextCrossAfterSellingAllForTax() {
+      // 수수료 0.25%, 납부일 종가 7.0836 에 60.79175주를 다 판 429.5444403달러로 양도세 429.54달러를 냄
+      // 424 · 425일째는 짧은 선이 위, 426일째 데드 크로스 · 427일째 골든 크로스(100)
+      stubMarket(taxedCrossing(day(6, "80"), day(423, "7.0836"), day(424, "160"), day(425, "1"), day(426, "1"),
+        day(427, "100")));
+
+      strategy.execute(request(427).tradingFeeRate(new BigDecimal("0.0025")).capitalGainsTax(true)
+        .taxSale(TaxSale.SELL).build());
+
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(1), "10", "골든 크로스", "99.75"),
+        tuple(START.plusDays(4), "49", "데드 크로스", "-99.75"),
+        tuple(START.plusDays(6), "80", "골든 크로스", "60.79175"),
+        tuple(DUE, "7.0836", "양도세 납부용 매도", "-60.79175"),
+        tuple(DUE, "0", "양도세 납부", "0"),
+        tuple(START.plusDays(427), "100", "골든 크로스", "0.0000444"));
+      assertThat(executed().get(4).getTaxPaid()).isEqualByComparingTo("429.54");
+      assertThat(executed().getLast().getCashUsed()).isEqualByComparingTo("0.0044403");
     }
 
     @Test

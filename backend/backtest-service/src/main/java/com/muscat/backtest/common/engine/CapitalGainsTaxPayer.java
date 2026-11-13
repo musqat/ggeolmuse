@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 // 양도세 납부: 판 해의 세금을 다음 해 5월 1일 이후 첫 거래일부터 사고팔기 전에 판 돈(USD)에서 냄
-// 현금이 모자라면 있는 만큼 내고 남은 몫은 현금이 있는 거래일마다 오래된 해부터 냄(주식은 팔지 않음)
+// 현금이 모자라면 있는 만큼 내고 남은 몫은 현금이 있는 거래일마다 오래된 해부터 냄
 public final class CapitalGainsTaxPayer {
 
   private final boolean enabled;
@@ -36,7 +36,7 @@ public final class CapitalGainsTaxPayer {
       return null;
     }
     registerDue(date, transactions);
-    BigDecimal owedKrw = unpaidKrw.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+    BigDecimal owedKrw = owedKrw();
     if (owedKrw.signum() == 0 || cash == null || cash.signum() <= 0) {
       return null;
     }
@@ -60,6 +60,22 @@ public final class CapitalGainsTaxPayer {
       .defaultFxDate(defaultFx ? date : null)
       .trigger(TransactionTrigger.CAPITAL_GAINS_TAX_PAYMENT)
       .build();
+  }
+
+  // 그 날짜까지 납부일이 온 남은 세금 ÷ 환율(센트 반올림)에서 현금을 뺀 모자란 달러(끄거나 현금이 넉넉하면 0)
+  public BigDecimal shortfallUsd(LocalDate date, List<StrategyTransaction> transactions, BigDecimal cash,
+    BigDecimal fxRate) {
+    if (!enabled) {
+      return BigDecimal.ZERO;
+    }
+    registerDue(date, transactions);
+    BigDecimal owedUsd = owedKrw().divide(fxRate, 2, RoundingMode.HALF_UP);
+    return owedUsd.subtract(cash == null ? BigDecimal.ZERO : cash).max(BigDecimal.ZERO);
+  }
+
+  // 납부일이 온 해의 남은 세금 합(원화)
+  private BigDecimal owedKrw() {
+    return unpaidKrw.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
   // 판 해마다 납부일 · 낸 원화

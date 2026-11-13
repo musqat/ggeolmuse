@@ -20,6 +20,7 @@ import com.muscat.backtest.common.enums.type.PortfolioMethod;
 import com.muscat.backtest.common.enums.type.PortfolioRebalance;
 import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
 import com.muscat.backtest.common.enums.type.StrategyType;
+import com.muscat.backtest.common.enums.type.TaxSale;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.exception.GlobalExceptionHandler;
 import com.muscat.backtest.common.metrics.BacktestMetrics;
@@ -292,6 +293,38 @@ class BacktestAnalysisControllerTest {
       .andExpect(status().isBadRequest());
 
     verify(backtestAnalysisService, never()).runDcaStrategy(any());
+  }
+
+  @Test
+  @DisplayName("조건부 · 이동평균 교차 · 밴드 전략은 양도세 판매 설정을 그대로 넘긴다")
+  void taxSale() throws Exception {
+    given(backtestAnalysisService.runConditionalStrategy(any()))
+      .willReturn(strategy("AAPL", StrategyType.CONDITIONAL_PURCHASE, "1"));
+    given(backtestAnalysisService.runMaCrossStrategy(any())).willReturn(strategy("AAPL", StrategyType.MA_CROSS, "1"));
+    given(backtestAnalysisService.runMaBandStrategy(any())).willReturn(strategy("SPY", StrategyType.MA_BAND, "1"));
+    String options = ",\"capitalGainsTax\":true,\"taxSale\":\"SELL\"}";
+
+    postJson("/strategy/conditional", "{\"symbol\":\"AAPL\"," + PERIOD
+      + ",\"amountPerPurchase\":100000,\"dropPercentage\":0.05" + options)
+      .andExpect(status().isOk());
+    postJson("/strategy/ma-cross", "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":10000000" + options)
+      .andExpect(status().isOk());
+    postJson("/strategy/ma-band", "{\"symbol\":\"SPY\"," + PERIOD + ",\"investmentAmount\":10000000" + options)
+      .andExpect(status().isOk());
+
+    verify(backtestAnalysisService).runConditionalStrategy(argThat(r -> r.getTaxSale() == TaxSale.SELL));
+    verify(backtestAnalysisService).runMaCrossStrategy(argThat((MaCrossStrategyRequest r) -> r.getTaxSale() == TaxSale.SELL));
+    verify(backtestAnalysisService).runMaBandStrategy(argThat((MaBandStrategyRequest r) -> r.getTaxSale() == TaxSale.SELL));
+  }
+
+  @Test
+  @DisplayName("양도세 판매 설정이 NONE · SELL 밖이면 400 이고 서비스까지 가지 않는다")
+  void taxSaleInvalid() throws Exception {
+    postJson("/strategy/ma-cross", "{\"symbol\":\"AAPL\"," + PERIOD
+      + ",\"investmentAmount\":10000000,\"taxSale\":\"LOSS_FIRST\"}")
+      .andExpect(status().isBadRequest());
+
+    verify(backtestAnalysisService, never()).runMaCrossStrategy(any());
   }
 
   @Test

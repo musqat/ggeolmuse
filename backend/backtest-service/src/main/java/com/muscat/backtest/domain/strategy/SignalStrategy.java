@@ -5,6 +5,7 @@ import com.muscat.backtest.common.engine.CapitalGainsTaxPayer;
 import com.muscat.backtest.common.engine.StrategyFinalizer;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.SkipReason;
+import com.muscat.backtest.common.enums.type.TaxSale;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.logging.BacktestLogger;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
@@ -173,14 +174,30 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
         continue;
       }
       boolean wanted = target.wanted(date);
-      boolean holding = heldShares.signum() > 0;
       try {
-        StrategyTransaction payment = taxPayer.pay(date, transactions, cash, fxOn(request, fxRates, date),
-          fxRates.isDefault(date));
+        BigDecimal fx = fxOn(request, fxRates, date);
+        // 양도세 낼 현금이 모자라면 그 날짜 종가에 모자란 만큼 팖, 다 팔면 새 매수 신호까지 사지 않음
+        SaleShare taxExit = TaxSale.sells(request.getTaxSale())
+          ? SaleShare.forTax(taxPayer.shortfallUsd(date, transactions, cash, fx), PriceLookup.effectiveClose(candle),
+            request.getTradingFeeRate(), heldShares, heldCost)
+          : null;
+        if (taxExit != null) {
+          StrategyTransaction sale = sell(request, candle, fxRates, taxExit.shares(), taxExit.cost(), taxExit.trigger());
+          transactions.add(sale);
+          cash = cash.add(sale.getProceeds());
+          heldShares = heldShares.subtract(taxExit.shares());
+          heldCost = heldCost.subtract(taxExit.cost());
+          if (taxExit.all()) {
+            target.soldOut();
+            wanted = false;
+          }
+        }
+        StrategyTransaction payment = taxPayer.pay(date, transactions, cash, fx, fxRates.isDefault(date));
         if (payment != null) {
           transactions.add(payment);
           cash = cash.subtract(payment.getTaxPaid());
         }
+        boolean holding = heldShares.signum() > 0;
         // 판 돈을 양도세로 다 냈으면 사지 않음
         if (!holding && wanted && (cash == null || cash.signum() > 0)) {
           StrategyTransaction buy = buy(request, candle, fxRates, cash, signal.buyTrigger());

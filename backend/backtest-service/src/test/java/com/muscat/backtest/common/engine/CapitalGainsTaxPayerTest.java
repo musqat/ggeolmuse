@@ -138,6 +138,31 @@ class CapitalGainsTaxPayerTest {
     CapitalGainsTaxPayer payer = new CapitalGainsTaxPayer(false);
 
     assertThat(payer.pay(DUE, taxedSale(), new BigDecimal("4100"), FX, false)).isNull();
+    assertThat(payer.shortfallUsd(DUE, taxedSale(), null, FX)).isEqualByComparingTo("0");
     assertThat(payer.payments()).isEqualTo(Payments.NONE);
+  }
+
+  @Test
+  @DisplayName("모자란 달러는 납부일이 온 남은 세금 ÷ 그 날짜 환율(센트 반올림)에서 현금을 뺀 값이고 현금이 넉넉하거나 납부일 전이면 0")
+  void shortfallUsd() {
+    CapitalGainsTaxPayer payer = new CapitalGainsTaxPayer(true);
+
+    assertThat(payer.shortfallUsd(LocalDate.of(2025, 4, 30), taxedSale(), null, FX)).isEqualByComparingTo("0");
+    // 33만 6,600원 ÷ 1300원
+    assertThat(payer.shortfallUsd(DUE, taxedSale(), null, FX)).isEqualByComparingTo("258.92");
+    assertThat(payer.shortfallUsd(DUE, taxedSale(), new BigDecimal("200"), FX)).isEqualByComparingTo("58.92");
+    assertThat(payer.shortfallUsd(DUE, taxedSale(), new BigDecimal("4100"), FX)).isEqualByComparingTo("0");
+    assertThat(payer.payments()).isEqualTo(new Payments(Map.of(2024, DUE), Map.of()));
+  }
+
+  @Test
+  @DisplayName("일부를 낸 뒤 모자란 달러는 남은 세금으로 센다")
+  void shortfallAfterPartialPayment() {
+    CapitalGainsTaxPayer payer = new CapitalGainsTaxPayer(true);
+
+    payer.pay(DUE, taxedSale(), new BigDecimal("200"), FX, false);
+
+    // 남은 7만 6,600원 ÷ 1300원
+    assertThat(payer.shortfallUsd(DUE.plusDays(1), taxedSale(), BigDecimal.ZERO, FX)).isEqualByComparingTo("58.92");
   }
 }

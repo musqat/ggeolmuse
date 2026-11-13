@@ -18,6 +18,7 @@ import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.StrategyType;
+import com.muscat.backtest.common.enums.type.TaxSale;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
@@ -1211,6 +1212,50 @@ class ConditionalPurchaseStrategyTest {
         assertThat(tax.cashKrw()).isEqualByComparingTo("2393404");
         assertThat(tax.afterTaxValueKrw()).isEqualByComparingTo("2393404");
         assertThat(tax.afterTaxReturnPercent()).isEqualByComparingTo("84.11");
+      }
+
+      // 10주씩, 410 에 익절(4100달러) · 다음 날 판 돈 전부로 410 에 10주를 다시 사 2025년 5월 1일 납부일에 현금 0
+      private ConditionalStrategyRequest cashSpentBeforeDue(TaxSale taxSale) {
+        ConditionalStrategyRequest request = selling(424, 10).amountPerPurchase(null).sharesPerPurchase(10)
+          .takeProfitRate(new BigDecimal("3.1")).stopLossRate(new BigDecimal("0.5")).capitalGainsTax(true)
+          .taxSale(taxSale).build();
+        stubMarket(request, afterEntry(candle(2, "400", "460", "395", "460"), bar(3, "410", "410", "410"),
+          day(423, "410")), false);
+        return request;
+      }
+
+      @Test
+      @DisplayName("판매 설정이 SELL 이면 납부일에 모자란 만큼 그 날짜 종가에 팔고 바로 뒤에 양도세를 다 낸다")
+      void sellsSharesForTax() {
+        StrategyResponse response = strategy.execute(cashSpentBeforeDue(TaxSale.SELL));
+
+        assertThat(trades()).containsExactly(ENTRY, tuple("410", "310.0%익절", -1), tuple("410", "10.9%하락", 1),
+          tuple("410", "양도세 납부용 매도", -1), tuple("0", "양도세 납부", 0));
+        // 33만 6,600원 ÷ 1300원 = 258.92달러 ÷ 410달러
+        StrategyTransaction taxSale = executed().get(3);
+        assertThat(taxSale.getDate()).isEqualTo(START.plusDays(423));
+        assertThat(taxSale.getShares()).isEqualByComparingTo("-0.63151220");
+        assertThat(taxSale.getRealizedProfit()).isEqualByComparingTo("0");
+        assertThat(executed().getLast().getTaxPaid()).isEqualByComparingTo("258.92");
+        CapitalGainsTax tax = response.getCapitalGainsTax();
+        assertThat(tax.years()).containsExactly(
+          new CapitalGainsTax.Year(2024, new BigDecimal("4030000"), new BigDecimal("2500000"), new BigDecimal("336600"),
+            START.plusDays(423), new BigDecimal("336600")),
+          new CapitalGainsTax.Year(2025, new BigDecimal("0"), new BigDecimal("0"), new BigDecimal("0"), null,
+            BigDecimal.ZERO));
+        assertThat(tax.unpaidTaxKrw()).isEqualByComparingTo("0");
+      }
+
+      @Test
+      @DisplayName("판매 설정을 NONE 으로 두면 납부일에 현금이 없어 팔지 않고 양도세를 남긴다")
+      void keepsSharesWithoutTaxSale() {
+        StrategyResponse response = strategy.execute(cashSpentBeforeDue(TaxSale.NONE));
+
+        assertThat(trades()).containsExactly(ENTRY, tuple("410", "310.0%익절", -1), tuple("410", "10.9%하락", 1));
+        assertThat(response.getCapitalGainsTax().years()).containsExactly(
+          new CapitalGainsTax.Year(2024, new BigDecimal("4030000"), new BigDecimal("2500000"), new BigDecimal("336600"),
+            START.plusDays(423), BigDecimal.ZERO));
+        assertThat(response.getCapitalGainsTax().unpaidTaxKrw()).isEqualByComparingTo("336600");
       }
 
       @Test
