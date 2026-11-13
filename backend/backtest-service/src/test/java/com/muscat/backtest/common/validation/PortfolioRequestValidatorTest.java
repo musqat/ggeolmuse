@@ -7,6 +7,7 @@ import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.PortfolioAllocation;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
 import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
+import com.muscat.backtest.common.enums.type.PortfolioTaxSale;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.dto.request.PortfolioAsset;
 import com.muscat.backtest.domain.dto.request.PortfolioRequest;
@@ -34,11 +35,11 @@ class PortfolioRequestValidatorTest {
   }
 
   private static PortfolioAsset amount(String symbol, String amount) {
-    return new PortfolioAsset(symbol, number(amount), null, null, null, null);
+    return new PortfolioAsset(symbol, number(amount), null, null, null, null, null);
   }
 
   private static PortfolioAsset weight(String symbol, String weight) {
-    return new PortfolioAsset(symbol, null, number(weight), null, null, null);
+    return new PortfolioAsset(symbol, null, number(weight), null, null, null, null);
   }
 
   private static PortfolioRequest.PortfolioRequestBuilder request(PortfolioAsset... assets) {
@@ -122,7 +123,7 @@ class PortfolioRequestValidatorTest {
     void amountAllocation() {
       assertCode(request(amount("SPY", null)).build(), BacktestResponse.INVALID_PORTFOLIO_AMOUNT);
       assertCode(request(amount("SPY", "0")).build(), BacktestResponse.INVALID_PORTFOLIO_AMOUNT);
-      assertCode(request(new PortfolioAsset("SPY", number("1000"), number("100"), null, null, null)).build(),
+      assertCode(request(new PortfolioAsset("SPY", number("1000"), number("100"), null, null, null, null)).build(),
         BacktestResponse.INVALID_PORTFOLIO_AMOUNT);
     }
 
@@ -179,7 +180,7 @@ class PortfolioRequestValidatorTest {
   class SellRates {
 
     private PortfolioAsset selling(String takeProfitRate, String stopLossRate) {
-      return new PortfolioAsset("QQQ", number("1000"), null, number(takeProfitRate), number(stopLossRate), null);
+      return new PortfolioAsset("QQQ", number("1000"), null, number(takeProfitRate), number(stopLossRate), null, null);
     }
 
     @Test
@@ -202,7 +203,7 @@ class PortfolioRequestValidatorTest {
     @Test
     @DisplayName("금액 검사가 익절 · 손절 검사보다 먼저다")
     void amountsFirst() {
-      assertCode(request(new PortfolioAsset("SPY", number("0"), null, number("0"), null, null)).build(),
+      assertCode(request(new PortfolioAsset("SPY", number("0"), null, number("0"), null, null, null)).build(),
         BacktestResponse.INVALID_PORTFOLIO_AMOUNT);
     }
   }
@@ -255,7 +256,7 @@ class PortfolioRequestValidatorTest {
 
     private PortfolioAsset planned(String symbol, PortfolioStrategyType type) {
       return new PortfolioAsset(symbol, number("100000"), null, null, null,
-        new PortfolioStrategy(type, null, null, null, null, null));
+        new PortfolioStrategy(type, null, null, null, null, null), null);
     }
   }
 
@@ -264,7 +265,7 @@ class PortfolioRequestValidatorTest {
   class SignalLines {
 
     private PortfolioAsset signal(PortfolioStrategy strategy) {
-      return new PortfolioAsset("QQQ", number("1000"), null, null, null, strategy);
+      return new PortfolioAsset("QQQ", number("1000"), null, null, null, strategy, null);
     }
 
     private PortfolioStrategy cross(Integer shortWindow, Integer longWindow) {
@@ -313,6 +314,48 @@ class PortfolioRequestValidatorTest {
     void ignoresOtherLines() {
       assertThatCode(() -> PortfolioRequestValidator.validate(request(signal(new PortfolioStrategy(
         PortfolioStrategyType.LUMP_SUM, 1, 1, 1, number("-1"), number("1")))).build())).doesNotThrowAnyException();
+    }
+  }
+
+  @Nested
+  @DisplayName("양도세 판매 방식")
+  class TaxSaleOrder {
+
+    private PortfolioAsset ordered(String symbol, Integer order) {
+      return new PortfolioAsset(symbol, number("1000"), null, null, null, null, order);
+    }
+
+    // 양도세를 켠 직접 순서 요청
+    private PortfolioRequest custom(Integer... orders) {
+      List<PortfolioAsset> assets = IntStream.range(0, orders.length)
+        .mapToObj(i -> ordered("S" + i, orders[i]))
+        .toList();
+      return request(assets.toArray(PortfolioAsset[]::new)).capitalGainsTax(true)
+        .taxSale(PortfolioTaxSale.CUSTOM_ORDER).build();
+    }
+
+    @Test
+    @DisplayName("직접 순서는 줄마다 1 ~ 줄 수의 서로 다른 순서면 통과한다")
+    void customOrderAccepted() {
+      assertThatCode(() -> PortfolioRequestValidator.validate(custom(2, 3, 1))).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("직접 순서가 겹치거나 빠지거나 1 ~ 줄 수 밖이면 INVALID_TAX_SALE")
+    void customOrderRejected() {
+      assertCode(custom(1, 1), BacktestResponse.INVALID_TAX_SALE);
+      assertCode(custom(1, null), BacktestResponse.INVALID_TAX_SALE);
+      assertCode(custom(0, 1), BacktestResponse.INVALID_TAX_SALE);
+      assertCode(custom(1, 3), BacktestResponse.INVALID_TAX_SALE);
+    }
+
+    @Test
+    @DisplayName("양도세를 끄거나 직접 순서가 아니면 판매 순서를 보지 않는다")
+    void orderIgnored() {
+      assertThatCode(() -> PortfolioRequestValidator.validate(request(ordered("SPY", null), ordered("QQQ", 9))
+        .capitalGainsTax(false).taxSale(PortfolioTaxSale.CUSTOM_ORDER).build())).doesNotThrowAnyException();
+      assertThatCode(() -> PortfolioRequestValidator.validate(request(ordered("SPY", null), ordered("QQQ", 9))
+        .capitalGainsTax(true).taxSale(PortfolioTaxSale.LOSS_FIRST).build())).doesNotThrowAnyException();
     }
   }
 

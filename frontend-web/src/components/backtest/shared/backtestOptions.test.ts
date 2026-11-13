@@ -1,15 +1,16 @@
 import { describe, it, expect } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
-import { DEFAULT_OPTIONS, optionValues, toOptionFields, useBacktestOptions } from './backtestOptions'
+import { DEFAULT_OPTIONS, optionValues, taxSaleFields, toOptionFields, useBacktestOptions } from './backtestOptions'
 
 describe('세부 설정 값', () => {
-  it('기본값은 끝까지 보유 · 배당세 15% · 양도세 22% · 배당 현금 · 수수료 0% · 환율 자동이고 직접 입력 환율은 비움', () => {
+  it('기본값은 끝까지 보유 · 배당세 15% · 양도세 22%(현금이 생길 때 냄) · 배당 현금 · 수수료 0% · 환율 자동이고 직접 입력 환율은 비움', () => {
     expect(DEFAULT_OPTIONS).toEqual({
       periodEnd: 'HOLD',
       reinvestDividends: false,
       tradingFeeRate: '0',
       dividendTax: true,
       capitalGainsTax: true,
+      taxSale: 'NONE',
       fxMode: 'auto',
       manualPurchaseFxRate: '',
       manualCurrentFxRate: '',
@@ -44,6 +45,14 @@ describe('세부 설정 값', () => {
     expect(toOptionFields({ ...DEFAULT_OPTIONS, fxMode: 'auto', manualPurchaseFxRate: '1130' })).not.toHaveProperty('purchaseFxRate')
   })
 
+  it('양도세 판매 설정은 양도세를 켜고 팔아 낼 때만 taxSale 로 싣고 다른 옵션 칸에는 넣지 않는다', () => {
+    expect(taxSaleFields({ ...DEFAULT_OPTIONS, taxSale: 'SELL' })).toStrictEqual({ taxSale: 'SELL' })
+    expect(taxSaleFields(DEFAULT_OPTIONS)).toStrictEqual({})
+    expect(taxSaleFields({ ...DEFAULT_OPTIONS, taxSale: 'SELL', capitalGainsTax: false })).toStrictEqual({})
+    const selling = { ...DEFAULT_OPTIONS, taxSale: 'SELL' as const }
+    expect(toOptionFields(selling)).not.toHaveProperty('taxSale')
+  })
+
   it('값만 뽑고, 저장한 값을 넣으면 없거나 모양이 다른 칸은 기본값으로 둔다', () => {
     const { result } = renderHook(() => useBacktestOptions())
 
@@ -51,7 +60,9 @@ describe('세부 설정 값', () => {
     expect(optionValues(result.current)).toEqual({ ...DEFAULT_OPTIONS, tradingFeeRate: '0.25', dividendTax: false, fxMode: 'manual' })
     act(() => result.current.load({ fxMode: 'other', periodEnd: 'SELL', capitalGainsTax: 'no' }))
     expect(result.current).toMatchObject({ fxMode: 'auto', periodEnd: 'HOLD', capitalGainsTax: true })
-    act(() => result.current.load({ periodEnd: 'SELL_AT_END', capitalGainsTax: false }))
-    expect(optionValues(result.current)).toEqual({ ...DEFAULT_OPTIONS, periodEnd: 'SELL_AT_END', capitalGainsTax: false })
+    act(() => result.current.load({ periodEnd: 'SELL_AT_END', capitalGainsTax: false, taxSale: 'SELL' }))
+    expect(optionValues(result.current)).toEqual({ ...DEFAULT_OPTIONS, periodEnd: 'SELL_AT_END', capitalGainsTax: false, taxSale: 'SELL' })
+    act(() => result.current.load({ taxSale: 'LOSS_FIRST' }))
+    expect(result.current.taxSale).toBe('NONE')
   })
 })

@@ -17,9 +17,18 @@ const values: MaCrossValues = {
   fxMode: 'auto',
   manualPurchaseFxRate: '1300',
   manualCurrentFxRate: '1350',
+  taxSale: 'NONE',
 }
 
 describe('buildMaCrossRequest', () => {
+  it('양도세를 켜고 현금이 모자랄 때 팔아 내기를 고르면 taxSale 로 싣고, 양도세를 끄면 싣지 않는다', () => {
+    expect(buildMaCrossRequest({ ...values, capitalGainsTax: true, taxSale: 'SELL' }, 'AAPL', ctx)).toMatchObject({
+      request: { capitalGainsTax: true, taxSale: 'SELL' },
+    })
+    expect(buildMaCrossRequest({ ...values, capitalGainsTax: false, taxSale: 'SELL' }, 'AAPL', ctx)).not.toHaveProperty('request.taxSale')
+    expect(buildMaCrossRequest({ ...values, capitalGainsTax: true }, 'AAPL', ctx)).not.toHaveProperty('request.taxSale')
+  })
+
   it('원금 · 두 기간을 숫자로 싣고 빈 종료일은 오늘로 보낸다', () => {
     expect(buildMaCrossRequest(values, 'AAPL', ctx)).toStrictEqual({
       request: {

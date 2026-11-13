@@ -9,7 +9,9 @@ import com.muscat.backtest.common.enums.type.PortfolioAllocation;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
 import com.muscat.backtest.common.enums.type.PortfolioRebalance;
 import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
+import com.muscat.backtest.common.enums.type.PortfolioTaxSale;
 import com.muscat.backtest.common.enums.type.StrategyType;
+import com.muscat.backtest.common.enums.type.TaxSale;
 import com.muscat.backtest.domain.model.StrategyParameter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -99,6 +101,23 @@ class StrategyRequestJsonTest {
       .contains("\"trailingStopRate\":0.1").doesNotContain("trailingSellWithStop");
     assertThat(objectMapper.writeValueAsString(maBand))
       .contains("\"trailingStopRate\":0.15", "\"trailingSellRate\":1").doesNotContain("trailingSellWithStop");
+  }
+
+  @Test
+  @DisplayName("조건부 · 이동평균 교차 · 밴드는 양도세 판매 설정을 이력 JSON 에 저장하고 다시 읽는다")
+  void taxSaleSaved() throws Exception {
+    ConditionalStrategyRequest conditional = conditional();
+    conditional.setTaxSale(TaxSale.SELL);
+    MaCrossStrategyRequest maCross = maCross();
+    maCross.setTaxSale(TaxSale.SELL);
+    MaBandStrategyRequest maBand = maBand();
+    maBand.setTaxSale(TaxSale.NONE);
+
+    assertThat(objectMapper.writeValueAsString(conditional)).contains("\"taxSale\":\"SELL\"");
+    assertThat(objectMapper.writeValueAsString(maCross)).contains("\"taxSale\":\"SELL\"");
+    assertThat(objectMapper.readValue(objectMapper.writeValueAsString(maBand), MaBandStrategyRequest.class).getTaxSale())
+      .isEqualTo(TaxSale.NONE);
+    assertThat(maCross().getTaxSale()).isNull();
   }
 
   @Test
@@ -201,32 +220,34 @@ class StrategyRequestJsonTest {
   }
 
   @Test
-  @DisplayName("포트폴리오는 줄 금액 방식 · 총액 · 종목 줄(익절 · 손절 · 줄 전략 포함) · 매수 방식 · 리밸런싱 주기를 이력 JSON 에 저장하고 다시 읽으며 줄 금액 · 줄 전략 셈 값은 넣지 않는다")
+  @DisplayName("포트폴리오는 줄 금액 방식 · 총액 · 종목 줄(익절 · 손절 · 줄 전략 · 판매 순서 포함) · 매수 방식 · 리밸런싱 주기 · 양도세 판매 방식을 이력 JSON 에 저장하고 다시 읽으며 줄 금액 · 줄 전략 셈 값은 넣지 않는다")
   void portfolioSaved() throws Exception {
     PortfolioRequest request = PortfolioRequest.builder().startDate(LocalDate.of(2023, 1, 1))
       .endDate(LocalDate.of(2024, 1, 1)).allocation(PortfolioAllocation.WEIGHT).totalAmount(BigDecimal.valueOf(1000000))
-      .assets(List.of(new PortfolioAsset(" spy", null, BigDecimal.valueOf(60), null, null, null),
+      .assets(List.of(new PortfolioAsset(" spy", null, BigDecimal.valueOf(60), null, null, null, 2),
         new PortfolioAsset("QQQ", null, BigDecimal.valueOf(40), new BigDecimal("0.3"), new BigDecimal("0.1"),
-          new PortfolioStrategy(PortfolioStrategyType.MA_CROSS, 20, 60, null, null, null))))
+          new PortfolioStrategy(PortfolioStrategyType.MA_CROSS, 20, 60, null, null, null), 1)))
       .method(PortfolioMethod.DCA).frequency(DcaFrequency.WEEKLY).rebalance(PortfolioRebalance.QUARTERLY)
-      .userId("user-1").build();
+      .taxSale(PortfolioTaxSale.CUSTOM_ORDER).userId("user-1").build();
 
     String json = objectMapper.writeValueAsString(request);
     PortfolioRequest saved = objectMapper.readValue(json, PortfolioRequest.class);
 
     assertThat(json).contains("\"allocation\":\"WEIGHT\"", "\"totalAmount\":1000000",
         "\"assets\":[{\"symbol\":\" spy\",\"amount\":null,\"weightPercent\":60,\"takeProfitRate\":null,\"stopLossRate\":null,"
-          + "\"strategy\":null}",
+          + "\"strategy\":null,\"taxSaleOrder\":2}",
         "{\"symbol\":\"QQQ\",\"amount\":null,\"weightPercent\":40,\"takeProfitRate\":0.3,\"stopLossRate\":0.1,"
           + "\"strategy\":{\"type\":\"MA_CROSS\",\"shortWindow\":20,\"longWindow\":60,\"bandWindow\":null,"
-          + "\"upperRate\":null,\"lowerRate\":null}}",
-        "\"method\":\"DCA\"", "\"rebalance\":\"QUARTERLY\"")
+          + "\"upperRate\":null,\"lowerRate\":null},\"taxSaleOrder\":1}",
+        "\"method\":\"DCA\"", "\"rebalance\":\"QUARTERLY\"", "\"taxSale\":\"CUSTOM_ORDER\"")
       .doesNotContain("normalizedSymbol").doesNotContain("amountOf").doesNotContain("strategyOf")
       .doesNotContain("OrDefault");
     assertThat(saved.getAssets()).extracting(PortfolioAsset::normalizedSymbol).containsExactly("SPY", "QQQ");
     assertThat(saved.getAssets().get(1).takeProfitRate()).isEqualByComparingTo("0.3");
     assertThat(saved.getAssets().get(1).stopLossRate()).isEqualByComparingTo("0.1");
     assertThat(saved.getRebalance()).isEqualTo(PortfolioRebalance.QUARTERLY);
+    assertThat(saved.getTaxSale()).isEqualTo(PortfolioTaxSale.CUSTOM_ORDER);
+    assertThat(saved.getAssets()).extracting(PortfolioAsset::taxSaleOrder).containsExactly(2, 1);
     assertThat(saved.amountOf(saved.getAssets().get(1))).isEqualByComparingTo("400000");
     assertThat(saved.getAssets()).extracting(saved::strategyOf)
       .containsExactly(PortfolioStrategyType.DCA, PortfolioStrategyType.MA_CROSS);

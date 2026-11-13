@@ -236,7 +236,18 @@ describe('PortfolioAssetsField', () => {
     render(<Harness initial={rows} patch={{ onRowsChange: onRows, rows }} />)
 
     await userEvent.click(addButton())
-    expect(onRows).toHaveBeenLastCalledWith([row('SPY', '6000000', '', '30', '10'), row('')])
+    expect(onRows).toHaveBeenLastCalledWith([row('SPY', '6000000', '', '30', '10'), { ...row(''), taxSaleOrder: 2 }])
+  })
+
+  it('줄을 더하면 판매 차례는 끝, 지우면 남은 줄 차례를 1부터 다시 매긴다', async () => {
+    const onRows = vi.fn()
+    const rows = [{ ...row('SPY', '1'), taxSaleOrder: 3 }, { ...row('QQQ', '2'), taxSaleOrder: 1 }, { ...row('MSFT', '3'), taxSaleOrder: 2 }]
+    render(<Harness initial={rows} patch={{ onRowsChange: onRows, rows }} />)
+
+    await userEvent.click(addButton())
+    expect(onRows.mock.lastCall?.[0].map((r: PortfolioRow) => r.taxSaleOrder)).toEqual([3, 1, 2, 4])
+    await userEvent.click(removeButton(2))
+    expect(onRows.mock.lastCall?.[0].map((r: PortfolioRow) => r.taxSaleOrder)).toEqual([2, 1])
   })
 
   it('익절 · 손절 오류는 두 칸 다 오류로 두고 칸 아래 한 줄은 익절 것, 그 글을 낸 익절 칸만 그 줄과 잇는다', () => {

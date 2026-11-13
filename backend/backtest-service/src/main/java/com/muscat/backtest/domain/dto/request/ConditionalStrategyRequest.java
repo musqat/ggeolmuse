@@ -5,6 +5,7 @@ import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.muscat.backtest.common.enums.type.StrategyType;
+import com.muscat.backtest.common.enums.type.TaxSale;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
@@ -112,6 +113,9 @@ public class ConditionalStrategyRequest implements StrategyRequest {
 
   @Schema(description = "기간이 끝나면 (HOLD 끝까지 보유, SELL_AT_END 마지막 거래일 종가에 남은 주식 전량 매도, 비우면 HOLD)", example = "HOLD")
   private PeriodEnd periodEnd;
+
+  @Schema(description = "양도세 낼 현금이 모자랄 때 (NONE 현금이 생길 때 냄, SELL 그 날짜 종가에 모자란 만큼 팔아 냄, 비우면 NONE)", example = "SELL")
+  private TaxSale taxSale;
 
   // 이력 저장 JSON 에는 넣지 않음
   @JsonIgnore

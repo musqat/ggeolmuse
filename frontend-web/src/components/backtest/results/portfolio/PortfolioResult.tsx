@@ -85,7 +85,7 @@ export const PortfolioResult: React.FC<PortfolioResultProps> = ({ result }) => {
           <ResultFold title="매매 내역" meta={`거래 ${result.transactions.length}건`}>
             <PortfolioTrades transactions={result.transactions} symbols={symbols} />
           </ResultFold>
-          {result.capitalGainsTax && <CapitalGainsTaxFold tax={result.capitalGainsTax} returnBasis="넣은 돈 기준" />}
+          {result.capitalGainsTax && <CapitalGainsTaxFold tax={result.capitalGainsTax} returnBasis="넣은 돈 기준" sellsForTax />}
         </>
       )}
     </div>

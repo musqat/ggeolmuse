@@ -4,6 +4,7 @@ import type { BacktestMode, BacktestResult } from '../shared/backtestDisplay';
 import type { PeriodState } from '../settings/period';
 import type { BacktestOptionsState } from '../shared/backtestOptions';
 import type { ModeSummary } from '../settings/SettingsSummary';
+import type { TaxSaleControl } from '../shared/taxSale';
 
 export type RunMode = BacktestMode;
 
@@ -55,6 +56,8 @@ export interface ModeController {
   reinvestLocked?: boolean;
   // 배당 칸 안내(막혔으면 막힌 까닭)
   reinvestNote?: string;
+  // 세부 설정의 양도세 낼 현금이 모자랄 때 고르기(없으면 칸 없음)
+  taxSale?: TaxSaleControl;
   // 직전 설정 · 설정 초기화가 저장하는 이 모드의 값
   saved: object;
   // 저장한 값(없거나 모양이 다른 칸은 기본값)

@@ -11,6 +11,7 @@ const SELL_REASONS: [TradeReason, string][] = [
   ['STOP_LOSS', '손절'],
   ['REBALANCE_SELL', '리밸런싱'],
   ['PERIOD_END_SALE', '기간 끝'],
+  ['TAX_SALE', '납부용'],
 ];
 
 // 포트폴리오에서 판 것이 있을 때 카드 줄: 실현 손익(판 돈) · 낸 양도세(남은 양도세) · 매수 · 매도 수(아래 이유별 매도 수 · 배당 재투자 · 양도세 납부)

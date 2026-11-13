@@ -19,6 +19,7 @@ import {
   MAX_ROWS,
   amountShares,
   newRow,
+  removeRow,
   isWeightSumOk,
   rowAmounts,
   weightSum,
@@ -129,12 +130,12 @@ export const PortfolioAssetsField = ({
     onRowsChange(rows.map((row, i) => (i === index ? { ...row, [key]: value } : row)));
   const add = () => {
     focusAfter.current = rows.length;
-    onRowsChange([...rows, newRow()]);
+    onRowsChange([...rows, newRow('', '', '', rows.length + 1)]);
   };
   // 지운 자리의 줄(없으면 앞 줄)로
   const remove = (index: number) => {
     focusAfter.current = index < rows.length - 1 ? index : index - 1;
-    onRowsChange(rows.filter((_, i) => i !== index));
+    onRowsChange(removeRow(rows, index));
   };
 
   // 그 칸이 칸 아래 한 줄을 낸 칸이면 그 줄과 이음

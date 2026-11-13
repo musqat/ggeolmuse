@@ -70,7 +70,16 @@ describe('CapitalGainsTaxFold', () => {
     expect(cells(/2024년/)).toEqual(['+₩4,000,000', '₩2,500,000', '₩330,000', '2025-05-01', '₩330,000'])
     expect(cells(/2025년/)).toEqual(['+₩3,000,000', '₩2,500,000', '₩110,000', '기간 뒤', '₩0'])
     expect(
-      screen.getByText('판 해마다 원화 실현 이익에서 250만원까지 공제하고 22% · 다음 해 5월 첫 거래일에 현금에서 냄(모자라면 다음 매도 뒤)'),
+      screen.getByText('판 해마다 원화 실현 이익에서 250만원까지 공제하고 22% · 다음 해 5월 첫 거래일에 현금에서 냄(모자라면 현금이 생길 때)'),
+    ).toBeInTheDocument()
+  })
+
+  it('현금이 모자랄 때 팔 수 있는 결과는 설명 줄에 정한 대로 주식을 팔거나 현금이 생길 때 낸다고 적는다', async () => {
+    render(<CapitalGainsTaxFold tax={tax} returnBasis="누적 매수액 기준" sellsForTax />)
+    await open()
+
+    expect(
+      screen.getByText('판 해마다 원화 실현 이익에서 250만원까지 공제하고 22% · 다음 해 5월 첫 거래일에 현금에서 냄(모자라면 정한 대로 주식을 팔거나 현금이 생길 때)'),
     ).toBeInTheDocument()
   })
 

@@ -6,7 +6,7 @@ import { MA_BAND } from './maBand';
 // 줄 전략(빈 값은 방식대로)
 export type RowStrategy = '' | PortfolioStrategyType;
 
-// 포트폴리오 종목 줄 칸(종목 · 원화 금액 · 비율 % · 평균 단가 대비 익절 % · 손절 % · 전략과 이동평균 · 밴드 칸, 방식 · 전략을 바꿔도 칸 값은 남음)
+// 포트폴리오 종목 줄 칸(종목 · 원화 금액 · 비율 % · 평균 단가 대비 익절 % · 손절 % · 전략과 이동평균 · 밴드 칸)과 판매 차례, 방식 · 전략을 바꿔도 칸 값은 남음
 export interface PortfolioRow {
   symbol: string;
   amount: string;
@@ -22,6 +22,8 @@ export interface PortfolioRow {
   bandWindow: string;
   upper: string;
   lower: string;
+  // 양도세 낼 현금이 모자라 정한 순서로 팔 때의 차례(작을수록 먼저)
+  taxSaleOrder: number;
 }
 
 export const MAX_ROWS = 10;
@@ -44,7 +46,7 @@ const SIGNAL_DEFAULTS = {
 };
 
 // 익절 · 손절이 비고 방식대로인 줄(이동평균 · 밴드 칸은 기본값)
-export const newRow = (symbol = '', amount = '', weight = ''): PortfolioRow => ({
+export const newRow = (symbol = '', amount = '', weight = '', taxSaleOrder = 1): PortfolioRow => ({
   symbol,
   amount,
   weight,
@@ -52,7 +54,44 @@ export const newRow = (symbol = '', amount = '', weight = ''): PortfolioRow => (
   stopLoss: '',
   strategy: '',
   ...SIGNAL_DEFAULTS,
+  taxSaleOrder,
 });
+
+// 먼저 팔 줄부터 줄 번호(0부터, 차례가 같으면 줄 차례)
+export const saleOrder = (rows: PortfolioRow[]): number[] =>
+  rows.map((_, index) => index).sort((a, b) => rows[a].taxSaleOrder - rows[b].taxSaleOrder || a - b);
+
+// 먼저 팔 줄부터 줄 번호 목록을 줄마다 1부터의 차례로
+const ranksOf = (order: number[]): number[] => {
+  const ranks: number[] = [];
+  order.forEach((index, position) => (ranks[index] = position + 1));
+  return ranks;
+};
+
+// 줄마다 판매 차례(1 ~ 줄 수)
+export const saleRanks = (rows: PortfolioRow[]): number[] => ranksOf(saleOrder(rows));
+
+// 판매 차례를 1부터 다시 매긴 줄
+const ranked = (rows: PortfolioRow[], order: number[]): PortfolioRow[] => {
+  const ranks = ranksOf(order);
+  return rows.map((row, index) => (row.taxSaleOrder === ranks[index] ? row : { ...row, taxSaleOrder: ranks[index] }));
+};
+
+// 판매 차례 position 의 줄을 위(-1) · 아래(+1) 차례와 바꿈(끝을 넘으면 차례만 다시 매김)
+export const moveSaleOrder = (rows: PortfolioRow[], position: number, step: -1 | 1): PortfolioRow[] => {
+  const order = saleOrder(rows);
+  const other = position + step;
+  if (position >= 0 && other >= 0 && position < order.length && other < order.length) {
+    [order[position], order[other]] = [order[other], order[position]];
+  }
+  return ranked(rows, order);
+};
+
+// 줄 하나를 빼고 남은 줄 판매 차례를 앞뒤 그대로 1부터 다시 매김
+export const removeRow = (rows: PortfolioRow[], index: number): PortfolioRow[] => {
+  const left = rows.filter((_, i) => i !== index);
+  return ranked(left, saleOrder(left));
+};
 
 // 방식대로인 줄은 방식
 export const rowStrategy = (row: PortfolioRow, method: PortfolioMethod): PortfolioStrategyType => row.strategy || method;
@@ -123,12 +162,12 @@ const isRow = (value: unknown): value is SavedRow =>
 
 const textOr = (value: unknown, fallback = '') => (typeof value === 'string' ? value : fallback);
 
-// 직전 설정에 저장한 줄(종목 · 금액 · 비율이 글 칸인 것만 10개까지, 익절 · 손절은 글이 아니면 빈 칸, 전략은 고를 수 있는 값만, 이동평균 · 밴드 칸은 글이 아니면 기본값)
+// 직전 설정에 저장한 줄(종목 · 금액 · 비율이 글 칸인 것만 10개까지, 익절 · 손절은 글이 아니면 빈 칸, 전략은 고를 수 있는 값만, 이동평균 · 밴드 칸은 글이 아니면 기본값, 판매 차례는 정수가 아니면 줄 차례)
 export const savedRows = (saved: unknown[]): PortfolioRow[] =>
   saved
     .filter(isRow)
     .slice(0, MAX_ROWS)
-    .map((row) => ({
+    .map((row, index) => ({
       symbol: row.symbol,
       amount: row.amount,
       weight: row.weight,
@@ -140,6 +179,7 @@ export const savedRows = (saved: unknown[]): PortfolioRow[] =>
       bandWindow: textOr(row.bandWindow, SIGNAL_DEFAULTS.bandWindow),
       upper: textOr(row.upper, SIGNAL_DEFAULTS.upper),
       lower: textOr(row.lower, SIGNAL_DEFAULTS.lower),
+      taxSaleOrder: Number.isInteger(row.taxSaleOrder) ? (row.taxSaleOrder as number) : index + 1,
     }));
 
 // 요약 첫 줄 종목(빈 줄은 빼고 셋까지, 나머지는 외 N)

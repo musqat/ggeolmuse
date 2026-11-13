@@ -1,6 +1,6 @@
 import type { MaCrossStrategyRequest } from '@services/api';
 import type { BuildResult, RunContext } from '../types';
-import { toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
+import { taxSaleFields, toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
 import { parseWindows, WINDOWS_ERROR } from '../../shared/maWindows';
 import { toTrailingStop } from '../../shared/trailingStop';
 import { toPartialTakeProfits, type TakeProfitStep } from '../../shared/partialTakeProfit';
@@ -60,6 +60,7 @@ export const buildMaCrossRequest = (
       ...trailing.fields,
       ...partial.fields,
       ...toOptionFields(values),
+      ...taxSaleFields(values),
       reinvestDividends: false,
     },
   };

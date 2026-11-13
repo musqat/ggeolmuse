@@ -170,6 +170,7 @@ describe('설정 칸 검사', () => {
       bandWindow: '200',
       upper: '2.5',
       lower: '2.5',
+      taxSaleOrder: 1,
     })
     const noSell = { takeProfit: null, stopLoss: null }
     const noSignal = { shortWindow: null, longWindow: null, bandWindow: null, upper: null, lower: null }

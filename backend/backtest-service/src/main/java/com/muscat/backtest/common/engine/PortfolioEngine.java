@@ -10,6 +10,8 @@ import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
 import com.muscat.backtest.common.enums.type.PortfolioRebalance;
 import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
+import com.muscat.backtest.common.enums.type.PortfolioTaxSale;
+import com.muscat.backtest.common.enums.type.TaxSale;
 import com.muscat.backtest.common.enums.type.TradeReason;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
@@ -37,6 +39,8 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -50,7 +54,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-// 포트폴리오 엔진: 여러 종목을 현금 하나(USD)로 날마다 양도세 납부 → 배당 → 익절 · 손절 → 이동평균 · 밴드 줄 신호 매매 → 회차 매수 → 리밸런싱 → 기간 끝 매도 → 평가 순서로 돌림
+// 포트폴리오 엔진: 여러 종목을 현금 하나(USD)로 날마다 양도세 납부(모자라면 판매 방식대로 매도) → 배당 → 익절 · 손절 → 이동평균 · 밴드 줄 신호 매매 → 회차 매수 → 리밸런싱 → 기간 끝 매도 → 평가 순서로 돌림
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -123,7 +127,7 @@ public class PortfolioEngine {
     SignalHolding signal = signal(type, asset.strategy(), priceMap, start);
     return new Line(symbol, type, request.amountOf(asset), candles,
       signal == null ? rounds(request, type, candles, valuationDate) : Map.of(), dividends,
-      TakeProfitStopLoss.of(asset.takeProfitRate(), asset.stopLossRate()), signal);
+      TakeProfitStopLoss.of(asset.takeProfitRate(), asset.stopLossRate()), signal, asset.taxSaleOrder());
   }
 
   // 신호 줄의 신호 기간(이동평균 교차는 긴 기간, 밴드는 평균 기간, 다른 줄은 0)
@@ -168,7 +172,7 @@ public class PortfolioEngine {
     return request.getFrequency() != null ? request.getFrequency() : DcaFrequency.MONTHLY;
   }
 
-  // 종목 줄 하나의 전략 · 일봉 · 회차 · 배당 · 익절 · 손절 · 신호와 보유 주식 · 원가(USD, 수수료 포함) · 그 날짜까지 마지막 종가 · 첫 매수일 · 신호 줄 몫 현금
+  // 종목 줄 하나의 전략 · 일봉 · 회차 · 배당 · 익절 · 손절 · 신호 · 판매 순서와 보유 주식 · 원가(USD, 수수료 포함) · 그 날짜까지 마지막 종가 · 첫 매수일 · 신호 줄 몫 현금
   private static final class Line {
     private final String symbol;
     private final PortfolioStrategyType type;
@@ -178,6 +182,7 @@ public class PortfolioEngine {
     private final List<DividendPayment> dividends;
     private final TakeProfitStopLoss exits;
     private final SignalHolding signal;
+    private final Integer taxSaleOrder;
     private int nextDividend;
     private BigDecimal shares = BigDecimal.ZERO;
     private BigDecimal cost = BigDecimal.ZERO;
@@ -188,7 +193,7 @@ public class PortfolioEngine {
 
     private Line(String symbol, PortfolioStrategyType type, BigDecimal plannedKrw,
       NavigableMap<LocalDate, OHLCPriceDto> candles, Map<LocalDate, LocalDate> rounds, List<DividendPayment> dividends,
-      TakeProfitStopLoss exits, SignalHolding signal) {
+      TakeProfitStopLoss exits, SignalHolding signal, Integer taxSaleOrder) {
       this.symbol = symbol;
       this.type = type;
       this.plannedKrw = plannedKrw;
@@ -197,6 +202,7 @@ public class PortfolioEngine {
       this.dividends = dividends;
       this.exits = exits;
       this.signal = signal;
+      this.taxSaleOrder = taxSaleOrder;
     }
 
     // 보유 × 마지막 종가(USD, 첫 일봉 전은 0)
@@ -217,6 +223,7 @@ public class PortfolioEngine {
     private final LocalDate valuationDate;
     private final CapitalGainsTaxPayer taxPayer;
     private final PortfolioRebalance rebalance;
+    private final PortfolioTaxSale taxSale;
     private final List<StrategyTransaction> transactions = new ArrayList<>();
     private final List<Dividend> dividends = new ArrayList<>();
     private final List<Day> days = new ArrayList<>();
@@ -235,6 +242,7 @@ public class PortfolioEngine {
       this.valuationDate = valuationDate;
       this.taxPayer = new CapitalGainsTaxPayer(Boolean.TRUE.equals(request.getCapitalGainsTax()));
       this.rebalance = PortfolioRebalance.orNone(request.getRebalance());
+      this.taxSale = PortfolioTaxSale.orNone(request.getTaxSale());
     }
 
     // 양도세 납부 → 배당 → 익절 · 손절 → 신호 매매 → 회차 매수 → 리밸런싱 → 기간 끝 매도 → 평가(평가일은 마무리에서)
@@ -268,8 +276,9 @@ public class PortfolioEngine {
       }
     }
 
-    // 그 날짜까지 납부일이 온 남은 양도세를 현금에서 냄(그 날짜에 또 내면 그 날짜 납부 줄에 더함)
+    // 그 날짜까지 납부일이 온 남은 양도세를 현금에서 냄(모자라면 판매 방식대로 먼저 팖, 그 날짜에 또 내면 그 날짜 납부 줄에 더함)
     private void payDueTax(LocalDate date, BigDecimal fx) {
+      sellForTax(date, fx, taxPayer.shortfallUsd(date, transactions, cash, fx));
       StrategyTransaction payment = taxPayer.pay(date, transactions, cash, fx, fxRates.isDefault(date));
       if (payment == null) {
         return;
@@ -516,6 +525,12 @@ public class PortfolioEngine {
     // 정한 주식을 그 값에 팔아 매도 수수료를 뺀 판 돈 · 판 몫의 원가 대비 실현 손익을 남기고 판 돈은 현금(신호 줄은 줄 몫)
     private void sell(Line line, BigDecimal shares, BigDecimal soldCost, BigDecimal price, TradeReason reason,
       String trigger, LocalDate date, BigDecimal fx) {
+      credit(line, recordSale(line, shares, soldCost, price, reason, trigger, date, fx));
+    }
+
+    // 판 거래를 남기고 줄 보유 · 원가를 줄인 뒤 매도 수수료를 뺀 판 돈
+    private BigDecimal recordSale(Line line, BigDecimal shares, BigDecimal soldCost, BigDecimal price,
+      TradeReason reason, String trigger, LocalDate date, BigDecimal fx) {
       BigDecimal gross = shares.multiply(price).setScale(8, RoundingMode.HALF_UP);
       BigDecimal fee = BacktestCalculationUtils.calculateTradingFee(gross, request.getTradingFeeRate());
       BigDecimal proceeds = gross.subtract(fee);
@@ -534,9 +549,9 @@ public class PortfolioEngine {
         .defaultFxDate(saleDefaultFx(date))
         .trigger(trigger)
         .build());
-      credit(line, proceeds);
       line.shares = line.shares.subtract(shares);
       line.cost = line.cost.subtract(soldCost);
+      return proceeds;
     }
 
     // 판 돈을 현금에 넣음(신호 줄은 그 줄 몫으로도 셈)
@@ -550,6 +565,161 @@ public class PortfolioEngine {
     // 현금 가운데 신호 줄 몫을 뺀 공용 현금
     private BigDecimal freeCash() {
       return lines.stream().map(line -> line.share).filter(Objects::nonNull).reduce(cash, BigDecimal::subtract);
+    }
+
+    // 모자란 달러만큼 판매 방식이 정한 줄 · 양을 그 날짜 종가에 팔아 판 돈을 공용 현금에 넣음(그 날짜 일봉과 주식이 있는 줄만)
+    private void sellForTax(LocalDate date, BigDecimal fx, BigDecimal shortfallUsd) {
+      if (shortfallUsd.signum() <= 0) {
+        return;
+      }
+      List<Line> sellable = lines.stream()
+        .filter(line -> line.shares.signum() > 0 && line.candles.containsKey(date))
+        .toList();
+      Map<Line, BigDecimal> plan = switch (taxSale) {
+        case NONE -> Map.of();
+        case TARGET_WEIGHT -> overTarget(sellable, shortfallUsd);
+        case CUSTOM_ORDER -> inOrder(sellable.stream()
+          .sorted(Comparator.comparing((Line line) -> line.taxSaleOrder)).toList(), shortfallUsd);
+        case LOSS_FIRST -> inOrder(byGain(sellable, unrealizedKrw(sellable, fx)), shortfallUsd);
+        case GAIN_NEUTRAL -> gainNeutral(sellable, shortfallUsd, fx);
+      };
+      plan.forEach((line, usd) -> sellLineForTax(line, usd, date, fx));
+    }
+
+    // 차례대로 줄마다 남은 모자란 달러만큼(줄을 다 팔아도 모자라면 다음 줄)
+    private Map<Line, BigDecimal> inOrder(List<Line> ordered, BigDecimal needUsd) {
+      Map<Line, BigDecimal> plan = new LinkedHashMap<>();
+      BigDecimal left = needUsd;
+      for (Line line : ordered) {
+        if (left.signum() <= 0) {
+          break;
+        }
+        BigDecimal take = left.min(netUsd(line));
+        plan.put(line, take);
+        left = left.subtract(take);
+      }
+      return plan;
+    }
+
+    // 목표(줄 금액 비중 × 모든 줄 평가 합)보다 넘친 줄부터 넘친 만큼, 그래도 모자라면 남은 몫을 줄 금액 비중대로 나눔(줄마다 한 번, 요청 순서)
+    private Map<Line, BigDecimal> overTarget(List<Line> sellable, BigDecimal needUsd) {
+      BigDecimal plannedSum = sum(lines, line -> line.plannedKrw);
+      BigDecimal stockUsd = sum(lines, Line::valueUsd);
+      Function<Line, BigDecimal> excess = line -> line.valueUsd()
+        .subtract(stockUsd.multiply(line.plannedKrw).divide(plannedSum, 8, RoundingMode.HALF_UP));
+      List<Line> over = sellable.stream()
+        .filter(line -> excess.apply(line).signum() > 0)
+        .sorted(Comparator.comparing(excess).reversed())
+        .toList();
+      Map<Line, BigDecimal> taken = new HashMap<>();
+      BigDecimal left = needUsd;
+      for (Line line : over) {
+        if (left.signum() <= 0) {
+          break;
+        }
+        BigDecimal take = excess.apply(line).multiply(keptAfterFee()).min(left);
+        taken.put(line, take);
+        left = left.subtract(take);
+      }
+      spread(sellable, line -> line.plannedKrw, left, taken);
+      return inLineOrder(taken);
+    }
+
+    // 손실 줄 · 이익 줄 묶음의 달러당 평가 손익 rL < 0 ≤ rG 로 이익 쪽 = 모자란 달러 × (-rL) ÷ (rG - rL), 손실 쪽은 나머지
+    // 한쪽 묶음이 모자라면 그쪽 전부 · 나머지는 다른 쪽, 묶음 안은 지금 가치대로, 한쪽 묶음이 없으면 평가 손익이 작은 줄부터
+    private Map<Line, BigDecimal> gainNeutral(List<Line> sellable, BigDecimal needUsd, BigDecimal fx) {
+      Map<Line, BigDecimal> gains = unrealizedKrw(sellable, fx);
+      List<Line> losers = sellable.stream().filter(line -> gains.get(line).signum() < 0).toList();
+      List<Line> winners = sellable.stream().filter(line -> gains.get(line).signum() >= 0).toList();
+      if (losers.isEmpty() || winners.isEmpty()) {
+        return inOrder(byGain(sellable, gains), needUsd);
+      }
+      BigDecimal lossUsd = sum(losers, this::netUsd);
+      BigDecimal gainUsd = sum(winners, this::netUsd);
+      BigDecimal lossRate = sum(losers, gains::get).divide(lossUsd, 10, RoundingMode.HALF_UP);
+      BigDecimal gainRate = sum(winners, gains::get).divide(gainUsd, 10, RoundingMode.HALF_UP);
+      BigDecimal toWinners = needUsd.multiply(lossRate.negate())
+        .divide(gainRate.subtract(lossRate), 8, RoundingMode.HALF_UP)
+        .max(needUsd.subtract(lossUsd))
+        .min(gainUsd);
+      Map<Line, BigDecimal> taken = new HashMap<>();
+      spread(winners, this::netUsd, toWinners, taken);
+      spread(losers, this::netUsd, needUsd.subtract(toWinners), taken);
+      return inLineOrder(taken);
+    }
+
+    // 남은 달러를 줄 무게대로 나눠 더함, 몫이 남은 판 돈 이상인 줄은 남은 판 돈만큼 채우고 나머지를 다른 줄에 다시 나눔
+    private void spread(List<Line> candidates, Function<Line, BigDecimal> weight, BigDecimal needUsd,
+      Map<Line, BigDecimal> taken) {
+      List<Line> open = new ArrayList<>(candidates);
+      BigDecimal left = needUsd;
+      while (left.signum() > 0 && !open.isEmpty()) {
+        BigDecimal total = sum(open, weight);
+        BigDecimal round = left;
+        Function<Line, BigDecimal> part = line -> round.multiply(weight.apply(line))
+          .divide(total, 8, RoundingMode.CEILING);
+        List<Line> capped = open.stream().filter(line -> part.apply(line).compareTo(room(line, taken)) >= 0).toList();
+        if (capped.isEmpty()) {
+          open.forEach(line -> taken.merge(line, part.apply(line), BigDecimal::add));
+          return;
+        }
+        for (Line line : capped) {
+          left = left.subtract(room(line, taken));
+          taken.merge(line, room(line, taken), BigDecimal::add);
+        }
+        open.removeAll(capped);
+      }
+    }
+
+    // 줄의 판 돈(USD, 수수료 뺌)에서 이미 정한 몫을 뺀 값
+    private BigDecimal room(Line line, Map<Line, BigDecimal> taken) {
+      return netUsd(line).subtract(taken.getOrDefault(line, BigDecimal.ZERO));
+    }
+
+    // 정한 몫을 요청 줄 순서로
+    private Map<Line, BigDecimal> inLineOrder(Map<Line, BigDecimal> taken) {
+      Map<Line, BigDecimal> plan = new LinkedHashMap<>();
+      lines.stream()
+        .filter(line -> taken.getOrDefault(line, BigDecimal.ZERO).signum() > 0)
+        .forEach(line -> plan.put(line, taken.get(line)));
+      return plan;
+    }
+
+    // 평가 손익(원화)이 작은 줄부터
+    private static List<Line> byGain(List<Line> sellable, Map<Line, BigDecimal> gains) {
+      return sellable.stream().sorted(Comparator.comparing(gains::get)).toList();
+    }
+
+    // 줄마다 평가 손익(원화, 수수료를 뺀 판 돈 × 그 날짜 환율 - 남은 주식의 원화 원가)
+    private Map<Line, BigDecimal> unrealizedKrw(List<Line> sellable, BigDecimal fx) {
+      Map<String, CapitalGainsTaxCalculator.HoldingKrw> holdings = CapitalGainsTaxCalculator.holdingsKrw(transactions);
+      Map<Line, BigDecimal> gains = new HashMap<>();
+      sellable.forEach(line -> gains.put(line,
+        netUsd(line).multiply(fx).subtract(holdings.get(line.symbol).costKrw())));
+      return gains;
+    }
+
+    // 보유 × 마지막 종가에서 매도 수수료를 뺀 달러
+    private BigDecimal netUsd(Line line) {
+      return line.valueUsd().multiply(keptAfterFee());
+    }
+
+    // 1 - 수수료율(수수료율이 없으면 1)
+    private BigDecimal keptAfterFee() {
+      BigDecimal feeRate = request.getTradingFeeRate();
+      return feeRate == null ? BigDecimal.ONE : BigDecimal.ONE.subtract(feeRate);
+    }
+
+    private static BigDecimal sum(List<Line> group, Function<Line, BigDecimal> value) {
+      return group.stream().map(value).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    // 판 돈(수수료 뺌)이 정한 달러 이상이 되게 그 날짜 종가에 팔고(보유 상한) 판 돈은 공용 현금
+    private void sellLineForTax(Line line, BigDecimal usd, LocalDate date, BigDecimal fx) {
+      BigDecimal shares = TaxSale.shares(usd, line.lastClose, request.getTradingFeeRate(), line.shares);
+      BigDecimal soldCost = line.cost.multiply(shares).divide(line.shares, 8, RoundingMode.HALF_UP);
+      cash = cash.add(recordSale(line, shares, soldCost, line.lastClose, TradeReason.TAX_SALE,
+        TransactionTrigger.TAX_SALE, date, fx));
     }
 
     // 낸 양도세를 공용 현금에서 먼저, 모자라면 신호 줄 몫에서 줄 순서대로 뺌

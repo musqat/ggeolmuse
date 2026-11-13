@@ -9,6 +9,8 @@ import { useMessageLink } from './messageLink';
 import { oneDecimal } from './inputText';
 import { isError, type FieldMessage } from './checks';
 import { detailParts } from './summary';
+import { TaxSaleField } from './TaxSaleField';
+import { taxSaleSummary, type TaxSaleControl } from '../shared/taxSale';
 import { LEAD, PILL, UNIT, VALUE_ROW } from './styles';
 
 // 세부 설정 칸 오류(수수료 · 직접 입력 환율)
@@ -27,6 +29,8 @@ interface DetailSettingsProps {
   // 배당 칸 안내(막혔으면 막힌 까닭)
   reinvestNote?: string;
   messages?: DetailMessages;
+  // 양도세 낼 현금이 모자랄 때 고르기(양도세를 켰을 때만 보임)
+  taxSale?: TaxSaleControl;
 }
 
 const PERIOD_END_OPTIONS = [
@@ -40,8 +44,16 @@ const FX_OPTIONS = [
 ];
 const LOCKED_NOTE = '익절 · 손절 · 고점 대비 하락 매도 · 부분 익절이 있으면 배당은 현금으로';
 
-// 접는 세부 설정: 기간 끝 · 세금 · 배당 · 수수료 · 환율(접힌 줄에 기본값도 값으로, 바꾼 것은 진하게)
-export const DetailSettings = ({ options, open, onToggle, reinvestLocked = false, reinvestNote, messages = {} }: DetailSettingsProps) => {
+// 접는 세부 설정: 기간 끝 · 세금(· 현금이 모자라면) · 배당 · 수수료 · 환율(접힌 줄에 기본값도 값으로, 바꾼 것은 진하게)
+export const DetailSettings = ({
+  options,
+  open,
+  onToggle,
+  reinvestLocked = false,
+  reinvestNote,
+  messages = {},
+  taxSale,
+}: DetailSettingsProps) => {
   const panelId = useId();
   const periodEndLabelId = useId();
   const taxLabelId = useId();
@@ -71,7 +83,7 @@ export const DetailSettings = ({ options, open, onToggle, reinvestLocked = false
         {!open && (
           <span className="text-xs">
             {hasError && <span className="text-danger">고칠 칸 있음 · </span>}
-            {detailParts(options, reinvestLocked).map((part, index) => (
+            {detailParts(options, reinvestLocked, taxSaleSummary(taxSale)).map((part, index) => (
               <Fragment key={part.text}>
                 {index > 0 && ' · '}
                 {part.changed ? <b className="font-semibold text-tx-1">{part.text}</b> : <span>{part.text}</span>}
@@ -117,6 +129,8 @@ export const DetailSettings = ({ options, open, onToggle, reinvestLocked = false
                 </button>
               </div>
             </SettingField>
+
+            {options.capitalGainsTax && taxSale && <TaxSaleField control={taxSale} />}
 
             <SettingField label="배당" labelId={dividendLabelId}>
               <RadioGroup

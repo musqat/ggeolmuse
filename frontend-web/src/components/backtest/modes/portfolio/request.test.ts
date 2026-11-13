@@ -32,11 +32,45 @@ const values: PortfolioValues = {
   fxMode: 'auto',
   manualPurchaseFxRate: '',
   manualCurrentFxRate: '',
+  taxSale: 'NONE',
 }
 
 const options = { reinvestDividends: true, tradingFeeRate: 0.0025, dividendTaxRate: 0.15, capitalGainsTax: true, periodEnd: 'SELL_AT_END' }
 
 describe('buildPortfolioRequest', () => {
+  it('양도세를 켜고 판매 방식을 고르면 taxSale 로 싣고, 정한 순서면 줄마다 판매 차례를 taxSaleOrder 로 싣는다', () => {
+    const ordered = [{ ...values.rows[0], taxSaleOrder: 2 }, { ...values.rows[1], taxSaleOrder: 1 }]
+
+    expect(buildPortfolioRequest({ ...values, taxSale: 'LOSS_FIRST' }, ctx)).toMatchObject({
+      request: { taxSale: 'LOSS_FIRST', assets: [{ symbol: 'SPY', amount: 6000000 }, { symbol: 'QQQ', amount: 4000000 }] },
+    })
+    expect(buildPortfolioRequest({ ...values, taxSale: 'LOSS_FIRST' }, ctx)).not.toHaveProperty('request.assets.0.taxSaleOrder')
+    expect(buildPortfolioRequest({ ...values, rows: ordered, taxSale: 'CUSTOM_ORDER' }, ctx)).toMatchObject({
+      request: {
+        taxSale: 'CUSTOM_ORDER',
+        assets: [
+          { symbol: 'SPY', taxSaleOrder: 2 },
+          { symbol: 'QQQ', taxSaleOrder: 1 },
+        ],
+      },
+    })
+  })
+
+  it('정한 순서의 판매 차례가 겹치거나 종목 수 밖이면 차례대로 1 ~ 종목 수로 맞춰 싣고(같으면 앞 줄 먼저), 양도세를 끄면 판매 방식 · 순서를 싣지 않는다', () => {
+    const orders = (first: number, second: number) => [
+      { ...values.rows[0], taxSaleOrder: first },
+      { ...values.rows[1], taxSaleOrder: second },
+    ]
+    const sent = (first: number, second: number) =>
+      buildPortfolioRequest({ ...values, rows: orders(first, second), taxSale: 'CUSTOM_ORDER' }, ctx)
+
+    expect(sent(1, 1)).toMatchObject({ request: { assets: [{ taxSaleOrder: 1 }, { taxSaleOrder: 2 }] } })
+    expect(sent(5, 3)).toMatchObject({ request: { assets: [{ taxSaleOrder: 2 }, { taxSaleOrder: 1 }] } })
+    const off = buildPortfolioRequest({ ...values, rows: orders(1, 1), taxSale: 'CUSTOM_ORDER', capitalGainsTax: false }, ctx)
+    expect(off).not.toHaveProperty('request.taxSale')
+    expect(off).not.toHaveProperty('request.assets.0.taxSaleOrder')
+  })
+
   it('금액 방식 한 번에 사기는 줄마다 대문자 종목 · 금액만 싣고, 종료일이 비면 오늘로 채우며 적립식 칸은 보내지 않는다', () => {
     expect(buildPortfolioRequest(values, ctx)).toStrictEqual({
       request: {

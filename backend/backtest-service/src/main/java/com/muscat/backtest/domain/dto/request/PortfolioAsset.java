@@ -23,7 +23,10 @@ public record PortfolioAsset(
   BigDecimal stopLossRate,
 
   @Schema(description = "줄 전략 (비우면 요청의 매수 방식)")
-  PortfolioStrategy strategy
+  PortfolioStrategy strategy,
+
+  @Schema(description = "판매 순서: 양도세 낼 현금이 모자라 정한 순서로 팔 때 작은 수부터 (1 ~ 종목 수, 서로 다르게, CUSTOM_ORDER 에서만)", example = "1")
+  Integer taxSaleOrder
 ) {
 
   // 앞뒤 공백을 뺀 대문자 종목 코드

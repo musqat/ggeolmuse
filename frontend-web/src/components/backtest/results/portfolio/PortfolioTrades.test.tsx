@@ -19,6 +19,18 @@ const options = (name: string) =>
   within(screen.getByRole('combobox', { name })).getAllByRole('option').map((option) => option.textContent)
 
 describe('PortfolioTrades', () => {
+  it('양도세 납부용 매도는 판 줄로 보이고 이유 고르기 이름은 양도세 납부용 매도', () => {
+    const sold: PortfolioTransaction[] = [
+      transactions[0],
+      { symbol: 'SPY', reason: 'TAX_SALE', date: '2024-05-01', actualDate: '2024-05-01', trigger: '양도세 납부용 매도', shares: -1.5, price: 540, amount: 0, fxRate: 1400, proceeds: 810, realizedProfit: 320 },
+      transactions[3],
+    ]
+    render(<PortfolioTrades transactions={sold} symbols={['SPY']} />)
+
+    expect(cells(rows()[1])).toEqual(['2024-05-01', 'SPY', '양도세 납부용 매도', '1.5주', '$810.00', '+$320.00'])
+    expect(options('이유')).toEqual(['모든 이유', '한 번에 매수', '양도세 납부', '양도세 납부용 매도'])
+  })
+
   it('줄마다 날짜 · 종목 · 이유(거래 글) · 수량 · 금액 · 실현 손익을 거래일 순서로 보이고, 양도세 납부는 수량 없이 낸 달러를 뺀다', () => {
     render(<PortfolioTrades transactions={transactions} symbols={['SPY', 'QQQ']} />)
 

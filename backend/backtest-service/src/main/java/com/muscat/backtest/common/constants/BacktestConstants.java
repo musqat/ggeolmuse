@@ -70,6 +70,9 @@ public final class BacktestConstants {
     /** 판 해의 양도세를 다음 해 5월 판 돈에서 냄 */
     public static final String CAPITAL_GAINS_TAX_PAYMENT = "양도세 납부";
 
+    /** 양도세 낼 현금이 모자라 그 날짜 종가에 모자란 만큼 팖 */
+    public static final String TAX_SALE = "양도세 납부용 매도";
+
     /** 종가가 기준가보다 정한 비율 이상 내린 날 보유의 정한 몫을 팖 (뒤에 기준가 대비 하락 %) */
     public static final String TRAILING_STOP = "고점 대비 하락 매도";
 

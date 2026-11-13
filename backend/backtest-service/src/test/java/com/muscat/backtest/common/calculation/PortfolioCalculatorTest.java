@@ -74,7 +74,7 @@ class PortfolioCalculatorTest {
   }
 
   private static PortfolioAsset asset(String symbol, String amount) {
-    return new PortfolioAsset(symbol, number(amount), null, null, null, null);
+    return new PortfolioAsset(symbol, number(amount), null, null, null, null, null);
   }
 
   private static PortfolioResponse.Asset row(String symbol, PortfolioStrategyType type, String invested, String bought,

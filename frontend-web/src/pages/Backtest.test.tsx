@@ -1044,6 +1044,41 @@ describe('Backtest 페이지 포트폴리오', () => {
     expect(rowAmount(1)).toHaveValue('5,000,000')
   })
 
+  it('정한 순서로 팔면 먼저 팔 종목부터 목록 끝에 더한 줄을 두고, 위 · 아래 단추로 바꾼 차례를 줄마다 판매 순서로 싣는다', async () => {
+    renderPage()
+    await selectMode('포트폴리오')
+    await addRow()
+    await pickSymbol(rowSymbol(2), 'ms', /MSFT/)
+    fireEvent.change(rowAmount(2), { target: { value: '5,000,000' } })
+    await userEvent.click(detailToggle())
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: '현금이 모자라면' }), '정한 순서로 팖')
+    const list = () => within(screen.getByRole('list', { name: '먼저 팔 종목부터' }))
+
+    expect(list().getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual([
+      'AAPL 위로',
+      'AAPL 아래로',
+      'MSFT 위로',
+      'MSFT 아래로',
+    ])
+    await userEvent.click(list().getByRole('button', { name: 'MSFT 위로' }))
+    expect(list().getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual([
+      'MSFT 위로',
+      'MSFT 아래로',
+      'AAPL 위로',
+      'AAPL 아래로',
+    ])
+    expect(list().getByRole('button', { name: 'MSFT 아래로' })).toHaveFocus()
+    expect(summary()).toHaveTextContent('모자라면 정한 순서로 팖')
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runPortfolio).mock.calls[0][0]).toMatchObject({
+      taxSale: 'CUSTOM_ORDER',
+      assets: [
+        { symbol: 'AAPL', taxSaleOrder: 2 },
+        { symbol: 'MSFT', taxSaleOrder: 1 },
+      ],
+    })
+  })
+
   it('종목을 더해 비율로 나누고 적립식을 고르면 총액 · 비율 · 주기로 요청하고 요약에 회당 합계 · 회차를 적는다', async () => {
     renderPage()
     await selectMode('포트폴리오')
@@ -1488,6 +1523,36 @@ describe('Backtest 페이지 세부 설정', () => {
     await runBacktest()
 
     expect(vi.mocked(backtestApi.compareSymbols).mock.calls[0][0]).toMatchObject({ dividendTaxRate: 0 })
+  })
+
+  it('현금이 모자라면 고르기는 조건부 · 이동평균 교차 · 밴드 · 포트폴리오에만 보이고(포트폴리오는 드롭다운), 고르면 요약에 적고 요청에 싣는다', async () => {
+    const taxSale = () => screen.queryByRole('radiogroup', { name: '현금이 모자라면' })
+    const taxSaleSelect = () => screen.getByRole('combobox', { name: '현금이 모자라면' })
+    renderPage()
+    await userEvent.click(detailToggle())
+    expect(taxSale()).toBeNull()
+    await selectMode('적립식')
+    expect(taxSale()).toBeNull()
+    await selectMode('전략 비교')
+    expect(taxSale()).toBeNull()
+    await selectMode('이동평균 교차')
+    await userEvent.click(within(taxSale()!).getByRole('radio', { name: '주식을 팔아 냄' }))
+
+    expect(summary()).toHaveTextContent('전부 팜 · 모자라면 팔아 냄')
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runMaCrossStrategy).mock.calls[0][0]).toMatchObject({ capitalGainsTax: true, taxSale: 'SELL' })
+
+    await selectMode('포트폴리오')
+    expect(taxSale()).toBeNull()
+    expect(taxSaleSelect()).toHaveValue('NONE')
+    expect(screen.queryByRole('list', { name: '먼저 팔 종목부터' })).toBeNull()
+    await userEvent.selectOptions(taxSaleSelect(), '정한 순서로 팖')
+    expect(within(screen.getByRole('list', { name: '먼저 팔 종목부터' })).getByRole('button', { name: 'AAPL 위로' })).toBeDisabled()
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runPortfolio).mock.calls[0][0]).toMatchObject({
+      taxSale: 'CUSTOM_ORDER',
+      assets: [{ symbol: 'AAPL', taxSaleOrder: 1 }],
+    })
   })
 
   it('마지막 거래일에 팔기 · 양도세 끔은 요약에 보이고 요청에 실린다', async () => {

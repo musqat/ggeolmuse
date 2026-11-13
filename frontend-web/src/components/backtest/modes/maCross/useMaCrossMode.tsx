@@ -10,6 +10,7 @@ import { MA_WINDOWS } from '../../shared/maWindows';
 import { amountIssue, countErrors, windowIssues } from '../../settings/checks';
 import { maCrossAbout, maCrossHow } from '../../settings/summary';
 import { pickValues } from '../../settings/snapshot';
+import { singleTaxSale } from '../../shared/taxSale';
 import { useSignalSymbol } from '../useSignalSymbol';
 import { useTrailingStop } from '../useTrailingStop';
 import { usePartialTakeProfit } from '../usePartialTakeProfit';
@@ -75,6 +76,7 @@ export const useMaCrossMode = (shared: SharedModeProps): ModeController => {
     ]),
     reinvestLocked: true,
     reinvestNote: '이동평균 교차는 배당을 현금으로',
+    taxSale: singleTaxSale(options),
     saved: { amount: investment, short: shortWindow, long: longWindow, ...signal.saved, ...trailing.saved, ...partial.saved },
     load: (saved) => {
       const next = pickValues(DEFAULTS, saved);

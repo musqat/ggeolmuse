@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { backtestApi, type PortfolioAllocation, type PortfolioMethod, type PortfolioRebalance } from '@services/api';
+import {
+  backtestApi,
+  type PortfolioAllocation,
+  type PortfolioMethod,
+  type PortfolioRebalance,
+  type PortfolioTaxSale,
+} from '@services/api';
 import type { ModeController, SharedModeProps } from '../types';
 import { commonFields } from '../commonFields';
 import { PortfolioForm } from './PortfolioForm';
@@ -18,11 +24,14 @@ import {
   FIRST_AMOUNT,
   hasDcaRow,
   isAllDca,
+  moveSaleOrder,
   newRow,
   rowAmounts,
   rowStrategy,
+  rowSymbol,
   rowsSellText,
   rowsSubject,
+  saleOrder,
   savedRows,
   type PortfolioRow,
 } from '../../shared/portfolioRows';
@@ -37,6 +46,7 @@ import {
 } from '../../settings/checks';
 import { portfolioHow } from '../../settings/summary';
 import { oneOf, pickValues } from '../../settings/snapshot';
+import { PORTFOLIO_TAX_SALES, portfolioTaxSale } from '../../shared/taxSale';
 
 const NO_PICK: FirstPick = { date: '', start: '' };
 const ALLOCATIONS: readonly PortfolioAllocation[] = ['AMOUNT', 'WEIGHT'];
@@ -52,6 +62,7 @@ const DEFAULTS = {
   months: '3',
   firstPick: NO_PICK,
   rebalance: 'NONE',
+  taxSale: 'NONE',
 };
 
 export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
@@ -66,6 +77,7 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
   const [months, setMonths] = useState(DEFAULTS.months);
   const [firstPick, setFirstPick] = useState<FirstPick>(NO_PICK);
   const [rebalance, setRebalance] = useState<PortfolioRebalance>('NONE');
+  const [taxSale, setTaxSale] = useState<PortfolioTaxSale>('NONE');
 
   // 적립식 줄이 있으면 주기 · 첫 매수일 칸, 모든 줄이 적립식이면 금액 · 총액이 회당
   const dca = hasDcaRow(rows, method);
@@ -141,8 +153,13 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
     errorCount:
       countErrors([periodMessage, totalMessage, ...rowMessages.flatMap(portfolioRowMessageList), monthsMessage, firstMessage]) +
       (isWeightSumBad(rows, allocation, rowMessages) ? 1 : 0),
+    // 판매 방식과 정한 순서의 먼저 팔 종목부터 목록(빈 종목은 줄 번호)
+    taxSale: portfolioTaxSale(taxSale, setTaxSale, {
+      names: saleOrder(rows).map((index) => rowSymbol(rows[index]) || `${index + 1}번 종목`),
+      onMove: (position, step) => setEdited(moveSaleOrder(rows, position, step)),
+    }),
     // 고친 줄만 저장(고치기 전 줄은 되살린 뒤에도 보던 종목을 따라감)
-    saved: { rows: edited ?? [], allocation, total, method, cadence, months, firstPick, rebalance },
+    saved: { rows: edited ?? [], allocation, total, method, cadence, months, firstPick, rebalance, taxSale },
     load: (saved) => {
       const next = pickValues(DEFAULTS, saved);
       const restored = savedRows(next.rows);
@@ -154,6 +171,7 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
       setMonths(next.months);
       setFirstPick(next.firstPick);
       setRebalance(oneOf(next.rebalance, REBALANCES, 'NONE'));
+      setTaxSale(oneOf(next.taxSale, PORTFOLIO_TAX_SALES, 'NONE'));
     },
     prepare: (ctx) => {
       const built = buildPortfolioRequest(
@@ -170,6 +188,7 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
           firstPickedStart: firstPick.start,
           rebalance,
           ...options,
+          taxSale,
         },
         ctx,
       );

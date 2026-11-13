@@ -225,8 +225,8 @@ type DetailInput = Pick<
   'periodEnd' | 'tradingFeeRate' | 'dividendTax' | 'capitalGainsTax' | 'reinvestDividends' | 'fxMode'
 >;
 
-// 세부 설정 값 글(기본값도 값으로, changed 는 기본값과 다른지, 재투자가 막혔으면 현금)
-export const detailParts = (options: DetailInput, reinvestLocked: boolean) => {
+// 세부 설정 값 글(기본값도 값으로, changed 는 기본값과 다른지, 재투자가 막혔으면 현금, 양도세를 켜면 양도세 낼 현금이 모자랄 때 글)
+export const detailParts = (options: DetailInput, reinvestLocked: boolean, taxSale = '') => {
   const fee = parseFloat(options.tradingFeeRate) || 0;
   const reinvest = options.reinvestDividends && !reinvestLocked;
   const manual = options.fxMode === 'manual';
@@ -235,6 +235,7 @@ export const detailParts = (options: DetailInput, reinvestLocked: boolean) => {
     { text: sellAtEnd ? '마지막 거래일에 팔기' : '끝까지 보유', changed: sellAtEnd },
     { text: `배당세 ${options.dividendTax ? '15%' : '끔'}`, changed: !options.dividendTax },
     { text: `양도세 ${options.capitalGainsTax ? '22%' : '끔'}`, changed: !options.capitalGainsTax },
+    ...(options.capitalGainsTax && taxSale ? [{ text: taxSale, changed: true }] : []),
     { text: `배당 ${reinvest ? '재투자' : '현금'}`, changed: reinvest },
     { text: `수수료 ${options.tradingFeeRate.trim() || 0}%`, changed: fee > 0 },
     { text: `환율 ${manual ? '직접 입력' : '자동'}`, changed: manual },
@@ -242,7 +243,7 @@ export const detailParts = (options: DetailInput, reinvestLocked: boolean) => {
 };
 
 // 세부 설정 가운데 기본값과 다른 것
-export const changedOptions = (options: DetailInput, reinvestLocked: boolean): string[] =>
-  detailParts(options, reinvestLocked)
+export const changedOptions = (options: DetailInput, reinvestLocked: boolean, taxSale = ''): string[] =>
+  detailParts(options, reinvestLocked, taxSale)
     .filter((part) => part.changed)
     .map((part) => part.text);

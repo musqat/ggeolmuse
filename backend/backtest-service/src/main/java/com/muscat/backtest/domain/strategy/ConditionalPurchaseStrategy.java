@@ -8,6 +8,7 @@ import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.common.enums.type.StrategyType;
+import com.muscat.backtest.common.enums.type.TaxSale;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.logging.BacktestLogger;
 import com.muscat.backtest.common.util.RoundPurchase;
@@ -220,8 +221,22 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
         if (priceData != null && priceData.available() && !usable) {
           skippedRounds.add(new SkippedRound(currentDate, SkipReason.NO_PRICE));
         } else if (usable) {
-          StrategyTransaction payment = taxPayer.pay(currentDate, transactions, cash,
-            fxOn(request, fxRateMap, currentDate), fxRateMap.isDefault(currentDate));
+          BigDecimal fx = fxOn(request, fxRateMap, currentDate);
+          // 양도세 낼 현금이 모자라면 그 날짜 종가에 모자란 만큼 팖(하루 매도 한 번에 세지 않고 그 날짜 매수도 봄)
+          SaleShare taxExit = TaxSale.sells(request.getTaxSale())
+            ? SaleShare.forTax(taxPayer.shortfallUsd(currentDate, transactions, cash, fx),
+              PriceLookup.effectiveClose(priceData), request.getTradingFeeRate(), heldShares, heldCost)
+            : null;
+          if (taxExit != null) {
+            StrategyTransaction taxSale = sale(request, priceData, currentDate, taxExit.shares(), taxExit.cost(),
+              PriceLookup.effectiveClose(priceData), taxExit.trigger(), fxRateMap);
+            transactions.add(taxSale);
+            cash = cash.add(taxSale.getProceeds());
+            heldShares = heldShares.subtract(taxExit.shares());
+            heldCost = heldCost.subtract(taxExit.cost());
+          }
+          StrategyTransaction payment = taxPayer.pay(currentDate, transactions, cash, fx,
+            fxRateMap.isDefault(currentDate));
           if (payment != null) {
             transactions.add(payment);
             cash = cash.subtract(payment.getTaxPaid());

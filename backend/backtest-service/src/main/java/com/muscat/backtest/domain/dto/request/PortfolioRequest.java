@@ -6,6 +6,7 @@ import com.muscat.backtest.common.enums.type.PortfolioAllocation;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
 import com.muscat.backtest.common.enums.type.PortfolioRebalance;
 import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
+import com.muscat.backtest.common.enums.type.PortfolioTaxSale;
 import com.muscat.commonlib.util.MoneyUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMax;
@@ -89,6 +90,9 @@ public class PortfolioRequest {
 
   @Schema(description = "양도소득세 계산 · 납부 여부 (포트폴리오 전체 판 해마다 원화 실현 이익에서 연 250만원 공제 뒤 22% 를 다음 해 5월 1일 이후 첫 거래일에 현금에서 냄, 비우면 끔)", example = "true")
   private Boolean capitalGainsTax;
+
+  @Schema(description = "양도세 낼 현금이 모자랄 때 (NONE 현금이 생길 때 냄, TARGET_WEIGHT 목표 비중보다 커진 종목부터, CUSTOM_ORDER 줄마다 정한 판매 순서대로, LOSS_FIRST 손실 큰 종목부터, GAIN_NEUTRAL 손실 · 이익 종목을 섞어 판 이익 0, 그 날짜 일봉이 있는 종목을 그 날짜 종가에 모자란 만큼 팖, 비우면 NONE)", example = "LOSS_FIRST")
+  private PortfolioTaxSale taxSale;
 
   // 줄 금액(금액 방식은 줄 금액, 비율 방식은 총액 × 비율 ÷ 100 을 원 단위로 반올림)
   public BigDecimal amountOf(PortfolioAsset asset) {
