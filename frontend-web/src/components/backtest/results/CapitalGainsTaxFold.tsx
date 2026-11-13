@@ -20,7 +20,7 @@ const PaidCell: React.FC<{ year: CapitalGainsTaxYear }> = ({ year }) => {
   );
 };
 
-// 판 해마다 원화 실현 이익 · 공제 · 양도세 · 납부일 · 낸 금액 표(판 거래가 없으면 안내 한 줄)
+// 결제된 해마다 원화 실현 이익 · 공제 · 양도세 · 납부일 · 낸 금액 표(판 거래가 없으면 안내 한 줄)
 export const TaxYearTable: React.FC<{ years: CapitalGainsTaxYear[] }> = ({ years }) =>
   years.length === 0 ? (
     <p className="text-sm text-tx-2">판 거래가 없어 양도세 없음</p>
@@ -93,7 +93,8 @@ export const CapitalGainsTaxFold: React.FC<CapitalGainsTaxFoldProps> = ({ tax, r
       <DetailSection title="연도별" className="min-w-0 lg:col-span-2">
         <TaxYearTable years={tax.years} />
         <p className="pt-2 text-xs text-tx-2">
-          판 해마다 원화 실현 이익에서 250만원까지 공제하고 22% · 다음 해 5월 첫 거래일에 현금에서 냄(모자라면{' '}
+          결제된 해마다 원화 실현 이익에서 250만원까지 공제하고 22%(연말 마지막 거래일 무렵 판 몫은 다음 해) · 다음 해 5월
+          첫 거래일에 현금에서 냄(모자라면{' '}
           {sellsForTax ? '정한 대로 주식을 팔거나 현금이 생길 때' : '현금이 생길 때'})
         </p>
       </DetailSection>

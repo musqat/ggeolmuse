@@ -533,6 +533,25 @@ describe('DcaConditionalResult', () => {
     expect(screen.getByText('주식 평가액').nextElementSibling).toHaveTextContent('₩1,300,000')
   })
 
+  it('이동평균 · 밴드 결과는 상세에 체결 시점을 보이고, 다음 거래일 시가에 산 날은 휴장일 안내에 세지 않는다', async () => {
+    const transactions = [
+      { date: '2023-03-01', actualDate: '2023-03-02', shares: 6, price: 150, amount: 1000000, fxRate: 1300, trigger: '골든 크로스' },
+    ]
+    const { rerender } = render(
+      <DcaConditionalResult result={{ ...result, transactions, executionTiming: 'NEXT_DAY_OPEN' }} {...props} kind="ma-cross" />
+    )
+
+    expect(screen.queryByText(/^투자일이 휴장일이면/)).toBeNull()
+    await open('상세')
+    expect(card('체결 시점')).toHaveTextContent('다음 거래일 시가')
+
+    rerender(<DcaConditionalResult result={{ ...result, executionTiming: null }} {...props} kind="ma-band" />)
+    expect(card('체결 시점')).toHaveTextContent('신호 난 날 종가')
+
+    rerender(<DcaConditionalResult result={result} {...props} kind="dca" />)
+    expect(screen.queryByText('체결 시점')).toBeNull()
+  })
+
   it('투자일이 휴장일이라 다른 날 산 번수를 알린다', () => {
     const transactions = [
       { date: '2023-01-15', actualDate: '2023-01-17', shares: 1, price: 140, amount: 100000, fxRate: 1300 },

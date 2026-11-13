@@ -25,6 +25,13 @@ const values: MaBandValues = {
 const BAND_ERROR = '밴드 기간은 2 ~ 250 사이 정수로, 위 · 아래 비율은 0 이상 100 미만으로 입력해주세요.'
 
 describe('buildMaBandRequest', () => {
+  it('다음 거래일 시가를 고르면 executionTiming 으로 싣고, 신호 난 날 종가면 싣지 않는다', () => {
+    expect(buildMaBandRequest({ ...values, executionTiming: 'NEXT_DAY_OPEN' }, 'SPY', ctx)).toMatchObject({
+      request: { executionTiming: 'NEXT_DAY_OPEN' },
+    })
+    expect(buildMaBandRequest({ ...values, executionTiming: 'SAME_DAY_CLOSE' }, 'SPY', ctx)).not.toHaveProperty('request.executionTiming')
+  })
+
   it('양도세 · 연말 정리를 둘 다 켰을 때만 yearEndHarvest 를 싣는다', () => {
     expect(buildMaBandRequest({ ...values, capitalGainsTax: true, yearEndHarvest: true }, 'AAPL', ctx)).toMatchObject({
       request: { capitalGainsTax: true, yearEndHarvest: true },

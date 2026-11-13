@@ -1,4 +1,4 @@
-import type { PortfolioRebalance, PortfolioStrategyType, PriceDirection } from '@services/api';
+import type { ExecutionTiming, PortfolioRebalance, PortfolioStrategyType, PriceDirection } from '@services/api';
 import { formatReadableWon } from '../../../utils/format';
 import { DIRECTIONS } from '../shared/priceDirection';
 import type { BacktestOptions } from '../shared/backtestOptions';
@@ -53,8 +53,8 @@ export const dcaHow = ({ unit, cadenceLabel, rounds, daily, budget }: DcaSummary
 };
 
 interface PortfolioSummary {
-  // 줄마다 전략과 금액(원, 적립식은 회당, 이동평균 · 밴드는 첫 매수 신호에)
-  lines: { strategy: PortfolioStrategyType; amount: number }[];
+  // 줄마다 전략과 금액(원, 적립식은 회당, 이동평균 · 밴드는 첫 매수 신호에) · 다음 거래일 시가에 체결하는지
+  lines: { strategy: PortfolioStrategyType; amount: number; nextOpen?: boolean }[];
   cadenceLabel: string;
   rounds: number;
   daily: boolean;
@@ -72,7 +72,7 @@ const REBALANCE_TEXT: Record<PortfolioRebalance, string> = {
 
 const SIGNALS: readonly PortfolioStrategyType[] = ['MA_CROSS', 'MA_BAND'];
 
-// 포트폴리오: 종목 수와 전략마다 넣는 합계(한 번에 · 적립식 요약 · 이동평균 · 밴드는 첫 매수 신호에, 전략이 섞이면 전략마다 줄 수), 줄 익절 · 손절 글, 리밸런싱하면 그 주기(이동평균 · 밴드 줄은 빼고)
+// 포트폴리오: 종목 수와 전략마다 넣는 합계(한 번에 · 적립식 요약 · 이동평균 · 밴드는 첫 매수 신호에, 다음 거래일 시가 줄 수, 전략이 섞이면 전략마다 줄 수), 줄 익절 · 손절 글, 리밸런싱하면 그 주기(이동평균 · 밴드 줄은 빼고)
 export const portfolioHow = ({ lines, cadenceLabel, rounds, daily, sell, rebalance }: PortfolioSummary) => {
   const pick = (strategies: readonly PortfolioStrategyType[]) => lines.filter((line) => strategies.includes(line.strategy));
   const total = (picked: PortfolioSummary['lines']) => picked.reduce((sum, line) => sum + line.amount, 0);
@@ -83,11 +83,13 @@ export const portfolioHow = ({ lines, cadenceLabel, rounds, daily, sell, rebalan
   const signalNames = SIGNALS.filter((strategy) => pick([strategy]).length).map((strategy) => STRATEGY_LABELS[strategy]);
   const unit = { byShares: false, amount: String(total(dca)), shares: '' };
   const rebalanced = REBALANCE_TEXT[rebalance] && signals.length < lines.length;
+  const nextOpen = signals.filter((line) => line.nextOpen).length;
   return [
     `종목 ${lines.length}개`,
     lump.length > 0 && `한 번에 ${mixed ? `${lump.length}개 ` : ''}${formatReadableWon(total(lump))}`,
     dca.length > 0 && `${mixed ? `적립식 ${dca.length}개 ` : ''}${dcaHow({ unit, cadenceLabel, rounds, daily, budget: '' })}`,
-    signals.length > 0 && `${signalNames.join(', ')} ${signals.length}개 첫 매수 신호에 ${formatReadableWon(total(signals))}`,
+    signals.length > 0 &&
+      `${signalNames.join(', ')} ${signals.length}개 첫 매수 신호에 ${formatReadableWon(total(signals))}${nextOpen ? `(${nextOpen}개는 ${executionText('NEXT_DAY_OPEN')})` : ''}`,
     sell,
     rebalanced && `${REBALANCE_TEXT[rebalance]}${signals.length ? '(이동평균 교차 · 밴드 빼고)' : ''}`,
   ]
@@ -170,11 +172,14 @@ export const maCrossText = (short: string, long: string) =>
 export const maCrossAbout = (short: string, long: string) =>
   `최근 ${short.trim() || '?'}일 평균 가격이 ${long.trim() || '?'}일 평균보다 높아지면 매수, 낮아지면 매도`;
 
+// 다음 거래일 시가에 체결하면 그 글(신호 난 날 종가는 빈 글)
+export const executionText = (timing: ExecutionTiming) => (timing === 'NEXT_DAY_OPEN' ? '다음 거래일 시가에 체결' : '');
+
 // 원금과 따로 고른 신호 종목
 const signalLead = (amount: string, signal?: string) =>
   [`원금 ${formatReadableWon(parseFloat(amount))}`, signal && `신호 ${signal}`].filter(Boolean).join(' · ');
 
-// 원금 · 신호 종목과 신호 규칙 뒤에 트레일링 스탑 · 부분 익절 글(끄면 빈 글)
+// 원금 · 신호 종목과 신호 규칙 뒤에 체결 시점 · 트레일링 스탑 · 부분 익절 글(신호 난 날 종가 · 끄면 빈 글)
 const signalHow = (amount: string, signal: string | undefined, rule: string, ...sells: (string | undefined)[]) =>
   [signalLead(amount, signal), rule, ...sells].filter(Boolean).join(' · ');
 
@@ -183,6 +188,7 @@ export const maCrossHow = ({
   short,
   long,
   signal,
+  execution,
   trailing,
   partial,
 }: {
@@ -190,9 +196,10 @@ export const maCrossHow = ({
   short: string;
   long: string;
   signal?: string;
+  execution?: string;
   trailing?: string;
   partial?: string;
-}) => signalHow(amount, signal, maCrossText(short, long), trailing, partial);
+}) => signalHow(amount, signal, maCrossText(short, long), execution, trailing, partial);
 
 // 이동평균 밴드 규칙(빈 칸은 ?)
 export const maBandText = (window: string, upper: string, lower: string) =>
@@ -208,6 +215,7 @@ export const maBandHow = ({
   upper,
   lower,
   signal,
+  execution,
   trailing,
   partial,
 }: {
@@ -216,9 +224,10 @@ export const maBandHow = ({
   upper: string;
   lower: string;
   signal?: string;
+  execution?: string;
   trailing?: string;
   partial?: string;
-}) => signalHow(amount, signal, maBandText(window, upper, lower), trailing, partial);
+}) => signalHow(amount, signal, maBandText(window, upper, lower), execution, trailing, partial);
 
 type DetailInput = Pick<
   BacktestOptions,

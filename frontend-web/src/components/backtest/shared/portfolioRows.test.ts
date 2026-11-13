@@ -21,7 +21,15 @@ import {
   type RowStrategy,
 } from './portfolioRows'
 
-const SIGNAL_DEFAULTS = { strategy: '' as RowStrategy, shortWindow: '20', longWindow: '60', bandWindow: '200', upper: '2.5', lower: '2.5' }
+const SIGNAL_DEFAULTS = {
+  strategy: '' as RowStrategy,
+  shortWindow: '20',
+  longWindow: '60',
+  bandWindow: '200',
+  upper: '2.5',
+  lower: '2.5',
+  executionTiming: 'SAME_DAY_CLOSE' as const,
+}
 
 const row = (symbol: string, amount = '', weight = '', takeProfit = '', stopLoss = ''): PortfolioRow => ({
   symbol,
@@ -63,7 +71,7 @@ describe('포트폴리오 종목 줄', () => {
     expect(isWeightSumOk([row('SPY', '', '100')])).toBe(true)
   })
 
-  it('새 줄은 익절 · 손절이 비고 전략은 방식대로, 이동평균 · 밴드 칸은 20 · 60일 선 · 200일선 ±2.5%', () => {
+  it('새 줄은 익절 · 손절이 비고 전략은 방식대로, 이동평균 · 밴드 칸은 20 · 60일 선 · 200일선 ±2.5% · 신호 난 날 종가', () => {
     expect(newRow()).toEqual({
       symbol: '',
       amount: '',
@@ -76,6 +84,7 @@ describe('포트폴리오 종목 줄', () => {
       bandWindow: '200',
       upper: '2.5',
       lower: '2.5',
+      executionTiming: 'SAME_DAY_CLOSE',
       taxSaleOrder: 1,
     })
     expect(newRow('SPY', '10000000', '100')).toEqual(row('SPY', '10000000', '100'))
@@ -181,6 +190,15 @@ describe('포트폴리오 종목 줄', () => {
       row('IAU', '1'),
       { ...row('TLT', '1'), strategy: 'DCA', taxSaleOrder: 4 },
     ])
+  })
+
+  it('직전 설정의 줄 체결 시점은 고를 수 있는 값만, 아니면 신호 난 날 종가', () => {
+    const saved = [
+      { ...row('SPY', '1'), strategy: 'MA_CROSS', executionTiming: 'NEXT_DAY_OPEN' },
+      { ...row('QQQ', '1'), strategy: 'MA_BAND', executionTiming: 'OPEN' },
+    ]
+
+    expect(savedRows(saved).map((r) => r.executionTiming)).toEqual(['NEXT_DAY_OPEN', 'SAME_DAY_CLOSE'])
   })
 
   it('요약 익절 · 손절 글은 적은 줄 수와 적은 쪽만, 하나도 없으면 빈 글', () => {

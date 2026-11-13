@@ -36,6 +36,8 @@ const SELECT = 'bg-surface border border-line rounded-btn px-3 py-2 text-sm text
 const Dash: React.FC = () => <span className="text-tx-3">-</span>;
 
 const isPayment = (tx: PortfolioTransaction) => tx.reason === 'TAX_PAYMENT';
+// 신호 줄 매매는 계획일이 신호 난 날
+const isSignalTrade = (tx: PortfolioTransaction) => tx.reason === 'STRATEGY_BUY' || tx.reason === 'STRATEGY_SELL';
 const isSale = (tx: PortfolioTransaction) => tx.shares < 0;
 
 // 금액(USD): 매도는 받은 돈, 양도세 납부는 낸 돈을 뺀 값, 매수는 넣은 원화를 그 날짜 환율로 바꾼 값 + 쓴 현금
@@ -52,7 +54,11 @@ const TradeRow: React.FC<{ tx: PortfolioTransaction }> = ({ tx }) => {
     <tr>
       <td className={TEXT}>
         <div>{tradedOn}</div>
-        {tradedOn !== tx.date && <div className="text-xs text-tx-3">계획 {tx.date}</div>}
+        {tradedOn !== tx.date && (
+          <div className="text-xs text-tx-3">
+            {isSignalTrade(tx) ? '신호' : '계획'} {tx.date}
+          </div>
+        )}
       </td>
       <td className={`${TEXT} font-medium`}>{tx.symbol ?? <Dash />}</td>
       <td className={TEXT}>{tx.trigger ?? (tx.reason ? REASON_LABELS[tx.reason] : <Dash />)}</td>

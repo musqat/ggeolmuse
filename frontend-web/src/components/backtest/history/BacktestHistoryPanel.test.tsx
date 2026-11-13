@@ -106,6 +106,35 @@ describe('BacktestHistoryPanel', () => {
     expect(screen.queryByText('단순')).toBeNull()
   })
 
+  it('다음 거래일 시가를 고른 이동평균 기록은 전략 타입 뒤에 체결 시점을, 포트폴리오 기록은 그 줄 수를 잇는다', () => {
+    const record = (backtestId: string, params: object) => ({
+      backtestId,
+      userId: 'u',
+      backtestType: 'STRATEGY_SIMULATION' as const,
+      requestParams: JSON.stringify(params),
+      fxRateMode: 'auto' as const,
+      createdAt: '2026-11-12T09:00:00',
+    })
+    renderPanel({
+      historyData: [
+        record('1', { symbol: 'AAPL', startDate: '2023-01-01', shortWindow: 20, longWindow: 60, executionTiming: 'NEXT_DAY_OPEN' }),
+        record('2', { symbol: 'SPY', startDate: '2023-01-01', bandWindow: 200, executionTiming: 'SAME_DAY_CLOSE' }),
+        record('3', {
+          startDate: '2023-01-01',
+          assets: [
+            { symbol: 'QQQ', strategy: { type: 'MA_CROSS', executionTiming: 'NEXT_DAY_OPEN' } },
+            { symbol: 'SPY', strategy: { type: 'MA_BAND' } },
+          ],
+        }),
+      ],
+      historyTotalPages: 1,
+    })
+
+    expect(screen.getByText('이동평균 교차 · 다음 거래일 시가')).toBeInTheDocument()
+    expect(screen.getByText('이동평균 밴드')).toBeInTheDocument()
+    expect(screen.getByText('포트폴리오 · 1개 다음 거래일 시가')).toBeInTheDocument()
+  })
+
   it('밴드 기록은 평균 기간 칸으로 이동평균 교차보다 먼저 이동평균 밴드로 보인다', () => {
     const band = (id: string, params: object) => ({
       backtestId: id,

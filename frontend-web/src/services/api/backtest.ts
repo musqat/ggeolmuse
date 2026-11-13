@@ -24,6 +24,14 @@ export type YearEndHarvestRequest = {
   yearEndHarvest?: boolean;             // 비우면 끔
 };
 
+// 이동평균 교차 · 밴드 신호의 체결 시점(신호 난 날 종가 · 다음 거래일 시가)
+export type ExecutionTiming = 'SAME_DAY_CLOSE' | 'NEXT_DAY_OPEN';
+
+// 이동평균 교차 · 밴드의 체결 시점
+export type ExecutionTimingRequest = {
+  executionTiming?: ExecutionTiming;    // 비우면 신호 난 날 종가, 다음 거래일 시가면 마지막 거래일 신호는 체결 안 함
+};
+
 // 연말 정리와 기간 끝에 한 번에 판 양도세 비교(같은 요청을 기간 끝에 판다고 보고 다시 돌린 값, KRW)
 export type HarvestComparison = {
   sellAtEndTaxKrw: number;              // 연말 정리 없이 기간 끝에 한 번에 판 양도세
@@ -34,7 +42,7 @@ export type HarvestComparison = {
 // 한 해 양도세(KRW, 손실은 그 해 이익과 상계)
 export type CapitalGainsTaxYear = {
   year: number;
-  realizedGainKrw: number;              // 1월 ~ 12월 원화 실현 이익 합
+  realizedGainKrw: number;              // 그해 결제된 원화 실현 이익 합
   deductionKrw: number;                 // 기본 공제 (연 250만원까지)
   taxKrw: number;                       // (실현 이익 - 공제) × 22%
   dueDate: string | null;               // 납부일 (다음 해 5월 1일 이후 첫 거래일, 기간 안에 오지 않았으면 null)
@@ -43,7 +51,7 @@ export type CapitalGainsTaxYear = {
 
 // 양도세 · 납부와 세후 평가(요청하지 않았으면 응답에 null)
 export type CapitalGainsTax = {
-  years: CapitalGainsTaxYear[];         // 판 거래가 있는 해만
+  years: CapitalGainsTaxYear[];         // 판 거래가 결제된 해만
   totalTaxKrw: number;
   paidTaxKrw: number;                   // 기간 안에 낸 원화 합
   unpaidTaxKrw: number;                 // 양도세 합 - 낸 원화 합
@@ -189,7 +197,7 @@ export type ConditionalStrategyRequest = BacktestCommonRequest & TrailingStopReq
 };
 
 // 이동평균 교차 전략 요청(골든 크로스에 가진 돈 전부로 사고 데드 크로스에 전부 팜)
-export type MaCrossStrategyRequest = BacktestCommonRequest & TrailingStopRequest & PartialTakeProfitRequest & TaxSaleRequest & YearEndHarvestRequest & {
+export type MaCrossStrategyRequest = BacktestCommonRequest & TrailingStopRequest & PartialTakeProfitRequest & TaxSaleRequest & YearEndHarvestRequest & ExecutionTimingRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
@@ -200,7 +208,7 @@ export type MaCrossStrategyRequest = BacktestCommonRequest & TrailingStopRequest
 };
 
 // 이동평균 밴드 전략 요청(수정 종가가 평균 위 선보다 높으면 가진 돈 전부로 사고 아래 선보다 낮으면 전부 팜)
-export type MaBandStrategyRequest = BacktestCommonRequest & TrailingStopRequest & PartialTakeProfitRequest & TaxSaleRequest & YearEndHarvestRequest & {
+export type MaBandStrategyRequest = BacktestCommonRequest & TrailingStopRequest & PartialTakeProfitRequest & TaxSaleRequest & YearEndHarvestRequest & ExecutionTimingRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
@@ -363,6 +371,7 @@ export type StrategyResponse = {
   dailyValues?: DailyValue[];               // 첫 매수일 ~ 평가일(마지막 날은 총자산)
   capitalGainsTax?: CapitalGainsTax | null;
   signalChart?: SignalChartData | null;     // 이동평균 교차 · 밴드만(비교 항목은 없음)
+  executionTiming?: ExecutionTiming | null; // 이동평균 교차 · 밴드만(비교 항목은 없음)
   tradeStats?: TradeStats | null;           // 조건부 · 이동평균 교차 · 밴드만
 };
 
@@ -389,6 +398,7 @@ export type PortfolioAssetStrategy = {
   bandWindow?: number;                  // 밴드 평균 기간 (거래일)
   upperRate?: number;                   // 밴드 위 선 비율 (0.025 = 2.5%)
   lowerRate?: number;                   // 밴드 아래 선 비율 (0.025 = 2.5%)
+  executionTiming?: ExecutionTiming;    // 이동평균 · 밴드 줄 체결 시점 (비우면 신호 난 날 종가)
 };
 
 // 포트폴리오 종목 줄 요청(금액 방식은 금액, 비율 방식은 비율)
@@ -448,6 +458,7 @@ export type PortfolioTransaction = StrategyTransaction & {
 export type PortfolioAssetResult = {
   symbol: string;
   strategyType: PortfolioStrategyType;  // 줄 전략 (줄에 없으면 요청의 매수 방식)
+  executionTiming?: ExecutionTiming | null; // 이동평균 · 밴드 줄 체결 시점 (다른 줄은 null)
   investedKrw: number;                  // 원금 (새로 넣은 원화 합)
   boughtKrw: number;                    // 매수 원가 합 (새 돈 + 쓴 현금 × 그 날짜 환율)
   valueKrw: number;                     // 평가일 보유 × 종가 × 평가일 환율

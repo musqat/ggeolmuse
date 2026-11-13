@@ -388,6 +388,21 @@ describe('PortfolioAssetsField', () => {
     expect(shortInput(1)).toHaveValue('5')
   })
 
+  it('이동평균 교차 · 밴드 줄은 체결 시점 칩 둘을 그 줄에 보이고 고른 값은 그 줄에만 넣는다', async () => {
+    render(<Harness initial={[row('SPY', '1'), row('QQQ', '2')]} />)
+
+    expect(screen.queryByRole('radiogroup', { name: '1번 체결 시점' })).toBeNull()
+    await userEvent.selectOptions(strategySelect(1), '이동평균 교차')
+    const cross = screen.getByRole('radiogroup', { name: '1번 체결 시점' })
+    expect(within(cross).getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['신호 난 날 종가', '다음 거래일 시가'])
+    await userEvent.click(within(cross).getByRole('radio', { name: '다음 거래일 시가' }))
+    expect(within(cross).getByRole('radio', { name: '다음 거래일 시가' })).toHaveAttribute('aria-checked', 'true')
+
+    await userEvent.selectOptions(strategySelect(2), '밴드')
+    const band = screen.getByRole('radiogroup', { name: '2번 체결 시점' })
+    expect(within(band).getByRole('radio', { name: '신호 난 날 종가' })).toHaveAttribute('aria-checked', 'true')
+  })
+
   it('이동평균 · 밴드 칸 오류는 익절 · 손절 오류 다음 차례로 칸 아래에 보이고 그 글을 낸 칸만 그 줄과 잇는다', () => {
     const cross = { ...row('SPY', '1'), strategy: 'MA_CROSS' as const, shortWindow: '60' }
     const band = { ...row('QQQ', '1'), strategy: 'MA_BAND' as const, upper: '' }

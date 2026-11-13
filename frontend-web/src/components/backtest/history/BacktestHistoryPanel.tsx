@@ -19,6 +19,20 @@ const portfolioSymbols = (assets: unknown[]) =>
     .filter((symbol): symbol is string => typeof symbol === "string")
     .join(",");
 
+// 다음 거래일 시가를 고른 기록의 전략 타입 뒤 글(포트폴리오는 그 줄 수, 아니면 빈 글)
+const nextOpenText = (params: Record<string, unknown>, assets: unknown) => {
+  if (Array.isArray(assets)) {
+    const count = assets.filter(
+      (asset) =>
+        typeof asset === "object" &&
+        asset !== null &&
+        (asset as { strategy?: { executionTiming?: unknown } }).strategy?.executionTiming === 'NEXT_DAY_OPEN'
+    ).length;
+    return count > 0 ? ` · ${count}개 다음 거래일 시가` : '';
+  }
+  return params.executionTiming === 'NEXT_DAY_OPEN' ? ' · 다음 거래일 시가' : '';
+};
+
 export const BacktestHistoryPanel: React.FC<BacktestHistoryPanelProps> = ({
   historyData,
   historyLoading,
@@ -122,6 +136,7 @@ export const BacktestHistoryPanel: React.FC<BacktestHistoryPanelProps> = ({
                   ) {
                     backtestTypeLabel = "투자 분석";
                   }
+                  backtestTypeLabel += nextOpenText(params, assets);
 
                   return (
                     <tr

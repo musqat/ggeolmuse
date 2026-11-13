@@ -21,6 +21,7 @@ import { TradeStatsCard } from './TradeStatsCard';
 import type { BandSetting } from '../shared/maBand';
 import type { SellRules } from '../shared/backtestDisplay';
 import { isSeparateSignal, signalName } from '../shared/signalSymbol';
+import { EXECUTION_LABELS } from '../shared/executionTiming';
 
 type StrategyKind = 'dca' | 'conditional' | 'ma-cross' | 'ma-band';
 
@@ -95,15 +96,16 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
   const transactions = useMemo(() => result.transactions ?? [], [result.transactions]);
   const skippedRounds = result.skippedRounds ?? [];
   const deposits = useMemo(() => strategyDeposits(transactions), [transactions]);
-  // 투자일이 휴장일이라 다음 거래일 · 앞 거래일에 산 번수
-  const later = transactions.filter((tx) => tx.actualDate && tx.actualDate > tx.date).length;
-  const earlier = transactions.filter((tx) => tx.actualDate && tx.actualDate < tx.date).length;
+  const signalKind = SIGNAL_KINDS.includes(kind);
+  // 투자일이 휴장일이라 다음 거래일 · 앞 거래일에 산 번수(이동평균 · 밴드는 세지 않음)
+  const later = signalKind ? 0 : transactions.filter((tx) => tx.actualDate && tx.actualDate > tx.date).length;
+  const earlier = signalKind ? 0 : transactions.filter((tx) => tx.actualDate && tx.actualDate < tx.date).length;
   const sold = sellCount(transactions);
   const notice = purchaseNotice(kind, purchaseCount(transactions), result.skippedSpan);
   // 시세 없음 · 계산 오류 회차와 예산 부족 구간 회차
   const skipped = skippedRounds.length + (result.skippedSpan?.rounds ?? 0);
   // 정한 회차가 없는 이동평균 · 밴드는 미매수가 있을 때만
-  const skippedText = !SIGNAL_KINDS.includes(kind) || skipped > 0 ? ` · 미매수 ${skipped}회` : '';
+  const skippedText = !signalKind || skipped > 0 ? ` · 미매수 ${skipped}회` : '';
   const traded = result.symbol || symbol;
   // 사고판 종목과 다른 신호 종목(같으면 null)
   const chartSymbol = result.signalChart?.symbol;
@@ -202,6 +204,9 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
                 </>
               }
             />
+            {signalKind && (
+              <DetailRow label="체결 시점" value={EXECUTION_LABELS[result.executionTiming ?? 'SAME_DAY_CLOSE']} />
+            )}
             <DetailRow label="매수 횟수" value={<>{purchaseCount(transactions)}회</>} />
             {sold > 0 && <DetailRow label="매도 횟수" value={<>{sold}회</>} />}
             <DetailRow label={investedLabel} value={<>₩{formatNumber(result.totalInvested)}</>} />
@@ -256,7 +261,11 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
           title={sold > 0 ? '매매 내역' : '매수 내역'}
           meta={`매수 ${purchaseCount(transactions)}회${sold > 0 ? ` · 매도 ${sold}회` : ''}${skippedText}`}
         >
-          <PurchaseHistory transactions={transactions} skippedRounds={skippedRounds} />
+          <PurchaseHistory
+            transactions={transactions}
+            skippedRounds={skippedRounds}
+            plannedLabel={signalKind ? '신호' : undefined}
+          />
         </ResultFold>
       )}
     </div>

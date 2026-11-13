@@ -22,6 +22,13 @@ const values: MaCrossValues = {
 }
 
 describe('buildMaCrossRequest', () => {
+  it('다음 거래일 시가를 고르면 executionTiming 으로 싣고, 신호 난 날 종가면 싣지 않는다', () => {
+    expect(buildMaCrossRequest({ ...values, executionTiming: 'NEXT_DAY_OPEN' }, 'SPY', ctx)).toMatchObject({
+      request: { executionTiming: 'NEXT_DAY_OPEN' },
+    })
+    expect(buildMaCrossRequest({ ...values, executionTiming: 'SAME_DAY_CLOSE' }, 'SPY', ctx)).not.toHaveProperty('request.executionTiming')
+  })
+
   it('양도세 · 연말 정리를 둘 다 켰을 때만 yearEndHarvest 를 싣는다', () => {
     expect(buildMaCrossRequest({ ...values, capitalGainsTax: true, yearEndHarvest: true }, 'AAPL', ctx)).toMatchObject({
       request: { capitalGainsTax: true, yearEndHarvest: true },
