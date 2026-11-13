@@ -282,6 +282,7 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
             )}
             <div className="flex gap-2">
               <input
+                aria-label={session ? '질문' : '종목 코드'}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}

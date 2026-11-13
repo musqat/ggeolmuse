@@ -48,7 +48,7 @@ interface DateFieldProps {
   variant?: 'box' | 'inline';
   // 단추 이름 앞의 칸 이름(시작일 2024. 06. 14.)
   label?: string;
-  invalid?: boolean;
+  // 단추와 잇는 오류 글 id
   describedBy?: string;
   testId?: string;
 }
@@ -68,7 +68,6 @@ export const DateField = ({
   presets = true,
   variant = 'box',
   label,
-  invalid,
   describedBy,
   testId,
 }: DateFieldProps) => {
@@ -147,7 +146,6 @@ export const DateField = ({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={label ? `${label} ${text}` : undefined}
-        aria-invalid={invalid || undefined}
         aria-describedby={describedBy}
         className={TRIGGER_CLASS[variant]}
       >

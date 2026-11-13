@@ -36,6 +36,7 @@ describe('IndicatorSheet', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
 
     await open()
+    expect(screen.getByTestId('chart-indicator-backdrop')).toHaveAttribute('aria-hidden', 'true')
     await userEvent.click(screen.getByTestId('chart-indicator-backdrop'))
     expect(screen.queryByRole('dialog')).toBeNull()
 

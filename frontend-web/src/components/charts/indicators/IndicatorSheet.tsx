@@ -43,6 +43,7 @@ export const IndicatorSheet = ({ indicators, onToggle }: IndicatorSheetProps) =>
           <div ref={rootRef} className="fixed inset-0" style={{ zIndex: LAYER.popover }}>
             <div
               data-testid="chart-indicator-backdrop"
+              aria-hidden="true"
               className="absolute inset-0 bg-black/50"
               onClick={() => setOpen(false)}
             />

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { act, render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -210,11 +210,52 @@ describe('Trading 주문', () => {
     expect(submitButton()).toBeDisabled()
   })
 
-  it('거래내역 탭으로 바꿀 수 있다', async () => {
+  it('주문 · 거래내역은 탭 목록이고 화살표로 옮기거나 누르면 그 탭 내용을 보인다', async () => {
+    const user = userEvent.setup()
     renderPage()
+    const tabs = within(screen.getByRole('tablist', { name: '거래 화면' }))
 
-    await userEvent.click(screen.getByRole('button', { name: '거래내역' }))
+    expect(tabs.getByRole('tab', { name: '주문' })).toHaveAttribute('aria-selected', 'true')
+    tabs.getByRole('tab', { name: '주문' }).focus()
+    await user.keyboard('{ArrowRight}')
 
-    expect(screen.getByText('거래내역 탭')).toBeInTheDocument()
+    expect(tabs.getByRole('tab', { name: '거래내역' })).toHaveAttribute('aria-selected', 'true')
+    expect(tabs.getByRole('tab', { name: '거래내역' })).toHaveFocus()
+    expect(screen.getByRole('tabpanel', { name: '거래내역' })).toHaveTextContent('거래내역 탭')
+    await user.click(tabs.getByRole('tab', { name: '주문' }))
+    expect(screen.getByRole('tabpanel', { name: '주문' })).toBeInTheDocument()
+  })
+
+  it('탭에서 왼쪽 화살표는 처음에서 마지막 탭으로, Home · End 는 처음 · 마지막 탭으로 옮긴다', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    const tabs = within(screen.getByRole('tablist', { name: '거래 화면' }))
+    const order = tabs.getByRole('tab', { name: '주문' })
+    const history = tabs.getByRole('tab', { name: '거래내역' })
+
+    order.focus()
+    await user.keyboard('{ArrowLeft}')
+    expect(history).toHaveAttribute('aria-selected', 'true')
+    expect(history).toHaveFocus()
+
+    await user.keyboard('{Home}')
+    expect(order).toHaveAttribute('aria-selected', 'true')
+    expect(order).toHaveFocus()
+
+    await user.keyboard('{End}')
+    expect(history).toHaveAttribute('aria-selected', 'true')
+    expect(history).toHaveFocus()
+    expect(screen.getByRole('tabpanel', { name: '거래내역' })).toHaveTextContent('거래내역 탭')
+  })
+
+  it('주문 칸마다 이름표가 이어져 있다', async () => {
+    renderPage()
+    await waitForChart()
+
+    expect(screen.getByLabelText('계좌')).toHaveValue('3')
+    expect(screen.getByLabelText('수량')).toHaveValue(10)
+    expect(screen.getByRole('button', { name: /^거래일 / })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('주문 유형'), { target: { value: 'limit' } })
+    expect(await screen.findByLabelText(/^지정가/)).toHaveAttribute('placeholder', '0.00')
   })
 })

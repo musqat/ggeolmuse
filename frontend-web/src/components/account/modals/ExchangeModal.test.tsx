@@ -36,6 +36,17 @@ beforeEach(() => {
 })
 afterEach(() => vi.restoreAllMocks())
 
+describe('ExchangeModal 이름표', () => {
+  it('방향 · 금액 · 수동 환율 칸을 이름표로 찾을 수 있다', async () => {
+    renderModal()
+
+    expect(screen.getByLabelText('환전 방향')).toHaveValue('KRW')
+    expect(screen.getByLabelText('환전 금액 (KRW)')).toBe(screen.getByPlaceholderText('환전할 KRW 금액'))
+    await userEvent.click(screen.getByLabelText('수동 환율 입력'))
+    expect(screen.getByLabelText('수동 환율')).toBe(screen.getByPlaceholderText('원하는 환율 입력 (예: 1350)'))
+  })
+})
+
 describe('ExchangeModal 수동 환율 범위', () => {
   it('수동 환율 칸 아래에 서버가 준 가능 범위를 보여 준다', async () => {
     renderModal()

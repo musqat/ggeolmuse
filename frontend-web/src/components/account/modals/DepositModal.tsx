@@ -67,8 +67,9 @@ const DepositModal: React.FC<DepositModalProps> = ({
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-tx-1 mb-2">입금 금액 (KRW)</label>
+          <label htmlFor="deposit-amount" className="block text-sm font-medium text-tx-1 mb-2">입금 금액 (KRW)</label>
           <input
+            id="deposit-amount"
             type="number"
             value={depositAmount}
             onChange={(e) => setDepositAmount(e.target.value)}

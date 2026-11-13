@@ -43,7 +43,9 @@ const ToastItem: React.FC<{ toast: Toast }> = ({ toast }) => {
   };
 
   return (
+    // 안 단추에서 올라오는 포커스 · 키 · 마우스만 받는 묶음이라 역할 없음
     <div
+      role="presentation"
       className={`flex items-start gap-3 rounded-lg border-l-4 bg-surface px-4 py-3 text-sm shadow-lg ${kindClass[toast.kind]}`}
       onMouseEnter={() => {
         hovered.current = true;

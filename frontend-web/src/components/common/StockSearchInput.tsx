@@ -133,6 +133,7 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
     >
       {filteredStocks.length > 0 ? (
         filteredStocks.map((stock, index) => (
+          // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus -- 키보드 고르기는 입력 칸이 aria-activedescendant 로 맡음
           <div
             key={stock.symbol}
             id={`${listId}-${index}`}

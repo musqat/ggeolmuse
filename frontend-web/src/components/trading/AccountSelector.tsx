@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import type { Account } from '@/hooks/useAccounts';
 import { formatBalanceAmount } from '@/utils/format';
 
@@ -13,10 +13,12 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({
   selectedAccountId,
   onAccountChange,
 }) => {
+  const id = useId();
   return (
     <div className="mb-4">
-      <label className="block text-sm font-medium text-tx-1 mb-2">계좌</label>
+      <label htmlFor={id} className="block text-sm font-medium text-tx-1 mb-2">계좌</label>
       <select
+        id={id}
         value={selectedAccountId ?? ''}
         onChange={(e) => onAccountChange(e.target.value ? parseInt(e.target.value, 10) : null)}
         className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"

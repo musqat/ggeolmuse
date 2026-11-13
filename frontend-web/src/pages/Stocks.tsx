@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { stockApi, type StockSort } from '../services/api';
 import { formatMarketCap } from '../utils/format';
 import { Spinner } from '../components/common/Spinner';
@@ -190,16 +190,21 @@ const Stocks: React.FC = () => {
             </thead>
             <tbody>
               {symbols.map((stock) => (
+                // 줄 어디를 눌러도 차트로(키보드 · 새 탭은 이름 칸 링크)
                 <tr
                   key={stock.symbol}
                   onClick={() => handleSymbolClick(stock.symbol)}
                   className="border-b border-line/50 hover:bg-brand-bg cursor-pointer transition-colors"
                 >
                   <td className="py-3 px-4">
-                    <div className="flex items-center space-x-3">
+                    <Link
+                      to={`/charts/${stock.symbol}`}
+                      onClick={(event) => event.stopPropagation()}
+                      className="flex items-center space-x-3"
+                    >
                       <StockLogo symbol={stock.symbol} />
                       <span className="text-sm text-tx-1">{stock.name}</span>
-                    </div>
+                    </Link>
                   </td>
                   <td className="py-3 px-4">
                     <span className="font-semibold text-tx-1">{stock.symbol}</span>

@@ -23,7 +23,9 @@ export const SettingField = ({ label, labelId, right, message, messageId, classN
   const tone = message?.kind === 'error' ? 'text-danger' : 'text-warning';
 
   return (
+    // 빈 곳 누르기는 마우스 편의(키보드는 칸으로 바로 감)라 상자 자체는 역할 없음
     <div
+      role="presentation"
       onClick={focusValue}
       className={`relative min-w-0 rounded-[10px] border bg-canvas/45 px-3.5 py-2 transition-colors focus-within:border-[rgb(var(--focus))] focus-within:shadow-[0_0_0_1px_rgb(var(--focus))] motion-reduce:transition-none ${
         isError(message) ? 'border-danger' : 'border-line hover:border-line-strong'

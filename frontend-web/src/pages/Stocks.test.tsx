@@ -39,6 +39,15 @@ beforeEach(() => {
   getAllStocksWithPrices.mockReset()
 })
 
+describe('Stocks 종목 줄', () => {
+  it('종목 이름은 그 종목 차트로 가는 링크다', async () => {
+    getAllStocksWithPrices.mockResolvedValue(page([stock('AAPL', 0.4)]))
+    renderStocks()
+
+    expect(await screen.findByRole('link', { name: /AAPL Inc/ })).toHaveAttribute('href', '/charts/AAPL')
+  })
+})
+
 describe('Stocks 정렬과 배당수익률', () => {
   it('처음에는 시가총액 순으로 받고, 배당수익률 열에 값을 소수 둘째 자리 % 로, 없으면 - 로 보여 준다', async () => {
     getAllStocksWithPrices.mockResolvedValue(page([stock('AAPL', 0.4), stock('NVDA', null)]))

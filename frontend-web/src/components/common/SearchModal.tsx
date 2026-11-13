@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useId, useMemo } from 'react';
 import { X, Search, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { searchSymbols, type SymbolMatch } from '../../utils/symbolSearch';
@@ -15,6 +15,8 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const navigate = useNavigate();
+  const listId = useId();
+  const optionId = (index: number) => `${listId}-${index}`;
 
   const filteredStocks = useMemo(() => searchSymbols(supportedSymbols, searchTerm, 10), [supportedSymbols, searchTerm]);
 
@@ -83,6 +85,12 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
         </div>
         <input
           type="text"
+          role="combobox"
+          aria-label="종목명 또는 티커"
+          aria-autocomplete="list"
+          aria-expanded={filteredStocks.length > 0}
+          aria-controls={filteredStocks.length > 0 ? listId : undefined}
+          aria-activedescendant={filteredStocks[selectedIndex] ? optionId(selectedIndex) : undefined}
           value={searchTerm}
           onChange={(e) => changeSearchTerm(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -103,10 +111,14 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
       {/* 검색 결과 */}
       <div className="mt-4 -mx-6 max-h-96 overflow-y-auto">
         {filteredStocks.length > 0 ? (
-          <div className="py-2">
+          <div id={listId} role="listbox" aria-label="검색 결과" className="py-2">
             {filteredStocks.map((stock, index) => (
+              // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus -- 키보드 고르기는 검색 칸이 aria-activedescendant 로 맡음
               <div
                 key={stock.symbol}
+                id={optionId(index)}
+                role="option"
+                aria-selected={index === selectedIndex}
                 onClick={() => handleSelectStock(stock)}
                 className={`cursor-pointer px-4 py-3 transition-colors ${
                   index === selectedIndex

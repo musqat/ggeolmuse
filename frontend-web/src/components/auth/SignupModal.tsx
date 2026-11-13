@@ -188,6 +188,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
             <form onSubmit={handleResendVerification} className="space-y-3">
               <input
                 type="email"
+                aria-label="인증 메일 받을 이메일"
                 value={resendEmail}
                 onChange={(e) => setResendEmail(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-line-strong rounded-md focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"

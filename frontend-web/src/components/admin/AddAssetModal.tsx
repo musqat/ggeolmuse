@@ -50,6 +50,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
         <div className="flex gap-2">
           <input
             type="text"
+            aria-label="티커"
             value={ticker}
             onChange={(e) => {
               setTicker(e.target.value.toUpperCase());

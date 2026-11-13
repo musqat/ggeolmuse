@@ -1,13 +1,11 @@
 import React, { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { stockApi } from '../services/api';
 import type { OHLCData } from '../types/ohlc';
 import { getTodayString, subtractDays } from '../utils/dateUtils';
 
 const Home: React.FC = () => {
-  const navigate = useNavigate();
-
   // 시총 상위 5개
   const { data: topStocksRaw } = useQuery({
     queryKey: ['home', 'topStocks'],
@@ -117,24 +115,24 @@ const Home: React.FC = () => {
             전략 성과를 데이터로 확인하세요.
           </p>
           <div className="flex flex-wrap gap-2.5">
-            <button
-              onClick={() => navigate('/stocks')}
-              className="px-5 py-[11px] rounded-[9px] text-[14px] font-semibold border border-line-strong text-tx-1 hover:border-brand hover:text-brand transition-all"
+            <Link
+              to="/stocks"
+              className="inline-block px-5 py-[11px] rounded-[9px] text-[14px] font-semibold border border-line-strong text-tx-1 hover:border-brand hover:text-brand transition-all"
             >
               종목 둘러보기
-            </button>
-            <button
-              onClick={() => navigate('/trading')}
-              className="px-5 py-[11px] rounded-[9px] text-[14px] font-semibold border border-line-strong text-tx-1 hover:border-brand hover:text-brand transition-all"
+            </Link>
+            <Link
+              to="/trading"
+              className="inline-block px-5 py-[11px] rounded-[9px] text-[14px] font-semibold border border-line-strong text-tx-1 hover:border-brand hover:text-brand transition-all"
             >
               매매 해보기
-            </button>
-            <button
-              onClick={() => navigate('/backtest')}
-              className="px-5 py-[11px] rounded-[9px] text-[14px] font-semibold border border-line-strong text-tx-1 hover:border-brand hover:text-brand transition-all"
+            </Link>
+            <Link
+              to="/backtest"
+              className="inline-block px-5 py-[11px] rounded-[9px] text-[14px] font-semibold border border-line-strong text-tx-1 hover:border-brand hover:text-brand transition-all"
             >
               백테스트 해보기
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -182,7 +180,7 @@ const Home: React.FC = () => {
                 const cp = prices?.[s.symbol]?.changePercent ?? null;
                 const up = cp === null ? true : cp >= 0;
                 return (
-                  <div key={s.symbol} className="flex items-center justify-between px-3 py-2.5 bg-surface/50 rounded-[9px] border border-line/50 cursor-pointer hover:border-brand/30 transition-colors" onClick={() => navigate(`/charts/${s.symbol}`)}>
+                  <Link key={s.symbol} to={`/charts/${s.symbol}`} className="flex items-center justify-between px-3 py-2.5 bg-surface/50 rounded-[9px] border border-line/50 hover:border-brand/30 transition-colors">
                     <div className="flex items-center gap-2.5">
                       <span className={`w-2 h-2 rounded-full ${up ? 'bg-gain' : 'bg-loss'}`} />
                       <div>
@@ -198,7 +196,7 @@ const Home: React.FC = () => {
                         {cp !== null ? `${up ? '▲' : '▼'} ${Math.abs(cp).toFixed(2)}%` : `${up ? '▲' : '▼'} 변동`}
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
@@ -211,9 +209,9 @@ const Home: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" style={{ gridTemplateRows: '240px 140px' }}>
 
           {/* 차트 — 2칸 */}
-          <div
-            className="sm:col-span-2 bg-surface border border-line rounded-card p-6 cursor-pointer hover:border-line-strong hover:shadow-card-hover transition-all flex flex-col justify-between"
-            onClick={() => navigate('/charts/AAPL')}
+          <Link
+            className="sm:col-span-2 bg-surface border border-line rounded-card p-6 hover:border-line-strong hover:shadow-card-hover transition-all flex flex-col justify-between"
+            to="/charts/AAPL"
           >
             <div>
               <p className="text-[10.5px] font-bold uppercase tracking-wide text-tx-3 mb-2">Chart</p>
@@ -229,12 +227,12 @@ const Home: React.FC = () => {
                 />
               ))}
             </div>
-          </div>
+          </Link>
 
           {/* 백테스트 */}
-          <div
-            className="bg-elevated border border-line-strong rounded-card p-6 cursor-pointer hover:bg-hover transition-all flex flex-col justify-between"
-            onClick={() => navigate('/backtest')}
+          <Link
+            className="bg-elevated border border-line-strong rounded-card p-6 hover:bg-hover transition-all flex flex-col justify-between"
+            to="/backtest"
           >
             <div>
               <p className="text-[10.5px] font-bold uppercase tracking-wide text-tx-2 mb-2">Backtest</p>
@@ -246,41 +244,41 @@ const Home: React.FC = () => {
               <path d="M0,55 L26,50 L53,45 L80,36 L106,30 L133,22 L160,16" fill="none" stroke="#6EE7B7" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
               <path d="M0,55 L26,53 L53,50 L80,45 L106,42 L133,37 L160,33" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
-          </div>
+          </Link>
 
           {/* 2행 — 3열 */}
-          <div
-            className="bg-surface border border-line rounded-card p-5 cursor-pointer hover:border-line-strong hover:shadow-card-hover transition-all flex flex-col justify-between"
-            onClick={() => navigate('/trading')}
+          <Link
+            className="bg-surface border border-line rounded-card p-5 hover:border-line-strong hover:shadow-card-hover transition-all flex flex-col justify-between"
+            to="/trading"
           >
             <p className="text-[10.5px] font-bold uppercase tracking-wide text-tx-3">Trading</p>
             <div>
               <p className="text-[16px] font-bold tracking-tight text-tx-1">모의 매매</p>
               <p className="text-[12.5px] text-tx-2 mt-1">시장가 · 지정가 · 거래확인</p>
             </div>
-          </div>
+          </Link>
 
-          <div
-            className="bg-brand-bg border border-brand-border rounded-card p-5 cursor-pointer hover:shadow-card-hover transition-all flex flex-col justify-between"
-            onClick={() => navigate('/portfolio')}
+          <Link
+            className="bg-brand-bg border border-brand-border rounded-card p-5 hover:shadow-card-hover transition-all flex flex-col justify-between"
+            to="/portfolio"
           >
             <p className="text-[10.5px] font-bold uppercase tracking-wide text-brand">Portfolio</p>
             <div>
               <p className="text-[16px] font-bold tracking-tight text-brand-light">포트폴리오</p>
               <p className="text-[12.5px] text-tx-2 mt-1">보유 종목 현황 분석</p>
             </div>
-          </div>
+          </Link>
 
-          <div
-            className="bg-surface border border-line rounded-card p-5 cursor-pointer hover:border-line-strong hover:shadow-card-hover transition-all flex flex-col justify-between"
-            onClick={() => navigate('/account')}
+          <Link
+            className="bg-surface border border-line rounded-card p-5 hover:border-line-strong hover:shadow-card-hover transition-all flex flex-col justify-between"
+            to="/account"
           >
             <p className="text-[10.5px] font-bold uppercase tracking-wide text-tx-3">Account</p>
             <div>
               <p className="text-[16px] font-bold tracking-tight text-tx-1">계좌 관리</p>
               <p className="text-[12.5px] text-tx-2 mt-1">KRW · USD 동시 사용</p>
             </div>
-          </div>
+          </Link>
 
         </div>
       </section>

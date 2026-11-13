@@ -64,7 +64,7 @@ describe('AdminMarket', () => {
     vi.mocked(useAdminMarket).mockReturnValue(m)
     render(<AdminMarket />)
 
-    await userEvent.type(screen.getByPlaceholderText(/보유 종목 검색/), '{Enter}')
+    await userEvent.type(screen.getByRole('textbox', { name: '보유 종목 검색' }), '{Enter}')
     await userEvent.click(screen.getByTitle('검색 해제'))
 
     expect(m.handleSearch).toHaveBeenCalledTimes(1)

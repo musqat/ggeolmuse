@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import Header from './Header'
@@ -55,7 +56,7 @@ describe('Header 현금', () => {
 })
 
 describe('Header 메뉴', () => {
-  it('계좌 아래 화면에서도 계좌 메뉴를 지금 화면으로 표시한다', async () => {
+  it('메뉴는 링크이고 계좌 아래 화면에서도 계좌 메뉴를 지금 화면으로 표시한다', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
       <QueryClientProvider client={client}>
@@ -65,8 +66,32 @@ describe('Header 메뉴', () => {
       </QueryClientProvider>
     )
 
-    expect(screen.getByRole('button', { name: '계좌' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('button', { name: '거래' })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('link', { name: '계좌' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: '계좌' })).toHaveAttribute('href', '/account')
+    expect(screen.getByRole('link', { name: '거래' })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('link', { name: '마이페이지' })).toHaveAttribute('href', '/mypage')
     expect(await screen.findByText('현금 ₩1,135,000')).toBeInTheDocument()
+  })
+
+  it('모바일 메뉴 단추는 열림 상태와 연 메뉴 상자를 알린다', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <Header />
+        </MemoryRouter>
+      </QueryClientProvider>
+    )
+    const menuButton = screen.getByRole('button', { name: '메뉴' })
+
+    expect(menuButton).toHaveAttribute('aria-expanded', 'false')
+    expect(menuButton).not.toHaveAttribute('aria-controls')
+    await userEvent.click(menuButton)
+
+    expect(menuButton).toHaveAttribute('aria-expanded', 'true')
+    const menu = document.getElementById(menuButton.getAttribute('aria-controls') ?? '')
+    expect(menu).not.toBeNull()
+    expect(within(menu!).getByRole('button', { name: '로그아웃' })).toBeInTheDocument()
   })
 })

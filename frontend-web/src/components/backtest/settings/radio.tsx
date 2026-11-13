@@ -41,7 +41,6 @@ export function RadioGroup<T extends string>({
       aria-labelledby={labelledBy}
       aria-describedby={describedBy}
       className={className}
-      onKeyDown={onRadioKeys}
     >
       {options.map((option, index) => {
         const checked = option.value === value;
@@ -57,6 +56,7 @@ export function RadioGroup<T extends string>({
             onClick={() => {
               if (!option.disabled) onChange(option.value);
             }}
+            onKeyDown={onRadioKeys}
             className={optionClassName(checked)}
           >
             {option.label}

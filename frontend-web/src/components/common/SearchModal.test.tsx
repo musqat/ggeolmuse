@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import type { ComponentProps } from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import SearchModal from './SearchModal'
@@ -36,6 +36,19 @@ describe('SearchModal', () => {
 
     expect(screen.getByRole('dialog', { name: '종목 검색' })).toHaveAttribute('aria-modal', 'true')
     expect(searchInput()).toHaveFocus()
+  })
+
+  it('결과는 목록 상자의 항목이고 화살표로 고른 항목을 검색 칸이 알린다', async () => {
+    const user = userEvent.setup()
+    renderModal({ supportedSymbols: ['AAPL', 'MSFT'] })
+    const combobox = screen.getByRole('combobox', { name: '종목명 또는 티커' })
+    const options = within(screen.getByRole('listbox', { name: '검색 결과' })).getAllByRole('option')
+
+    expect(options[0]).toHaveAttribute('aria-selected', 'true')
+    await user.keyboard('{ArrowDown}')
+
+    expect(options[1]).toHaveAttribute('aria-selected', 'true')
+    expect(combobox).toHaveAttribute('aria-activedescendant', options[1].id)
   })
 
   it('정확히 맞는 티커를 먼저 보인다', async () => {
@@ -95,12 +108,16 @@ describe('SearchModal', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
-  it('찾는 것이 없으면 없다고 보인다', async () => {
+  it('찾는 것이 없으면 없다고 보이고 검색 칸은 없는 목록을 가리키지 않는다', async () => {
     const user = userEvent.setup()
     renderModal()
+    const combobox = screen.getByRole('combobox', { name: '종목명 또는 티커' })
+    expect(combobox).toHaveAttribute('aria-controls', screen.getByRole('listbox', { name: '검색 결과' }).id)
 
     await user.type(searchInput(), 'zzz')
 
     expect(screen.getByText('"zzz"에 대한 검색 결과가 없습니다.')).toBeInTheDocument()
+    expect(combobox).toHaveAttribute('aria-expanded', 'false')
+    expect(combobox).not.toHaveAttribute('aria-controls')
   })
 })

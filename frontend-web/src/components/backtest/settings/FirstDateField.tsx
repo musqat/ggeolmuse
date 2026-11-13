@@ -17,7 +17,7 @@ export interface FirstDateFieldProps {
 
 // 적립식 첫 매수일 칸(고른 뒤에만 "시작일에 맞추기", 안내는 예외일 때만)
 export const FirstDateField = ({ value, picked, min, max, onPick, onFollow, message }: FirstDateFieldProps) => {
-  const { messageId, invalid, describedBy } = useMessageLink(message);
+  const { messageId, describedBy } = useMessageLink(message);
   return (
     <SettingField
       label="첫 매수일"
@@ -43,7 +43,6 @@ export const FirstDateField = ({ value, picked, min, max, onPick, onFollow, mess
         min={min}
         max={max}
         presets={false}
-        invalid={invalid}
         describedBy={describedBy}
         testId="date-first"
       />

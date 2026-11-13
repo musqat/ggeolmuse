@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import type { ComponentProps } from 'react'
+import { useState, type ComponentProps } from 'react'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AssetListSection from './AssetListSection'
@@ -11,8 +11,8 @@ const ASSETS = [
 
 type Props = ComponentProps<typeof AssetListSection>
 
-function renderList(over: Partial<Props> = {}) {
-  const props: Props = {
+function propsOf(over: Partial<Props> = {}): Props {
+  return {
     assets: ASSETS, loading: false, listActive: true,
     onRefresh: vi.fn(), onDelete: vi.fn(), onRestore: vi.fn(), onListActiveChange: vi.fn(), onBulkDelete: vi.fn(),
     onUpdatePrice: vi.fn(), onUpdateMarketCap: vi.fn(), onUpdateName: vi.fn().mockResolvedValue(true),
@@ -22,11 +22,29 @@ function renderList(over: Partial<Props> = {}) {
     selected: new Set<string>(), onToggleOne: vi.fn(), onToggleAll: vi.fn(),
     ...over,
   }
+}
+
+function renderList(over: Partial<Props> = {}) {
+  const props = propsOf(over)
   render(<AssetListSection {...props} />)
   return props
 }
 
+// 정렬 상태를 들고 있는 관리자 화면
+function SortableList() {
+  const [sort, setSort] = useState<{ by: string; direction: 'asc' | 'desc' }>({ by: 'marketCap', direction: 'desc' })
+  return (
+    <AssetListSection
+      {...propsOf()}
+      sortBy={sort.by}
+      sortDirection={sort.direction}
+      onSortChange={(by, direction) => setSort({ by, direction })}
+    />
+  )
+}
+
 const rowOf = (symbol: string) => within(screen.getByText(symbol).closest('tr')!)
+const sortButton = (name: string) => within(screen.getByRole('columnheader', { name })).getByRole('button')
 
 describe('AssetListSection', () => {
   it('상장 목록은 가격 · 시총 · 삭제를 그 종목으로 부른다', async () => {
@@ -56,11 +74,39 @@ describe('AssetListSection', () => {
     const user = userEvent.setup()
     const props = renderList()
 
-    await user.click(screen.getByRole('columnheader', { name: '가격' }))
-    await user.click(screen.getByRole('columnheader', { name: '시가총액' }))
+    await user.click(sortButton('가격'))
+    await user.click(sortButton('시가총액'))
 
     expect(props.onSortChange).toHaveBeenNthCalledWith(1, 'currentPrice', 'asc')
     expect(props.onSortChange).toHaveBeenNthCalledWith(2, 'marketCap', 'asc')
+  })
+
+  it('키보드로 정렬하면 방향을 알리고 그 머리칸 단추에 포커스가 남는다', async () => {
+    const user = userEvent.setup()
+    render(<SortableList />)
+    const price = sortButton('가격')
+
+    price.focus()
+    await user.keyboard('{Enter}')
+
+    expect(screen.getByRole('columnheader', { name: '가격' })).toHaveAttribute('aria-sort', 'ascending')
+    expect(price).toHaveFocus()
+    await user.keyboard(' ')
+    expect(screen.getByRole('columnheader', { name: '가격' })).toHaveAttribute('aria-sort', 'descending')
+    expect(price).toHaveFocus()
+  })
+
+  it('지금 정렬한 열 머리칸만 정렬 방향을 알린다', () => {
+    renderList({ sortBy: 'marketCap', sortDirection: 'desc' })
+
+    expect(screen.getByRole('columnheader', { name: '시가총액' })).toHaveAttribute('aria-sort', 'descending')
+    expect(screen.getByRole('columnheader', { name: '가격' })).not.toHaveAttribute('aria-sort')
+  })
+
+  it('페이지당 개수 칸은 이름표로 찾을 수 있다', () => {
+    renderList()
+
+    expect(screen.getByLabelText('페이지당:')).toHaveValue('20')
   })
 
   it('전체 고르기는 이 페이지 종목을 넘긴다', async () => {
