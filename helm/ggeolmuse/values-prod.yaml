@@ -199,7 +199,7 @@ services:
 
   backtestService:
     image:
-      tag: "24ec820"
+      tag: "1.8.11"
     env:
       TZ: "Asia/Seoul"
     probes:
@@ -236,7 +236,7 @@ services:
 # 프론트엔드
 frontend:
   image:
-    tag: "21675cb"
+    tag: "1.8.11"
   env:
     apiUrl: https://ggeolmuse.com/api
     keycloakUrl: https://ggeolmuse.com/auth
