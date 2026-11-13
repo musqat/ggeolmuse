@@ -21,7 +21,7 @@ import lombok.NoArgsConstructor;
 
 @Schema(description = "투자 시뮬레이션 요청")
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class SimulationRequest {
@@ -92,5 +92,10 @@ public class SimulationRequest {
   @AssertTrue(message = "투자 금액과 주식 수 가운데 하나만 넣어 주세요")
   public boolean isAmountOrShares() {
     return (investmentAmount == null) != (sharesPerPurchase == null);
+  }
+
+  // 연말 정리를 켜거나 끄고 기간 끝에 파는 사본(이력 주인은 비움)
+  public SimulationRequest yearEndVariant(boolean harvest) {
+    return toBuilder().yearEndHarvest(harvest).periodEnd(PeriodEnd.SELL_AT_END).userId(null).build();
   }
 }

@@ -1291,6 +1291,37 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
+    @DisplayName("끝까지 보유 요청에 연말 정리를 켜면 기간 끝에 한 번에 판 양도세 · 연말 정리하고 기간 끝에 판 양도세 · 차이를 싣고, 2년이 안 되면 싣지 않는다")
+    void yearEndHarvestComparison() {
+      LocalDate bought = LocalDate.of(2021, 1, 15);
+      LocalDate end = LocalDate.of(2024, 1, 31);
+      given(marketDataClientWrapper.getFxRate(anyString())).willReturn(new FxRateDto(bought, new BigDecimal("1300")));
+      given(marketDataClientWrapper.getBulkFxRates(anyList())).willAnswer(invocation -> {
+        List<String> dates = invocation.getArgument(0);
+        return dates.stream().distinct().collect(Collectors.toMap(date -> date, date -> new BigDecimal("1300")));
+      });
+      stubRange(candle(bought, "100.00"), candle(LocalDate.of(2021, 12, 29), "150.00"),
+        candle(LocalDate.of(2021, 12, 30), "150.00"), candle(LocalDate.of(2021, 12, 31), "150.00"),
+        candle(LocalDate.of(2022, 12, 28), "200.00"), candle(LocalDate.of(2022, 12, 29), "200.00"),
+        candle(LocalDate.of(2022, 12, 30), "200.00"), candle(LocalDate.of(2023, 1, 13), "210.00"),
+        candle(LocalDate.of(2023, 12, 27), "250.00"), candle(LocalDate.of(2023, 12, 28), "250.00"),
+        candle(LocalDate.of(2023, 12, 29), "250.00"), candle(end, "260.00"));
+      SimulationRequest.SimulationRequestBuilder request = SimulationRequest.builder().symbol(TEST_SYMBOL)
+        .purchaseDate(bought).investmentAmount(new BigDecimal("13000000")).capitalGainsTax(true).yearEndHarvest(true);
+
+      SimulationResponse held = service.runSimulation(request.saleDate(end).build(), false);
+      SimulationResponse shortPeriod = service.runSimulation(request.saleDate(LocalDate.of(2023, 1, 13)).build(), false);
+
+      // 끝까지 보유는 연말 정리만 팔아 세금 0, 기간 끝 매도 사본은 2080만원 이익을 한 번에 · 연말 정리 뒤 1330만원
+      assertThat(held.getCapitalGainsTax().totalTaxKrw()).isEqualByComparingTo("0");
+      assertThat(held.getCapitalGainsTax().harvestComparison()).isEqualTo(new CapitalGainsTax.HarvestComparison(
+        new BigDecimal("4026000"), new BigDecimal("2376000"), new BigDecimal("1650000")));
+      assertThat(held.getTransactions()).extracting(com.muscat.backtest.domain.model.StrategyTransaction::getTrigger)
+        .doesNotContain("기간 끝 매도");
+      assertThat(shortPeriod.getCapitalGainsTax().harvestComparison()).isNull();
+    }
+
+    @Test
     @DisplayName("연말 정리 뒤 현금 배당은 연말 정리로 바뀐 주식 수로 받고, 이익 난 보유가 없는 해는 연말 정리하지 않는다")
     void cashDividendsAfterHarvest() {
       LocalDate bought = LocalDate.of(2021, 1, 15);

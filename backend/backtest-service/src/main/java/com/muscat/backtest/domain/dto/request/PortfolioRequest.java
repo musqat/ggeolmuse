@@ -23,7 +23,7 @@ import lombok.NoArgsConstructor;
 
 @Schema(description = "포트폴리오 백테스트 요청 (여러 종목을 현금 하나로 사고 평가)")
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class PortfolioRequest {
@@ -94,6 +94,9 @@ public class PortfolioRequest {
   @Schema(description = "양도세 낼 현금이 모자랄 때 (NONE 현금이 생길 때 냄, TARGET_WEIGHT 목표 비중보다 커진 종목부터, CUSTOM_ORDER 줄마다 정한 판매 순서대로, LOSS_FIRST 손실 큰 종목부터, GAIN_NEUTRAL 손실 · 이익 종목을 섞어 판 이익 0, 그 날짜 일봉이 있는 종목을 그 날짜 종가에 모자란 만큼 팖, 비우면 NONE)", example = "LOSS_FIRST")
   private PortfolioTaxSale taxSale;
 
+  @Schema(description = "연말 정리 (양도세를 켰을 때만, 해마다 결제(2024-05-28 전 T+2, 그 뒤 T+1)가 그해 안에 끝나는 마지막 거래일에 포트폴리오 전체 원화 실현 이익이 연 250만원 공제에 맞도록 공제 채우기는 평가 이익 큰 종목부터 · 손실 상계는 평가 손실 큰 종목부터 팔고 같은 값에 다시 삼, 비우면 끔)", example = "true")
+  private Boolean yearEndHarvest;
+
   // 줄 금액(금액 방식은 줄 금액, 비율 방식은 총액 × 비율 ÷ 100 을 원 단위로 반올림)
   public BigDecimal amountOf(PortfolioAsset asset) {
     if (PortfolioAllocation.orAmount(allocation) == PortfolioAllocation.AMOUNT) {
@@ -105,5 +108,10 @@ public class PortfolioRequest {
   // 줄 전략(줄에 없으면 매수 방식)
   public PortfolioStrategyType strategyOf(PortfolioAsset asset) {
     return PortfolioStrategyType.orMethod(asset.strategy() == null ? null : asset.strategy().type(), method);
+  }
+
+  // 연말 정리를 켜거나 끄고 기간 끝에 파는 사본(이력 주인은 비움)
+  public PortfolioRequest yearEndVariant(boolean harvest) {
+    return toBuilder().yearEndHarvest(harvest).periodEnd(PeriodEnd.SELL_AT_END).userId(null).build();
   }
 }

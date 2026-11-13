@@ -25,7 +25,7 @@ import lombok.NoArgsConstructor;
 
 @Schema(description = "조건부 매수 투자 전략 요청")
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class ConditionalStrategyRequest implements StrategyRequest {
@@ -138,5 +138,10 @@ public class ConditionalStrategyRequest implements StrategyRequest {
   // 회당 금액 · 주식 수 표시("100000원" · "2주")
   public String perPurchase() {
     return sharesPerPurchase != null ? sharesPerPurchase + "주" : amountPerPurchase + "원";
+  }
+
+  @Override
+  public ConditionalStrategyRequest yearEndVariant(boolean harvest) {
+    return toBuilder().yearEndHarvest(harvest).periodEnd(PeriodEnd.SELL_AT_END).userId(null).build();
   }
 }

@@ -21,7 +21,7 @@ import lombok.NoArgsConstructor;
 
 @Schema(description = "이동평균 교차 투자 전략 요청")
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class MaCrossStrategyRequest implements SignalStrategyRequest {
@@ -113,5 +113,10 @@ public class MaCrossStrategyRequest implements SignalStrategyRequest {
   // 긴 기간(비우면 60)
   public int longWindowOrDefault() {
     return longWindow != null ? longWindow : MovingAverage.DEFAULT_LONG_WINDOW;
+  }
+
+  @Override
+  public MaCrossStrategyRequest yearEndVariant(boolean harvest) {
+    return toBuilder().yearEndHarvest(harvest).periodEnd(PeriodEnd.SELL_AT_END).userId(null).build();
   }
 }

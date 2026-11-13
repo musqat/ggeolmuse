@@ -13,7 +13,7 @@ import lombok.Builder;
 
 // 여러 종목을 현금 하나로 사고 평가한 포트폴리오 백테스트 결과
 @Schema(description = "포트폴리오 백테스트 결과")
-@Builder
+@Builder(toBuilder = true)
 public record PortfolioResponse(
   @Schema(description = "기간 안 첫 거래일 (줄들의 일봉 날짜 가운데 가장 이른 날)", example = "2020-01-02")
   LocalDate startDate,
@@ -45,9 +45,9 @@ public record PortfolioResponse(
   BigDecimal otherProfitKrw,
   @Schema(description = "평가일 환율", example = "1385.20")
   BigDecimal currentFxRate,
-  @Schema(description = "매수 거래 수 (배당 재투자 · 양도세 납부 빼고)", example = "2")
+  @Schema(description = "매수 거래 수 (배당 재투자 · 양도세 납부 · 연말 정리 빼고)", example = "2")
   int buyCount,
-  @Schema(description = "매도 거래 수", example = "0")
+  @Schema(description = "매도 거래 수 (연말 정리 빼고)", example = "0")
   int sellCount,
   @Schema(description = "원화 기준 수익 · 위험 지표 (넣은 돈을 뺀 시간가중 수익률, 산 것이 없으면 null)")
   PerformanceMetrics metricsKrw,
@@ -59,7 +59,7 @@ public record PortfolioResponse(
   List<Asset> assets,
   @Schema(description = "거래 내역 (거래일 순서, 종목 · 이유 포함, 양도세 납부 줄은 종목 없음)")
   List<StrategyTransaction> transactions,
-  @Schema(description = "매매 통계 (사이클은 종목마다, 판 거래가 없으면 null)")
+  @Schema(description = "매매 통계 (사이클은 종목마다, 연말 정리 밖 판 거래가 없으면 null)")
   TradeStats tradeStats,
   @Schema(description = "포트폴리오 전체 양도소득세 · 기간 안 납부와 세후 평가 (요청에서 끄면 null)")
   CapitalGainsTax capitalGainsTax,
@@ -99,9 +99,9 @@ public record PortfolioResponse(
     BigDecimal shares,
     @Schema(description = "실현 손익 (그 종목 판 거래의 원화 실현 이익 합, KRW)", example = "0")
     BigDecimal realizedProfitKrw,
-    @Schema(description = "매수 거래 수 (배당 재투자 빼고)", example = "1")
+    @Schema(description = "매수 거래 수 (배당 재투자 · 연말 정리 빼고)", example = "1")
     int buyCount,
-    @Schema(description = "매도 거래 수", example = "0")
+    @Schema(description = "매도 거래 수 (연말 정리 빼고)", example = "0")
     int sellCount
   ) {}
 }

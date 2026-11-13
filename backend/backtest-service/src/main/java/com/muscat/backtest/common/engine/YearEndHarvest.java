@@ -58,6 +58,12 @@ public final class YearEndHarvest {
     return Boolean.TRUE.equals(capitalGainsTax) && Boolean.TRUE.equals(yearEndHarvest);
   }
 
+  // 양도세 · 연말 정리를 켜고 시작일 + 2년이 평가일 이하인지(기간 끝에 한 번에 판 양도세와 견주는지)
+  public static boolean compares(Boolean capitalGainsTax, Boolean yearEndHarvest, LocalDate start,
+    LocalDate valuationDate) {
+    return enabled(capitalGainsTax, yearEndHarvest) && !start.plusYears(2).isAfter(valuationDate);
+  }
+
   // 쓸 수 있는 일봉 날짜로 본 연말 정리 날
   public static NavigableSet<LocalDate> dates(Map<LocalDate, OHLCPriceDto> priceMap, LocalDate start,
     LocalDate valuationDate) {

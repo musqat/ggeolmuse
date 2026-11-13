@@ -19,6 +19,7 @@ import com.muscat.backtest.common.util.PriceLookup;
 import com.muscat.backtest.common.util.RoundPurchase;
 import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
+import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.dto.response.DailyValue;
 import com.muscat.backtest.domain.dto.response.PurchaseDayReturn;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
@@ -69,14 +70,8 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     log.info("백테스팅 시뮬레이션 시작: {}", request);
 
     try {
-      SimulationContext context = prepareSimulationContext(request);
-      // 매수일 ~ 평가일 일봉과 그 날짜 환율
-      List<OHLCPriceDto> candles = candlesBetween(context.priceMap(), context.purchaseData().date(),
-        context.valuationDate());
-      Map<String, BigDecimal> fxRates = bulkFxRates(candles);
-      Function<LocalDate, BigDecimal> fx = fxPath(context, fxRates);
-      SimulationCalculationResult calculation = calculateSimulation(context, fx);
-      SimulationResponse response = buildSimulationResponse(context, calculation, candles, fxRates, fx);
+      SimulationResponse response = simulate(request);
+      compareYearEnd(request, response);
 
       if (recordHistory) {
         recordSimulationHistory(request);
@@ -89,6 +84,32 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
   }
 
   // ====== 헬퍼 메소드 ======
+
+  // 시세 · 환율을 받아 계산한 시뮬레이션 결과
+  private SimulationResponse simulate(SimulationRequest request) {
+    SimulationContext context = prepareSimulationContext(request);
+    // 매수일 ~ 평가일 일봉과 그 날짜 환율
+    List<OHLCPriceDto> candles = candlesBetween(context.priceMap(), context.purchaseData().date(),
+      context.valuationDate());
+    Map<String, BigDecimal> fxRates = bulkFxRates(candles);
+    Function<LocalDate, BigDecimal> fx = fxPath(context, fxRates);
+    SimulationCalculationResult calculation = calculateSimulation(context, fx);
+    return buildSimulationResponse(context, calculation, candles, fxRates, fx);
+  }
+
+  // 연말 정리를 켠 2년 이상 결과에 기간 끝에 한 번에 판 양도세와 연말 정리하고 기간 끝에 판 양도세 비교를 더함
+  private void compareYearEnd(SimulationRequest request, SimulationResponse response) {
+    if (!YearEndHarvest.compares(request.getCapitalGainsTax(), request.getYearEndHarvest(), request.getPurchaseDate(),
+      request.valuationDate(LocalDate.now()))) {
+      return;
+    }
+    BigDecimal sellAtEndTax = simulate(request.yearEndVariant(false)).getCapitalGainsTax().totalTaxKrw();
+    BigDecimal harvestTax = PeriodEnd.sells(request.getPeriodEnd())
+      ? response.getCapitalGainsTax().totalTaxKrw()
+      : simulate(request.yearEndVariant(true)).getCapitalGainsTax().totalTaxKrw();
+    response.setCapitalGainsTax(response.getCapitalGainsTax().withHarvestComparison(
+      CapitalGainsTax.HarvestComparison.of(sellAtEndTax, harvestTax)));
+  }
 
   // 시뮬레이션 입력 컨텍스트 구성 (매수가·환율·평가일 시세·배당이력 조회)
   private SimulationContext prepareSimulationContext(SimulationRequest request) {

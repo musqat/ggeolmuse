@@ -4,8 +4,10 @@ import com.muscat.backtest.common.calculation.ComparisonCalculationResult;
 import com.muscat.backtest.common.calculation.ComparisonCalculator;
 import com.muscat.backtest.common.calculation.PortfolioCalculator;
 import com.muscat.backtest.common.engine.PortfolioEngine;
+import com.muscat.backtest.common.engine.YearEndHarvest;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.BacktestType;
+import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.util.BacktestHistoryUtils;
@@ -21,6 +23,7 @@ import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.request.StrategyComparisonRequest;
 import com.muscat.backtest.domain.dto.request.StrategyRequest;
 import com.muscat.backtest.domain.dto.request.SymbolComparisonRequest;
+import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.dto.response.ComparisonResponse;
 import com.muscat.backtest.domain.dto.response.PortfolioResponse;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
@@ -32,6 +35,7 @@ import com.muscat.backtest.domain.service.BacktestAnalysisService;
 import com.muscat.backtest.domain.service.TradingSimulationService;
 import com.muscat.backtest.domain.strategy.InvestmentStrategy;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -82,24 +86,46 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     return runStrategy("이동평균 밴드", request);
   }
 
-  // 요청 검사 → 엔진 → 결과 계산, 이력은 투자 전략 시뮬레이션으로 요청 JSON 저장
+  // 요청 검사 → 엔진 → 결과 계산 · 연말 정리 비교, 이력은 투자 전략 시뮬레이션으로 요청 JSON 저장
   @Override
   public PortfolioResponse runPortfolio(PortfolioRequest request) {
     long startTime = System.currentTimeMillis();
     PortfolioRequestValidator.validate(request);
-    PortfolioResponse response = PortfolioCalculator.of(request, portfolioEngine.run(request));
+    PortfolioResponse response = compareYearEnd(request, PortfolioCalculator.of(request, portfolioEngine.run(request)));
     backtestHistoryUtils.saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);
     log.info("포트폴리오 백테스팅 완료: {}개 종목, 수익률={}%, 실행시간={}ms", request.getAssets().size(),
       response.totalReturnPercent(), System.currentTimeMillis() - startTime);
     return response;
   }
 
-  // 전략 실행 · 이력 저장과 걸린 시간 로그
+  // 포트폴리오 사본 요청으로 연말 정리 비교를 더한 결과
+  private PortfolioResponse compareYearEnd(PortfolioRequest request, PortfolioResponse response) {
+    if (!YearEndHarvest.compares(request.getCapitalGainsTax(), request.getYearEndHarvest(), request.getStartDate(),
+      response.endDate())) {
+      return response;
+    }
+    BigDecimal sellAtEndTax = portfolioTax(request.yearEndVariant(false));
+    BigDecimal harvestTax = PeriodEnd.sells(request.getPeriodEnd())
+      ? response.capitalGainsTax().totalTaxKrw()
+      : portfolioTax(request.yearEndVariant(true));
+    return response.toBuilder()
+      .capitalGainsTax(response.capitalGainsTax().withHarvestComparison(
+        CapitalGainsTax.HarvestComparison.of(sellAtEndTax, harvestTax)))
+      .build();
+  }
+
+  // 사본 요청을 엔진에 다시 돌린 양도세 합
+  private BigDecimal portfolioTax(PortfolioRequest variant) {
+    return PortfolioCalculator.of(variant, portfolioEngine.run(variant)).capitalGainsTax().totalTaxKrw();
+  }
+
+  // 전략 실행 · 연말 정리 비교 · 이력 저장과 걸린 시간 로그
   private StrategyResponse runStrategy(String label, StrategyRequest request) {
     long startTime = System.currentTimeMillis();
     log.info("{} 전략 백테스팅 시작: symbol={}", label, request.getSymbol());
     try {
       StrategyResponse result = execute(request);
+      compareYearEnd(request, result);
       backtestHistoryUtils.saveBacktestHistory(request.getUserId(), BacktestType.STRATEGY_SIMULATION, request);
       log.info("{} 전략 백테스팅 완료: 수익률={}%, 실행시간={}ms",
         label, result.getTotalReturnPercent(), System.currentTimeMillis() - startTime);
@@ -109,6 +135,22 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         label, e.getMessage(), System.currentTimeMillis() - startTime);
       throw e;
     }
+  }
+
+  // 연말 정리를 켠 2년 이상 결과에 기간 끝에 한 번에 판 양도세와 연말 정리하고 기간 끝에 판 양도세 비교를 더함
+  private void compareYearEnd(StrategyRequest request, StrategyResponse result) {
+    LocalDate today = LocalDate.now();
+    LocalDate valuationDate = request.getEndDate().isAfter(today) ? today : request.getEndDate();
+    if (!YearEndHarvest.compares(request.getCapitalGainsTax(), request.getYearEndHarvest(), request.getStartDate(),
+      valuationDate)) {
+      return;
+    }
+    BigDecimal sellAtEndTax = execute(request.yearEndVariant(false)).getCapitalGainsTax().totalTaxKrw();
+    BigDecimal harvestTax = PeriodEnd.sells(request.getPeriodEnd())
+      ? result.getCapitalGainsTax().totalTaxKrw()
+      : execute(request.yearEndVariant(true)).getCapitalGainsTax().totalTaxKrw();
+    result.setCapitalGainsTax(result.getCapitalGainsTax().withHarvestComparison(
+      CapitalGainsTax.HarvestComparison.of(sellAtEndTax, harvestTax)));
   }
 
   // 여러 종목의 동일 기간 투자 성과를 비교 분석

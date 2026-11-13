@@ -1,5 +1,6 @@
 package com.muscat.backtest.domain.dto.request;
 
+import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import java.time.LocalDate;
 
@@ -15,4 +16,13 @@ public interface StrategyRequest {
   LocalDate getEndDate();
 
   String getUserId();
+
+  Boolean getCapitalGainsTax();
+
+  PeriodEnd getPeriodEnd();
+
+  Boolean getYearEndHarvest();
+
+  // 연말 정리를 켜거나 끄고 기간 끝에 파는 사본(이력 주인은 비움)
+  StrategyRequest yearEndVariant(boolean harvest);
 }

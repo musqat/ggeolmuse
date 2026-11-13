@@ -21,7 +21,7 @@ public final class PortfolioCalculator {
 
   private PortfolioCalculator() {}
 
-  // 총 수익 = 총 자산 - 넣은 돈, 종목 이익 밖의 이익 = 총 수익 - 종목 이익 합, 판 거래가 있으면 매매 통계, 양도세를 켜면 포트폴리오 전체 양도세
+  // 총 수익 = 총 자산 - 넣은 돈, 종목 이익 밖의 이익 = 총 수익 - 종목 이익 합, 연말 정리 밖 판 거래가 있으면 매매 통계, 양도세를 켜면 포트폴리오 전체 양도세
   public static PortfolioResponse of(PortfolioRequest request, PortfolioEngine.Result result) {
     List<StrategyTransaction> transactions = result.transactions();
     BigDecimal invested = MoneyUtils.roundKrw(result.totalInvestedKrw());
@@ -34,7 +34,7 @@ public final class PortfolioCalculator {
       .map(position -> asset(position, result, totalReturn, plannedSum))
       .toList();
     List<CapitalGainsTaxCalculator.Gain> gains = CapitalGainsTaxCalculator.realizedGains(transactions);
-    boolean sold = transactions.stream().anyMatch(StrategyTransaction::isSell);
+    boolean sold = transactions.stream().anyMatch(PortfolioCalculator::traded);
     return PortfolioResponse.builder()
       .startDate(result.startDate())
       .endDate(result.valuationDate())
@@ -109,10 +109,15 @@ public final class PortfolioCalculator {
       .shares(position.shares().setScale(6, RoundingMode.HALF_UP))
       .realizedProfitKrw(MoneyUtils.roundKrw(sum(CapitalGainsTaxCalculator.realizedGains(own))))
       .buyCount((int) buys.stream()
-        .filter(tx -> tx.getReason() != TradeReason.DIVIDEND_REINVESTMENT)
+        .filter(tx -> tx.getReason() != TradeReason.DIVIDEND_REINVESTMENT && !tx.isYearEndHarvest())
         .count())
-      .sellCount((int) own.stream().filter(StrategyTransaction::isSell).count())
+      .sellCount((int) own.stream().filter(PortfolioCalculator::traded).count())
       .build();
+  }
+
+  // 연말 정리가 아닌 매도
+  private static boolean traded(StrategyTransaction tx) {
+    return tx.isSell() && !tx.isYearEndHarvest();
   }
 
   // 새 돈 원화 + 쓴 현금 × 그 날짜 환율

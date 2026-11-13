@@ -21,7 +21,7 @@ import lombok.NoArgsConstructor;
 
 @Schema(description = "이동평균 밴드 투자 전략 요청")
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class MaBandStrategyRequest implements SignalStrategyRequest {
@@ -121,5 +121,10 @@ public class MaBandStrategyRequest implements SignalStrategyRequest {
   // 아래 선 비율(비우면 0.025)
   public BigDecimal lowerRateOrDefault() {
     return lowerRate != null ? lowerRate : Band.DEFAULT_RATE;
+  }
+
+  @Override
+  public MaBandStrategyRequest yearEndVariant(boolean harvest) {
+    return toBuilder().yearEndHarvest(harvest).periodEnd(PeriodEnd.SELL_AT_END).userId(null).build();
   }
 }
