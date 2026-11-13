@@ -4,6 +4,7 @@ import com.muscat.backtest.common.constants.BacktestConstants.Portfolio;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.PortfolioAllocation;
 import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
+import com.muscat.backtest.common.enums.type.PortfolioTaxSale;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.dto.request.PortfolioAsset;
 import com.muscat.backtest.domain.dto.request.PortfolioRequest;
@@ -15,7 +16,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * 포트폴리오 요청 검증(기간 · 종목 줄 · 금액 · 비율 · 익절 · 손절 · 이동평균 · 밴드 · 적립식 칸)
+ * 포트폴리오 요청 검증(기간 · 종목 줄 · 금액 · 비율 · 익절 · 손절 · 이동평균 · 밴드 · 적립식 칸 · 양도세 판매 순서)
  */
 public final class PortfolioRequestValidator {
 
@@ -23,7 +24,7 @@ public final class PortfolioRequestValidator {
 
   private PortfolioRequestValidator() {}
 
-  /** 기간 → 종목 줄 → 금액 · 비율 → 줄마다 익절 · 손절 · 이동평균 · 밴드 칸 → 적립식 칸(적립식 줄이 있을 때만) 차례로 검사 */
+  /** 기간 → 종목 줄 → 금액 · 비율 → 줄마다 익절 · 손절 · 이동평균 · 밴드 칸 → 적립식 칸(적립식 줄이 있을 때만) → 판매 순서(양도세를 켠 직접 순서만) 차례로 검사 */
   public static void validate(PortfolioRequest request) {
     BacktestRequestValidator.requireNonNull(request);
     BacktestRequestValidator.requireDateRange(request.getStartDate(), request.getEndDate());
@@ -35,6 +36,21 @@ public final class PortfolioRequestValidator {
     });
     if (request.getAssets().stream().anyMatch(asset -> request.strategyOf(asset) == PortfolioStrategyType.DCA)) {
       requireSchedule(request);
+    }
+    if (Boolean.TRUE.equals(request.getCapitalGainsTax())
+      && PortfolioTaxSale.orNone(request.getTaxSale()) == PortfolioTaxSale.CUSTOM_ORDER) {
+      requireTaxSaleOrders(request.getAssets());
+    }
+  }
+
+  /** 줄마다 판매 순서가 있고 1 ~ 줄 수 안에서 서로 다름 */
+  private static void requireTaxSaleOrders(List<PortfolioAsset> assets) {
+    Set<Integer> seen = new HashSet<>();
+    for (PortfolioAsset asset : assets) {
+      Integer order = asset.taxSaleOrder();
+      if (order == null || order < 1 || order > assets.size() || !seen.add(order)) {
+        throw new BacktestException(BacktestResponse.INVALID_TAX_SALE);
+      }
     }
   }
 

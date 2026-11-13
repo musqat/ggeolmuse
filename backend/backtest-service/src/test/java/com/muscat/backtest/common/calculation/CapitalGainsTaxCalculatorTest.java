@@ -144,6 +144,38 @@ class CapitalGainsTaxCalculatorTest {
   }
 
   @Nested
+  @DisplayName("종목마다 남은 주식 수 · 원화 원가")
+  class HoldingsKrw {
+
+    @Test
+    @DisplayName("판 몫의 평균 원가를 덜어 낸 남은 주식 수 · 원화 원가를 종목마다 낸다")
+    void perSymbolAfterSales() {
+      // AAA 10주 130만원 + 10주 150만원에서 5주 판매, BBB 10주 260만원을 모두 판매
+      Map<String, CapitalGainsTaxCalculator.HoldingKrw> holdings = CapitalGainsTaxCalculator.holdingsKrw(List.of(
+        symbol("AAA", buy(JAN, "10", "100", "1300000", "1300")), symbol("AAA", buy(MAR, "10", "100", "1500000", "1500")),
+        symbol("BBB", buy(JAN, "10", "200", "2600000", "1300")), symbol("AAA", sell(MAY, "5", "600", "1400")),
+        symbol("BBB", sell(JUL, "10", "2000", "1400"))));
+
+      assertThat(holdings).containsOnlyKeys("AAA", "BBB");
+      assertThat(holdings.get("AAA").shares()).isEqualByComparingTo("15");
+      // 280만원 - 5주 × 14만원
+      assertThat(holdings.get("AAA").costKrw()).isEqualByComparingTo("2100000");
+      assertThat(holdings.get("BBB").shares()).isEqualByComparingTo("0");
+      assertThat(holdings.get("BBB").costKrw()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("종목이 없는 거래는 빈 이름 한 묶음이다")
+    void singleBucketWithoutSymbol() {
+      Map<String, CapitalGainsTaxCalculator.HoldingKrw> holdings = CapitalGainsTaxCalculator.holdingsKrw(List.of(
+        buy(JAN, "10", "100", "1300000", "1300")));
+
+      assertThat(holdings).containsOnlyKeys("");
+      assertThat(holdings.get("").costKrw()).isEqualByComparingTo("1300000");
+    }
+  }
+
+  @Nested
   @DisplayName("연도별 공제 · 세금 · 납부와 세후 평가")
   class Yearly {
 

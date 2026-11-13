@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 
+import com.muscat.backtest.common.calculation.CapitalGainsTaxCalculator;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
@@ -16,6 +17,7 @@ import com.muscat.backtest.common.enums.type.PortfolioAllocation;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
 import com.muscat.backtest.common.enums.type.PortfolioRebalance;
 import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
+import com.muscat.backtest.common.enums.type.PortfolioTaxSale;
 import com.muscat.backtest.common.enums.type.TradeReason;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.dto.request.PortfolioAsset;
@@ -29,6 +31,7 @@ import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -99,7 +102,7 @@ class PortfolioEngineTest {
   private static PortfolioAsset selling(String symbol, String amount, String takeProfitRate, String stopLossRate) {
     return new PortfolioAsset(symbol, new BigDecimal(amount), null,
       takeProfitRate == null ? null : new BigDecimal(takeProfitRate),
-      stopLossRate == null ? null : new BigDecimal(stopLossRate), null);
+      stopLossRate == null ? null : new BigDecimal(stopLossRate), null, null);
   }
 
   // 줄 전략이 있는 금액 줄
@@ -111,7 +114,7 @@ class PortfolioEngineTest {
   private static PortfolioAsset planned(String symbol, String amount, String takeProfitRate,
     PortfolioStrategy strategy) {
     return new PortfolioAsset(symbol, new BigDecimal(amount), null,
-      takeProfitRate == null ? null : new BigDecimal(takeProfitRate), null, strategy);
+      takeProfitRate == null ? null : new BigDecimal(takeProfitRate), null, strategy, null);
   }
 
   // 이동평균 교차(짧은 · 긴 기간)
@@ -210,8 +213,8 @@ class PortfolioEngineTest {
       prices("BBB", candle("BBB", day(0), "10"));
 
       PortfolioEngine.Result result = engine.run(request(day(0),
-        new PortfolioAsset("AAA", null, new BigDecimal("33.33"), null, null, null),
-        new PortfolioAsset("BBB", null, new BigDecimal("66.67"), null, null, null))
+        new PortfolioAsset("AAA", null, new BigDecimal("33.33"), null, null, null, null),
+        new PortfolioAsset("BBB", null, new BigDecimal("66.67"), null, null, null, null))
         .allocation(PortfolioAllocation.WEIGHT).totalAmount(new BigDecimal("1000001")).build());
 
       assertThat(result.transactions()).extracting(tx -> plain(tx.getAmount())).containsExactly("333300", "666701");
@@ -914,6 +917,246 @@ class PortfolioEngineTest {
 
       assertThat(result.transactions()).extracting(StrategyTransaction::getReason).containsExactly(
         TradeReason.BUY, TradeReason.BUY, TradeReason.PERIOD_END_SALE, TradeReason.PERIOD_END_SALE);
+    }
+  }
+
+  @Nested
+  @DisplayName("양도세 낼 현금이 모자랄 때 판매 방식")
+  class TaxSaleMethods {
+
+    private static final LocalDate DUE = LocalDate.of(2025, 5, 1);
+
+    // AAA · BBB 는 시작일 10 달러에 100주씩, SIG 는 3월 5일 골든 크로스(12.5)에 80주 · 3월 8일 데드 크로스(50)에 팔아 390만원 이익 · 3월 10일 골든 크로스(80)에 판 돈 전부로 50주
+    // 납부일(2025년 5월 1일) 현금 0 · 양도세 30만 8천원 ÷ 1300 = 236.92 달러, SIG 는 납부일 80 달러면 평가 손익 0, BBB 를 비우면 납부일 일봉 없음
+    private PortfolioRequest.PortfolioRequestBuilder scenario(PortfolioTaxSale taxSale, String aaa, String bbb, String sig,
+      Integer... orders) {
+      prices("AAA", candle("AAA", START, "10"), candle("AAA", DUE, aaa));
+      if (bbb == null) {
+        prices("BBB", candle("BBB", START, "10"));
+      } else {
+        prices("BBB", candle("BBB", START, "10"), candle("BBB", DUE, bbb));
+      }
+      prices("SIG", List.of(candle("SIG", day(-3), "10"), candle("SIG", day(-2), "10"), candle("SIG", day(-1), "10"),
+          candle("SIG", day(0), "10"), candle("SIG", day(1), "12.5"), candle("SIG", day(2), "100"),
+          candle("SIG", day(3), "60"), candle("SIG", day(4), "50"), candle("SIG", day(5), "60"),
+          candle("SIG", day(6), "80")),
+        candle("SIG", DUE, sig));
+      Integer[] order = orders.length == 0 ? new Integer[3] : orders;
+      return request(DUE, ordered("AAA", null, order[0]), ordered("BBB", null, order[1]),
+        ordered("SIG", cross(2, 3), order[2])).capitalGainsTax(true).taxSale(taxSale);
+    }
+
+    private PortfolioEngine.Result run(PortfolioTaxSale taxSale, String aaa, String bbb, Integer... orders) {
+      return engine.run(scenario(taxSale, aaa, bbb, "80", orders).build());
+    }
+
+    private static PortfolioAsset ordered(String symbol, PortfolioStrategy strategy, Integer order) {
+      return new PortfolioAsset(symbol, new BigDecimal("1300000"), null, null, null, strategy, order);
+    }
+
+    // 납부일 거래의 종목 · 이유 · 주식 수
+    private static List<Tuple> dueTrades(PortfolioEngine.Result result) {
+      return result.transactions().stream()
+        .filter(tx -> tx.tradedOn().equals(DUE))
+        .map(tx -> tuple(tx.getSymbol(), tx.getReason(), plain(tx.getShares())))
+        .toList();
+    }
+
+    // 납부일에 낸 달러 · 2024년 세금 가운데 낸 원화
+    private static void paidInFull(PortfolioEngine.Result result) {
+      assertThat(result.transactions()).filteredOn(StrategyTransaction::isTaxPayment)
+        .extracting(tx -> plain(tx.getTaxPaid())).containsExactly("236.92");
+      assertThat(plain(result.taxPayments().paidKrw().get(2024))).isEqualTo("308000");
+    }
+
+    @Test
+    @DisplayName("판매 방식을 비우면 납부일에 현금이 없어 팔지 않고 양도세를 남긴다")
+    void none() {
+      PortfolioEngine.Result result = run(null, "20", "2");
+
+      assertThat(dueTrades(result)).isEmpty();
+      assertThat(result.taxPayments().paidKrw()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("정한 순서 방식은 순서가 작은 줄부터 그 날짜 종가에 팔고 그 줄을 다 팔아도 모자라면 다음 줄을 팔아 낸다")
+    void customOrder() {
+      // BBB 100주 200 달러, 남은 36.92 달러 ÷ AAA 20 달러
+      PortfolioEngine.Result result = run(PortfolioTaxSale.CUSTOM_ORDER, "20", "2", 2, 1, 3);
+
+      assertThat(dueTrades(result)).containsExactly(tuple("BBB", TradeReason.TAX_SALE, "-100"),
+        tuple("AAA", TradeReason.TAX_SALE, "-1.846"), tuple(null, TradeReason.TAX_PAYMENT, "0"));
+      assertThat(result.transactions()).filteredOn(tx -> tx.getReason() == TradeReason.TAX_SALE)
+        .extracting(StrategyTransaction::getTrigger).containsOnly("양도세 납부용 매도");
+      paidInFull(result);
+    }
+
+    @Test
+    @DisplayName("모든 줄을 다 팔아도 모자라면 판 만큼 내고 남은 양도세를 남긴다")
+    void sellsEverythingWhenShort() {
+      // AAA 50 · BBB 50 · SIG 50 달러, SIG 는 그 날짜 데드 크로스지만 먼저 다 팔림
+      PortfolioEngine.Result result = engine.run(scenario(PortfolioTaxSale.CUSTOM_ORDER, "0.5", "0.5", "1", 1, 2, 3)
+        .build());
+
+      assertThat(dueTrades(result)).containsExactly(tuple("AAA", TradeReason.TAX_SALE, "-100"),
+        tuple("BBB", TradeReason.TAX_SALE, "-100"), tuple("SIG", TradeReason.TAX_SALE, "-50"),
+        tuple(null, TradeReason.TAX_PAYMENT, "0"));
+      // 150 달러 × 1300원
+      assertThat(plain(result.taxPayments().paidKrw().get(2024))).isEqualTo("195000");
+      assertThat(plain(result.cashUsd())).isEqualTo("0");
+    }
+
+    @Test
+    @DisplayName("그 날짜 일봉이 없는 줄은 팔지 않고 다음 줄을 판다")
+    void skipsLineWithoutCandle() {
+      PortfolioEngine.Result result = run(PortfolioTaxSale.CUSTOM_ORDER, "20", null, 2, 1, 3);
+
+      // 236.92 달러 ÷ AAA 20 달러
+      assertThat(dueTrades(result)).containsExactly(tuple("AAA", TradeReason.TAX_SALE, "-11.846"),
+        tuple(null, TradeReason.TAX_PAYMENT, "0"));
+      paidInFull(result);
+    }
+
+    @Test
+    @DisplayName("손실 종목부터 방식은 평가 손익이 작은 줄부터 판다")
+    void lossFirst() {
+      // BBB(-104만원) 100주 200 달러, SIG(0) 36.92 달러 ÷ 80 달러, AAA(+130만원)는 팔지 않음
+      PortfolioEngine.Result result = run(PortfolioTaxSale.LOSS_FIRST, "20", "2");
+
+      assertThat(dueTrades(result)).containsExactly(tuple("BBB", TradeReason.TAX_SALE, "-100"),
+        tuple("SIG", TradeReason.TAX_SALE, "-0.4615"), tuple(null, TradeReason.TAX_PAYMENT, "0"));
+      paidInFull(result);
+      assertThat(result.positions()).extracting(position -> plain(position.shares()))
+        .containsExactly("100", "0", "49.5385");
+    }
+
+    @Test
+    @DisplayName("수수료가 있으면 수수료를 뺀 판 돈으로 평가 손익 · 팔 양을 셈하고 수수료 센트 반올림에도 모자라지 않게 판다")
+    void lossFirstWithFee() {
+      // 1% 수수료: BBB 99주 · SIG 48.515주, 양도세 28만 5,234원 ÷ 1300 = 219.41 달러
+      // BBB(-104만 5,174원) 99주의 판 돈 196.02 달러, SIG(-10만 1,415.6원)는 남은 23.39 달러 + 1센트 ÷ (80 × 0.99)
+      PortfolioEngine.Result result = engine.run(scenario(PortfolioTaxSale.LOSS_FIRST, "20", "2", "80")
+        .tradingFeeRate(new BigDecimal("0.01")).build());
+
+      assertThat(dueTrades(result)).containsExactly(tuple("BBB", TradeReason.TAX_SALE, "-99"),
+        tuple("SIG", TradeReason.TAX_SALE, "-0.29545455"), tuple(null, TradeReason.TAX_PAYMENT, "0"));
+      assertThat(result.transactions()).filteredOn(tx -> tx.getReason() == TradeReason.TAX_SALE)
+        .extracting(tx -> plain(tx.getProceeds())).containsExactly("196.02", "23.396364");
+      assertThat(result.transactions()).filteredOn(StrategyTransaction::isTaxPayment)
+        .extracting(tx -> plain(tx.getTaxPaid())).containsExactly("219.41");
+      assertThat(plain(result.taxPayments().paidKrw().get(2024))).isEqualTo("285234");
+    }
+
+    @Test
+    @DisplayName("목표 비중 방식은 목표(줄 금액 비중 × 주식 평가 합)보다 넘친 줄부터 넘친 만큼 판다")
+    void targetWeightOverweightFirst() {
+      // 평가 AAA 4100 · BBB 200 · SIG 4000 달러, 목표 2766.67 달러씩이라 가장 넘친 AAA 에서 236.92 달러 ÷ 41 달러, SIG 는 팔지 않음
+      PortfolioEngine.Result result = run(PortfolioTaxSale.TARGET_WEIGHT, "41", "2");
+
+      assertThat(dueTrades(result)).containsExactly(tuple("AAA", TradeReason.TAX_SALE, "-5.77853659"),
+        tuple(null, TradeReason.TAX_PAYMENT, "0"));
+      paidInFull(result);
+    }
+
+    @Test
+    @DisplayName("목표 비중 방식은 넘친 만큼을 다 팔아도 모자라면 남은 몫을 목표 비중대로 나눠 줄마다 한 번씩 판다")
+    void targetWeightSpreadsRest() {
+      // 평가 AAA 4000 · BBB 4030 · SIG 4000 달러, 목표 4010 달러씩이라 BBB 넘친 20 달러, 남은 216.92 달러를 셋으로 72.30666667 달러씩
+      PortfolioEngine.Result result = run(PortfolioTaxSale.TARGET_WEIGHT, "40", "40.3");
+
+      assertThat(dueTrades(result)).containsExactly(tuple("AAA", TradeReason.TAX_SALE, "-1.80766667"),
+        tuple("BBB", TradeReason.TAX_SALE, "-2.29048801"), tuple("SIG", TradeReason.TAX_SALE, "-0.90383334"),
+        tuple(null, TradeReason.TAX_PAYMENT, "0"));
+      paidInFull(result);
+    }
+
+    @Test
+    @DisplayName("목표 비중 방식에서 나눈 몫이 그 줄의 남은 판 돈보다 크면 그 줄은 다 팔고 나머지를 다른 줄에 다시 나눈다")
+    void targetWeightRefillsCappedLine() {
+      // 평가 AAA 100 · BBB 50 · SIG 100 달러, 목표 83.33 달러씩, AAA · SIG 넘친 16.67 달러씩 뒤 남은 203.59 달러의 셋 몫 67.86 달러가 BBB 50 달러보다 큼
+      // BBB 는 다 팔고 남은 153.59 달러를 AAA · SIG 가 76.79 달러씩, SIG 는 그 날짜 데드 크로스로 남은 주식을 팖
+      PortfolioEngine.Result result = engine.run(scenario(PortfolioTaxSale.TARGET_WEIGHT, "1", "0.5", "2").build());
+
+      assertThat(dueTrades(result)).containsExactly(tuple("AAA", TradeReason.TAX_SALE, "-93.46"),
+        tuple("BBB", TradeReason.TAX_SALE, "-100"), tuple("SIG", TradeReason.TAX_SALE, "-46.73"),
+        tuple(null, TradeReason.TAX_PAYMENT, "0"), tuple("SIG", TradeReason.STRATEGY_SELL, "-3.27"));
+      paidInFull(result);
+    }
+
+    @Test
+    @DisplayName("이익 · 손실 섞기 방식은 손실 줄 · 이익 줄 묶음을 달러당 평가 손익으로 나눠 판 이익 합이 0 이 되게 판다")
+    void gainNeutral() {
+      // 손실 묶음 BBB(-104만원 · 200 달러), 이익 묶음 AAA(+130만원 · 2000 달러) · SIG(0 · 4000 달러)
+      PortfolioEngine.Result result = run(PortfolioTaxSale.GAIN_NEUTRAL, "20", "2");
+
+      assertThat(dueTrades(result)).extracting(trade -> trade.toList().subList(0, 2)).containsExactly(
+        List.of("AAA", TradeReason.TAX_SALE), List.of("BBB", TradeReason.TAX_SALE), List.of("SIG", TradeReason.TAX_SALE),
+        Arrays.asList(null, TradeReason.TAX_PAYMENT));
+      paidInFull(result);
+      BigDecimal realized2025 = CapitalGainsTaxCalculator.realizedByYear(
+        CapitalGainsTaxCalculator.realizedGains(result.transactions())).get(2025);
+      assertThat(realized2025.abs()).isLessThan(BigDecimal.ONE);
+    }
+
+    @Test
+    @DisplayName("이익 · 손실 섞기 방식은 이익 줄이 없으면 손실 종목부터와 같은 차례로 판다")
+    void gainNeutralWithoutGains() {
+      // BBB(-104만원) 100주 200 달러, SIG(-65만원) 36.92 달러 ÷ 70 달러, AAA(-52만원)는 팔지 않음
+      PortfolioEngine.Result result = engine.run(scenario(PortfolioTaxSale.GAIN_NEUTRAL, "6", "2", "70").build());
+
+      assertThat(dueTrades(result)).containsExactly(tuple("BBB", TradeReason.TAX_SALE, "-100"),
+        tuple("SIG", TradeReason.TAX_SALE, "-0.52742858"), tuple(null, TradeReason.TAX_PAYMENT, "0"));
+      paidInFull(result);
+    }
+
+    @Test
+    @DisplayName("이익 · 손실 섞기 방식은 손실 줄이 없으면 손실 종목부터와 같은 차례로 판다")
+    void gainNeutralWithoutLosses() {
+      // SIG(0) 236.92 달러 ÷ 80 달러, BBB(+65만원) · AAA(+130만원)는 팔지 않음
+      PortfolioEngine.Result result = run(PortfolioTaxSale.GAIN_NEUTRAL, "20", "15");
+
+      assertThat(dueTrades(result)).containsExactly(tuple("SIG", TradeReason.TAX_SALE, "-2.9615"),
+        tuple(null, TradeReason.TAX_PAYMENT, "0"));
+      paidInFull(result);
+    }
+
+    // SIG 를 1,300만원으로 800주 · 3,900만원 이익이라 양도세 803만원 ÷ 1300 = 6,176.92 달러, 3월 10일 판 돈 전부로 500주
+    private PortfolioEngine.Result bigTax(String aaa, String bbb, String sig) {
+      return engine.run(scenario(PortfolioTaxSale.GAIN_NEUTRAL, aaa, bbb, sig)
+        .assets(List.of(ordered("AAA", null, null), ordered("BBB", null, null),
+          new PortfolioAsset("SIG", new BigDecimal("13000000"), null, null, null, cross(2, 3), null)))
+        .build());
+    }
+
+    // 납부일에 낸 6,176.92 달러 · 2024년 세금 803만원
+    private static void paidBigTax(PortfolioEngine.Result result) {
+      assertThat(result.transactions()).filteredOn(StrategyTransaction::isTaxPayment)
+        .extracting(tx -> plain(tx.getTaxPaid())).containsExactly("6176.92");
+      assertThat(plain(result.taxPayments().paidKrw().get(2024))).isEqualTo("8030000");
+    }
+
+    @Test
+    @DisplayName("이익 · 손실 섞기 방식에서 손실 줄 몫이 손실 줄의 판 돈보다 크면 손실 줄은 다 팔고 남은 몫을 이익 줄에서 판다")
+    void gainNeutralLosersShort() {
+      // 손실 BBB(-13만원 · 900 달러)를 다 팔고 남은 5,276.92 달러를 이익 묶음 AAA(+130만원 · 2000 달러) · SIG(0 · 40000 달러)가 가치대로
+      PortfolioEngine.Result result = bigTax("20", "9", "80");
+
+      assertThat(dueTrades(result)).containsExactly(tuple("AAA", TradeReason.TAX_SALE, "-12.56409524"),
+        tuple("BBB", TradeReason.TAX_SALE, "-100"), tuple("SIG", TradeReason.TAX_SALE, "-62.8204762"),
+        tuple(null, TradeReason.TAX_PAYMENT, "0"));
+      paidBigTax(result);
+    }
+
+    @Test
+    @DisplayName("이익 · 손실 섞기 방식에서 이익 줄 몫이 이익 줄의 판 돈보다 크면 이익 줄은 다 팔고 남은 몫을 손실 줄에서 판다")
+    void gainNeutralWinnersShort() {
+      // 이익 AAA(+130만원 · 2000 달러)를 다 팔고 남은 4,176.92 달러를 손실 묶음 BBB(-104만원 · 200 달러) · SIG(-1,300만원 · 30000 달러)가 가치대로
+      PortfolioEngine.Result result = bigTax("20", "2", "60");
+
+      assertThat(dueTrades(result)).containsExactly(tuple("AAA", TradeReason.TAX_SALE, "-100"),
+        tuple("BBB", TradeReason.TAX_SALE, "-13.83086093"), tuple("SIG", TradeReason.TAX_SALE, "-69.15430464"),
+        tuple(null, TradeReason.TAX_PAYMENT, "0"));
+      paidBigTax(result);
     }
   }
 

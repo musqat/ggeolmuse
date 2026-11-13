@@ -22,6 +22,9 @@ public final class CapitalGainsTaxCalculator {
   /** 판 날짜와 원화 실현 이익 */
   public record Gain(LocalDate date, BigDecimal amountKrw) {}
 
+  /** 종목 하나의 남은 주식 수와 원화 원가 */
+  public record HoldingKrw(BigDecimal shares, BigDecimal costKrw) {}
+
   private CapitalGainsTaxCalculator() {}
 
   // 종목 하나의 보유 주식 수 · 원화 원가
@@ -32,11 +35,25 @@ public final class CapitalGainsTaxCalculator {
 
   // 판 거래마다 판 날 환율로 바꾼 판 돈(수수료 뺌) - 그 종목 보유분 평균 원가(산 날 환율, 수수료 포함, 종목이 없으면 한 묶음), 거래일 순서
   public static List<Gain> realizedGains(List<StrategyTransaction> transactions) {
+    List<Gain> gains = new ArrayList<>();
+    walk(transactions, gains);
+    return gains;
+  }
+
+  // 판 몫의 평균 원가를 덜어 낸 종목마다 남은 주식 수 · 원화 원가(종목이 없으면 빈 이름 한 묶음)
+  public static Map<String, HoldingKrw> holdingsKrw(List<StrategyTransaction> transactions) {
+    Map<String, HoldingKrw> holdings = new HashMap<>();
+    walk(transactions, new ArrayList<>())
+      .forEach((symbol, holding) -> holdings.put(symbol, new HoldingKrw(holding.shares, holding.cost)));
+    return holdings;
+  }
+
+  // 양도세 납부를 뺀 거래를 거래일 순서로 보며 판 거래의 실현 이익을 모으고 종목마다 남은 보유를 냄
+  private static Map<String, Holding> walk(List<StrategyTransaction> transactions, List<Gain> gains) {
     List<StrategyTransaction> ordered = transactions.stream()
       .filter(tx -> !tx.isTaxPayment())
       .sorted(Comparator.comparing(StrategyTransaction::tradedOn))
       .toList();
-    List<Gain> gains = new ArrayList<>();
     Map<String, Holding> holdings = new HashMap<>();
     for (StrategyTransaction tx : ordered) {
       Holding holding = holdings.computeIfAbsent(Objects.requireNonNullElse(tx.getSymbol(), ""), key -> new Holding());
@@ -53,7 +70,7 @@ public final class CapitalGainsTaxCalculator {
       holding.shares = holding.shares.subtract(sold);
       holding.cost = holding.cost.subtract(soldCost);
     }
-    return gains;
+    return holdings;
   }
 
   // 산 날 환율 원가(넣은 원화 + 쓴 판 돈 × 그 날짜 환율, 배당 재투자는 주식 수 × 주가 × 그 날짜 환율)
