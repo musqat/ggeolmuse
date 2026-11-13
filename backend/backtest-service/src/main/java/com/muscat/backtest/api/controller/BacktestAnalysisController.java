@@ -113,7 +113,7 @@ public class BacktestAnalysisController {
       ),
       @ApiResponse(
           responseCode = "400",
-          description = "잘못된 요청 데이터",
+          description = "잘못된 요청 데이터 (익절 · 손절 INVALID_SELL_RATE, 트레일링 스탑 INVALID_TRAILING_STOP, 부분 익절 INVALID_PARTIAL_TAKE_PROFIT 등)",
           content = @Content(
               mediaType = "application/json",
               schema = @Schema(implementation = ProblemDetail.class)
@@ -154,7 +154,7 @@ public class BacktestAnalysisController {
       ),
       @ApiResponse(
           responseCode = "400",
-          description = "잘못된 요청 데이터",
+          description = "잘못된 요청 데이터 (이동평균 기간 INVALID_MA_WINDOWS, 트레일링 스탑 INVALID_TRAILING_STOP, 부분 익절 INVALID_PARTIAL_TAKE_PROFIT 등)",
           content = @Content(
               mediaType = "application/json",
               schema = @Schema(implementation = ProblemDetail.class)
@@ -194,7 +194,7 @@ public class BacktestAnalysisController {
       ),
       @ApiResponse(
           responseCode = "400",
-          description = "잘못된 요청 데이터",
+          description = "잘못된 요청 데이터 (밴드 INVALID_BAND, 트레일링 스탑 INVALID_TRAILING_STOP, 부분 익절 INVALID_PARTIAL_TAKE_PROFIT 등)",
           content = @Content(
               mediaType = "application/json",
               schema = @Schema(implementation = ProblemDetail.class)

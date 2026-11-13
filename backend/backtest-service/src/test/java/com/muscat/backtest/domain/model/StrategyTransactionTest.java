@@ -33,6 +33,16 @@ class StrategyTransactionTest {
   }
 
   @Test
+  @DisplayName("매수 원가는 넣은 원화를 그 날짜 환율로 바꾼 값에 쓴 현금을 더하고, 넣은 원화가 없으면 쓴 현금만이다")
+  void costUsd() {
+    StrategyTransaction deposit = buy().cashUsed(new BigDecimal("50")).build();
+    StrategyTransaction noAmount = buy().amount(null).cashUsed(new BigDecimal("50")).build();
+
+    assertThat(deposit.costUsd()).isEqualByComparingTo("60");
+    assertThat(noAmount.costUsd()).isEqualByComparingTo("50");
+  }
+
+  @Test
   @DisplayName("포트폴리오 거래는 종목 · 이유를 싣는다")
   void portfolioHasSymbolAndReason() {
     JsonNode json = objectMapper.valueToTree(buy().symbol("SPY").reason(TradeReason.DCA_BUY).build());

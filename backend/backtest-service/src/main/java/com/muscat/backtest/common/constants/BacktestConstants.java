@@ -157,16 +157,8 @@ public final class BacktestConstants {
       throw new UnsupportedOperationException("Constants class cannot be instantiated");
     }
 
-    /** 트레일링 스탑 검사 오류 문구 */
-    public static final String TRAILING_STOP_MESSAGE =
-      "고점 대비 하락 비율은 0% 초과 100% 미만, 팔 비율은 하락 비율과 함께 0% 초과 100% 이하여야 합니다";
-
     /** 부분 익절 단계 수 상한 */
     public static final int MAX_PARTIAL_TAKE_PROFITS = 5;
-
-    /** 부분 익절 검사 오류 문구 */
-    public static final String PARTIAL_TAKE_PROFIT_MESSAGE =
-      "부분 익절은 5단계까지, 수익률은 0% 초과로 앞 단계보다 크고 팔 비율은 0% 초과 100% 이하여야 합니다";
   }
 
   /**

@@ -969,6 +969,18 @@ class ConditionalPurchaseStrategyTest {
       }
 
       @Test
+      @DisplayName("같은 날 익절 · 손절 기준가에 모두 닿고 시가부터 익절 기준가 위면 시가에 익절로 판다")
+      void bothTouchedSellsAtOpenTakeProfit() {
+        ConditionalStrategyRequest request = selling(3, 10).takeProfitRate(new BigDecimal("0.05"))
+          .stopLossRate(new BigDecimal("0.05")).build();
+        stubMarket(request, afterEntry(candle(2, "106", "107", "94", "100")), false);
+
+        strategy.execute(request);
+
+        assertThat(trades()).containsExactly(ENTRY, tuple("106", "6.0%익절", -1));
+      }
+
+      @Test
       @DisplayName("산 날은 고가가 익절 기준가 위여도 팔지 않는다")
       void noSellOnBuyDay() {
         ConditionalStrategyRequest request = selling(3, 10).takeProfitRate(new BigDecimal("0.05")).build();

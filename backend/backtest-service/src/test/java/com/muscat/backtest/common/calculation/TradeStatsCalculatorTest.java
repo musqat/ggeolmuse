@@ -107,6 +107,20 @@ class TradeStatsCalculatorTest {
   }
 
   @Test
+  @DisplayName("거래 목록이 거래일 순서가 아니어도 거래일 순서로 사이클을 나눈다")
+  void sortsByTradeDate() {
+    // 3월 1일 매수가 2월 1일 매도 앞에 있는 목록
+    List<StrategyTransaction> transactions = List.of(
+      buy(on(1, 10), "10"), buy(on(3, 1), "10"), sell(on(2, 1), "10", "100"));
+
+    TradeStats stats = TradeStatsCalculator.of(transactions, START, on(12, 31));
+
+    // 1월 10일 ~ 2월 1일 사이클 하나(+10%), 3월 1일 매수는 들고 있음
+    assertStats(stats, new TradeStats(2, 1, 1, true, 1, 0, number("100.00"), number("10.00"), null, null,
+      number("22.0"), number("2.00"), 0, 0));
+  }
+
+  @Test
   @DisplayName("실현 손익 합이 0 인 사이클은 진 것으로 세고, 이긴 사이클이 없으면 평균 익절 · 손익비를 비운다")
   void breakEvenIsLoss() {
     List<StrategyTransaction> transactions = List.of(
