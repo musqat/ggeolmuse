@@ -135,7 +135,7 @@ class BacktestAnalysisServiceImplTest {
       PortfolioRequest request = request("SPY");
       LocalDate start = LocalDate.of(2024, 1, 2);
       given(portfolioEngine.run(request)).willReturn(new PortfolioEngine.Result(start, request.getEndDate(), List.of(),
-        List.of(), List.of(new PortfolioEngine.Position("SPY", PortfolioStrategyType.LUMP_SUM, BigDecimal.valueOf(1000000),
+        List.of(), List.of(new PortfolioEngine.Position("SPY", PortfolioStrategyType.LUMP_SUM, null, BigDecimal.valueOf(1000000),
           BigDecimal.ZERO, BigDecimal.TEN, BigDecimal.ZERO)), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
         BigDecimal.ZERO, BigDecimal.valueOf(1300), new StrategyPerformance.Result(List.of(), null, null),
         CapitalGainsTaxCalculator.Payments.NONE, List.of()));
@@ -1266,7 +1266,7 @@ class BacktestAnalysisServiceImplTest {
           .trigger(sale[3]).build());
       }
       return new PortfolioEngine.Result(LocalDate.of(2021, 1, 4), LocalDate.of(2023, 12, 29), transactions, List.of(),
-        List.of(new PortfolioEngine.Position("SPY", PortfolioStrategyType.LUMP_SUM, new BigDecimal("10000000"),
+        List.of(new PortfolioEngine.Position("SPY", PortfolioStrategyType.LUMP_SUM, null, new BigDecimal("10000000"),
           BigDecimal.ZERO, BigDecimal.TEN, BigDecimal.ZERO)), new BigDecimal("10000000"), BigDecimal.ZERO,
         BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("1000"),
         new StrategyPerformance.Result(List.of(), null, null), CapitalGainsTaxCalculator.Payments.NONE, List.of());

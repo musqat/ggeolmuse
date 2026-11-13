@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
+import com.muscat.backtest.common.enums.type.ExecutionTiming;
 import com.muscat.backtest.common.enums.type.PortfolioAllocation;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
 import com.muscat.backtest.common.enums.type.PortfolioRebalance;
@@ -141,6 +142,24 @@ class StrategyRequestJsonTest {
   }
 
   @Test
+  @DisplayName("이동평균 교차 · 밴드 · 포트폴리오 줄 전략은 체결 시점을 이력 JSON 에 저장하고 다시 읽으며 비우면 신호 난 날 종가로 본다")
+  void executionTimingSaved() throws Exception {
+    MaCrossStrategyRequest maCross = maCross();
+    maCross.setExecutionTiming(ExecutionTiming.NEXT_DAY_OPEN);
+    MaBandStrategyRequest maBand = maBand();
+    maBand.setExecutionTiming(ExecutionTiming.SAME_DAY_CLOSE);
+    PortfolioStrategy line = new PortfolioStrategy(PortfolioStrategyType.MA_BAND, null, null, 100, null, null,
+      ExecutionTiming.NEXT_DAY_OPEN);
+
+    assertThat(objectMapper.writeValueAsString(maCross)).contains("\"executionTiming\":\"NEXT_DAY_OPEN\"");
+    assertThat(objectMapper.readValue(objectMapper.writeValueAsString(maBand), MaBandStrategyRequest.class)
+      .getExecutionTiming()).isEqualTo(ExecutionTiming.SAME_DAY_CLOSE);
+    assertThat(objectMapper.readValue(objectMapper.writeValueAsString(line), PortfolioStrategy.class).executionTiming())
+      .isEqualTo(ExecutionTiming.NEXT_DAY_OPEN);
+    assertThat(ExecutionTiming.orSameDayClose(maCross().getExecutionTiming())).isEqualTo(ExecutionTiming.SAME_DAY_CLOSE);
+  }
+
+  @Test
   @DisplayName("적립식 회당 금액은 amountPerPurchase 로 저장하고 monthlyAmount 도 읽으며 주기를 비우면 매달")
   void dcaAmountAlias() throws Exception {
     DcaStrategyRequest old = objectMapper.readValue("{\"symbol\":\"AAPL\",\"monthlyAmount\":1000,\"purchaseDay\":1}",
@@ -226,7 +245,7 @@ class StrategyRequestJsonTest {
       .endDate(LocalDate.of(2024, 1, 1)).allocation(PortfolioAllocation.WEIGHT).totalAmount(BigDecimal.valueOf(1000000))
       .assets(List.of(new PortfolioAsset(" spy", null, BigDecimal.valueOf(60), null, null, null, 2),
         new PortfolioAsset("QQQ", null, BigDecimal.valueOf(40), new BigDecimal("0.3"), new BigDecimal("0.1"),
-          new PortfolioStrategy(PortfolioStrategyType.MA_CROSS, 20, 60, null, null, null), 1)))
+          new PortfolioStrategy(PortfolioStrategyType.MA_CROSS, 20, 60, null, null, null, null), 1)))
       .method(PortfolioMethod.DCA).frequency(DcaFrequency.WEEKLY).rebalance(PortfolioRebalance.QUARTERLY)
       .taxSale(PortfolioTaxSale.CUSTOM_ORDER).userId("user-1").build();
 
@@ -238,7 +257,7 @@ class StrategyRequestJsonTest {
           + "\"strategy\":null,\"taxSaleOrder\":2}",
         "{\"symbol\":\"QQQ\",\"amount\":null,\"weightPercent\":40,\"takeProfitRate\":0.3,\"stopLossRate\":0.1,"
           + "\"strategy\":{\"type\":\"MA_CROSS\",\"shortWindow\":20,\"longWindow\":60,\"bandWindow\":null,"
-          + "\"upperRate\":null,\"lowerRate\":null},\"taxSaleOrder\":1}",
+          + "\"upperRate\":null,\"lowerRate\":null,\"executionTiming\":null},\"taxSaleOrder\":1}",
         "\"method\":\"DCA\"", "\"rebalance\":\"QUARTERLY\"", "\"taxSale\":\"CUSTOM_ORDER\"")
       .doesNotContain("normalizedSymbol").doesNotContain("amountOf").doesNotContain("strategyOf")
       .doesNotContain("OrDefault");

@@ -1,5 +1,6 @@
 package com.muscat.backtest.domain.dto.response;
 
+import com.muscat.backtest.common.enums.type.ExecutionTiming;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.SkippedSpan;
@@ -80,6 +81,9 @@ public class StrategyResponse {
 
   @Schema(description = "날마다 수정 종가 · 이동평균(교차는 두 평균, 밴드는 평균 · 위 선 · 아래 선)과 교차한 날 (이동평균 교차 · 밴드만, 다른 전략 · 전략 비교 항목은 null)")
   private SignalChart signalChart;
+
+  @Schema(description = "체결 시점 (SAME_DAY_CLOSE 신호 난 날 종가, NEXT_DAY_OPEN 신호 다음 거래일 시가, 이동평균 교차 · 밴드만, 다른 전략 · 전략 비교 항목은 null)", example = "NEXT_DAY_OPEN")
+  private ExecutionTiming executionTiming;
 
   @Schema(description = "사이클 승률 · 평균 익절 · 손절 · 손익비 · 평균 보유일 (조건부 · 이동평균 교차 · 밴드만, 단순 · 적립식은 null)")
   private TradeStats tradeStats;

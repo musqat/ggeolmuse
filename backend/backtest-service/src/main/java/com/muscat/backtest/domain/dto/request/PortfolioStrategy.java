@@ -2,6 +2,7 @@ package com.muscat.backtest.domain.dto.request;
 
 import com.muscat.backtest.common.constants.BacktestConstants.Band;
 import com.muscat.backtest.common.constants.BacktestConstants.MovingAverage;
+import com.muscat.backtest.common.enums.type.ExecutionTiming;
 import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
@@ -25,7 +26,10 @@ public record PortfolioStrategy(
   BigDecimal upperRate,
 
   @Schema(description = "밴드 아래 선 비율 (MA_BAND 에서만, 2.5% = 0.025, 0 이상 1 미만, 비우면 0.025)", example = "0.025")
-  BigDecimal lowerRate
+  BigDecimal lowerRate,
+
+  @Schema(description = "체결 시점 (MA_CROSS · MA_BAND 에서만, SAME_DAY_CLOSE 신호 난 날 종가, NEXT_DAY_OPEN 신호 다음 거래일 시가(다음 거래일이 없으면 체결 안 함), 비우면 SAME_DAY_CLOSE)", example = "NEXT_DAY_OPEN")
+  ExecutionTiming executionTiming
 ) {
 
   // 짧은 기간(비우면 20)

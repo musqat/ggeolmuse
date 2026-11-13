@@ -13,6 +13,7 @@ import com.muscat.backtest.common.calculation.CapitalGainsTaxCalculator;
 import com.muscat.backtest.common.calculation.PortfolioCalculator;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
+import com.muscat.backtest.common.enums.type.ExecutionTiming;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PortfolioAllocation;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
@@ -109,7 +110,7 @@ class PortfolioEngineTest {
 
   // 줄 전략이 있는 금액 줄
   private static PortfolioAsset planned(String symbol, String amount, PortfolioStrategyType type) {
-    return planned(symbol, amount, null, new PortfolioStrategy(type, null, null, null, null, null));
+    return planned(symbol, amount, null, new PortfolioStrategy(type, null, null, null, null, null, null));
   }
 
   // 줄 전략 · 익절 비율이 있는 금액 줄
@@ -121,13 +122,13 @@ class PortfolioEngineTest {
 
   // 이동평균 교차(짧은 · 긴 기간)
   private static PortfolioStrategy cross(int shortWindow, int longWindow) {
-    return new PortfolioStrategy(PortfolioStrategyType.MA_CROSS, shortWindow, longWindow, null, null, null);
+    return new PortfolioStrategy(PortfolioStrategyType.MA_CROSS, shortWindow, longWindow, null, null, null, null);
   }
 
   // 이동평균 밴드(평균 기간 · 위 · 아래 비율)
   private static PortfolioStrategy band(int window, String upperRate, String lowerRate) {
     return new PortfolioStrategy(PortfolioStrategyType.MA_BAND, null, null, window, new BigDecimal(upperRate),
-      new BigDecimal(lowerRate));
+      new BigDecimal(lowerRate), null);
   }
 
   // 시작일 전 3거래일 · 3월 4일 10 달러, 3월 5일 골든 크로스(12.5) · 3월 7일 데드 크로스(7.5)인 짧은 2 · 긴 3 거래일 일봉 앞부분
@@ -385,6 +386,152 @@ class PortfolioEngineTest {
   class SignalLines {
 
     private static final LocalDate APR1 = LocalDate.of(2024, 4, 1);
+
+    // 3월 5일 골든 크로스 · 3월 7일 데드 크로스, 3월 6일 시가 10, 3월 8일 시가 8 일봉은 고를 때만
+    private void crossingWithOpens(boolean withMarch8) {
+      List<OHLCPriceDto> head = List.of(candle("AAA", day(-3), "10"), candle("AAA", day(-2), "10"),
+        candle("AAA", day(-1), "10"), candle("AAA", day(0), "10"), candle("AAA", day(1), "12.5"),
+        bar("AAA", day(2), "10", "12.5", "10", "12.5"), candle("AAA", day(3), "7.5"));
+      if (withMarch8) {
+        prices("AAA", head, bar("AAA", day(4), "8", "8", "7.5", "7.5"));
+      } else {
+        prices("AAA", head);
+      }
+    }
+
+    private static PortfolioAsset nextOpenCross() {
+      return nextOpenCross("1300000");
+    }
+
+    // 다음 거래일 시가를 고른 짧은 2 · 긴 3 거래일 이동평균 교차 줄
+    private static PortfolioAsset nextOpenCross(String amount) {
+      return planned("AAA", amount, null, new PortfolioStrategy(PortfolioStrategyType.MA_CROSS, 2, 3, null, null,
+        null, ExecutionTiming.NEXT_DAY_OPEN));
+    }
+
+    // 3월 5일 골든 크로스에 3월 6일 시가 10 으로 1000주, 3월 8일 데드 크로스에 3월 11일 시가 20 으로 판 일봉 앞부분
+    // 2024년 이익 1300만원, 공제 뒤 22% 231만원 ÷ 1300 = 1776.92 달러를 2025년 5월 1일에 냄
+    private static List<OHLCPriceDto> gainIn2024() {
+      return List.of(candle("AAA", day(-3), "10"), candle("AAA", day(-2), "10"), candle("AAA", day(-1), "10"),
+        candle("AAA", day(0), "10"), candle("AAA", day(1), "12.5"), bar("AAA", day(2), "10", "30", "10", "30"),
+        candle("AAA", day(3), "30"), candle("AAA", day(4), "20"), candle("AAA", day(7), "20"));
+    }
+
+    @Test
+    @DisplayName("납부일 시가에 판 돈으로 그 날짜 양도세를 낸다")
+    void openSaleOnDueDatePaysTax() {
+      LocalDate apr30 = LocalDate.of(2025, 4, 30);
+      LocalDate due = LocalDate.of(2025, 5, 1);
+      // 3월 12일 골든 크로스에 3월 13일 시가 40 으로 다시 사고 2025년 4월 30일 데드 크로스에 납부일 시가 30 으로 팖
+      prices("AAA", gainIn2024(), candle("AAA", day(8), "40"), bar("AAA", day(9), "40", "40", "40", "40"),
+        candle("AAA", apr30, "10"), bar("AAA", due, "30", "30", "30", "30"));
+
+      PortfolioEngine.Result result = engine.run(request(due, nextOpenCross("13000000")).capitalGainsTax(true).build());
+
+      assertThat(result.transactions()).extracting(tx -> tuple(tx.getSymbol(), tx.getReason(), tx.tradedOn()))
+        .containsExactly(tuple("AAA", TradeReason.STRATEGY_BUY, day(2)), tuple("AAA", TradeReason.STRATEGY_SELL, day(7)),
+          tuple("AAA", TradeReason.STRATEGY_BUY, day(9)), tuple("AAA", TradeReason.STRATEGY_SELL, due),
+          tuple(null, TradeReason.TAX_PAYMENT, due));
+      // 500주 × 30 = 15000 달러에서 냄
+      assertThat(plain(result.transactions().get(4).getTaxPaid())).isEqualTo("1776.92");
+      assertThat(plain(result.cashUsd())).isEqualTo("13223.08");
+    }
+
+    @Test
+    @DisplayName("납부일 시가 매수는 양도세를 낸 뒤 남은 줄 몫 전부로 산다")
+    void openBuyOnDueDateAfterTax() {
+      LocalDate apr30 = LocalDate.of(2025, 4, 30);
+      LocalDate due = LocalDate.of(2025, 5, 1);
+      // 2025년 4월 30일 골든 크로스에 납부일 시가 40 으로 삼
+      prices("AAA", gainIn2024(), candle("AAA", apr30, "40"), bar("AAA", due, "40", "40", "40", "40"));
+
+      PortfolioEngine.Result result = engine.run(request(due, nextOpenCross("13000000")).capitalGainsTax(true).build());
+
+      assertThat(result.transactions()).extracting(tx -> tuple(tx.getSymbol(), tx.getReason(), tx.getDate(), tx.tradedOn()))
+        .containsExactly(tuple("AAA", TradeReason.STRATEGY_BUY, day(1), day(2)),
+          tuple("AAA", TradeReason.STRATEGY_SELL, day(4), day(7)), tuple(null, TradeReason.TAX_PAYMENT, due, due),
+          tuple("AAA", TradeReason.STRATEGY_BUY, apr30, due));
+      // 줄 몫 20000 달러에서 양도세 1776.92 달러를 낸 나머지
+      assertThat(plain(result.transactions().get(2).getTaxPaid())).isEqualTo("1776.92");
+      assertThat(plain(result.transactions().get(3).getCashUsed())).isEqualTo("18223.08");
+      assertThat(plain(result.transactions().get(3).getShares())).isEqualTo("455.577");
+      assertThat(plain(result.cashUsd())).isEqualTo("0");
+    }
+
+    @Test
+    @DisplayName("다음 거래일 시가 주문은 다음 날짜에 그 줄 일봉이 없으면 그 줄의 다음 일봉 시가에 체결한다")
+    void openOrderWaitsForLineCandle() {
+      // AAA 는 3월 7일 데드 크로스 뒤 3월 11일 시가 8, BBB 는 3월 8일에도 일봉
+      prices("AAA", List.of(candle("AAA", day(-3), "10"), candle("AAA", day(-2), "10"), candle("AAA", day(-1), "10"),
+          candle("AAA", day(0), "10"), candle("AAA", day(1), "12.5"), bar("AAA", day(2), "10", "12.5", "10", "12.5"),
+          candle("AAA", day(3), "7.5")),
+        bar("AAA", day(7), "8", "8", "7.5", "7.5"));
+      prices("BBB", candle("BBB", day(0), "10"), candle("BBB", day(4), "10"), candle("BBB", day(7), "10"));
+
+      PortfolioEngine.Result result = engine.run(request(day(7), nextOpenCross(), asset("BBB", "1300000")).build());
+
+      assertThat(result.transactions()).extracting(tx -> tuple(tx.getSymbol(), tx.getReason(), tx.getDate(), tx.tradedOn(),
+          plain(tx.getPrice())))
+        .containsExactly(tuple("BBB", TradeReason.BUY, day(0), day(0), "10"),
+          tuple("AAA", TradeReason.STRATEGY_BUY, day(1), day(2), "10"),
+          tuple("AAA", TradeReason.STRATEGY_SELL, day(3), day(7), "8"));
+      assertThat(result.positions()).extracting(PortfolioEngine.Position::executionTiming)
+        .containsExactly(ExecutionTiming.NEXT_DAY_OPEN, null);
+    }
+
+    @Test
+    @DisplayName("다음 거래일 시가에 판 날이 배당락일이면 재투자를 켜도 그 배당은 현금으로 둔다")
+    void dividendNotReinvestedOnOpenSaleDay() {
+      crossingWithOpens(true);
+      dividends("AAA", dividend("AAA", day(4), "1"));
+
+      PortfolioEngine.Result result = engine.run(request(day(4), nextOpenCross()).reinvestDividends(true).build());
+
+      assertThat(result.transactions()).extracting(StrategyTransaction::getReason)
+        .containsExactly(TradeReason.STRATEGY_BUY, TradeReason.STRATEGY_SELL);
+      assertThat(result.dividends()).extracting(paid -> plain(paid.amountUsd())).containsExactly("100");
+      // 100주 × 시가 8 + 배당 100
+      assertThat(plain(result.cashUsd())).isEqualTo("900");
+    }
+
+    @Test
+    @DisplayName("다음 거래일 시가를 고르면 이동평균 교차 줄은 신호 다음 거래일 시가에 사고팔고 신호 난 날을 계획일로 남긴다")
+    void crossLineAtNextOpen() {
+      crossingWithOpens(true);
+
+      PortfolioEngine.Result result = engine.run(request(day(4), nextOpenCross()).build());
+
+      assertThat(trades(result)).containsExactly(
+        tuple("AAA", TradeReason.STRATEGY_BUY, day(2), "골든 크로스", "10", "100", "1300000"),
+        tuple("AAA", TradeReason.STRATEGY_SELL, day(4), "데드 크로스", "8", "-100", "0"));
+      assertThat(result.transactions()).extracting(StrategyTransaction::getDate).containsExactly(day(1), day(3));
+      assertThat(plain(result.cashUsd())).isEqualTo("800");
+    }
+
+    @Test
+    @DisplayName("다음 거래일 시가에 판 날이 배당락일이면 전날까지 든 주식으로 배당을 받는다")
+    void dividendOnOpenSaleDay() {
+      crossingWithOpens(true);
+      dividends("AAA", dividend("AAA", day(4), "1"));
+
+      PortfolioEngine.Result result = engine.run(request(day(4), nextOpenCross()).build());
+
+      assertThat(result.dividends()).extracting(paid -> tuple(paid.exDate(), plain(paid.amountUsd())))
+        .containsExactly(tuple(day(4), "100"));
+      assertThat(plain(result.cashUsd())).isEqualTo("900");
+    }
+
+    @Test
+    @DisplayName("다음 거래일 시가를 고른 줄의 마지막 거래일 신호는 체결하지 않는다")
+    void lastDaySignalNotFilled() {
+      crossingWithOpens(false);
+
+      PortfolioEngine.Result result = engine.run(request(day(3), nextOpenCross()).build());
+
+      assertThat(trades(result)).containsExactly(
+        tuple("AAA", TradeReason.STRATEGY_BUY, day(2), "골든 크로스", "10", "100", "1300000"));
+      assertThat(positions(result)).containsExactly(tuple("AAA", "1300000", "100", "7.5", "975000"));
+    }
 
     @Test
     @DisplayName("이동평균 교차 줄은 첫 골든 크로스에 줄 금액을 새로 넣어 사고 데드 크로스에 판 돈을 줄 몫으로 두어 회차 매수에 쓰지 않고 다음 골든 크로스에 전부로 산다")
@@ -978,6 +1125,26 @@ class PortfolioEngineTest {
 
       assertThat(dueTrades(result)).isEmpty();
       assertThat(result.taxPayments().paidKrw()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("납부일이 배당락일이면 양도세를 먼저 내고(모자라면 판매 방식대로 팔고) 그 날짜 배당은 그 뒤에 받는다")
+    void taxBeforeDividendOnDueDate() {
+      dividends("AAA", dividend("AAA", DUE, "3"));
+
+      PortfolioEngine.Result unsold = run(null, "20", "2");
+      PortfolioEngine.Result sold = run(PortfolioTaxSale.CUSTOM_ORDER, "20", "2", 2, 1, 3);
+
+      assertThat(dueTrades(unsold)).isEmpty();
+      assertThat(unsold.taxPayments().paidKrw()).isEmpty();
+      assertThat(unsold.dividends()).extracting(paid -> tuple(paid.exDate(), plain(paid.amountUsd())))
+        .containsExactly(tuple(DUE, "300"));
+      assertThat(plain(unsold.cashUsd())).isEqualTo("300");
+      assertThat(dueTrades(sold)).containsExactly(tuple("BBB", TradeReason.TAX_SALE, "-100"),
+        tuple("AAA", TradeReason.TAX_SALE, "-1.846"), tuple(null, TradeReason.TAX_PAYMENT, "0"));
+      paidInFull(sold);
+      // AAA 는 판 뒤 남은 98.154주로 배당
+      assertThat(sold.dividends()).extracting(paid -> plain(paid.amountUsd())).containsExactly("294.46");
     }
 
     @Test

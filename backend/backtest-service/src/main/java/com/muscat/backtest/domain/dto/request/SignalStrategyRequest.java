@@ -1,5 +1,6 @@
 package com.muscat.backtest.domain.dto.request;
 
+import com.muscat.backtest.common.enums.type.ExecutionTiming;
 import com.muscat.backtest.common.enums.type.TaxSale;
 import java.math.BigDecimal;
 import java.util.List;
@@ -29,6 +30,8 @@ public interface SignalStrategyRequest extends StrategyRequest {
   BigDecimal getTrailingSellRate();
 
   List<PartialTakeProfit> getPartialTakeProfits();
+
+  ExecutionTiming getExecutionTiming();
 
   // 신호를 보는 대문자 종목(비우거나 매매 종목과 같으면 매매 종목)
   default String signalSymbolOrDefault() {

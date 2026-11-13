@@ -14,6 +14,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.muscat.backtest.common.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
+import com.muscat.backtest.common.enums.type.ExecutionTiming;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.StrategyType;
@@ -1056,5 +1057,132 @@ class MaCrossStrategyTest {
       .extracting("code")
       .isEqualTo(BacktestResponse.STRATEGY_TYPE_MISMATCH);
     verifyNoInteractions(marketDataClient);
+  }
+
+  @Nested
+  @DisplayName("다음 거래일 시가 체결")
+  class NextDayOpen {
+
+    // 시가 · 종가가 다른 일봉(수정 종가는 종가)
+    private OHLCPriceDto bar(int offset, String open, String close) {
+      BigDecimal o = new BigDecimal(open);
+      BigDecimal c = new BigDecimal(close);
+      return new OHLCPriceDto(SYMBOL, START.plusDays(offset), o, o.max(c), o.min(c), c, c, 1_000L, "USD", true);
+    }
+
+    private MaCrossStrategyRequest.MaCrossStrategyRequestBuilder nextOpen(int days) {
+      return request(days).executionTiming(ExecutionTiming.NEXT_DAY_OPEN);
+    }
+
+    // 신호 난 날 · 체결한 날 · 가격 · 이유 · 주식 수
+    private List<Tuple> fills() {
+      return executed().stream()
+        .map(tx -> tuple(tx.getDate(), tx.getActualDate(), plain(tx.getPrice()), tx.getTrigger(), plain(tx.getShares())))
+        .toList();
+    }
+
+    @Test
+    @DisplayName("골든 크로스 다음 거래일 시가에 원금 전부로 사고 데드 크로스 다음 거래일 시가에 전량 팔며, 신호 난 날을 계획일로 남긴다")
+    void tradesAtNextOpen() {
+      // crossing() 과 같은 종가, 2일째 시가 25 · 5일째 시가 10 · 7일째 시가 20
+      stubMarket(List.of(day(-2, "8"), day(-1, "8"), day(0, "8"), day(1, "10"), bar(2, "25", "20"), day(3, "22"),
+        day(4, "12"), bar(5, "10", "8"), day(6, "30"), bar(7, "20", "31")));
+
+      StrategyResponse response = strategy.execute(nextOpen(7).build());
+
+      assertThat(fills()).containsExactly(
+        tuple(START.plusDays(1), START.plusDays(2), "25", "골든 크로스", "40"),
+        tuple(START.plusDays(4), START.plusDays(5), "10", "데드 크로스", "-40"),
+        tuple(START.plusDays(6), START.plusDays(7), "20", "골든 크로스", "20"));
+      assertThat(executed().get(1).getRealizedProfit()).isEqualByComparingTo("-600");
+      // 20주 × 31달러 × 1300원
+      assertThat(calculation().getTotalAssetKrw()).isEqualByComparingTo("806000");
+      assertThat(response.getExecutionTiming()).isEqualTo(ExecutionTiming.NEXT_DAY_OPEN);
+    }
+
+    @Test
+    @DisplayName("신호 난 날 종가를 고르면 비운 것과 같이 그 날짜 종가에 사고판다")
+    void sameDayCloseKeepsResult() {
+      stubMarket(crossing());
+
+      StrategyResponse response = strategy.execute(request(7).executionTiming(ExecutionTiming.SAME_DAY_CLOSE).build());
+
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(1), "10", "골든 크로스", "100"),
+        tuple(START.plusDays(4), "12", "데드 크로스", "-100"),
+        tuple(START.plusDays(6), "30", "골든 크로스", "40"));
+      assertThat(executed()).allMatch(tx -> tx.getDate().equals(tx.getActualDate()));
+      assertThat(response.getExecutionTiming()).isEqualTo(ExecutionTiming.SAME_DAY_CLOSE);
+    }
+
+    @Test
+    @DisplayName("체결 시점을 비우면 응답에 신호 난 날 종가로 싣는다")
+    void defaultsToSameDayClose() {
+      stubMarket(crossing());
+
+      assertThat(strategy.execute(request(7).build()).getExecutionTiming()).isEqualTo(ExecutionTiming.SAME_DAY_CLOSE);
+    }
+
+    @Test
+    @DisplayName("마지막 거래일에 난 신호는 다음 거래일이 없어 체결하지 않는다")
+    void lastDaySignalNotFilled() {
+      stubMarket(List.of(day(-2, "8"), day(-1, "8"), day(0, "8"), day(1, "10")));
+
+      strategy.execute(nextOpen(1).build());
+
+      assertThat(executed()).isEmpty();
+      assertThat(calculation().getTotalInvested()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("시가에 산 날도 그 날짜 종가로 트레일링 스탑을 본다")
+    void trailingStopAfterOpenBuy() {
+      // 2일째 시가 25 에 사서 종가 20, 기준가 25 의 10% 아래
+      stubMarket(List.of(day(-2, "8"), day(-1, "8"), day(0, "8"), day(1, "10"), bar(2, "25", "20"), day(3, "22")));
+
+      strategy.execute(nextOpen(3).trailingStopRate(new BigDecimal("0.1")).build());
+
+      assertThat(fills()).containsExactly(
+        tuple(START.plusDays(1), START.plusDays(2), "25", "골든 크로스", "40"),
+        tuple(START.plusDays(2), START.plusDays(2), "20", "고점 대비 하락 매도 20.0%", "-40"));
+    }
+
+    @Test
+    @DisplayName("납부일 시가 매도는 양도세 납부보다 먼저라 그 판 돈에서 그날 양도세를 낸다")
+    void sellsAtOpenBeforeTax() {
+      // 2일째 시가 10 에 100주, 5일째 시가 49 에 팔아 507만원 이익, 7일째 시가 80 에 61.25주, 422일째 데드 크로스
+      stubMarket(List.of(day(-2, "8"), day(-1, "8"), day(0, "8"), day(1, "10"), bar(2, "10", "60"), day(3, "70"),
+        day(4, "49"), bar(5, "49", "40"), day(6, "80"), bar(7, "80", "81"), day(422, "50"), bar(423, "50", "52"),
+        day(424, "52")));
+
+      strategy.execute(nextOpen(424).capitalGainsTax(true).build());
+
+      assertThat(fills()).containsExactly(
+        tuple(START.plusDays(1), START.plusDays(2), "10", "골든 크로스", "100"),
+        tuple(START.plusDays(4), START.plusDays(5), "49", "데드 크로스", "-100"),
+        tuple(START.plusDays(6), START.plusDays(7), "80", "골든 크로스", "61.25"),
+        tuple(START.plusDays(422), DUE, "50", "데드 크로스", "-61.25"),
+        tuple(DUE, DUE, "0", "양도세 납부", "0"));
+      // 257만원 × 22% ÷ 1300원, 424일째 골든 크로스는 다음 거래일이 없어 사지 않음
+      assertThat(executed().getLast().getTaxPaid()).isEqualByComparingTo("434.92");
+      assertThat(calculation().getCashBalance()).isEqualByComparingTo("2627.58");
+    }
+
+    @Test
+    @DisplayName("납부일 시가 매수는 양도세를 먼저 내고 남은 판 돈으로 산다")
+    void paysTaxBeforeOpenBuy() {
+      // 5일째 시가 49 에 팔아 4900달러, 422일째 골든 크로스, 납부일 시가 61
+      stubMarket(List.of(day(-2, "8"), day(-1, "8"), day(0, "8"), day(1, "10"), bar(2, "10", "60"), day(3, "70"),
+        day(4, "49"), bar(5, "49", "40"), day(422, "60"), bar(423, "61", "62")));
+
+      strategy.execute(nextOpen(423).capitalGainsTax(true).build());
+
+      assertThat(fills()).containsExactly(
+        tuple(START.plusDays(1), START.plusDays(2), "10", "골든 크로스", "100"),
+        tuple(START.plusDays(4), START.plusDays(5), "49", "데드 크로스", "-100"),
+        tuple(DUE, DUE, "0", "양도세 납부", "0"),
+        tuple(START.plusDays(422), DUE, "61", "골든 크로스", "73.19803279"));
+      assertThat(executed().getLast().getCashUsed()).isEqualByComparingTo("4465.08");
+    }
   }
 }

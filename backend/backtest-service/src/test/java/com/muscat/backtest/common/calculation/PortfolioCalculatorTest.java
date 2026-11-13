@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.tuple;
 import com.muscat.backtest.common.constants.BacktestConstants.TransactionTrigger;
 import com.muscat.backtest.common.engine.PortfolioEngine;
 import com.muscat.backtest.common.engine.StrategyPerformance;
+import com.muscat.backtest.common.enums.type.ExecutionTiming;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
 import com.muscat.backtest.common.enums.type.PortfolioRebalance;
@@ -66,7 +67,7 @@ class PortfolioCalculatorTest {
 
   private static PortfolioEngine.Position position(String symbol, PortfolioStrategyType type, String planned,
     String shares, String close, String value) {
-    return new PortfolioEngine.Position(symbol, type, number(planned), number(shares), number(close), number(value));
+    return new PortfolioEngine.Position(symbol, type, null, number(planned), number(shares), number(close), number(value));
   }
 
   private static PortfolioRequest.PortfolioRequestBuilder request(PortfolioAsset... assets) {
@@ -80,7 +81,7 @@ class PortfolioCalculatorTest {
   private static PortfolioResponse.Asset row(String symbol, PortfolioStrategyType type, String invested, String bought,
     String value, String sold, String dividend, String profit, String returnPercent, String contribution,
     String startWeight, String endWeight, String shares, String realized, int buys, int sells) {
-    return new PortfolioResponse.Asset(symbol, type, number(invested), number(bought), number(value), number(sold),
+    return new PortfolioResponse.Asset(symbol, type, null, number(invested), number(bought), number(value), number(sold),
       number(dividend), number(profit), number(returnPercent), number(contribution), number(startWeight),
       number(endWeight), number(shares), number(realized), buys, sells);
   }
@@ -312,5 +313,22 @@ class PortfolioCalculatorTest {
     assertThat(response.dailyValues()).isEmpty();
     assertThat(response.metricsUsd()).isNull();
     assertThat(response.tradeStats()).isNull();
+  }
+
+  @Test
+  @DisplayName("이동평균 · 밴드 줄은 체결 시점을 싣고 다른 줄은 null 이다")
+  void executionTimingRow() {
+    PortfolioEngine.Result result = new PortfolioEngine.Result(START, END, List.of(), List.of(),
+      List.of(position("SPY", "1300000", "0", "10", "0"), new PortfolioEngine.Position("QQQ",
+        PortfolioStrategyType.MA_CROSS, ExecutionTiming.NEXT_DAY_OPEN, number("1300000"), BigDecimal.ZERO, number("10"),
+        BigDecimal.ZERO)), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+      number("1300"), new StrategyPerformance.Result(List.of(), null, null), CapitalGainsTaxCalculator.Payments.NONE,
+      List.of());
+
+    PortfolioResponse response = PortfolioCalculator.of(
+      request(asset("SPY", "1300000"), asset("QQQ", "1300000")).build(), result);
+
+    assertThat(response.assets()).extracting(PortfolioResponse.Asset::executionTiming)
+      .containsExactly(null, ExecutionTiming.NEXT_DAY_OPEN);
   }
 }

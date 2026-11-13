@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-// 양도세 납부: 결제된 해의 세금을 다음 해 5월 1일 이후 첫 거래일부터 사고팔기 전에 판 돈(USD)에서 냄
+// 양도세 납부: 결제된 해의 세금을 다음 해 5월 1일 이후 첫 거래일부터 그 날짜 시가 매도 뒤 · 다른 사고팔기 전에 판 돈(USD)에서 냄
 // 현금이 모자라면 있는 만큼 내고 남은 몫은 현금이 있는 거래일마다 오래된 해부터 냄
 public final class CapitalGainsTaxPayer {
 

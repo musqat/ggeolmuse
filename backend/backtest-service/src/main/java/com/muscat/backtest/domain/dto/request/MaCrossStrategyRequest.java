@@ -2,6 +2,7 @@ package com.muscat.backtest.domain.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.muscat.backtest.common.constants.BacktestConstants.MovingAverage;
+import com.muscat.backtest.common.enums.type.ExecutionTiming;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.enums.type.TaxSale;
@@ -97,6 +98,9 @@ public class MaCrossStrategyRequest implements SignalStrategyRequest {
 
   @Schema(description = "부분 익절 단계: 수익률이 낮은 단계부터 사이클에 한 번씩, 하루에 한 단계 보유의 팔 비율만큼 팜, 다 팔면 다음 골든 크로스에 다시 삼 (5단계까지, 비우면 안 함)")
   private List<PartialTakeProfit> partialTakeProfits;
+
+  @Schema(description = "체결 시점 (SAME_DAY_CLOSE 골든 · 데드 크로스 난 날 종가, NEXT_DAY_OPEN 그다음 거래일 시가(다음 거래일이 없으면 체결 안 함), 비우면 SAME_DAY_CLOSE)", example = "NEXT_DAY_OPEN")
+  private ExecutionTiming executionTiming;
 
   // 이력 저장 JSON 에는 넣지 않음
   @JsonIgnore
