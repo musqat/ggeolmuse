@@ -184,17 +184,29 @@ jobs:
     needs: [plan, build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    permissions:
-      contents: write
+    # 배포 키 시크릿이 있는 환경(배포 브랜치 master 만)
+    environment: release
     env:
       SHA: ${{ needs.plan.outputs.sha }}
       TAGS: ${{ needs.plan.outputs.tags }}
       SERVICES: ${{ needs.plan.outputs.services }}
     steps:
+      # 배포 키가 없으면 바로 실패(키 없는 checkout 은 읽기 토큰이라 푸시 불가)
+      - name: 배포 키 확인
+        env:
+          KEY_SET: ${{ secrets.RELEASE_DEPLOY_KEY != '' }}
+        run: |
+          if [ "$KEY_SET" != true ]; then
+            echo "환경 release 에 RELEASE_DEPLOY_KEY 없음(docs/DEPLOY.md 의 릴리스 봇 준비)"
+            exit 1
+          fi
+
+      # 쓰기 배포 키로 받기 · 푸시(master 규칙의 우회 대상)
       - uses: actions/checkout@v7
         with:
           ref: master
           fetch-depth: 0
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
       - uses: actions/setup-go@v7
         with:
           go-version-file: tools/go.mod
@@ -203,7 +215,7 @@ jobs:
 
       # 최신 master 에서 다시 고른 뒤 태그를 바꿈(동시에 돈 다른 릴리스가 먼저 커밋했으면 그 위에서 다시, 더 새 커밋이 배포된 서비스는 뺌,
       # 그사이 올라간 운영 버전 이하면 실패), 커밋 직전에 Hub 이미지 레이블이 이 커밋인지 대조
-      # GITHUB_TOKEN 으로 만든 커밋이라 CI · 릴리스가 다시 돌지 않음
+      # 커밋 본문의 [skip ci] 로 CI · E2E · 릴리스가 다시 돌지 않음, 푸시가 앞선 커밋 말고 다른 이유로 막히면 바로 실패
       - name: 운영 태그 커밋
         run: |
           git config user.name "github-actions[bot]"
@@ -228,10 +240,15 @@ jobs:
                 exit 1
               fi
             done
-            git commit -qam "$subject"
-            if git push -q origin HEAD:master; then
+            git commit -qam "$subject" -m "[skip ci]"
+            if out=$(git push -q origin HEAD:master 2>&1); then
               echo "### 릴리스 — $subject" >> "$GITHUB_STEP_SUMMARY"
               exit 0
+            fi
+            if ! grep -qE 'fetch first|non-fast-forward' <<<"$out"; then
+              echo "$out"
+              echo "master 에 푸시 실패(master 가 앞선 것이 아님)"
+              exit 1
             fi
             echo "master 가 앞서 있어 다시 계산($i)"
           done
