@@ -7,7 +7,7 @@ import type { SignalChoice } from '../shared/signalSymbol';
 import { stepRate, type TakeProfitStep } from '../shared/partialTakeProfit';
 import type { BacktestOptions } from '../shared/backtestOptions';
 import type { PortfolioAllocation } from '@services/api';
-import { rowAmount, rowSymbol, rowWeight, type PortfolioRow } from '../shared/portfolioRows';
+import { isWeightSumOk, rowAmount, rowSymbol, rowWeight, type PortfolioRow } from '../shared/portfolioRows';
 
 // 칸 아래 한 줄(오류는 실행을 막고 경고는 안 막음), 글 뒤에 작은 단추 하나
 export interface FieldMessage {
@@ -265,6 +265,10 @@ export const portfolioRowIssues = (
         : error(`${n} 비율 0 초과 100 이하`);
     return { symbol, value, ...others };
   });
+
+// 비율 방식 줄 비율 합이 100 밖(줄 비율 칸 오류가 있으면 그 칸 오류로 셈)
+export const isWeightSumBad = (rows: PortfolioRow[], allocation: PortfolioAllocation, messages: PortfolioRowMessages[]) =>
+  allocation === 'WEIGHT' && messages.every((message) => !message.value) && !isWeightSumOk(rows);
 
 export const maxIssue = (max: string): FieldMessage | null => {
   if (!max.trim()) return null;

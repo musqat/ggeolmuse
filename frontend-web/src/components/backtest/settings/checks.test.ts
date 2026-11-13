@@ -8,6 +8,7 @@ import {
   firstIssue,
   fxGapNotice,
   fxRateIssue,
+  isWeightSumBad,
   maxIssue,
   monthsIssue,
   partialTakeProfitIssues,
@@ -233,6 +234,16 @@ describe('설정 칸 검사', () => {
         { ...ok, value: error('1번 줄 비율 비어 있음'), shortWindow: error('1번 줄 짧은 기간 긴 기간보다 짧게') },
         { ...ok, value: error('2번 줄 비율 비어 있음'), bandWindow: error('2번 줄 밴드 기간 2 ~ 250 사이 정수'), upper: error('2번 줄 위 비율 0 이상 100 미만') },
       ])
+    })
+
+    it('비율 방식은 줄 비율 칸이 모두 맞고 합이 100 이 아닐 때 비율 합을 고칠 것으로, 금액 방식이거나 줄 비율 칸 오류가 있으면 보지 않는다', () => {
+      const off = [row('SPY', '', '60'), row('QQQ', '', '39')]
+
+      expect(isWeightSumBad(off, 'WEIGHT', [ok, ok])).toBe(true)
+      expect(isWeightSumBad([row('SPY', '', '60'), row('QQQ', '', '40')], 'WEIGHT', [ok, ok])).toBe(false)
+      expect(isWeightSumBad(off, 'AMOUNT', [ok, ok])).toBe(false)
+      const emptyWeight = { kind: 'error' as const, text: '2번 줄 비율 비어 있음' }
+      expect(isWeightSumBad([row('SPY', '', '60'), row('QQQ', '', '')], 'WEIGHT', [ok, { ...ok, value: emptyWeight }])).toBe(false)
     })
 
     it('한 번에 · 적립식 줄은 남아 있는 이동평균 · 밴드 칸을 보지 않는다', () => {

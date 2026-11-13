@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from 'vitest'
+import { afterEach, describe, it, expect, vi } from 'vitest'
 import { useState } from 'react'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { PortfolioAllocation } from '@services/api'
 import { PortfolioAssetsField, type PortfolioAssetsFieldProps } from './PortfolioAssetsField'
@@ -38,6 +38,33 @@ const lowerInput = (n: number) => screen.getByRole('textbox', { name: `${n}번 �
 const removeButton = (n: number) => screen.getByRole('button', { name: `${n}번 종목 지우기` })
 const addButton = () => screen.getByRole('button', { name: '＋ 종목 더하기' })
 const sum = () => screen.getByTestId('portfolio-sum')
+
+// 칸마다 앞 칸보다 문서 뒤
+const expectOrder = (fields: HTMLElement[]) =>
+  fields.slice(1).forEach((field, i) => {
+    expect(fields[i].compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+// 넓은 화면(lg) 여부를 바꿀 수 있는 matchMedia
+const stubWide = (initial: boolean) => {
+  let wide = initial
+  const listeners = new Set<() => void>()
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn((query: string) => ({
+      media: query,
+      matches: query === '(min-width: 1024px)' && wide,
+      addEventListener: (_: string, listener: () => void) => listeners.add(listener),
+      removeEventListener: (_: string, listener: () => void) => listeners.delete(listener),
+    }))
+  )
+  return {
+    set: (next: boolean) => {
+      wide = next
+      listeners.forEach((listener) => listener())
+    },
+  }
+}
 
 // 줄 · 방식 · 총액을 화면 상태로 들고 있는 칸
 const Harness = ({ initial, patch = {} }: { initial: PortfolioRow[]; patch?: Partial<PortfolioAssetsFieldProps> }) => {
@@ -98,6 +125,83 @@ describe('PortfolioAssetsField', () => {
     expect(sum()).toHaveTextContent('합계 100%')
     expect(sum()).not.toHaveTextContent('맞추기')
     expect(sum()).not.toHaveClass('text-warning')
+  })
+
+  it('줄 비율 칸이 모두 맞는데 합이 100 이 아니면 비율 칸을 모두 오류로 두고 합계 줄과 잇는다', async () => {
+    const { unmount } = render(<Harness initial={[row('SPY', '', '60'), row('QQQ', '', '39')]} />)
+    await userEvent.click(screen.getByRole('radio', { name: '비율' }))
+
+    expect(weightInput(1)).toHaveAttribute('aria-invalid', 'true')
+    expect(weightInput(2)).toHaveAttribute('aria-invalid', 'true')
+    expect(weightInput(1)).toHaveAccessibleDescription('합계 99% · 100% 로 맞추기')
+
+    fireEvent.change(weightInput(2), { target: { value: '40' } })
+    expect(weightInput(1)).not.toHaveAttribute('aria-invalid')
+    expect(weightInput(1)).not.toHaveAttribute('aria-describedby')
+    unmount()
+
+    render(
+      <Harness
+        initial={[row('SPY', '', '60'), row('QQQ', '', '')]}
+        patch={{ messages: [ok, { ...ok, value: error('2번 줄 비율 비어 있음') }] }}
+      />
+    )
+    await userEvent.click(screen.getByRole('radio', { name: '비율' }))
+    expect(weightInput(1)).not.toHaveAttribute('aria-invalid')
+    expect(weightInput(2)).toHaveAccessibleDescription('2번 줄 비율 비어 있음')
+  })
+
+  describe('줄 칸 차례', () => {
+    afterEach(() => vi.unstubAllGlobals())
+
+    const bandRows = () => [{ ...row('SPY', '6000000'), strategy: 'MA_BAND' as const }, row('QQQ', '4000000')]
+    const narrowOrder = () => [
+      symbolInput(1),
+      removeButton(1),
+      amountInput(1),
+      takeProfitInput(1),
+      stopLossInput(1),
+      strategySelect(1),
+      bandWindowInput(1),
+    ]
+
+    it('넓은 화면이 아니면 종목 · 지우기 · 금액 · 익절 · 손절 · 전략 · 밴드 칸 차례이고 전략은 따로 한 줄', () => {
+      render(<Harness initial={bandRows()} />)
+
+      expectOrder(narrowOrder())
+      expect(strategySelect(1).parentElement).toHaveClass('basis-full')
+    })
+
+    it('넓은 화면은 종목 · 금액 · 전략 · 익절 · 손절 · 지우기 · 밴드 칸 차례이고 화면이 좁아지면 차례도 바뀐다', () => {
+      const media = stubWide(true)
+      render(<Harness initial={bandRows()} />)
+
+      expectOrder([
+        symbolInput(1),
+        amountInput(1),
+        strategySelect(1),
+        takeProfitInput(1),
+        stopLossInput(1),
+        removeButton(1),
+        bandWindowInput(1),
+      ])
+      act(() => media.set(false))
+      expectOrder(narrowOrder())
+    })
+  })
+
+  it('휴대폰 너비는 몫 % · 어림 금액과 익절 · 손절 부호를 감추고 금액 · 익절 · 손절 칸 너비를 글 길이로 둔다', async () => {
+    render(<Harness initial={[row('SPY', '6000000', '60', '30', '10'), row('QQQ', '4000000', '40')]} />)
+    const first = amountInput(1).closest('[data-row]') as HTMLElement
+
+    expect(within(first).getByText('60%')).toHaveClass('hidden', 'sm:inline')
+    expect(within(first).getByText('+')).toHaveClass('hidden', 'sm:inline')
+    expect(within(first).getByText('-')).toHaveClass('hidden', 'sm:inline')
+    expect(amountInput(1).parentElement).toHaveClass('basis-auto', 'sm:basis-36')
+    expect(takeProfitInput(1).parentElement).toHaveClass('basis-auto', 'sm:basis-52')
+
+    await userEvent.click(screen.getByRole('radio', { name: '비율' }))
+    expect(within(first).getByText('≈ 600만원')).toHaveClass('hidden', 'sm:inline')
   })
 
   it('줄마다 익절 · 손절 칸은 비면 안 함, 적으면 + · - 부호와 % 를 보이고 그 줄 값만 바꾼다', async () => {
