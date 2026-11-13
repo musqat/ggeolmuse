@@ -67,7 +67,7 @@ public final class BacktestConstants {
     /** 수정 종가가 밴드 아래 선보다 낮은 날 매도 */
     public static final String BAND_SELL = "밴드 아래 매도";
 
-    /** 판 해의 양도세를 다음 해 5월 판 돈에서 냄 */
+    /** 결제된 해의 양도세를 다음 해 5월 판 돈에서 냄 */
     public static final String CAPITAL_GAINS_TAX_PAYMENT = "양도세 납부";
 
     /** 양도세 낼 현금이 모자라 그 날짜 종가에 모자란 만큼 팖 */

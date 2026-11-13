@@ -88,7 +88,7 @@ public class PortfolioRequest {
   @Schema(description = "배당 원천징수세율 (미국 원천징수 15% = 0.15, 미적용 시 0)", example = "0.15")
   private BigDecimal dividendTaxRate;
 
-  @Schema(description = "양도소득세 계산 · 납부 여부 (포트폴리오 전체 판 해마다 원화 실현 이익에서 연 250만원 공제 뒤 22% 를 다음 해 5월 1일 이후 첫 거래일에 현금에서 냄, 비우면 끔)", example = "true")
+  @Schema(description = "양도소득세 계산 · 납부 여부 (포트폴리오 전체 결제된 해(2024-05-28 전 T+2, 그 뒤 T+1)마다 원화 실현 이익에서 연 250만원 공제 뒤 22% 를 다음 해 5월 1일 이후 첫 거래일에 현금에서 냄, 비우면 끔)", example = "true")
   private Boolean capitalGainsTax;
 
   @Schema(description = "양도세 낼 현금이 모자랄 때 (NONE 현금이 생길 때 냄, TARGET_WEIGHT 목표 비중보다 커진 종목부터, CUSTOM_ORDER 줄마다 정한 판매 순서대로, LOSS_FIRST 손실 큰 종목부터, GAIN_NEUTRAL 손실 · 이익 종목을 섞어 판 이익 0, 그 날짜 일봉이 있는 종목을 그 날짜 종가에 모자란 만큼 팖, 비우면 NONE)", example = "LOSS_FIRST")

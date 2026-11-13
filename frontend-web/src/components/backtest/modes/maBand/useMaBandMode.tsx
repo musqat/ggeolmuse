@@ -14,6 +14,7 @@ import { singleTaxSale } from '../../shared/taxSale';
 import { useSignalSymbol } from '../useSignalSymbol';
 import { useTrailingStop } from '../useTrailingStop';
 import { usePartialTakeProfit } from '../usePartialTakeProfit';
+import { useExecutionTiming } from '../useExecutionTiming';
 
 const LABEL = '원금';
 const DEFAULTS = { amount: '1000000', window: MA_BAND.window, upper: MA_BAND.upper, lower: MA_BAND.lower };
@@ -28,6 +29,7 @@ export const useMaBandMode = (shared: SharedModeProps): ModeController => {
   const signal = useSignalSymbol(symbol, supportedSymbols);
   const trailing = useTrailingStop();
   const partial = usePartialTakeProfit();
+  const execution = useExecutionTiming();
 
   const amountMessage = amountIssue({ byShares: false, amount: investment, shares: '', label: LABEL });
   const bandMessages = bandIssues(bandWindow, upper, lower);
@@ -52,6 +54,7 @@ export const useMaBandMode = (shared: SharedModeProps): ModeController => {
           messages: bandMessages,
         }}
         signal={signal.field}
+        execution={execution.field}
         trailing={trailing.field}
         partial={partial.field}
       />
@@ -64,6 +67,7 @@ export const useMaBandMode = (shared: SharedModeProps): ModeController => {
         upper,
         lower,
         signal: signal.signalSymbol,
+        execution: execution.text,
         trailing: trailing.text,
         partial: partial.text,
       }),
@@ -83,7 +87,16 @@ export const useMaBandMode = (shared: SharedModeProps): ModeController => {
     reinvestNote: '밴드는 배당을 현금으로',
     taxSale: singleTaxSale(options),
     harvest: true,
-    saved: { amount: investment, window: bandWindow, upper, lower, ...signal.saved, ...trailing.saved, ...partial.saved },
+    saved: {
+      amount: investment,
+      window: bandWindow,
+      upper,
+      lower,
+      ...signal.saved,
+      ...execution.saved,
+      ...trailing.saved,
+      ...partial.saved,
+    },
     load: (saved) => {
       const next = pickValues(DEFAULTS, saved);
       setInvestment(next.amount);
@@ -91,6 +104,7 @@ export const useMaBandMode = (shared: SharedModeProps): ModeController => {
       setUpper(next.upper);
       setLower(next.lower);
       signal.load(saved);
+      execution.load(saved);
       trailing.load(saved);
       partial.load(saved);
     },
@@ -104,6 +118,7 @@ export const useMaBandMode = (shared: SharedModeProps): ModeController => {
           upperPercent: upper,
           lowerPercent: lower,
           signalSymbol: signal.signalSymbol,
+          executionTiming: execution.timing,
           trailingStop: trailing.stop,
           trailingSell: trailing.sell,
           partialTakeProfits: partial.steps,

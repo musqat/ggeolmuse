@@ -19,8 +19,9 @@ const chart: SignalChartData = {
   crosses: [],
 }
 
-const trade = (date: string, shares: number, trigger: string): StrategyTransaction => ({
+const trade = (date: string, shares: number, trigger: string, actualDate?: string): StrategyTransaction => ({
   date,
+  actualDate,
   price: 1,
   shares,
   amount: 0,
@@ -37,7 +38,7 @@ const transactions = [
 const band = { window: 200, upperRate: 0.025, lowerRate: 0.035 }
 
 describe('BandChart', () => {
-  it('수정 종가 · 평균 · 위 선 · 아래 선을 그리고 위 · 아래 선은 점선, 산 날 · 판 날은 그 날짜 수정 종가 위에 거래 점을 찍는다', () => {
+  it('수정 종가 · 평균 · 위 선 · 아래 선을 그리고 위 · 아래 선은 점선, 사고판 거래의 신호 난 날은 그 날짜 수정 종가 위에 거래 점을 찍는다', () => {
     render(<BandChart chart={chart} transactions={transactions} band={band} />)
 
     const [signal] = readCharts()
@@ -50,6 +51,21 @@ describe('BandChart', () => {
     ])
   })
 
+  it('다음 거래일 시가에 사고판 거래도 체결한 날이 아닌 신호 난 날 수정 종가 위에 점을 찍는다', () => {
+    render(
+      <BandChart
+        chart={chart}
+        transactions={[trade('2024-01-04', 20, '밴드 위 매수', '2024-01-05'), trade('2024-01-05', -20, '밴드 아래 매도', '2024-01-08')]}
+        band={band}
+      />
+    )
+
+    expect(readCharts()[0].dots).toEqual([
+      { x: '2024-01-04', y: 490.2, fill: '#8b5cf6' },
+      { x: '2024-01-05', y: 485.5, fill: '#ef4444' },
+    ])
+  })
+
   it('차트 아래 범례 한 줄에 선 넷과 거래 점 둘의 이름을 둔다', () => {
     render(<BandChart chart={chart} transactions={transactions} band={band} />)
 
@@ -59,8 +75,8 @@ describe('BandChart', () => {
       '200일선',
       '위 선 +2.5%',
       '아래 선 -3.5%',
-      '매수',
-      '매도',
+      '매수 신호',
+      '매도 신호',
     ])
   })
 

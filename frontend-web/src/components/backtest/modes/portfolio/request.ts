@@ -13,6 +13,7 @@ import { dayOfMonth, parseMonths, resolveFirstPurchase, scheduleFields, type Dca
 import { toSellRates } from '../../shared/sellRates';
 import { WINDOWS_ERROR, parseWindows } from '../../shared/maWindows';
 import { BAND_ERROR, parseBand } from '../../shared/maBand';
+import { executionTimingFields } from '../../shared/executionTiming';
 import {
   MAX_ROWS,
   hasDcaRow,
@@ -68,16 +69,25 @@ const sizesOf = (values: PortfolioValues): { sizes: PortfolioAssetSize[] } | { e
   return { sizes: weights.map((weightPercent) => ({ weightPercent })) };
 };
 
-// 고른 줄 전략(방식대로면 싣지 않음, 이동평균은 두 기간 · 밴드는 평균 기간과 위 · 아래 비율)
+// 고른 줄 전략(방식대로면 싣지 않음, 이동평균은 두 기간 · 밴드는 평균 기간과 위 · 아래 비율, 둘 다 다음 거래일 시가면 체결 시점)
 const strategyOf = (row: PortfolioRow): { strategy?: PortfolioAssetStrategy } | { error: string } => {
+  const timing = executionTimingFields(row.executionTiming);
   if (row.strategy === 'MA_CROSS') {
     const windows = parseWindows(row.shortWindow, row.longWindow);
-    return windows ? { strategy: { type: 'MA_CROSS', ...windows } } : { error: WINDOWS_ERROR };
+    return windows ? { strategy: { type: 'MA_CROSS', ...windows, ...timing } } : { error: WINDOWS_ERROR };
   }
   if (row.strategy === 'MA_BAND') {
     const band = parseBand(row.bandWindow, row.upper, row.lower);
     return band
-      ? { strategy: { type: 'MA_BAND', bandWindow: band.window, upperRate: band.upperRate, lowerRate: band.lowerRate } }
+      ? {
+          strategy: {
+            type: 'MA_BAND',
+            bandWindow: band.window,
+            upperRate: band.upperRate,
+            lowerRate: band.lowerRate,
+            ...timing,
+          },
+        }
       : { error: BAND_ERROR };
   }
   return row.strategy ? { strategy: { type: row.strategy } } : {};

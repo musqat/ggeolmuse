@@ -152,4 +152,14 @@ describe('PortfolioTrades', () => {
     await userEvent.selectOptions(screen.getByRole('combobox', { name: '이유' }), '전략 매도')
     expect(rows().map((row) => cells(row)[0])).toEqual(['2020-09-08'])
   })
+
+  it('신호 줄을 다음 거래일 시가에 사고판 날은 그 아래 신호 날짜를 보인다', () => {
+    const signal: PortfolioTransaction = {
+      symbol: 'QQQ', reason: 'STRATEGY_BUY', date: '2024-03-04', actualDate: '2024-03-05', trigger: '골든 크로스', shares: 10,
+      price: 400, amount: 5200000, fxRate: 1300,
+    }
+    render(<PortfolioTrades transactions={[signal]} symbols={['QQQ']} />)
+
+    expect(cells(rows()[0])[0]).toBe('2024-03-05신호 2024-03-04')
+  })
 })

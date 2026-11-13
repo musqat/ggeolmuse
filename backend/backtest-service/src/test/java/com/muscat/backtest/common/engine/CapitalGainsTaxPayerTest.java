@@ -61,6 +61,21 @@ class CapitalGainsTaxPayerTest {
   }
 
   @Test
+  @DisplayName("12월 31일에 판 거래는 결제된 다음 해 몫이라 그다음 해 5월에 낸다")
+  void paysForSettlementYear() {
+    List<StrategyTransaction> transactions = List.of(buy(LocalDate.of(2024, 1, 15)),
+      sell(LocalDate.of(2024, 12, 31), "4100"));
+    CapitalGainsTaxPayer payer = new CapitalGainsTaxPayer(true);
+    LocalDate nextDue = LocalDate.of(2026, 5, 1);
+
+    assertThat(payer.pay(DUE, transactions, new BigDecimal("4100"), FX, false)).isNull();
+    StrategyTransaction payment = payer.pay(nextDue, transactions, new BigDecimal("4100"), FX, false);
+
+    assertThat(payment.getTaxPaid()).isEqualByComparingTo("258.92");
+    assertThat(payer.payments()).isEqualTo(new Payments(Map.of(2025, nextDue), Map.of(2025, new BigDecimal("336600"))));
+  }
+
+  @Test
   @DisplayName("현금이 모자라면 있는 현금을 다 내고 낸 원화는 원 미만을 버리며, 남은 몫은 현금이 생긴 거래일에 낸다")
   void paysRestWhenCashComes() {
     CapitalGainsTaxPayer payer = new CapitalGainsTaxPayer(true);

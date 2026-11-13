@@ -6,6 +6,7 @@ import com.muscat.backtest.common.constants.BacktestConstants.Money;
 import com.muscat.backtest.common.constants.BacktestConstants.TransactionTrigger;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.common.util.PriceLookup;
+import com.muscat.backtest.common.util.Settlement;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import java.math.BigDecimal;
@@ -27,9 +28,6 @@ public final class YearEndHarvest {
 
   // 수수료를 센트로 반올림해 판 돈이 늘어도 공제를 넘지 않게 목표에서 빼는 달러
   private static final BigDecimal FEE_ROUNDING_USD = new BigDecimal("0.01");
-
-  // 결제가 T+1 인 첫 거래일(그 앞은 T+2)
-  private static final LocalDate T_PLUS_ONE_FROM = LocalDate.of(2024, 5, 28);
 
   /** 연말 정리로 팔 종목(종목이 없으면 빈 이름) · 주식 수 · 공제 채우기인지 */
   public record Sale(String symbol, BigDecimal shares, boolean gain) {}
@@ -71,7 +69,7 @@ public final class YearEndHarvest {
       valuationDate);
   }
 
-  // 그해 12월 31일이 평가일 이하인 해마다 결제(일봉 날로 센 T+2 · T+1)가 그해 안에 끝나는 마지막 12월 일봉 날, 시작일 앞이면 뺌
+  // 그해 12월 31일이 평가일 이하인 해마다 결제일이 그해인 마지막 12월 일봉 날, 시작일 앞이면 뺌
   public static NavigableSet<LocalDate> dates(Collection<LocalDate> candleDates, LocalDate start,
     LocalDate valuationDate) {
     Map<Integer, List<LocalDate>> byYear = candleDates.stream().distinct().sorted()
@@ -83,7 +81,7 @@ public final class YearEndHarvest {
         continue;
       }
       for (int i = days.size() - 1; i >= 0 && days.get(i).getMonth() == Month.DECEMBER; i--) {
-        if (days.size() - 1 - i >= settlementDays(days.get(i))) {
+        if (Settlement.date(days.get(i)).getYear() == year.getKey()) {
           if (!days.get(i).isBefore(start)) {
             dates.add(days.get(i));
           }
@@ -92,11 +90,6 @@ public final class YearEndHarvest {
       }
     }
     return dates;
-  }
-
-  // 그 날짜에 판 거래가 결제되기까지 거래일 수
-  private static int settlementDays(LocalDate tradeDate) {
-    return tradeDate.isBefore(T_PLUS_ONE_FROM) ? 2 : 1;
   }
 
   // 그 날짜까지 거래의 그해 실현 이익을 공제(수수료가 있으면 1센트 × 환율만큼 아래)에 맞추도록 그 날짜 값이 있는 종목마다 팔 주식 수

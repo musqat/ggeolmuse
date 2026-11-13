@@ -256,7 +256,7 @@ class PortfolioRequestValidatorTest {
 
     private PortfolioAsset planned(String symbol, PortfolioStrategyType type) {
       return new PortfolioAsset(symbol, number("100000"), null, null, null,
-        new PortfolioStrategy(type, null, null, null, null, null), null);
+        new PortfolioStrategy(type, null, null, null, null, null, null), null);
     }
   }
 
@@ -269,12 +269,12 @@ class PortfolioRequestValidatorTest {
     }
 
     private PortfolioStrategy cross(Integer shortWindow, Integer longWindow) {
-      return new PortfolioStrategy(PortfolioStrategyType.MA_CROSS, shortWindow, longWindow, null, null, null);
+      return new PortfolioStrategy(PortfolioStrategyType.MA_CROSS, shortWindow, longWindow, null, null, null, null);
     }
 
     private PortfolioStrategy band(Integer window, String upperRate, String lowerRate) {
       return new PortfolioStrategy(PortfolioStrategyType.MA_BAND, null, null, window, number(upperRate),
-        number(lowerRate));
+        number(lowerRate), null);
     }
 
     @Test
@@ -313,7 +313,7 @@ class PortfolioRequestValidatorTest {
     @DisplayName("한 번에 사기 · 적립식 줄은 이동평균 · 밴드 칸을 보지 않는다")
     void ignoresOtherLines() {
       assertThatCode(() -> PortfolioRequestValidator.validate(request(signal(new PortfolioStrategy(
-        PortfolioStrategyType.LUMP_SUM, 1, 1, 1, number("-1"), number("1")))).build())).doesNotThrowAnyException();
+        PortfolioStrategyType.LUMP_SUM, 1, 1, 1, number("-1"), number("1"), null))).build())).doesNotThrowAnyException();
     }
   }
 

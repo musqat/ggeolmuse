@@ -267,6 +267,24 @@ describe('PortfolioResult', () => {
     expect(within(rows()[0]).getByText('매수 신호 없음')).toHaveClass('text-xs')
   })
 
+  it('다음 거래일 시가에 사고판 이동평균 교차 · 밴드 종목은 전략 이름 아래 다음 거래일 시가, 신호 난 날 종가면 없음', () => {
+    render(
+      <PortfolioResult
+        result={{
+          ...result,
+          assets: [
+            asset({ symbol: 'QQQ', strategyType: 'MA_CROSS', executionTiming: 'NEXT_DAY_OPEN' }),
+            asset({ strategyType: 'MA_BAND', executionTiming: 'SAME_DAY_CLOSE' }),
+          ],
+        }}
+      />
+    )
+
+    const strategy = (row: HTMLElement) => within(row).getAllByRole('cell')[0].textContent
+    expect(rows().slice(0, 2).map(strategy)).toEqual(['이동평균 교차다음 거래일 시가', '밴드'])
+    expect(within(rows()[0]).getByText('다음 거래일 시가')).toHaveClass('text-xs')
+  })
+
   it('판 것이 없으면 실현 손익 카드 · 매매 내역 · 예상 양도세가 없다', () => {
     render(<PortfolioResult result={{ ...result, capitalGainsTax: tax }} />)
 

@@ -175,4 +175,18 @@ describe('PurchaseHistory', () => {
       '-$248.12',
     ])
   })
+
+  it('신호 난 날을 계획일로 둔 결과는 체결한 날 아래 신호 날짜를 보인다', async () => {
+    render(
+      <PurchaseHistory
+        transactions={[{ date: '2024-03-04', actualDate: '2024-03-05', shares: 1, price: 100, amount: 100000, fxRate: 1300, trigger: '골든 크로스' }]}
+        skippedRounds={[]}
+        plannedLabel="신호"
+      />
+    )
+
+    await userEvent.click(screen.getByText('2024년'))
+    expect(screen.getByText('2024-03-05')).toBeVisible()
+    expect(screen.getByText('신호 2024-03-04')).toBeVisible()
+  })
 })

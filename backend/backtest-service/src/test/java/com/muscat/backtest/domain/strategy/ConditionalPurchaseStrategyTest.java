@@ -1161,7 +1161,7 @@ class ConditionalPurchaseStrategyTest {
       }
 
       @Test
-      @DisplayName("양도세를 켜면 판 해의 원화 실현 이익 · 공제 · 세금과 세후 평가를 싣는다")
+      @DisplayName("양도세를 켜면 결제된 해의 원화 실현 이익 · 공제 · 세금과 세후 평가를 싣는다")
       void capitalGainsTaxOnSale() {
         ConditionalStrategyRequest request = selling(3, 10).takeProfitRate(new BigDecimal("0.1"))
           .capitalGainsTax(true).build();
@@ -1178,6 +1178,19 @@ class ConditionalPurchaseStrategyTest {
         assertThat(response.getCapitalGainsTax().stockKrw()).isEqualByComparingTo("0");
         assertThat(response.getCapitalGainsTax().afterTaxValueKrw()).isEqualByComparingTo("1430000");
         assertThat(response.getCapitalGainsTax().afterTaxReturnPercent()).isEqualByComparingTo("10.00");
+      }
+
+      @Test
+      @DisplayName("양도세를 켜면 12월 31일에 판 이익은 결제된 다음 해 몫으로 싣는다")
+      void capitalGainsTaxSettlementYear() {
+        ConditionalStrategyRequest request = selling(303, 10).takeProfitRate(new BigDecimal("0.1"))
+          .capitalGainsTax(true).build();
+        stubMarket(request, afterEntry(candle(302, "101", "111", "100", "105")), false);
+
+        StrategyResponse response = strategy.execute(request);
+
+        assertThat(executed().getLast().tradedOn()).isEqualTo(LocalDate.of(2024, 12, 31));
+        assertThat(response.getCapitalGainsTax().years()).extracting(CapitalGainsTax.Year::year).containsExactly(2025);
       }
 
       @Test

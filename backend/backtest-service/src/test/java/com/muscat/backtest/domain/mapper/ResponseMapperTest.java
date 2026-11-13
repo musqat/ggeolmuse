@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.muscat.backtest.common.calculation.ComparisonCalculationResult;
 import com.muscat.backtest.common.calculation.StrategyCalculationResult;
+import com.muscat.backtest.common.enums.type.ExecutionTiming;
 import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
@@ -677,18 +678,20 @@ class ResponseMapperTest {
     }
 
     @Test
-    @DisplayName("전략 비교 항목의 원래 응답에는 이동평균 차트를 싣지 않고, 단일 응답 JSON 에서 평균이 안 찬 날은 평균 칸이 없다")
+    @DisplayName("전략 비교 항목의 원래 응답에는 이동평균 차트 · 체결 시점을 싣지 않고, 단일 응답 JSON 에서 평균이 안 찬 날은 평균 칸이 없다")
     void 이동평균_차트_뺌() {
       SignalChart chart = new SignalChart(SYMBOL,
         List.of(SignalChart.Point.averages(LocalDate.of(2024, 1, 2), new BigDecimal("185.64"), null, null),
           SignalChart.Point.averages(LocalDate.of(2024, 1, 3), new BigDecimal("186.10"), new BigDecimal("185.87"),
             new BigDecimal("184.20"))),
         List.of(new SignalChart.Cross(LocalDate.of(2024, 1, 3), SignalChart.CrossType.GOLDEN)));
-      StrategyResponse strategy = StrategyResponse.builder().symbol(SYMBOL).signalChart(chart).build();
+      StrategyResponse strategy = StrategyResponse.builder().symbol(SYMBOL).signalChart(chart)
+        .executionTiming(ExecutionTiming.SAME_DAY_CLOSE).build();
 
       ComparisonItem item = mapper.toComparisonItemFromStrategy(strategy, "이동평균");
 
       assertThat(((StrategyResponse) item.getAdditionalData()).getSignalChart()).isNull();
+      assertThat(((StrategyResponse) item.getAdditionalData()).getExecutionTiming()).isNull();
       assertThat(strategy.getSignalChart()).isEqualTo(chart);
       JsonNode single = toJson(strategy).get("signalChart");
       assertThat(single.get("points").get(0).has("shortAverage")).isFalse();

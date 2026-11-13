@@ -94,6 +94,7 @@ public final class PortfolioCalculator {
     return PortfolioResponse.Asset.builder()
       .symbol(position.symbol())
       .strategyType(position.strategyType())
+      .executionTiming(position.executionTiming())
       .investedKrw(invested)
       .boughtKrw(bought)
       .valueKrw(value)

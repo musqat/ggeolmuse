@@ -4,6 +4,7 @@ import { PeriodField, type PeriodFieldProps } from '../settings/PeriodField';
 import { AmountField, type AmountFieldProps } from '../settings/AmountField';
 import { WindowsField, type WindowsFieldProps } from '../settings/WindowsField';
 import { SignalSymbolField, type SignalSymbolFieldProps } from '../settings/SignalSymbolField';
+import { ExecutionTimingField, type ExecutionTimingFieldProps } from '../settings/ExecutionTimingField';
 import { TrailingStopField, type TrailingStopFieldProps } from '../settings/TrailingStopField';
 import { PartialTakeProfitField, type PartialTakeProfitFieldProps } from '../settings/PartialTakeProfitField';
 import { FIELD_GRID } from './formLayout';
@@ -14,18 +15,20 @@ interface MaCrossStrategyFormProps {
   amount: AmountFieldProps;
   windows: WindowsFieldProps;
   signal: SignalSymbolFieldProps;
+  execution: ExecutionTimingFieldProps;
   trailing: TrailingStopFieldProps;
   partial: PartialTakeProfitFieldProps;
 }
 
-// 짧은 이동평균이 긴 이동평균을 위로 넘으면 가진 돈 전부로 사고 아래로 넘으면 전부 파는 전략: 종목 · 기간 · 원금 · 두 기간 · 신호 종목 · 트레일링 스탑 · 부분 익절
-export const MaCrossStrategyForm: React.FC<MaCrossStrategyFormProps> = ({ symbol, period, amount, windows, signal, trailing, partial }) => (
+// 짧은 이동평균이 긴 이동평균을 위로 넘으면 가진 돈 전부로 사고 아래로 넘으면 전부 파는 전략: 종목 · 기간 · 원금 · 두 기간 · 신호 종목 · 체결 시점 · 트레일링 스탑 · 부분 익절
+export const MaCrossStrategyForm: React.FC<MaCrossStrategyFormProps> = ({ symbol, period, amount, windows, signal, execution, trailing, partial }) => (
   <div className={FIELD_GRID}>
     <SymbolField {...symbol} />
     <PeriodField {...period} />
     <AmountField {...amount} />
     <WindowsField {...windows} />
     <SignalSymbolField {...signal} />
+    <ExecutionTimingField {...execution} />
     <TrailingStopField {...trailing} />
     <PartialTakeProfitField {...partial} />
   </div>

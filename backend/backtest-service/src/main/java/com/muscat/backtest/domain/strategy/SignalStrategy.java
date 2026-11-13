@@ -5,6 +5,7 @@ import com.muscat.backtest.common.engine.CapitalGainsTaxPayer;
 import com.muscat.backtest.common.engine.StrategyFinalizer;
 import com.muscat.backtest.common.engine.YearEndHarvest;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
+import com.muscat.backtest.common.enums.type.ExecutionTiming;
 import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.TaxSale;
 import com.muscat.backtest.common.exception.BacktestException;
@@ -33,10 +34,59 @@ import java.util.Map;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 
-// 신호 전략 공통 매매: 시작일부터 매매 종목 일봉마다 그 날짜까지의 신호로 들고 있을지 정하고, 양도세를 낸 뒤 그 날짜 종가에
-// 가진 돈 전부로 사거나 전량 팜(트레일링 스탑 · 부분 익절은 정한 몫, 처음 매수는 원금, 그 뒤는 판 돈, 신호 종목은 시작일 전 일봉을 더 받아 시작일부터 신호를 봄)
+// 신호 전략 공통 매매: 시작일부터 매매 종목 일봉마다 그 날짜까지의 신호로 들고 있을지 정하고, 양도세를 낸 뒤 그 날짜 종가에(고르면 다음 거래일 시가 매도 →
+// 양도세 납부 → 시가 매수 차례로) 가진 돈 전부로 사거나 전량 팜(트레일링 스탑 · 부분 익절은 정한 몫, 처음 매수는 원금, 그 뒤는 판 돈, 신호 종목은 시작일 전 일봉을 더 받아 시작일부터 신호를 봄)
 @Slf4j
 abstract class SignalStrategy<R extends SignalStrategyRequest> implements InvestmentStrategy {
+
+  // 거래 내역과 보유 주식 · 그 원가(USD, 수수료 포함) · 판 돈(USD, 첫 매수 전은 null)
+  private static final class Book {
+    private final List<StrategyTransaction> transactions = new ArrayList<>();
+    private BigDecimal shares = BigDecimal.ZERO;
+    private BigDecimal cost = BigDecimal.ZERO;
+    private BigDecimal cash;
+
+    private boolean holding() {
+      return shares.signum() > 0;
+    }
+
+    // 첫 매수 전이거나 판 돈이 남았는지(판 돈을 양도세로 다 냈으면 사지 않음)
+    private boolean buyable() {
+      return cash == null || cash.signum() > 0;
+    }
+
+    // 가진 돈 전부로 산 거래와 사이클 첫 매수의 트레일링 스탑 기준가 · 부분 익절 첫 단계
+    private void bought(StrategyTransaction buy, TrailingStop trailing, TakeProfitLadder ladder) {
+      transactions.add(buy);
+      shares = buy.getShares();
+      cost = buy.costUsd();
+      cash = BigDecimal.ZERO;
+      trailing.open(buy.getPrice(), buy.getPrice());
+      ladder.open();
+    }
+
+    // 정한 주식 · 원가를 판 거래와 판 돈
+    private void sold(StrategyTransaction sale, BigDecimal soldShares, BigDecimal soldCost) {
+      transactions.add(sale);
+      cash = cash.add(sale.getProceeds());
+      shares = shares.subtract(soldShares);
+      cost = cost.subtract(soldCost);
+    }
+
+    // 현금에서 낸 양도세
+    private void paid(StrategyTransaction payment) {
+      transactions.add(payment);
+      cash = cash.subtract(payment.getTaxPaid());
+    }
+
+    // 연말 정리로 판 거래 · 다시 산 거래
+    private void harvested(YearEndHarvest.Trade trade) {
+      transactions.add(trade.sale());
+      transactions.add(trade.rebuy());
+      shares = shares.add(trade.sharesChange());
+      cost = cost.add(trade.costChange());
+    }
+  }
 
   private final MarketDataClientWrapper marketData;
   private final ResponseMapper responseMapper;
@@ -107,6 +157,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
         ? finalized.capitalGainsTax(taxPayer.payments())
         : null);
       response.setSignalChart(signal.chart(signalSymbol, request.getStartDate()));
+      response.setExecutionTiming(ExecutionTiming.orSameDayClose(request.getExecutionTiming()));
       response.setTradeStats(TradeStatsCalculator.of(finalized.transactions(), request.getStartDate(), actualEndDate));
       return response;
 
@@ -143,6 +194,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
 
   // 시작일부터 매매 종목 일봉마다 그 날짜까지의 신호로 보유 여부를 정하고 양도세를 낸 뒤 사고팖(계산이 실패한 날은 이유를 남기고 다음 거래일에 다시 봄)
   // 트레일링 스탑 다음 부분 익절을 신호로 팔지 않는 날만 보고, 다 팔면 새 매수 신호까지 사지 않음, 연말 정리 날은 사고판 뒤 연말 정리
+  // 다음 거래일 시가 체결은 그 날짜 첫 매매(매도는 양도세 납부 전, 매수는 납부 뒤 남은 돈으로), 마지막 거래일 신호는 체결 안 함
   private StrategyPurchases trade(R request, Map<LocalDate, OHLCPriceDto> priceMap, SignalPrices signalPrices,
     TradeSignal signal, LocalDate actualEndDate, CapitalGainsTaxPayer taxPayer) {
     LocalDate start = request.getStartDate();
@@ -160,18 +212,16 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
       log.info("환율 데이터 조회 완료: {}개", fxRates.size());
     }
 
-    List<StrategyTransaction> transactions = new ArrayList<>();
     List<SkippedRound> skippedRounds = new ArrayList<>();
-    // 보유 주식 · 그 원가(USD, 수수료 포함) · 판 돈(USD, 첫 매수 전은 null)
-    BigDecimal heldShares = BigDecimal.ZERO;
-    BigDecimal heldCost = BigDecimal.ZERO;
-    BigDecimal cash = null;
+    Book book = new Book();
     SignalHolding target = new SignalHolding(signal, signalPrices, start);
     TrailingStop trailing = TrailingStop.of(request.getTrailingStopRate(), request.getTrailingSellRate());
     TakeProfitLadder ladder = TakeProfitLadder.of(request.getPartialTakeProfits());
     Set<LocalDate> harvestDates = YearEndHarvest.enabled(request.getCapitalGainsTax(), request.getYearEndHarvest())
       ? YearEndHarvest.dates(priceMap, start, actualEndDate)
       : Set.of();
+    boolean nextOpen = ExecutionTiming.nextDayOpen(request.getExecutionTiming());
+    SignalOrder order = null;
 
     for (OHLCPriceDto candle : candles) {
       LocalDate date = candle.date();
@@ -179,75 +229,74 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
         continue;
       }
       boolean wanted = target.wanted(date);
+      SignalOrder due = order;
+      order = null;
       try {
         BigDecimal fx = fxOn(request, fxRates, date);
+        BigDecimal close = PriceLookup.effectiveClose(candle);
+        if (due != null && !due.buy() && book.holding()) {
+          book.sold(sell(request, candle, PriceLookup.effectiveOpen(candle), due.signalDate(), fxRates, book.shares,
+            book.cost, signal.sellTrigger()), book.shares, book.cost);
+        }
         // 양도세 낼 현금이 모자라면 그 날짜 종가에 모자란 만큼 팖, 다 팔면 새 매수 신호까지 사지 않음
         SaleShare taxExit = TaxSale.sells(request.getTaxSale())
-          ? SaleShare.forTax(taxPayer.shortfallUsd(date, transactions, cash, fx), PriceLookup.effectiveClose(candle),
-            request.getTradingFeeRate(), heldShares, heldCost)
+          ? SaleShare.forTax(taxPayer.shortfallUsd(date, book.transactions, book.cash, fx), close,
+            request.getTradingFeeRate(), book.shares, book.cost)
           : null;
         if (taxExit != null) {
-          StrategyTransaction sale = sell(request, candle, fxRates, taxExit.shares(), taxExit.cost(), taxExit.trigger());
-          transactions.add(sale);
-          cash = cash.add(sale.getProceeds());
-          heldShares = heldShares.subtract(taxExit.shares());
-          heldCost = heldCost.subtract(taxExit.cost());
+          book.sold(sell(request, candle, close, date, fxRates, taxExit.shares(), taxExit.cost(), taxExit.trigger()),
+            taxExit.shares(), taxExit.cost());
           if (taxExit.all()) {
             target.soldOut();
             wanted = false;
           }
         }
-        StrategyTransaction payment = taxPayer.pay(date, transactions, cash, fx, fxRates.isDefault(date));
+        StrategyTransaction payment = taxPayer.pay(date, book.transactions, book.cash, fx, fxRates.isDefault(date));
         if (payment != null) {
-          transactions.add(payment);
-          cash = cash.subtract(payment.getTaxPaid());
+          book.paid(payment);
         }
-        boolean holding = heldShares.signum() > 0;
-        // 판 돈을 양도세로 다 냈으면 사지 않음
-        if (!holding && wanted && (cash == null || cash.signum() > 0)) {
-          StrategyTransaction buy = buy(request, candle, fxRates, cash, signal.buyTrigger());
-          transactions.add(buy);
-          heldShares = buy.getShares();
-          heldCost = buy.costUsd();
-          cash = BigDecimal.ZERO;
-          trailing.open(buy.getPrice(), buy.getPrice());
-          ladder.open();
+        if (due != null && due.buy() && !book.holding() && book.buyable()) {
+          book.bought(buy(request, candle, PriceLookup.effectiveOpen(candle), due.signalDate(), fxRates, book.cash,
+            signal.buyTrigger()), trailing, ladder);
+        }
+        boolean holding = book.holding();
+        if (!holding && wanted && book.buyable()) {
+          if (nextOpen) {
+            order = new SignalOrder(date, true);
+          } else {
+            book.bought(buy(request, candle, close, date, fxRates, book.cash, signal.buyTrigger()), trailing, ladder);
+          }
         } else if (holding && !wanted) {
-          StrategyTransaction sale = sell(request, candle, fxRates, heldShares, heldCost, signal.sellTrigger());
-          transactions.add(sale);
-          cash = cash.add(sale.getProceeds());
-          heldShares = BigDecimal.ZERO;
-          heldCost = BigDecimal.ZERO;
+          if (nextOpen) {
+            order = new SignalOrder(date, false);
+          } else {
+            book.sold(sell(request, candle, close, date, fxRates, book.shares, book.cost, signal.sellTrigger()),
+              book.shares, book.cost);
+          }
         } else if (holding) {
-          BigDecimal close = PriceLookup.effectiveClose(candle);
-          SaleShare trailed = trailing.check(close, heldShares, heldCost);
-          SaleShare exit = trailed != null ? trailed : ladder.check(close, heldShares, heldCost);
+          SaleShare trailed = trailing.check(close, book.shares, book.cost);
+          SaleShare exit = trailed != null ? trailed : ladder.check(close, book.shares, book.cost);
           if (exit != null) {
-            StrategyTransaction sale = sell(request, candle, fxRates, exit.shares(), exit.cost(), exit.trigger());
-            transactions.add(sale);
+            StrategyTransaction sale = sell(request, candle, close, date, fxRates, exit.shares(), exit.cost(),
+              exit.trigger());
+            book.sold(sale, exit.shares(), exit.cost());
             if (exit == trailed) {
               trailing.sold(sale.getPrice());
             } else {
               ladder.sold();
             }
-            cash = cash.add(sale.getProceeds());
-            heldShares = heldShares.subtract(exit.shares());
-            heldCost = heldCost.subtract(exit.cost());
             if (exit.all()) {
               target.soldOut();
             }
           }
         }
         // 그 날짜 사고팔기 뒤 연말 정리
-        YearEndHarvest.Trade harvest = harvestDates.contains(date) && heldShares.signum() > 0
-          ? YearEndHarvest.single(date, transactions, PriceLookup.effectiveClose(candle), heldShares, heldCost,
+        YearEndHarvest.Trade harvest = harvestDates.contains(date) && book.holding()
+          ? YearEndHarvest.single(date, book.transactions, close, book.shares, book.cost,
             request.getTradingFeeRate(), fx, fxRates.isDefault(date))
           : null;
         if (harvest != null) {
-          transactions.add(harvest.sale());
-          transactions.add(harvest.rebuy());
-          heldShares = heldShares.add(harvest.sharesChange());
-          heldCost = heldCost.add(harvest.costChange());
+          book.harvested(harvest);
         }
       } catch (RuntimeException e) {
         skippedRounds.add(new SkippedRound(candle.date(), SkipReason.CALCULATION_ERROR));
@@ -255,18 +304,17 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
       }
     }
 
-    log.info("{} 전략 완료: 거래 {}건, 계산 실패 {}회", label(), transactions.size(), skippedRounds.size());
-    return new StrategyPurchases(transactions, skippedRounds, priceMap, fxRates);
+    log.info("{} 전략 완료: 거래 {}건, 계산 실패 {}회", label(), book.transactions.size(), skippedRounds.size());
+    return new StrategyPurchases(book.transactions, skippedRounds, priceMap, fxRates);
   }
 
-  // 그 날짜 종가에 원금(첫 매수) 또는 판 돈 전부로 삼(수수료를 뺀 달러로 소수 주)
-  private static StrategyTransaction buy(SignalStrategyRequest request, OHLCPriceDto candle, FxRates fxRates,
-    BigDecimal cash, String trigger) {
+  // 그 날짜 그 값에 원금(첫 매수) 또는 판 돈 전부로 삼(수수료를 뺀 달러로 소수 주, 계획일은 신호 난 날)
+  private static StrategyTransaction buy(SignalStrategyRequest request, OHLCPriceDto candle, BigDecimal price,
+    LocalDate planned, FxRates fxRates, BigDecimal cash, String trigger) {
     LocalDate date = candle.date();
-    BigDecimal price = PriceLookup.effectiveClose(candle);
     BigDecimal fxRate = fxOn(request, fxRates, date);
     StrategyTransaction.StrategyTransactionBuilder builder = StrategyTransaction.builder()
-      .date(date)
+      .date(planned)
       .actualDate(date)
       .price(price)
       .fxRate(fxRate)
@@ -285,16 +333,15 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
       .build();
   }
 
-  // 그 날짜 종가에 정한 주식을 팔고 매도 수수료를 뺀 판 돈 · 판 몫의 원가 대비 실현 손익을 남김
-  private static StrategyTransaction sell(SignalStrategyRequest request, OHLCPriceDto candle, FxRates fxRates,
-    BigDecimal shares, BigDecimal cost, String trigger) {
+  // 그 날짜 그 값에 정한 주식을 팔고 매도 수수료를 뺀 판 돈 · 판 몫의 원가 대비 실현 손익을 남김(계획일은 신호 난 날)
+  private static StrategyTransaction sell(SignalStrategyRequest request, OHLCPriceDto candle, BigDecimal price,
+    LocalDate planned, FxRates fxRates, BigDecimal shares, BigDecimal cost, String trigger) {
     LocalDate date = candle.date();
-    BigDecimal price = PriceLookup.effectiveClose(candle);
     BigDecimal gross = shares.multiply(price).setScale(8, RoundingMode.HALF_UP);
     BigDecimal fee = BacktestCalculationUtils.calculateTradingFee(gross, request.getTradingFeeRate());
     BigDecimal proceeds = gross.subtract(fee);
     return StrategyTransaction.builder()
-      .date(date)
+      .date(planned)
       .actualDate(date)
       .price(price)
       .shares(shares.negate())

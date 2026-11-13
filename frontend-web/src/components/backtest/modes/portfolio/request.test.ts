@@ -175,6 +175,21 @@ describe('buildPortfolioRequest', () => {
     ])
   })
 
+  it('이동평균 · 밴드 줄은 다음 거래일 시가를 고르면 줄 전략에 executionTiming 을 싣고, 다른 줄은 싣지 않는다', () => {
+    const rows = [
+      withStrategy(row('QQQ', '3000000'), { strategy: 'MA_CROSS', executionTiming: 'NEXT_DAY_OPEN' }),
+      withStrategy(row('IAU', '2000000'), { strategy: 'MA_BAND', executionTiming: 'SAME_DAY_CLOSE' }),
+      withStrategy(row('TLT', '1000000'), { strategy: 'LUMP_SUM', executionTiming: 'NEXT_DAY_OPEN' }),
+    ]
+
+    const built = buildPortfolioRequest({ ...values, rows }, ctx)
+    expect('request' in built && built.request.assets.map((asset) => asset.strategy)).toStrictEqual([
+      { type: 'MA_CROSS', shortWindow: 20, longWindow: 60, executionTiming: 'NEXT_DAY_OPEN' },
+      { type: 'MA_BAND', bandWindow: 200, upperRate: 0.025, lowerRate: 0.025 },
+      { type: 'LUMP_SUM' },
+    ])
+  })
+
   it('적립식 칸은 방식과 상관없이 적립식 줄이 하나라도 있으면 싣고 보며, 없으면 적립식 방식이라도 싣지 않는다', () => {
     const dcaRow = withStrategy(row('QQQ', '1000000'), { strategy: 'DCA' })
     const lump = buildPortfolioRequest({ ...values, rows: [row('SPY', '6000000'), dcaRow] }, ctx)

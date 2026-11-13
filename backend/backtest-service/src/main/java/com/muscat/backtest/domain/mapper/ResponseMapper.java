@@ -248,9 +248,10 @@ public class ResponseMapper {
       .fxReturnPercent(strategy.getFxReturnPercent())
       .dividends(strategy.getTotalDividends())
       .capitalGainsTax(strategy.getCapitalGainsTax())
-      // 비교 항목의 원래 응답에서 이동평균 차트 뺌
+      // 비교 항목의 원래 응답에서 이동평균 차트 · 체결 시점 뺌
       .additionalData(strategy.toBuilder()
-        .dailyValues(DailyValue.withoutDrawdowns(strategy.getDailyValues())).signalChart(null).build())
+        .dailyValues(DailyValue.withoutDrawdowns(strategy.getDailyValues())).signalChart(null).executionTiming(null)
+        .build())
       .build();
   }
 }

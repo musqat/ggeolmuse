@@ -1,7 +1,9 @@
 import type { PortfolioMethod, PortfolioStrategyType } from '@services/api';
+import { RadioGroup } from '../../settings/radio';
+import { EXECUTION_OPTIONS } from '../../shared/executionTiming';
 import { digitsOnly, oneDecimal } from '../../settings/inputText';
 import { isError, type FieldMessage, type PortfolioRowMessages } from '../../settings/checks';
-import { LEAD, UNIT, VALUE_ROW } from '../../settings/styles';
+import { LEAD, PILL, UNIT, VALUE_ROW } from '../../settings/styles';
 import { STRATEGIES, STRATEGY_LABELS, chosenStrategy, rowStrategy, type PortfolioRow } from '../../shared/portfolioRows';
 
 type SignalKey = 'shortWindow' | 'longWindow' | 'bandWindow' | 'upper' | 'lower';
@@ -44,7 +46,7 @@ interface RowSignalFieldsProps extends RowStrategyProps {
   className: string;
 }
 
-// 이동평균 줄은 "짧은 [20]일 선 · 긴 [60]일 선", 밴드 줄은 "[200]일선 · 위 +[2.5]% · 아래 -[2.5]%"(휴대폰은 평균 기간 한 줄 · 비율 한 줄), 다른 줄은 없음
+// 이동평균 줄은 "짧은 [20]일 선 · 긴 [60]일 선", 밴드 줄은 "[200]일선 · 위 +[2.5]% · 아래 -[2.5]%"(휴대폰은 평균 기간 한 줄 · 비율 한 줄), 둘 다 그 아래 체결 시점 칩, 다른 줄은 없음
 export const RowSignalFields = ({ n, row, onChange, messages, describedBy, className }: RowSignalFieldsProps) => {
   const input = (key: SignalKey, name: string, numeric: boolean) => (
     <input
@@ -58,6 +60,17 @@ export const RowSignalFields = ({ n, row, onChange, messages, describedBy, class
     />
   );
 
+  const timing = (
+    <RadioGroup
+      label={`${n}번 체결 시점`}
+      options={EXECUTION_OPTIONS}
+      value={row.executionTiming}
+      onChange={(value) => onChange('executionTiming', value)}
+      className="mt-1.5 flex basis-full flex-wrap items-center gap-1.5"
+      optionClassName={PILL}
+    />
+  );
+
   if (row.strategy === 'MA_CROSS') {
     return (
       <div className={`${VALUE_ROW} ${className}`}>
@@ -67,6 +80,7 @@ export const RowSignalFields = ({ n, row, onChange, messages, describedBy, class
         <span className={`${LEAD} ml-2`}>· 긴</span>
         {input('longWindow', '긴 기간(일)', true)}
         <span className={UNIT}>일 선</span>
+        {timing}
       </div>
     );
   }
@@ -86,6 +100,7 @@ export const RowSignalFields = ({ n, row, onChange, messages, describedBy, class
       <span className={UNIT}>-</span>
       {input('lower', '아래 비율(평균 대비 퍼센트)', false)}
       <span className={UNIT}>%</span>
+      {timing}
     </div>
   );
 };

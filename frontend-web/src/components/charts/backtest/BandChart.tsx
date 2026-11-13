@@ -59,7 +59,7 @@ const BandTooltip: React.FC<BandTooltipProps> = ({ active, payload, label, names
   );
 };
 
-// 산 날(수량 > 0) · 판 날(수량 < 0)마다 그 날짜 수정 종가(차트에 없는 날은 뺌)
+// 매수(수량 > 0) · 매도(수량 < 0) 거래의 신호 난 날마다 그 날짜 수정 종가(차트에 없는 날은 뺌)
 const tradeDots = (points: SignalPoint[], transactions: StrategyTransaction[], sign: 1 | -1) => {
   const closeOn = new Map(points.map((point) => [point.date, point.close]));
   return transactions
@@ -70,7 +70,7 @@ const tradeDots = (points: SignalPoint[], transactions: StrategyTransaction[], s
     });
 };
 
-// 밴드 결과의 수정 종가 · 평균 · 위 선 · 아래 선과 산 날 · 판 날 점(결과 기간 전체, 값은 응답 그대로)
+// 밴드 결과의 수정 종가 · 평균 · 위 선 · 아래 선과 매수 · 매도 신호 난 날 점(결과 기간 전체, 값은 응답 그대로)
 export const BandChart: React.FC<BandChartProps> = ({ chart, transactions, band }) => {
   const names: LineNames = {
     close: '수정 종가',
@@ -92,8 +92,8 @@ export const BandChart: React.FC<BandChartProps> = ({ chart, transactions, band 
     { name: names.average, color: BAND_COLORS.average, shape: 'line' },
     { name: names.upper, color: BAND_COLORS.average, shape: 'dashed' },
     { name: names.lower, color: BAND_COLORS.average, shape: 'dashed' },
-    { name: '매수', color: MARKER_COLORS.purchase, shape: 'dot' },
-    { name: '매도', color: MARKER_COLORS.sale, shape: 'dot' },
+    { name: '매수 신호', color: MARKER_COLORS.purchase, shape: 'dot' },
+    { name: '매도 신호', color: MARKER_COLORS.sale, shape: 'dot' },
   ];
   const line = (dataKey: keyof SignalPoint, name: string, color: string, width: number, dash?: string) => (
     <Line

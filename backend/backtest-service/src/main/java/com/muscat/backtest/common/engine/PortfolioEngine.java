@@ -6,6 +6,7 @@ import com.muscat.backtest.common.constants.BacktestConstants.Portfolio;
 import com.muscat.backtest.common.constants.BacktestConstants.TransactionTrigger;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
+import com.muscat.backtest.common.enums.type.ExecutionTiming;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
 import com.muscat.backtest.common.enums.type.PortfolioRebalance;
@@ -27,6 +28,7 @@ import com.muscat.backtest.domain.dto.response.DailyValue;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.domain.strategy.DcaSchedule;
 import com.muscat.backtest.domain.strategy.SignalHolding;
+import com.muscat.backtest.domain.strategy.SignalOrder;
 import com.muscat.backtest.domain.strategy.TakeProfitStopLoss;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import com.muscat.backtest.infra.client.dto.DividendHistoryDto.DividendPayment;
@@ -55,7 +57,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-// 포트폴리오 엔진: 여러 종목을 현금 하나(USD)로 날마다 양도세 납부(모자라면 판매 방식대로 매도) → 배당 → 익절 · 손절 → 이동평균 · 밴드 줄 신호 매매 → 회차 매수 → 리밸런싱 → 연말 정리 → 기간 끝 매도 → 평가 순서로 돌림
+// 포트폴리오 엔진: 여러 종목을 현금 하나(USD)로 날마다 신호 줄 시가 매도 → 양도세 납부(모자라면 판매 방식대로 매도) → 배당 → 신호 줄 시가 매수 → 익절 · 손절 → 이동평균 · 밴드 줄 신호 매매 → 회차 매수 → 리밸런싱 → 연말 정리 → 기간 끝 매도 → 평가 순서로 돌림
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -66,9 +68,9 @@ public class PortfolioEngine {
   /** 받은 세후 배당(USD)과 배당락일 환율 */
   public record Dividend(String symbol, LocalDate exDate, BigDecimal amountUsd, BigDecimal fxRate) {}
 
-  /** 요청 순서 줄마다 전략 · 줄 금액 · 평가일 보유 주식 수 · 종가(USD) · 평가 원화 */
-  public record Position(String symbol, PortfolioStrategyType strategyType, BigDecimal plannedKrw, BigDecimal shares,
-                         BigDecimal closeUsd, BigDecimal valueKrw) {}
+  /** 요청 순서 줄마다 전략 · 체결 시점(이동평균 · 밴드 줄만) · 줄 금액 · 평가일 보유 주식 수 · 종가(USD) · 평가 원화 */
+  public record Position(String symbol, PortfolioStrategyType strategyType, ExecutionTiming executionTiming,
+                         BigDecimal plannedKrw, BigDecimal shares, BigDecimal closeUsd, BigDecimal valueKrw) {}
 
   /** 기간 첫 거래일 · 평가일 · 거래 · 배당 · 줄마다 보유 · 합계 · 일별 가치와 지표 · 양도세 납부 · 기본 환율 날 */
   public record Result(LocalDate startDate, LocalDate valuationDate, List<StrategyTransaction> transactions,
@@ -100,7 +102,7 @@ public class PortfolioEngine {
     Run run = new Run(request, lines, fxRates, valuationDate, harvestDates);
     dates.forEach(run::day);
     // 마지막 일봉 뒤 평가일까지 배당락일이 온 배당은 현금으로
-    run.receiveDividends(valuationDate, false);
+    run.receiveDividends(valuationDate, false, Map.of());
     Result result = run.finish(dates.first(), currentFx);
     log.info("포트폴리오 실행 완료: 거래 {}건, 넣은 돈 {}원, 총 자산 {}원", result.transactions().size(),
       result.totalInvestedKrw(), result.totalAssetKrw());
@@ -129,9 +131,10 @@ public class PortfolioEngine {
       .sorted(Comparator.comparing(DividendPayment::getExDate))
       .toList();
     SignalHolding signal = signal(type, asset.strategy(), priceMap, start);
+    boolean nextOpen = signal != null && ExecutionTiming.nextDayOpen(asset.strategy().executionTiming());
     return new Line(symbol, type, request.amountOf(asset), candles,
       signal == null ? rounds(request, type, candles, valuationDate) : Map.of(), dividends,
-      TakeProfitStopLoss.of(asset.takeProfitRate(), asset.stopLossRate()), signal, asset.taxSaleOrder());
+      TakeProfitStopLoss.of(asset.takeProfitRate(), asset.stopLossRate()), signal, nextOpen, asset.taxSaleOrder());
   }
 
   // 신호 줄의 신호 기간(이동평균 교차는 긴 기간, 밴드는 평균 기간, 다른 줄은 0)
@@ -176,7 +179,7 @@ public class PortfolioEngine {
     return request.getFrequency() != null ? request.getFrequency() : DcaFrequency.MONTHLY;
   }
 
-  // 종목 줄 하나의 전략 · 일봉 · 회차 · 배당 · 익절 · 손절 · 신호 · 판매 순서와 보유 주식 · 원가(USD, 수수료 포함) · 그 날짜까지 마지막 종가 · 첫 매수일 · 신호 줄 몫 현금
+  // 종목 줄 하나의 전략 · 일봉 · 회차 · 배당 · 익절 · 손절 · 신호 · 체결 시점 · 판매 순서와 보유 주식 · 원가(USD, 수수료 포함) · 그 날짜까지 마지막 종가 · 첫 매수일 · 신호 줄 몫 현금
   private static final class Line {
     private final String symbol;
     private final PortfolioStrategyType type;
@@ -186,6 +189,7 @@ public class PortfolioEngine {
     private final List<DividendPayment> dividends;
     private final TakeProfitStopLoss exits;
     private final SignalHolding signal;
+    private final boolean nextOpen;
     private final Integer taxSaleOrder;
     private int nextDividend;
     private BigDecimal shares = BigDecimal.ZERO;
@@ -194,10 +198,12 @@ public class PortfolioEngine {
     private LocalDate firstBought;
     // 현금 가운데 이 신호 줄 몫(USD, 첫 매수 전은 null)
     private BigDecimal share;
+    // 다음 거래일 시가에 체결할 신호(없으면 null)
+    private SignalOrder order;
 
     private Line(String symbol, PortfolioStrategyType type, BigDecimal plannedKrw,
       NavigableMap<LocalDate, OHLCPriceDto> candles, Map<LocalDate, LocalDate> rounds, List<DividendPayment> dividends,
-      TakeProfitStopLoss exits, SignalHolding signal, Integer taxSaleOrder) {
+      TakeProfitStopLoss exits, SignalHolding signal, boolean nextOpen, Integer taxSaleOrder) {
       this.symbol = symbol;
       this.type = type;
       this.plannedKrw = plannedKrw;
@@ -206,7 +212,16 @@ public class PortfolioEngine {
       this.dividends = dividends;
       this.exits = exits;
       this.signal = signal;
+      this.nextOpen = nextOpen;
       this.taxSaleOrder = taxSaleOrder;
+    }
+
+    // 이동평균 · 밴드 줄의 체결 시점(다른 줄은 null)
+    private ExecutionTiming executionTiming() {
+      if (signal == null) {
+        return null;
+      }
+      return nextOpen ? ExecutionTiming.NEXT_DAY_OPEN : ExecutionTiming.SAME_DAY_CLOSE;
     }
 
     // 보유 × 마지막 종가(USD, 첫 일봉 전은 0)
@@ -252,7 +267,7 @@ public class PortfolioEngine {
       this.harvestDates = harvestDates;
     }
 
-    // 양도세 납부 → 배당 → 익절 · 손절 → 신호 매매 → 회차 매수 → 리밸런싱 → 연말 정리 → 기간 끝 매도 → 평가(평가일은 마무리에서)
+    // 시가 매도 → 양도세 납부 → 배당 → 시가 매수 → 익절 · 손절 → 신호 매매 → 회차 매수 → 리밸런싱 → 연말 정리 → 기간 끝 매도 → 평가(평가일은 마무리에서)
     private void day(LocalDate date) {
       BigDecimal fx = fxOn(date);
       lines.forEach(line -> {
@@ -261,8 +276,10 @@ public class PortfolioEngine {
           line.lastClose = PriceLookup.effectiveClose(candle);
         }
       });
+      Map<Line, BigDecimal> soldAtOpen = sellAtOpen(date, fx);
       payDueTax(date, fx);
-      receiveDividends(date, Boolean.TRUE.equals(request.getReinvestDividends()));
+      receiveDividends(date, Boolean.TRUE.equals(request.getReinvestDividends()), soldAtOpen);
+      lines.forEach(line -> fill(line, date, fx, true));
       lines.forEach(line -> sellOrFollow(line, date, fx));
       for (Line line : lines) {
         LocalDate planned = line.rounds.get(date);
@@ -330,16 +347,17 @@ public class PortfolioEngine {
       payTax(payment.getTaxPaid());
     }
 
-    // 배당락일이 그 날짜까지 온 배당을 전날까지 든 주식으로 받아 세후 달러를 현금에, 재투자면 그 날짜 그 종목 종가로 삼
-    private void receiveDividends(LocalDate date, boolean reinvest) {
+    // 배당락일이 그 날짜까지 온 배당을 전날까지 든 주식(시가에 판 줄은 판 주식)으로 받아 세후 달러를 현금에, 재투자면 그 날짜 그 종목 종가로 삼(시가에 판 줄은 빼고)
+    private void receiveDividends(LocalDate date, boolean reinvest, Map<Line, BigDecimal> soldAtOpen) {
       for (Line line : lines) {
+        BigDecimal held = soldAtOpen.getOrDefault(line, line.shares);
         while (line.nextDividend < line.dividends.size()
           && !line.dividends.get(line.nextDividend).getExDate().isAfter(date)) {
           DividendPayment payment = line.dividends.get(line.nextDividend++);
           if (payment.getAmount() == null) {
             continue;
           }
-          BigDecimal gross = payment.getAmount().multiply(line.shares).setScale(2, RoundingMode.HALF_UP);
+          BigDecimal gross = payment.getAmount().multiply(held).setScale(2, RoundingMode.HALF_UP);
           BigDecimal afterTax = gross.subtract(withholding(gross));
           if (!Decimals.isPositive(afterTax)) {
             continue;
@@ -349,7 +367,7 @@ public class PortfolioEngine {
           dividends.add(new Dividend(line.symbol, exDate, afterTax, fx));
           cash = cash.add(afterTax);
           OHLCPriceDto candle = line.candles.get(date);
-          if (reinvest && candle != null) {
+          if (reinvest && candle != null && !soldAtOpen.containsKey(line)) {
             reinvest(line, exDate, candle, afterTax);
           }
         }
@@ -449,10 +467,48 @@ public class PortfolioEngine {
       }
       boolean holding = line.shares.signum() > 0;
       if (holding && !wanted) {
-        sell(line, line.shares, line.cost, line.lastClose, TradeReason.STRATEGY_SELL, line.signal.sellTrigger(), date,
-          fx);
+        if (line.nextOpen) {
+          line.order = new SignalOrder(date, false);
+        } else {
+          sell(line, line.shares, line.cost, line.lastClose, TradeReason.STRATEGY_SELL, line.signal.sellTrigger(), date,
+            fx);
+        }
       } else if (!holding && wanted && (line.share == null || line.share.signum() > 0)) {
-        buyOnSignal(line, date, fx);
+        if (line.nextOpen) {
+          line.order = new SignalOrder(date, true);
+        } else {
+          buyOnSignal(line, date, date, line.lastClose, fx);
+        }
+      }
+    }
+
+    // 그 날짜 시가에 판 신호 줄과 판 주식 수
+    private Map<Line, BigDecimal> sellAtOpen(LocalDate date, BigDecimal fx) {
+      Map<Line, BigDecimal> sold = new HashMap<>();
+      for (Line line : lines) {
+        BigDecimal held = line.shares;
+        fill(line, date, fx, false);
+        if (held.compareTo(line.shares) != 0) {
+          sold.put(line, held);
+        }
+      }
+      return sold;
+    }
+
+    // 그 날짜 일봉이 있는 신호 줄의 앞 거래일 매도 · 매수 신호를 그 날짜 시가에 체결(매도는 전량, 매수는 줄 몫 현금이 남았을 때)
+    private void fill(Line line, LocalDate date, BigDecimal fx, boolean buy) {
+      OHLCPriceDto candle = line.candles.get(date);
+      if (line.order == null || line.order.buy() != buy || candle == null) {
+        return;
+      }
+      LocalDate signalDate = line.order.signalDate();
+      line.order = null;
+      BigDecimal open = PriceLookup.effectiveOpen(candle);
+      if (!buy && line.shares.signum() > 0) {
+        credit(line, recordSale(line, line.shares, line.cost, open, TradeReason.STRATEGY_SELL, line.signal.sellTrigger(),
+          signalDate, date, fx));
+      } else if (buy && line.shares.signum() == 0 && (line.share == null || line.share.signum() > 0)) {
+        buyOnSignal(line, signalDate, date, open, fx);
       }
     }
 
@@ -470,13 +526,12 @@ public class PortfolioEngine {
       return true;
     }
 
-    // 신호 줄 매수: 첫 매수는 줄 금액을 새 돈으로, 그 뒤는 줄 몫 현금 전부로 그 날짜 종가에 삼
-    private void buyOnSignal(Line line, LocalDate date, BigDecimal fx) {
-      BigDecimal price = line.lastClose;
+    // 신호 줄 매수: 첫 매수는 줄 금액을 새 돈으로, 그 뒤는 줄 몫 현금 전부로 그 날짜 그 값에 삼(계획일은 신호 난 날)
+    private void buyOnSignal(Line line, LocalDate planned, LocalDate date, BigDecimal price, BigDecimal fx) {
       StrategyTransaction.StrategyTransactionBuilder builder = StrategyTransaction.builder()
         .symbol(line.symbol)
         .reason(TradeReason.STRATEGY_BUY)
-        .date(date)
+        .date(planned)
         .actualDate(date)
         .price(price)
         .fxRate(fx)
@@ -562,19 +617,19 @@ public class PortfolioEngine {
     // 정한 주식을 그 값에 팔아 매도 수수료를 뺀 판 돈 · 판 몫의 원가 대비 실현 손익을 남기고 판 돈은 현금(신호 줄은 줄 몫)
     private void sell(Line line, BigDecimal shares, BigDecimal soldCost, BigDecimal price, TradeReason reason,
       String trigger, LocalDate date, BigDecimal fx) {
-      credit(line, recordSale(line, shares, soldCost, price, reason, trigger, date, fx));
+      credit(line, recordSale(line, shares, soldCost, price, reason, trigger, date, date, fx));
     }
 
-    // 판 거래를 남기고 줄 보유 · 원가를 줄인 뒤 매도 수수료를 뺀 판 돈
+    // 판 거래(계획일은 신호 난 날)를 남기고 줄 보유 · 원가를 줄인 뒤 매도 수수료를 뺀 판 돈
     private BigDecimal recordSale(Line line, BigDecimal shares, BigDecimal soldCost, BigDecimal price,
-      TradeReason reason, String trigger, LocalDate date, BigDecimal fx) {
+      TradeReason reason, String trigger, LocalDate planned, LocalDate date, BigDecimal fx) {
       BigDecimal gross = shares.multiply(price).setScale(8, RoundingMode.HALF_UP);
       BigDecimal fee = BacktestCalculationUtils.calculateTradingFee(gross, request.getTradingFeeRate());
       BigDecimal proceeds = gross.subtract(fee);
       transactions.add(StrategyTransaction.builder()
         .symbol(line.symbol)
         .reason(reason)
-        .date(date)
+        .date(planned)
         .actualDate(date)
         .price(price)
         .shares(shares.negate())
@@ -756,7 +811,7 @@ public class PortfolioEngine {
       BigDecimal shares = TaxSale.shares(usd, line.lastClose, request.getTradingFeeRate(), line.shares);
       BigDecimal soldCost = line.cost.multiply(shares).divide(line.shares, 8, RoundingMode.HALF_UP);
       cash = cash.add(recordSale(line, shares, soldCost, line.lastClose, TradeReason.TAX_SALE,
-        TransactionTrigger.TAX_SALE, date, fx));
+        TransactionTrigger.TAX_SALE, date, date, fx));
     }
 
     // 낸 양도세를 공용 현금에서 먼저, 모자라면 신호 줄 몫에서 줄 순서대로 뺌
@@ -814,8 +869,8 @@ public class PortfolioEngine {
     private Result finish(LocalDate startDate, FxRateDto currentFx) {
       BigDecimal rate = currentFx.rate();
       List<Position> positions = lines.stream()
-        .map(line -> new Position(line.symbol, line.type, line.plannedKrw, line.shares, line.lastClose,
-          MoneyUtils.roundKrw(line.valueUsd().multiply(rate))))
+        .map(line -> new Position(line.symbol, line.type, line.executionTiming(), line.plannedKrw, line.shares,
+          line.lastClose, MoneyUtils.roundKrw(line.valueUsd().multiply(rate))))
         .toList();
       BigDecimal stockValueKrw = positions.stream().map(Position::valueKrw).reduce(BigDecimal.ZERO, BigDecimal::add);
       BigDecimal cashKrw = MoneyUtils.roundKrw(cash.multiply(rate));

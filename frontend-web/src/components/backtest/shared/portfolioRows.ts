@@ -1,12 +1,13 @@
-import type { PortfolioAllocation, PortfolioMethod, PortfolioStrategyType } from '@services/api';
+import type { ExecutionTiming, PortfolioAllocation, PortfolioMethod, PortfolioStrategyType } from '@services/api';
 import { hasSellRates } from './sellRates';
 import { MA_WINDOWS } from './maWindows';
 import { MA_BAND } from './maBand';
+import { EXECUTION_TIMINGS } from './executionTiming';
 
 // 줄 전략(빈 값은 방식대로)
 export type RowStrategy = '' | PortfolioStrategyType;
 
-// 포트폴리오 종목 줄 칸(종목 · 원화 금액 · 비율 % · 평균 단가 대비 익절 % · 손절 % · 전략과 이동평균 · 밴드 칸)과 판매 차례, 방식 · 전략을 바꿔도 칸 값은 남음
+// 포트폴리오 종목 줄 칸(종목 · 원화 금액 · 비율 % · 평균 단가 대비 익절 % · 손절 % · 전략과 이동평균 · 밴드 칸 · 체결 시점)과 판매 차례, 방식 · 전략을 바꿔도 칸 값은 남음
 export interface PortfolioRow {
   symbol: string;
   amount: string;
@@ -22,6 +23,8 @@ export interface PortfolioRow {
   bandWindow: string;
   upper: string;
   lower: string;
+  // 이동평균 · 밴드 줄 체결 시점
+  executionTiming: ExecutionTiming;
   // 양도세 낼 현금이 모자라 정한 순서로 팔 때의 차례(작을수록 먼저)
   taxSaleOrder: number;
 }
@@ -43,9 +46,10 @@ const SIGNAL_DEFAULTS = {
   bandWindow: MA_BAND.window,
   upper: MA_BAND.upper,
   lower: MA_BAND.lower,
+  executionTiming: 'SAME_DAY_CLOSE' as ExecutionTiming,
 };
 
-// 익절 · 손절이 비고 방식대로인 줄(이동평균 · 밴드 칸은 기본값)
+// 익절 · 손절이 비고 방식대로인 줄(이동평균 · 밴드 칸 · 체결 시점은 기본값)
 export const newRow = (symbol = '', amount = '', weight = '', taxSaleOrder = 1): PortfolioRow => ({
   symbol,
   amount,
@@ -162,7 +166,7 @@ const isRow = (value: unknown): value is SavedRow =>
 
 const textOr = (value: unknown, fallback = '') => (typeof value === 'string' ? value : fallback);
 
-// 직전 설정에 저장한 줄(종목 · 금액 · 비율이 글 칸인 것만 10개까지, 익절 · 손절은 글이 아니면 빈 칸, 전략은 고를 수 있는 값만, 이동평균 · 밴드 칸은 글이 아니면 기본값, 판매 차례는 정수가 아니면 줄 차례)
+// 직전 설정에 저장한 줄(종목 · 금액 · 비율이 글 칸인 것만 10개까지, 익절 · 손절은 글이 아니면 빈 칸, 전략 · 체결 시점은 고를 수 있는 값만, 이동평균 · 밴드 칸은 글이 아니면 기본값, 판매 차례는 정수가 아니면 줄 차례)
 export const savedRows = (saved: unknown[]): PortfolioRow[] =>
   saved
     .filter(isRow)
@@ -179,6 +183,9 @@ export const savedRows = (saved: unknown[]): PortfolioRow[] =>
       bandWindow: textOr(row.bandWindow, SIGNAL_DEFAULTS.bandWindow),
       upper: textOr(row.upper, SIGNAL_DEFAULTS.upper),
       lower: textOr(row.lower, SIGNAL_DEFAULTS.lower),
+      executionTiming: EXECUTION_TIMINGS.includes(row.executionTiming as ExecutionTiming)
+        ? (row.executionTiming as ExecutionTiming)
+        : SIGNAL_DEFAULTS.executionTiming,
       taxSaleOrder: Number.isInteger(row.taxSaleOrder) ? (row.taxSaleOrder as number) : index + 1,
     }));
 

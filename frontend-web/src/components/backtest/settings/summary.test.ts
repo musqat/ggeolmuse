@@ -4,6 +4,7 @@ import {
   conditionalHow,
   dcaHow,
   detailParts,
+  executionText,
   maBandAbout,
   maBandHow,
   maCrossAbout,
@@ -173,6 +174,30 @@ describe('요약 둘째 줄', () => {
     expect(maBandHow({ amount: '1000000', window: '200', upper: '2.5', lower: '2.5', signal: 'MSFT' })).toBe(
       '원금 100만원 · 신호 MSFT · 200일선 +2.5% 위로 오르면 가진 돈 전부로 사고, -2.5% 아래로 내려가면 전부 팜'
     )
+  })
+
+  it('이동평균 교차 · 밴드는 다음 거래일 시가를 고르면 규칙 뒤에 체결 시점을 적고, 신호 난 날 종가면 적지 않는다', () => {
+    expect(executionText('NEXT_DAY_OPEN')).toBe('다음 거래일 시가에 체결')
+    expect(executionText('SAME_DAY_CLOSE')).toBe('')
+    const trailing = trailingText('10', '')
+    expect(maCrossHow({ amount: '1000000', short: '20', long: '60', execution: executionText('NEXT_DAY_OPEN'), trailing })).toBe(
+      `원금 100만원 · 20일 선이 60일 선을 넘으면 가진 돈 전부로 사고, 아래로 내려가면 전부 팜 · 다음 거래일 시가에 체결 · ${trailing}`
+    )
+    expect(maBandHow({ amount: '1000000', window: '200', upper: '2.5', lower: '2.5', execution: '' })).toBe(
+      '원금 100만원 · 200일선 +2.5% 위로 오르면 가진 돈 전부로 사고, -2.5% 아래로 내려가면 전부 팜'
+    )
+  })
+
+  it('포트폴리오 이동평균 · 밴드 줄 가운데 다음 거래일 시가를 고른 줄 수를 신호 글 뒤에 적는다', () => {
+    expect(
+      portfolioHow({ lines: [lump(6000000), { ...cross(3000000), nextOpen: true }, band(1000000)], ...schedule, rebalance: 'NONE' })
+    ).toBe('종목 3개 · 한 번에 1개 600만원 · 이동평균 교차, 밴드 2개 첫 매수 신호에 400만원(1개는 다음 거래일 시가에 체결)')
+  })
+
+  it('전략을 한 번에 · 적립식으로 바꾼 줄에 남은 다음 거래일 시가는 줄 수에 세지 않는다', () => {
+    expect(
+      portfolioHow({ lines: [{ ...lump(6000000), nextOpen: true }, cross(3000000)], ...schedule, rebalance: 'NONE' })
+    ).toBe('종목 2개 · 한 번에 1개 600만원 · 이동평균 교차 1개 첫 매수 신호에 300만원')
   })
 
   it('이동평균 교차 · 밴드 모드 설명은 칸의 기간 · 비율을 넣고 빈 칸은 ? 로 둔다', () => {

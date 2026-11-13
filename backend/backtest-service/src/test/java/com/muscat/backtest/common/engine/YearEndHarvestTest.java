@@ -64,7 +64,7 @@ class YearEndHarvestTest {
     }
 
     @Test
-    @DisplayName("12월 31일이 평가일 뒤인 해, 연말 정리 날이 시작일 앞인 해, 12월 일봉이 결제 일수만큼 이어지지 않는 해는 뺀다")
+    @DisplayName("12월 31일이 평가일 뒤인 해, 연말 정리 날이 시작일 앞인 해, 결제일이 그해인 12월 일봉이 없는 해는 뺀다")
     void skipsYearsWithoutSettlingDay() {
       List<LocalDate> candles = List.of(LocalDate.of(2020, 12, 29), LocalDate.of(2020, 12, 30),
         LocalDate.of(2020, 12, 31), LocalDate.of(2021, 11, 30), LocalDate.of(2021, 12, 29), LocalDate.of(2021, 12, 30),
@@ -76,11 +76,20 @@ class YearEndHarvestTest {
     }
 
     @Test
-    @DisplayName("쓸 수 없는 일봉 날은 거래일로 세지 않는다")
-    void countsUsableCandlesOnly() {
+    @DisplayName("결제일은 평일로 세어 12월 31일 일봉이 없어도 12월 30일에 연말 정리한다")
+    void settlesOnWeekdays() {
+      List<LocalDate> candles = List.of(LocalDate.of(2024, 12, 27), LocalDate.of(2024, 12, 30));
+
+      assertThat(YearEndHarvest.dates(candles, LocalDate.of(2024, 1, 2), DECEMBER))
+        .containsExactly(LocalDate.of(2024, 12, 30));
+    }
+
+    @Test
+    @DisplayName("쓸 수 없는 일봉 날은 연말 정리 날로 고르지 않는다")
+    void picksUsableCandlesOnly() {
       Map<LocalDate, OHLCPriceDto> priceMap = Stream.of(
-          candle(LocalDate.of(2024, 12, 27), BigDecimal.TEN), candle(LocalDate.of(2024, 12, 30), BigDecimal.TEN),
-          candle(DECEMBER, BigDecimal.ZERO))
+          candle(LocalDate.of(2024, 12, 27), BigDecimal.TEN), candle(LocalDate.of(2024, 12, 30), BigDecimal.ZERO),
+          candle(DECEMBER, BigDecimal.TEN))
         .collect(Collectors.toMap(OHLCPriceDto::date, price -> price));
 
       assertThat(YearEndHarvest.dates(priceMap, LocalDate.of(2024, 1, 2), DECEMBER))
@@ -113,6 +122,22 @@ class YearEndHarvestTest {
     void offsetsLoss() {
       // 50주를 1만 달러에 팔아 500만원 이익, 남은 50주(원가 500만원)가 40달러라 주당 6만원 손실
       assertThat(plan(List.of(buy(null, "100", "10000000"), sell("50", "10000")), Map.of("", "40"), "0"))
+        .containsExactly(new YearEndHarvest.Sale("", new BigDecimal("41.66666666"), false));
+    }
+
+    @Test
+    @DisplayName("전해 마지막 거래일에 판 거래의 이익은 결제된 해의 실현 이익으로 센다")
+    void countsGainSettledThisYear() {
+      // 2023-12-29 에 50주를 1만 달러에 판 500만원 이익은 2024년 결제, 남은 50주(원가 500만원)가 40달러라 주당 6만원 손실
+      LocalDate bought = LocalDate.of(2023, 6, 1);
+      LocalDate sold = LocalDate.of(2023, 12, 29);
+      List<StrategyTransaction> transactions = List.of(
+        StrategyTransaction.builder().date(bought).actualDate(bought).shares(new BigDecimal("100"))
+          .price(BigDecimal.ONE).amount(new BigDecimal("10000000")).fxRate(new BigDecimal("1000")).build(),
+        StrategyTransaction.builder().date(sold).actualDate(sold).shares(new BigDecimal("-50")).price(BigDecimal.ONE)
+          .amount(BigDecimal.ZERO).proceeds(new BigDecimal("10000")).fxRate(new BigDecimal("1000")).build());
+
+      assertThat(plan(transactions, Map.of("", "40"), "0"))
         .containsExactly(new YearEndHarvest.Sale("", new BigDecimal("41.66666666"), false));
     }
 

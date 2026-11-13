@@ -1,9 +1,10 @@
-import type { MaBandStrategyRequest } from '@services/api';
+import type { ExecutionTiming, MaBandStrategyRequest } from '@services/api';
 import type { BuildResult, RunContext } from '../types';
 import { taxSaleFields, toOptionFields, yearEndFields, type BacktestOptions } from '../../shared/backtestOptions';
 import { BAND_ERROR, parseBand } from '../../shared/maBand';
 import { toTrailingStop } from '../../shared/trailingStop';
 import { toPartialTakeProfits, type TakeProfitStep } from '../../shared/partialTakeProfit';
+import { executionTimingFields } from '../../shared/executionTiming';
 
 export interface MaBandValues extends BacktestOptions {
   startDate: string;
@@ -19,9 +20,11 @@ export interface MaBandValues extends BacktestOptions {
   trailingSell?: string;
   // 부분 익절 단계(비우면 끔)
   partialTakeProfits?: TakeProfitStep[];
+  // 비우면 신호 난 날 종가
+  executionTiming?: ExecutionTiming;
 }
 
-// 이동평균 밴드 요청(검사에 걸리면 alert 문구), 금액은 원금 · 밴드 세 칸은 늘 채움 · 신호 종목 · 트레일링 스탑 · 부분 익절은 적은 때만 · 배당 재투자는 늘 끔
+// 이동평균 밴드 요청(검사에 걸리면 alert 문구), 금액은 원금 · 밴드 세 칸은 늘 채움 · 신호 종목 · 다음 거래일 시가 · 트레일링 스탑 · 부분 익절은 고른 때만 · 배당 재투자는 늘 끔
 export const buildMaBandRequest = (
   values: MaBandValues,
   symbol: string,
@@ -60,6 +63,7 @@ export const buildMaBandRequest = (
       upperRate: band.upperRate,
       lowerRate: band.lowerRate,
       ...(values.signalSymbol && { signalSymbol: values.signalSymbol }),
+      ...executionTimingFields(values.executionTiming),
       ...trailing.fields,
       ...partial.fields,
       ...toOptionFields(values),

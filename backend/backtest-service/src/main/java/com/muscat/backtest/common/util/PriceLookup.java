@@ -27,6 +27,12 @@ public final class PriceLookup {
     return price.closePrice() != null ? price.closePrice() : price.adjustedClose();
   }
 
+  // 체결용 시가(closePrice 와 같이 분할만 조정된 openPrice, 시가가 0 이하 · 없거나 closePrice 가 없으면 effectiveClose)
+  public static java.math.BigDecimal effectiveOpen(OHLCPriceDto price) {
+    java.math.BigDecimal open = price.openPrice();
+    return open != null && open.signum() > 0 && price.closePrice() != null ? open : effectiveClose(price);
+  }
+
   // available 이고 종가가 0 보다 큰 시세
   public static boolean isUsable(OHLCPriceDto price) {
     if (price == null || !price.available()) {

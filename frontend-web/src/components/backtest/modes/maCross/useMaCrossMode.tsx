@@ -14,6 +14,7 @@ import { singleTaxSale } from '../../shared/taxSale';
 import { useSignalSymbol } from '../useSignalSymbol';
 import { useTrailingStop } from '../useTrailingStop';
 import { usePartialTakeProfit } from '../usePartialTakeProfit';
+import { useExecutionTiming } from '../useExecutionTiming';
 
 const LABEL = '원금';
 const DEFAULTS = { amount: '1000000', short: MA_WINDOWS.short, long: MA_WINDOWS.long };
@@ -27,6 +28,7 @@ export const useMaCrossMode = (shared: SharedModeProps): ModeController => {
   const signal = useSignalSymbol(symbol, supportedSymbols);
   const trailing = useTrailingStop();
   const partial = usePartialTakeProfit();
+  const execution = useExecutionTiming();
 
   const amountMessage = amountIssue({ byShares: false, amount: investment, shares: '', label: LABEL });
   const windowMessages = windowIssues(shortWindow, longWindow);
@@ -49,6 +51,7 @@ export const useMaCrossMode = (shared: SharedModeProps): ModeController => {
           messages: windowMessages,
         }}
         signal={signal.field}
+        execution={execution.field}
         trailing={trailing.field}
         partial={partial.field}
       />
@@ -60,6 +63,7 @@ export const useMaCrossMode = (shared: SharedModeProps): ModeController => {
         short: shortWindow,
         long: longWindow,
         signal: signal.signalSymbol,
+        execution: execution.text,
         trailing: trailing.text,
         partial: partial.text,
       }),
@@ -78,13 +82,22 @@ export const useMaCrossMode = (shared: SharedModeProps): ModeController => {
     reinvestNote: '이동평균 교차는 배당을 현금으로',
     taxSale: singleTaxSale(options),
     harvest: true,
-    saved: { amount: investment, short: shortWindow, long: longWindow, ...signal.saved, ...trailing.saved, ...partial.saved },
+    saved: {
+      amount: investment,
+      short: shortWindow,
+      long: longWindow,
+      ...signal.saved,
+      ...execution.saved,
+      ...trailing.saved,
+      ...partial.saved,
+    },
     load: (saved) => {
       const next = pickValues(DEFAULTS, saved);
       setInvestment(next.amount);
       setShortWindow(next.short);
       setLongWindow(next.long);
       signal.load(saved);
+      execution.load(saved);
       trailing.load(saved);
       partial.load(saved);
     },
@@ -97,6 +110,7 @@ export const useMaCrossMode = (shared: SharedModeProps): ModeController => {
           shortWindow,
           longWindow,
           signalSymbol: signal.signalSymbol,
+          executionTiming: execution.timing,
           trailingStop: trailing.stop,
           trailingSell: trailing.sell,
           partialTakeProfits: partial.steps,

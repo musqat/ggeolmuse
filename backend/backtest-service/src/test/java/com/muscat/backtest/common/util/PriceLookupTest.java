@@ -123,6 +123,30 @@ class PriceLookupTest {
   }
 
   @Test
+  @DisplayName("effectiveOpen: 종가와 같이 분할만 조정된 openPrice 를 쓴다")
+  void effectiveOpen_usesOpen() {
+    OHLCPriceDto p = new OHLCPriceDto("AAPL", d("2024-01-02"), new BigDecimal("101"), new BigDecimal("102"),
+      new BigDecimal("99"), new BigDecimal("100"), new BigDecimal("90"), 1L, "USD", true);
+
+    assertThat(PriceLookup.effectiveOpen(p)).isEqualByComparingTo("101");
+  }
+
+  @Test
+  @DisplayName("effectiveOpen: openPrice 가 없거나 0 이하, 또는 closePrice 가 없으면 그 날짜 effectiveClose")
+  void effectiveOpen_fallback() {
+    OHLCPriceDto noOpen = new OHLCPriceDto("AAPL", d("2024-01-02"), null, new BigDecimal("102"),
+      new BigDecimal("99"), new BigDecimal("100"), new BigDecimal("90"), 1L, "USD", true);
+    OHLCPriceDto zeroOpen = new OHLCPriceDto("AAPL", d("2024-01-02"), BigDecimal.ZERO, new BigDecimal("102"),
+      new BigDecimal("99"), new BigDecimal("100"), new BigDecimal("90"), 1L, "USD", true);
+    OHLCPriceDto noClose = new OHLCPriceDto("AAPL", d("2024-01-02"), new BigDecimal("101"), new BigDecimal("102"),
+      new BigDecimal("99"), null, new BigDecimal("90"), 1L, "USD", true);
+
+    assertThat(PriceLookup.effectiveOpen(noOpen)).isEqualByComparingTo("100");
+    assertThat(PriceLookup.effectiveOpen(zeroOpen)).isEqualByComparingTo("100");
+    assertThat(PriceLookup.effectiveOpen(noClose)).isEqualByComparingTo("90");
+  }
+
+  @Test
   @DisplayName("effectiveClose: closePrice null이면 adjustedClose fallback")
   void effectiveClose_fallback() {
     OHLCPriceDto p = new OHLCPriceDto("AAPL", d("2025-06-05"),

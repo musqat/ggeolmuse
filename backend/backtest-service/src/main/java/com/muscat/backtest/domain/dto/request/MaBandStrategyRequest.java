@@ -2,6 +2,7 @@ package com.muscat.backtest.domain.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.muscat.backtest.common.constants.BacktestConstants.Band;
+import com.muscat.backtest.common.enums.type.ExecutionTiming;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.enums.type.TaxSale;
@@ -77,7 +78,7 @@ public class MaBandStrategyRequest implements SignalStrategyRequest {
   @Builder.Default
   private BigDecimal dividendTaxRate = BigDecimal.ZERO;
 
-  @Schema(description = "양도소득세 계산 · 납부 여부 (판 해마다 원화 실현 이익에서 연 250만원 공제 뒤 22% 를 다음 해 5월 1일 이후 첫 거래일에 판 돈에서 냄, 비우면 끔)", example = "true")
+  @Schema(description = "양도소득세 계산 · 납부 여부 (결제된 해(2024-05-28 전 T+2, 그 뒤 T+1)마다 원화 실현 이익에서 연 250만원 공제 뒤 22% 를 다음 해 5월 1일 이후 첫 거래일에 판 돈에서 냄, 비우면 끔)", example = "true")
   private Boolean capitalGainsTax;
 
   @Schema(description = "기간이 끝나면 (HOLD 끝까지 보유, SELL_AT_END 마지막 거래일 종가에 남은 주식 전량 매도, 비우면 HOLD)", example = "HOLD")
@@ -100,6 +101,9 @@ public class MaBandStrategyRequest implements SignalStrategyRequest {
 
   @Schema(description = "부분 익절 단계: 수익률이 낮은 단계부터 사이클에 한 번씩, 하루에 한 단계 보유의 팔 비율만큼 팜, 다 팔면 위 선 아래로 내려왔다 다시 올라선 날 삼 (5단계까지, 비우면 안 함)")
   private List<PartialTakeProfit> partialTakeProfits;
+
+  @Schema(description = "체결 시점 (SAME_DAY_CLOSE 위 선 · 아래 선 신호 난 날 종가, NEXT_DAY_OPEN 그다음 거래일 시가(다음 거래일이 없으면 체결 안 함), 비우면 SAME_DAY_CLOSE)", example = "NEXT_DAY_OPEN")
+  private ExecutionTiming executionTiming;
 
   // 이력 저장 JSON 에는 넣지 않음
   @JsonIgnore

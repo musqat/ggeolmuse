@@ -17,6 +17,7 @@ import { WindowsField } from './WindowsField'
 import { BandField } from './BandField'
 import { SymbolField, SymbolsField } from './SymbolFields'
 import { SignalSymbolField } from './SignalSymbolField'
+import { ExecutionTimingField } from './ExecutionTimingField'
 import type { AmountUnitState } from '../shared/amountUnit'
 import type { TakeProfitStep } from '../shared/partialTakeProfit'
 
@@ -737,5 +738,21 @@ describe('SignalSymbolField', () => {
     await userEvent.type(input, 'ms')
     await userEvent.click(screen.getByRole('option', { name: /MSFT/ }))
     expect(props.onOtherChange).toHaveBeenCalledWith('MSFT')
+  })
+})
+
+describe('ExecutionTimingField', () => {
+  it('체결 시점은 신호 난 날 종가 · 다음 거래일 시가 칩 가운데 하나만 고른다', async () => {
+    const onChange = vi.fn()
+    const { rerender } = render(<ExecutionTimingField value="SAME_DAY_CLOSE" onChange={onChange} />)
+
+    const group = screen.getByRole('radiogroup', { name: '체결 시점' })
+    expect(within(group).getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['신호 난 날 종가', '다음 거래일 시가'])
+    expect(screen.getByRole('radio', { name: '신호 난 날 종가' })).toHaveAttribute('aria-checked', 'true')
+    await userEvent.click(screen.getByRole('radio', { name: '다음 거래일 시가' }))
+    expect(onChange).toHaveBeenCalledWith('NEXT_DAY_OPEN')
+
+    rerender(<ExecutionTimingField value="NEXT_DAY_OPEN" onChange={onChange} />)
+    expect(screen.getByRole('radio', { name: '다음 거래일 시가' })).toHaveAttribute('aria-checked', 'true')
   })
 })

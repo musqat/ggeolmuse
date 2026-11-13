@@ -1,5 +1,6 @@
 package com.muscat.backtest.domain.dto.response;
 
+import com.muscat.backtest.common.enums.type.ExecutionTiming;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
 import com.muscat.backtest.common.enums.type.PortfolioRebalance;
@@ -75,6 +76,8 @@ public record PortfolioResponse(
     String symbol,
     @Schema(description = "줄 전략 (줄에 없으면 요청의 매수 방식)", example = "LUMP_SUM")
     PortfolioStrategyType strategyType,
+    @Schema(description = "체결 시점 (SAME_DAY_CLOSE 신호 난 날 종가, NEXT_DAY_OPEN 신호 다음 거래일 시가, 이동평균 교차 · 밴드 줄만, 다른 줄은 null)", example = "NEXT_DAY_OPEN")
+    ExecutionTiming executionTiming,
     @Schema(description = "원금 (그 종목에 새로 넣은 원화 합: 한 번에 사기 · 적립식 회차 · 신호 줄 첫 매수, KRW)", example = "6000000")
     BigDecimal investedKrw,
     @Schema(description = "산 돈 (그 종목 매수 원가 합: 새 돈 원화 + 쓴 현금 × 그 날짜 환율, 배당 재투자 · 리밸런싱 매수 포함, KRW)", example = "6000000")

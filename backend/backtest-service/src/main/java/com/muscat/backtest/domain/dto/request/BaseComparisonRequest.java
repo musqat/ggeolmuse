@@ -50,7 +50,7 @@ public abstract class BaseComparisonRequest {
   @Schema(description = "배당 원천징수 세율 (15% = 0.15, null이면 0)", example = "0.15")
   private BigDecimal dividendTaxRate;
 
-  @Schema(description = "양도소득세 계산 · 납부 여부 (항목마다 판 해의 원화 실현 이익에서 연 250만원 공제 뒤 22% 를 다음 해 5월 1일 이후 첫 거래일에 판 돈에서 냄, 비우면 끔)", example = "true")
+  @Schema(description = "양도소득세 계산 · 납부 여부 (항목마다 결제된 해의 원화 실현 이익에서 연 250만원 공제 뒤 22% 를 다음 해 5월 1일 이후 첫 거래일에 판 돈에서 냄, 비우면 끔)", example = "true")
   private Boolean capitalGainsTax;
 
   @Schema(description = "기간이 끝나면 (HOLD 끝까지 보유, SELL_AT_END 항목마다 마지막 거래일 종가에 남은 주식 전량 매도, 비우면 HOLD)", example = "HOLD")

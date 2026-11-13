@@ -142,7 +142,11 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
     summary: {
       subject: rowsSubject(rows),
       how: portfolioHow({
-        lines: rows.map((row, index) => ({ strategy: rowStrategy(row, method), amount: amounts[index] })),
+        lines: rows.map((row, index) => ({
+          strategy: rowStrategy(row, method),
+          amount: amounts[index],
+          nextOpen: row.executionTiming === 'NEXT_DAY_OPEN',
+        })),
         cadenceLabel: cadenceText(cadence, months, first, monthDay),
         rounds,
         daily: cadence === 'DAILY',

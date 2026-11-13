@@ -14,6 +14,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.muscat.backtest.common.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
+import com.muscat.backtest.common.enums.type.ExecutionTiming;
 import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
@@ -77,6 +78,13 @@ class MaBandStrategyTest {
   private static OHLCPriceDto day(int offset, String close) {
     BigDecimal price = new BigDecimal(close);
     return new OHLCPriceDto(SYMBOL, START.plusDays(offset), price, price, price, price, price, 1_000L, "USD", true);
+  }
+
+  // 시가 · 종가가 다른 일봉(수정 종가는 종가)
+  private static OHLCPriceDto bar(int offset, String open, String close) {
+    BigDecimal o = new BigDecimal(open);
+    BigDecimal c = new BigDecimal(close);
+    return new OHLCPriceDto(SYMBOL, START.plusDays(offset), o, o.max(c), o.min(c), c, c, 1_000L, "USD", true);
   }
 
   // 종가와 수정 종가가 다른 일봉
@@ -161,6 +169,25 @@ class MaBandStrategyTest {
   @Nested
   @DisplayName("밴드 매매")
   class BandTrades {
+
+    @Test
+    @DisplayName("다음 거래일 시가를 고르면 밴드 위 · 아래 신호 다음 거래일 시가에 사고팔고 신호 난 날을 계획일로 남긴다")
+    void tradesAtNextOpen() {
+      // banded() 와 같은 종가, 2일째 시가 25 · 5일째 시가 16 · 7일째 시가 32
+      List<OHLCPriceDto> prices = new java.util.ArrayList<>(banded());
+      prices.set(4, bar(2, "25", "22"));
+      prices.set(7, bar(5, "16", "18"));
+      prices.set(9, bar(7, "32", "26"));
+      stubMarket(prices);
+
+      strategy.execute(request(7).executionTiming(ExecutionTiming.NEXT_DAY_OPEN).build());
+
+      assertThat(executed()).extracting(tx -> tuple(tx.getDate(), tx.getActualDate(), plain(tx.getPrice()),
+        tx.getTrigger(), plain(tx.getShares()))).containsExactly(
+          tuple(START.plusDays(1), START.plusDays(2), "25", "밴드 위 매수", "40"),
+          tuple(START.plusDays(4), START.plusDays(5), "16", "밴드 아래 매도", "-40"),
+          tuple(START.plusDays(6), START.plusDays(7), "32", "밴드 위 매수", "20"));
+    }
 
     @Test
     @DisplayName("수정 종가가 위 선보다 높은 날 원금 전부로 사고, 사이에서는 그대로 두고, 아래 선보다 낮은 날 전량 팔고, 다시 위 선 위면 판 돈 전부로 산다")
@@ -293,7 +320,7 @@ class MaBandStrategyTest {
     }
 
     @Test
-    @DisplayName("양도세를 켜면 판 해의 원화 실현 이익을 싣고, 비우면 싣지 않는다")
+    @DisplayName("양도세를 켜면 결제된 해의 원화 실현 이익을 싣고, 비우면 싣지 않는다")
     void capitalGainsTax() {
       stubMarket(banded());
 

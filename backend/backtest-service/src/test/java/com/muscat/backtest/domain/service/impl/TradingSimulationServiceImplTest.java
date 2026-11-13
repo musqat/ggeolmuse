@@ -1210,7 +1210,7 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
-    @DisplayName("기간 끝 매도를 고르면 마지막 거래일 종가에 수수료를 빼고 전량 팔아 주식 0 · 판 돈 현금이고, 판 해의 양도세는 납부일이 기간 뒤라 남은 양도세로 뺀다")
+    @DisplayName("기간 끝 매도를 고르면 마지막 거래일 종가에 수수료를 빼고 전량 팔아 주식 0 · 판 돈 현금이고, 결제된 해의 양도세는 납부일이 기간 뒤라 남은 양도세로 뺀다")
     void sellAtEnd() {
       // 일요일 평가라 마지막 거래일은 6월 14일
       LocalDate sunday = LocalDate.of(2024, 6, 16);
@@ -1240,6 +1240,22 @@ class TradingSimulationServiceImplTest {
       assertThat(response.getCapitalGainsTax().afterTaxValueKrw()).isEqualByComparingTo("18317321");
       // 판 날 뒤 배당은 받지 않음
       verify(marketDataClientWrapper).getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14");
+    }
+
+    @Test
+    @DisplayName("양도세를 켜고 12월 31일 기간 끝에 팔면 그 이익은 결제된 다음 해 몫이다")
+    void sellAtEndOnDecember31() {
+      LocalDate december31 = LocalDate.of(2024, 12, 31);
+      given(marketDataClientWrapper.getFxRate("2024-12-31")).willReturn(new FxRateDto(december31, new BigDecimal("1300")));
+      stubRange(candle(purchaseDate, "100.00"), candle(december31, "150.00"));
+      given(marketDataClientWrapper.getBulkFxRates(anyList())).willReturn(Map.of(
+        "2024-01-15", new BigDecimal("1300"), "2024-12-31", new BigDecimal("1300")));
+
+      SimulationResponse response = service.runSimulation(SimulationRequest.builder().symbol(TEST_SYMBOL)
+        .purchaseDate(purchaseDate).saleDate(december31).investmentAmount(new BigDecimal("1300000"))
+        .periodEnd(PeriodEnd.SELL_AT_END).capitalGainsTax(true).build(), false);
+
+      assertThat(response.getCapitalGainsTax().years()).extracting(CapitalGainsTax.Year::year).containsExactly(2025);
     }
 
     @Test

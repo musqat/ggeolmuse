@@ -14,6 +14,8 @@ const REASON_LABEL: Record<SkipReason, string> = {
 interface PurchaseHistoryProps {
   transactions: StrategyTransaction[];
   skippedRounds: SkippedRound[];
+  // 체결한 날과 다른 계획일 앞 글(비우면 계획)
+  plannedLabel?: string;
 }
 
 type Round =
@@ -83,7 +85,7 @@ const EMPTY = <span className="text-tx-3">-</span>;
 
 const NUMBER_CELL = 'py-1.5 pl-3 text-right whitespace-nowrap';
 
-function RoundRow({ round }: { round: Round }) {
+function RoundRow({ round, plannedLabel }: { round: Round; plannedLabel: string }) {
   if (round.kind === 'skipped') {
     return (
       <tr className="border-t border-line/30">
@@ -102,7 +104,11 @@ function RoundRow({ round }: { round: Round }) {
     <tr className="border-t border-line/30">
       <td className="py-1.5 whitespace-nowrap">
         <div>{tradedOn}</div>
-        {tradedOn !== tx.date && <div className="text-xs text-tx-3">계획 {tx.date}</div>}
+        {tradedOn !== tx.date && (
+          <div className="text-xs text-tx-3">
+            {plannedLabel} {tx.date}
+          </div>
+        )}
       </td>
       <td className="py-1.5 pl-3 whitespace-nowrap">{tx.trigger ?? '매수'}</td>
       <td className={NUMBER_CELL}>{payment ? EMPTY : formatUsd(tx.price)}</td>
@@ -117,7 +123,7 @@ function RoundRow({ round }: { round: Round }) {
 }
 
 // 매매 내역 표(연도마다 접힘, 매수 · 매도일 · 가격과 양도세 납부 · 미매수 회차를 함께)
-export const PurchaseHistory: React.FC<PurchaseHistoryProps> = ({ transactions, skippedRounds }) => {
+export const PurchaseHistory: React.FC<PurchaseHistoryProps> = ({ transactions, skippedRounds, plannedLabel = '계획' }) => {
   if (transactions.length === 0 && skippedRounds.length === 0) return null;
   const years = roundsByYear(transactions, skippedRounds);
 
@@ -145,7 +151,7 @@ export const PurchaseHistory: React.FC<PurchaseHistoryProps> = ({ transactions, 
               </thead>
               <tbody>
                 {rounds.map((round, index) => (
-                  <RoundRow key={`${round.kind}-${round.planned}-${index}`} round={round} />
+                  <RoundRow key={`${round.kind}-${round.planned}-${index}`} round={round} plannedLabel={plannedLabel} />
                 ))}
               </tbody>
             </table>
