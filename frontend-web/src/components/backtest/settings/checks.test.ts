@@ -106,7 +106,7 @@ describe('설정 칸 검사', () => {
     expect(sellIssue('', '100')).toEqual(error('손절은 100 아래'))
   })
 
-  it('트레일링 스탑: 둘 다 비면 끔, 하락은 0 초과 100 미만, 팔 비율은 하락과 함께 0 초과 100 이하', () => {
+  it('트레일링 스탑: 둘 다 비면 끔, 요청 비율로 바꾼 하락은 0 초과 1 미만, 팔 비율은 하락과 함께 0 초과 1 이하', () => {
     expect(trailingIssues('', '')).toEqual({ stop: null, sell: null })
     expect(trailingIssues('10', '')).toEqual({ stop: null, sell: null })
     expect(trailingIssues('99.9', '100')).toEqual({ stop: null, sell: null })
@@ -115,6 +115,14 @@ describe('설정 칸 검사', () => {
     expect(trailingIssues('10', '0')).toEqual({ stop: null, sell: error('0 초과 100 이하') })
     expect(trailingIssues('10', '100.1')).toEqual({ stop: null, sell: error('0 초과 100 이하') })
     expect(trailingIssues('', '50')).toEqual({ stop: null, sell: error('하락 비율과 함께') })
+  })
+
+  it('트레일링 스탑: 범위 안 값이 요청 비율로 바꿔 경계 밖이면 소수 여섯째 경계를 보인다', () => {
+    expect(trailingIssues('99.999999', '0.000001')).toEqual({ stop: null, sell: null })
+    expect(trailingIssues('99.999999999', '')).toEqual({ stop: error('0.000001 이상 99.999999 이하'), sell: null })
+    expect(trailingIssues('0.0000000001', '')).toEqual({ stop: error('0.000001 이상 99.999999 이하'), sell: null })
+    expect(trailingIssues('10', '0.0000000001')).toEqual({ stop: null, sell: error('0.000001 이상 100 이하') })
+    expect(trailingIssues('10', '100.0000000001')).toEqual({ stop: null, sell: null })
   })
 
   it('부분 익절: 단계마다 수익률은 0 초과로 앞 단계보다 크게, 팔 비율은 0 초과 100 이하, 빈 칸은 오류', () => {
@@ -135,6 +143,16 @@ describe('설정 칸 검사', () => {
       { gain: error('2단계 수익률 앞 단계보다 크게'), sell: null },
       { gain: error('3단계 수익률 비어 있음'), sell: null },
       { gain: error('4단계 수익률 앞 단계보다 크게'), sell: null },
+    ])
+  })
+
+  it('부분 익절: 범위 안 값이 요청 비율로 바꿔 경계 밖이면 소수 여섯째 경계를 보인다', () => {
+    const step = (gain: string, sell: string) => ({ gain, sell })
+
+    expect(partialTakeProfitIssues([step('0.0000000001', '0.0000000001'), step('20', '25'), step('20.0000001', '25')])).toEqual([
+      { gain: error('1단계 수익률 0.000001 이상'), sell: error('1단계 팔 비율 0.000001 이상 100 이하') },
+      { gain: null, sell: null },
+      { gain: error('3단계 수익률 앞 단계보다 0.000001 이상 크게'), sell: null },
     ])
   })
 
@@ -208,6 +226,9 @@ describe('설정 칸 검사', () => {
           lower: error('2번 줄 아래 비율 0 이상 100 미만'),
         },
       ])
+      expect(portfolioRowIssues([band('200', '2.5', '99.9999999')], 'AMOUNT', list)).toEqual([
+        { ...ok, lower: error('1번 줄 아래 비율 0 이상 99.999999 이하') },
+      ])
       expect(portfolioRowIssues([cross('60', '60'), band('2.5', '-1', '2.5')], 'WEIGHT', list)).toEqual([
         { ...ok, value: error('1번 줄 비율 비어 있음'), shortWindow: error('1번 줄 짧은 기간 긴 기간보다 짧게') },
         { ...ok, value: error('2번 줄 비율 비어 있음'), bandWindow: error('2번 줄 밴드 기간 2 ~ 250 사이 정수'), upper: error('2번 줄 위 비율 0 이상 100 미만') },
@@ -265,9 +286,11 @@ describe('설정 칸 검사', () => {
     expect(windowIssues('90', '60')).toEqual({ short: error('긴 기간보다 짧게'), long: null })
   })
 
-  it('밴드: 평균 기간은 2 ~ 250 정수, 위 · 아래 비율은 비면 비어 있음 · 0 이상 100 미만', () => {
+  it('밴드: 평균 기간은 2 ~ 250 정수, 위 · 아래 비율은 비면 비어 있음 · 요청 비율로 바꿔 0 이상 1 미만', () => {
     expect(bandIssues('200', '2.5', '2.5')).toEqual({ window: null, upper: null, lower: null })
     expect(bandIssues('2', '0', '99.9')).toEqual({ window: null, upper: null, lower: null })
+    expect(bandIssues('200', '99.999999', '2.5')).toEqual({ window: null, upper: null, lower: null })
+    expect(bandIssues('200', '99.9999999', '2.5')).toEqual({ window: null, upper: error('0 이상 99.999999 이하'), lower: null })
     expect(bandIssues('1', '', '100')).toEqual({
       window: error('2 ~ 250 사이 정수'),
       upper: error('% 비어 있음'),

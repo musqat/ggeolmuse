@@ -29,7 +29,7 @@ export const TrailingStopField = ({ stop, onStopChange, sell, onSellChange, mess
       placeholder={placeholder}
       aria-label={name}
       aria-invalid={isError(own) || undefined}
-      aria-describedby={own ? describedBy : undefined}
+      aria-describedby={own && own === message ? describedBy : undefined}
       value={value}
       onChange={(e) => onChange(oneDecimal(e.target.value))}
     />

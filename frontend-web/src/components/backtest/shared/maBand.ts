@@ -12,10 +12,10 @@ export interface BandSetting {
 
 export const BAND_ERROR = '밴드 기간은 2 ~ 250 사이 정수로, 위 · 아래 비율은 0 이상 100 미만으로 입력해주세요.';
 
-// 0 이상 100 미만 퍼센트(아니면 undefined)
+// 0 이상이고 요청 비율로 바꿔 1 미만인 퍼센트(아니면 undefined)
 export const parseBandPercent = (text: string) => {
   const value = Number(text.trim());
-  return text.trim() !== '' && Number.isFinite(value) && value >= 0 && value < 100 ? value : undefined;
+  return text.trim() !== '' && Number.isFinite(value) && value >= 0 && toRate(value) < 1 ? value : undefined;
 };
 
 // 평균 기간과 위 · 아래 비율(하나라도 맞지 않으면 undefined, 비율은 퍼센트 ÷ 100)
