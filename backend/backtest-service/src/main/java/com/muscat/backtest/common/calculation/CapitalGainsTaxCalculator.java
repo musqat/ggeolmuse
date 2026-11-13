@@ -2,6 +2,7 @@ package com.muscat.backtest.common.calculation;
 
 import com.muscat.backtest.common.constants.BacktestConstants.CapitalGains;
 import com.muscat.backtest.common.util.Decimals;
+import com.muscat.backtest.common.util.Settlement;
 import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.commonlib.util.MoneyUtils;
@@ -19,8 +20,8 @@ import java.util.TreeMap;
 // 판 거래의 원화 실현 이익으로 연도별 양도소득세 · 납부와 세후 평가를 내는 계산기
 public final class CapitalGainsTaxCalculator {
 
-  /** 판 날짜와 원화 실현 이익 */
-  public record Gain(LocalDate date, BigDecimal amountKrw) {}
+  /** 결제일과 원화 실현 이익 */
+  public record Gain(LocalDate settledOn, BigDecimal amountKrw) {}
 
   /** 종목 하나의 남은 주식 수와 원화 원가 */
   public record HoldingKrw(BigDecimal shares, BigDecimal costKrw) {}
@@ -66,7 +67,8 @@ public final class CapitalGainsTaxCalculator {
       BigDecimal soldCost = Decimals.isPositive(holding.shares)
         ? holding.cost.multiply(sold.min(holding.shares)).divide(holding.shares, 8, RoundingMode.HALF_UP)
         : BigDecimal.ZERO;
-      gains.add(new Gain(tx.tradedOn(), tx.getProceeds().multiply(tx.getFxRate()).subtract(soldCost)));
+      gains.add(new Gain(Settlement.date(tx.tradedOn()),
+        tx.getProceeds().multiply(tx.getFxRate()).subtract(soldCost)));
       holding.shares = holding.shares.subtract(sold);
       holding.cost = holding.cost.subtract(soldCost);
     }
@@ -82,15 +84,15 @@ public final class CapitalGainsTaxCalculator {
     return Decimals.isPositive(deposit) ? deposit : tx.getShares().multiply(tx.getPrice()).multiply(tx.getFxRate());
   }
 
-  /** 판 해마다 기간 안 납부일과 낸 원화 */
+  /** 결제된 해마다 기간 안 납부일과 낸 원화 */
   public record Payments(Map<Integer, LocalDate> dueDates, Map<Integer, BigDecimal> paidKrw) {
     public static final Payments NONE = new Payments(Map.of(), Map.of());
   }
 
-  // 판 해마다 원화 실현 이익 합(해 순서)
+  // 결제된 해마다 원화 실현 이익 합(해 순서)
   public static Map<Integer, BigDecimal> realizedByYear(List<Gain> gains) {
     Map<Integer, BigDecimal> byYear = new TreeMap<>();
-    gains.forEach(gain -> byYear.merge(gain.date().getYear(), gain.amountKrw(), BigDecimal::add));
+    gains.forEach(gain -> byYear.merge(gain.settledOn().getYear(), gain.amountKrw(), BigDecimal::add));
     return byYear;
   }
 
@@ -106,7 +108,7 @@ public final class CapitalGainsTaxCalculator {
     return Decimals.isPositive(realized) ? realized.min(CapitalGains.ANNUAL_DEDUCTION_KRW) : BigDecimal.ZERO;
   }
 
-  // 판 해마다 이익 합(그해 안에서만 상계) · 공제 · 세금 · 납부와 세후 총 평가(총 자산 - 남은 양도세) · 현금(총 자산 - 주식 평가)
+  // 결제된 해마다 이익 합(그해 안에서만 상계) · 공제 · 세금 · 납부와 세후 총 평가(총 자산 - 남은 양도세) · 현금(총 자산 - 주식 평가)
   public static CapitalGainsTax of(List<Gain> gains, Payments payments, BigDecimal totalAssetKrw, BigDecimal stockKrw,
     BigDecimal basisKrw) {
     List<CapitalGainsTax.Year> years = new ArrayList<>();

@@ -10,6 +10,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 
 import com.muscat.backtest.common.calculation.CapitalGainsTaxCalculator;
+import com.muscat.backtest.common.calculation.PortfolioCalculator;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
@@ -23,6 +24,7 @@ import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.dto.request.PortfolioAsset;
 import com.muscat.backtest.domain.dto.request.PortfolioRequest;
 import com.muscat.backtest.domain.dto.request.PortfolioStrategy;
+import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.dto.response.DailyValue;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
@@ -1096,6 +1098,21 @@ class PortfolioEngineTest {
       BigDecimal realized2025 = CapitalGainsTaxCalculator.realizedByYear(
         CapitalGainsTaxCalculator.realizedGains(result.transactions())).get(2025);
       assertThat(realized2025.abs()).isLessThan(BigDecimal.ONE);
+    }
+
+    @Test
+    @DisplayName("12월 31일에 판 이익은 결제된 다음 해 몫이라 그다음 해 5월 납부일에 내지 않는다")
+    void taxForSettlementYear() {
+      // AAA 시작일 10 달러에 100주, 12월 31일 100 달러에 익절해 1170만원 이익
+      LocalDate december31 = LocalDate.of(2024, 12, 31);
+      prices("AAA", candle("AAA", START, "10"), candle("AAA", december31, "100"), candle("AAA", DUE, "100"));
+      PortfolioRequest request = request(DUE, selling("AAA", "1300000", "9", null)).capitalGainsTax(true).build();
+
+      PortfolioEngine.Result result = engine.run(request);
+
+      assertThat(result.transactions()).noneMatch(StrategyTransaction::isTaxPayment);
+      assertThat(PortfolioCalculator.of(request, result).capitalGainsTax().years())
+        .extracting(CapitalGainsTax.Year::year, CapitalGainsTax.Year::dueDate).containsExactly(tuple(2025, null));
     }
 
     @Test

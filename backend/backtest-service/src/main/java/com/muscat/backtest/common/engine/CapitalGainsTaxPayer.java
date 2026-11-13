@@ -13,12 +13,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-// 양도세 납부: 판 해의 세금을 다음 해 5월 1일 이후 첫 거래일부터 사고팔기 전에 판 돈(USD)에서 냄
+// 양도세 납부: 결제된 해의 세금을 다음 해 5월 1일 이후 첫 거래일부터 사고팔기 전에 판 돈(USD)에서 냄
 // 현금이 모자라면 있는 만큼 내고 남은 몫은 현금이 있는 거래일마다 오래된 해부터 냄
 public final class CapitalGainsTaxPayer {
 
   private final boolean enabled;
-  // 납부일을 센 마지막 판 해
+  // 납부일을 센 마지막 결제된 해
   private int dueThrough = Integer.MIN_VALUE;
   private final Map<Integer, LocalDate> dueDates = new TreeMap<>();
   private final Map<Integer, BigDecimal> unpaidKrw = new TreeMap<>();
@@ -78,12 +78,12 @@ public final class CapitalGainsTaxPayer {
     return unpaidKrw.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
-  // 판 해마다 납부일 · 낸 원화
+  // 결제된 해마다 납부일 · 낸 원화
   public CapitalGainsTaxCalculator.Payments payments() {
     return new CapitalGainsTaxCalculator.Payments(Map.copyOf(dueDates), Map.copyOf(paidKrw));
   }
 
-  // 그 날짜에 납부일이 처음 온 판 해의 납부일 · 세금
+  // 그 날짜에 납부일이 처음 온 결제된 해의 납부일 · 세금
   private void registerDue(LocalDate date, List<StrategyTransaction> transactions) {
     int lastDue = MonthDay.from(date).isBefore(CapitalGains.PAYMENT_FROM) ? date.getYear() - 2 : date.getYear() - 1;
     if (lastDue <= dueThrough) {

@@ -98,7 +98,7 @@ class MaCrossStrategyTest {
       day(4, "12"), day(5, "8"), day(6, "30"), day(7, "31"));
   }
 
-  // 2025년 5월 1일(시작일 + 423일), 2024년 판 해의 납부일
+  // 2025년 5월 1일(시작일 + 423일), 2024년 몫의 납부일
   private static final LocalDate DUE = START.plusDays(423);
 
   // 1일째 골든 크로스(10), 4일째 데드 크로스(49) 뒤 5일째 40 에 이어지는 날
@@ -356,7 +356,7 @@ class MaCrossStrategyTest {
     }
 
     @Test
-    @DisplayName("양도세를 켜면 판 해의 원화 실현 이익 · 공제 · 세금을 싣고, 비우면 싣지 않는다")
+    @DisplayName("양도세를 켜면 결제된 해의 원화 실현 이익 · 공제 · 세금을 싣고, 비우면 싣지 않는다")
     void capitalGainsTax() {
       stubMarket(crossing());
 
@@ -370,7 +370,22 @@ class MaCrossStrategyTest {
     }
 
     @Test
-    @DisplayName("양도세를 켜면 판 해의 세금을 다음 해 5월 1일 이후 첫 거래일에 그 날짜 매매보다 먼저 판 돈에서 내고 남은 돈으로 산다")
+    @DisplayName("양도세를 켜면 12월 31일 데드 크로스에 판 이익은 결제된 다음 해 몫으로 싣는다")
+    void capitalGainsTaxSettlementYear() {
+      // 1일째 골든 크로스(10), 12월 31일(시작일 + 302일) 데드 크로스(49), 다음 거래일 2025-01-02
+      stubMarket(List.of(day(-2, "8"), day(-1, "8"), day(0, "8"), day(1, "10"), day(2, "60"), day(3, "70"),
+        day(301, "70"), day(302, "49"), day(304, "49")));
+
+      StrategyResponse response = strategy.execute(request(304).capitalGainsTax(true).build());
+
+      assertThat(trades()).containsExactly(
+        tuple(START.plusDays(1), "10", "골든 크로스", "100"),
+        tuple(START.plusDays(302), "49", "데드 크로스", "-100"));
+      assertThat(response.getCapitalGainsTax().years()).extracting(CapitalGainsTax.Year::year).containsExactly(2025);
+    }
+
+    @Test
+    @DisplayName("양도세를 켜면 결제된 해의 세금을 다음 해 5월 1일 이후 첫 거래일에 그 날짜 매매보다 먼저 판 돈에서 내고 남은 돈으로 산다")
     void paysCapitalGainsTaxBeforeTrading() {
       stubMarket(taxedCrossing(day(422, "30"), day(423, "60"), day(424, "61")));
 

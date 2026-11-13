@@ -293,7 +293,7 @@ class MaBandStrategyTest {
     }
 
     @Test
-    @DisplayName("양도세를 켜면 판 해의 원화 실현 이익을 싣고, 비우면 싣지 않는다")
+    @DisplayName("양도세를 켜면 결제된 해의 원화 실현 이익을 싣고, 비우면 싣지 않는다")
     void capitalGainsTax() {
       stubMarket(banded());
 

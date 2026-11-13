@@ -55,7 +55,8 @@ class CapitalGainsTaxCalculatorTest {
       List<Gain> gains = CapitalGainsTaxCalculator.realizedGains(List.of(
         buy(JAN, "10", "100", "1300000", "1300"), sell(MAR, "10", "1200", "1400")));
 
-      assertThat(gains).extracting(Gain::date).containsExactly(MAR);
+      // 2024-03-15 금요일에 판 거래는 둘째 평일 화요일 결제
+      assertThat(gains).extracting(Gain::settledOn).containsExactly(LocalDate.of(2024, 3, 19));
       assertThat(amounts(gains)).usingElementComparator(BigDecimal::compareTo).containsExactly(new BigDecimal("380000"));
     }
 
@@ -121,7 +122,7 @@ class CapitalGainsTaxCalculatorTest {
       List<Gain> gains = CapitalGainsTaxCalculator.realizedGains(List.of(
         buy(JAN, "10", "100", "1300000", "1300"), payment, sell(JUL, "10", "1200", "1400")));
 
-      assertThat(gains).extracting(Gain::date).containsExactly(JUL);
+      assertThat(gains).extracting(Gain::settledOn).containsExactly(LocalDate.of(2024, 7, 16));
       assertThat(amounts(gains)).usingElementComparator(BigDecimal::compareTo).containsExactly(new BigDecimal("380000"));
     }
 
@@ -134,6 +135,19 @@ class CapitalGainsTaxCalculatorTest {
         symbol("AAA", sell(MAR, "10", "1200", "1400"))));
 
       assertThat(amounts(gains)).usingElementComparator(BigDecimal::compareTo).containsExactly(new BigDecimal("380000"));
+    }
+
+    @Test
+    @DisplayName("결제된 해로 모아 2023-12-28 에 판 이익은 2024년, 2025-12-31 에 판 이익은 2026년 몫이다")
+    void groupsBySettlementYear() {
+      // 10주씩 1300원에 1200달러, 원가 130만원이라 26만원씩 이익
+      List<Gain> gains = CapitalGainsTaxCalculator.realizedGains(List.of(
+        buy(LocalDate.of(2023, 6, 1), "30", "100", "3900000", "1300"), sell(LocalDate.of(2023, 12, 28), "10", "1200", "1300"),
+        sell(LocalDate.of(2025, 12, 30), "10", "1200", "1300"), sell(LocalDate.of(2025, 12, 31), "10", "1200", "1300")));
+
+      assertThat(gains).extracting(Gain::settledOn)
+        .containsExactly(LocalDate.of(2024, 1, 1), LocalDate.of(2025, 12, 31), LocalDate.of(2026, 1, 1));
+      assertThat(CapitalGainsTaxCalculator.realizedByYear(gains)).containsOnlyKeys(2024, 2025, 2026);
     }
 
     @Test

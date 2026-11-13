@@ -680,7 +680,7 @@ class DCAStrategyTest {
     }
 
     @Test
-    @DisplayName("기간 끝 매도를 고르면 마지막 거래일 종가에 수수료를 빼고 전량 팔고, 판 해의 원화 실현 이익으로 양도세를 계산하되 납부일이 기간 뒤라 내지 않는다")
+    @DisplayName("기간 끝 매도를 고르면 마지막 거래일 종가에 수수료를 빼고 전량 팔고, 결제된 해의 원화 실현 이익으로 양도세를 계산하되 납부일이 기간 뒤라 내지 않는다")
     void sellAtEndWithCapitalGainsTax() {
       DcaStrategyRequest request = monthly(LocalDate.of(2024, 2, 29), 2).tradingFeeRate(new BigDecimal("0.01"))
         .periodEnd(PeriodEnd.SELL_AT_END).capitalGainsTax(true).build();
@@ -707,6 +707,22 @@ class DCAStrategyTest {
       assertThat(response.getCapitalGainsTax().cashKrw()).isEqualByComparingTo("668250");
       assertThat(response.getCapitalGainsTax().stockKrw()).isEqualByComparingTo("0");
       assertThat(response.getCapitalGainsTax().afterTaxValueKrw()).isEqualByComparingTo("668250");
+    }
+
+    @Test
+    @DisplayName("양도세를 켜고 12월 31일 기간 끝에 팔면 그 이익은 결제된 다음 해 몫이다")
+    void sellAtEndOnDecember31() {
+      DcaStrategyRequest request = DcaStrategyRequest.builder().userId(userId).symbol(symbol)
+        .startDate(LocalDate.of(2024, 12, 1)).endDate(LocalDate.of(2024, 12, 31)).sharesPerPurchase(2).purchaseDay(16)
+        .periodEnd(PeriodEnd.SELL_AT_END).capitalGainsTax(true).build();
+      stubMarket(request, List.of(createOHLC(LocalDate.of(2024, 12, 16), new BigDecimal("100.00")),
+          createOHLC(LocalDate.of(2024, 12, 31), new BigDecimal("125.00"))),
+        java.util.Map.of("2024-12-16", new BigDecimal("1350"), "2024-12-31", new BigDecimal("1350")));
+
+      StrategyResponse response = dcaStrategy.execute(request);
+
+      assertThat(executed()).last().satisfies(sale -> assertThat(sale.getTrigger()).isEqualTo("기간 끝 매도"));
+      assertThat(response.getCapitalGainsTax().years()).extracting(CapitalGainsTax.Year::year).containsExactly(2025);
     }
 
     @Test
