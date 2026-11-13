@@ -117,10 +117,11 @@ test('이동평균 밴드에 트레일링 스탑을 켜면 매매 통계에 거�
   expect(res.status(), `트레일링 스탑을 켠 밴드가 실패했다: ${await res.text()}`).toBe(200);
   const body = await res.json();
   const stops = body.transactions.filter((tx: { trigger: string }) => tx.trigger.startsWith('고점 대비 하락 매도'));
+  expect(stops.length, '기간 안에 트레일링 스탑이 한 번도 나지 않았다').toBeGreaterThan(0);
   expect(body.tradeStats.trailingStopCount, '트레일링 스탑 수가 거래 내역과 다르다').toBe(stops.length);
 });
 
-test('트레일링 스탑 팔 비율만 주면 400', async () => {
+test('트레일링 스탑 팔 비율만 주면 400 INVALID_TRAILING_STOP', async () => {
   const res = await postUntilAllowed(`${API_URL}/analysis/strategy/conditional`, {
     data: {
       symbol,
@@ -133,6 +134,7 @@ test('트레일링 스탑 팔 비율만 주면 400', async () => {
   });
 
   expect(res.status(), `팔 비율만 준 요청이 400 이 아니다: ${await res.text()}`).toBe(400);
+  expect((await res.json()).errorCode).toBe('INVALID_TRAILING_STOP');
 });
 
 test('조건부 매수에 부분 익절 단계를 켜면 매매 통계에 거래 내역과 같은 부분 익절 수를 싣는다', async () => {
@@ -153,10 +155,11 @@ test('조건부 매수에 부분 익절 단계를 켜면 매매 통계에 거래
   expect(res.status(), `부분 익절을 켠 조건부가 실패했다: ${await res.text()}`).toBe(200);
   const body = await res.json();
   const steps = body.transactions.filter((tx: { trigger: string }) => tx.trigger.startsWith('부분 익절'));
+  expect(steps.length, '기간 안에 부분 익절이 한 번도 나지 않았다').toBeGreaterThan(0);
   expect(body.tradeStats.partialTakeProfitCount, '부분 익절 수가 거래 내역과 다르다').toBe(steps.length);
 });
 
-test('부분 익절 수익률이 앞 단계보다 크지 않으면 400', async () => {
+test('부분 익절 수익률이 앞 단계보다 크지 않으면 400 INVALID_PARTIAL_TAKE_PROFIT', async () => {
   const res = await postUntilAllowed(`${API_URL}/analysis/strategy/ma-cross`, {
     data: {
       symbol,
@@ -171,6 +174,7 @@ test('부분 익절 수익률이 앞 단계보다 크지 않으면 400', async (
   });
 
   expect(res.status(), `수익률이 줄어드는 단계가 400 이 아니다: ${await res.text()}`).toBe(400);
+  expect((await res.json()).errorCode).toBe('INVALID_PARTIAL_TAKE_PROFIT');
 });
 
 test('이동평균 교차가 다른 종목을 신호로 보고 신호 차트에 그 종목을 싣는다', async () => {
@@ -309,7 +313,7 @@ test('포트폴리오 종목에 익절 · 손절을 걸면 그 종목만 한 번
   expect(body.tradeStats, '판 거래가 있는데 매매 통계가 없다').toBeTruthy();
 });
 
-test('포트폴리오 손절 비율이 100% 이상이면 400', async () => {
+test('포트폴리오 손절 비율이 100% 이상이면 400 INVALID_SELL_RATE', async () => {
   const res = await postUntilAllowed(`${API_URL}/analysis/portfolio`, {
     data: {
       startDate: start,
@@ -319,6 +323,7 @@ test('포트폴리오 손절 비율이 100% 이상이면 400', async () => {
   });
 
   expect(res.status(), `손절 100% 가 400 이 아니다: ${await res.text()}`).toBe(400);
+  expect((await res.json()).errorCode).toBe('INVALID_SELL_RATE');
 });
 
 test('포트폴리오 종목마다 전략을 고르면 종목 줄에 그 전략을 싣고 이동평균 줄은 교차 신호로만 사고판다', async () => {

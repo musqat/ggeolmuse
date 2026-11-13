@@ -99,4 +99,18 @@ describe('TradeStatsCard', () => {
     rerender(<TradeStatsCard stats={{ ...stats, partialTakeProfitCount: 3 }} />)
     expect(screen.getByText('부분 익절 3번')).toBeInTheDocument()
   })
+
+  it('결과를 낸 요청에서 켠 규칙은 0번도 보이고, 켜지 않은 규칙은 판 거래가 있을 때만 보인다', () => {
+    const { rerender } = render(<TradeStatsCard stats={stats} sellRules={{ trailing: true, partial: false }} />)
+    expect(screen.getByText('고점 대비 하락 매도 0번')).toBeInTheDocument()
+
+    rerender(<TradeStatsCard stats={{ ...stats, partialTakeProfitCount: 2 }} sellRules={{ trailing: true, partial: true }} />)
+    expect(screen.getByText('고점 대비 하락 매도 0번 · 부분 익절 2번')).toBeInTheDocument()
+
+    rerender(<TradeStatsCard stats={{ ...stats, trailingStopCount: 1 }} sellRules={{ trailing: false, partial: true }} />)
+    expect(screen.getByText('고점 대비 하락 매도 1번 · 부분 익절 0번')).toBeInTheDocument()
+
+    rerender(<TradeStatsCard stats={stats} sellRules={{ trailing: false, partial: false }} />)
+    expect(screen.queryByText(/고점 대비 하락 매도|부분 익절/)).toBeNull()
+  })
 })

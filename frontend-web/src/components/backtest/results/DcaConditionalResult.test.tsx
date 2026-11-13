@@ -494,6 +494,12 @@ describe('DcaConditionalResult', () => {
     expect(after(card('평가 가치'), heading)).toBe(true)
     expect(after(heading, screen.getByRole('tab', { name: '자산 추이' }))).toBe(true)
     expect(after(heading, screen.getByText('예상 양도세'))).toBe(true)
+    expect(screen.queryByText(/고점 대비 하락 매도/)).toBeNull()
+
+    rerender(
+      <DcaConditionalResult result={{ ...result, tradeStats }} {...props} sellRules={{ trailing: true, partial: false }} />
+    )
+    expect(screen.getByText('고점 대비 하락 매도 0번')).toBeInTheDocument()
   })
 
   it('위 카드 평가 가치는 배당 현금까지 넣은 총자산, 투자 정보는 주식 평가액만 보여준다', async () => {

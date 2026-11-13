@@ -4,7 +4,7 @@ import { MaCrossStrategyForm } from '../../forms/MaCrossStrategyForm';
 import { DcaConditionalResult } from '../../results/DcaConditionalResult';
 import type { ModeController, SharedModeProps } from '../types';
 import { commonFields } from '../commonFields';
-import { strategyRun } from '../strategyRun';
+import { sellRulesOf, strategyRun } from '../strategyRun';
 import { buildMaCrossRequest } from './request';
 import { MA_WINDOWS } from '../../shared/maWindows';
 import { amountIssue, countErrors, windowIssues } from '../../settings/checks';
@@ -110,6 +110,7 @@ export const useMaCrossMode = (shared: SharedModeProps): ModeController => {
         fxMode: options.fxMode,
         failureMessage: '이동평균 교차 전략 실행에 실패했습니다.',
         windows: { short: built.request.shortWindow, long: built.request.longWindow },
+        sellRules: sellRulesOf(built.request),
       });
     },
     renderResult: (result) =>
@@ -120,6 +121,7 @@ export const useMaCrossMode = (shared: SharedModeProps): ModeController => {
           symbol={symbol}
           startDate={period.start}
           windows={result.windows}
+          sellRules={result.sellRules}
         />
       ) : null,
   };

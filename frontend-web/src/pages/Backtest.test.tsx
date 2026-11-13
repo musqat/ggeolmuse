@@ -45,17 +45,20 @@ vi.mock('@components/backtest/results/DcaConditionalResult', () => ({
     budget,
     windows,
     band,
+    sellRules,
   }: {
     result: { mode: string };
     budget?: number;
     windows?: { short: number; long: number };
     band?: { window: number; upperRate: number; lowerRate: number };
+    sellRules?: { trailing: boolean; partial: boolean };
   }) => (
     <>
       <div>결과: {result.mode}</div>
       {budget !== undefined && <div>예산: {budget}</div>}
       {windows && <div>이동평균 기간: {`${windows.short} · ${windows.long}`}</div>}
       {band && <div>밴드: {`${band.window} · ${band.upperRate} · ${band.lowerRate}`}</div>}
+      {sellRules && <div>켠 매도 규칙: {`트레일링 ${sellRules.trailing} · 부분 익절 ${sellRules.partial}`}</div>}
     </>
   ),
 }))
@@ -806,6 +809,7 @@ describe('Backtest 페이지 칸 오류 · 요약', () => {
       trailingSellRate: 0.5,
       reinvestDividends: false,
     })
+    expect(await screen.findByText('켠 매도 규칙: 트레일링 true · 부분 익절 false')).toBeInTheDocument()
   })
 
   it('이동평균 밴드: 트레일링 하락을 지우고 팔 비율만 남기면 그 칸으로 가며 요청하지 않고, 하락을 다시 적으면 두 비율로 요청한다', async () => {
@@ -839,6 +843,7 @@ describe('Backtest 페이지 칸 오류 · 요약', () => {
     await runBacktest()
     expect(vi.mocked(backtestApi.runMaCrossStrategy).mock.calls[0][0]).toMatchObject({ trailingStopRate: 0.08 })
     expect(vi.mocked(backtestApi.runMaCrossStrategy).mock.calls[0][0]).not.toHaveProperty('trailingSellRate')
+    expect(await screen.findByText('켠 매도 규칙: 트레일링 true · 부분 익절 false')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: '설정 초기화' }))
     await selectMode('이동평균 교차')
@@ -891,6 +896,7 @@ describe('Backtest 페이지 칸 오류 · 요약', () => {
     expect(vi.mocked(backtestApi.runMaBandStrategy).mock.calls[0][0]).toMatchObject({
       partialTakeProfits: [{ gainRate: 0.1, sellRate: 0.5 }],
     })
+    expect(await screen.findByText('켠 매도 규칙: 트레일링 false · 부분 익절 true')).toBeInTheDocument()
   })
 
   it('이동평균 교차: 부분 익절 단계를 요약에 적고 요청하며, 직전 설정으로 되살리고 설정 초기화로 비운다', async () => {

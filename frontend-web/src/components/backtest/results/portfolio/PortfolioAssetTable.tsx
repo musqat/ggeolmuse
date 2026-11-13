@@ -1,5 +1,5 @@
 import React from 'react';
-import type { PortfolioAssetResult, PortfolioBacktestResponse } from '../../../../services/api';
+import type { PortfolioAssetResult, PortfolioBacktestResponse, PortfolioRebalance } from '../../../../services/api';
 import { gainLossClass } from '../../../../utils/gainLoss';
 import { formatFxRate, formatKrw, formatPercent, formatSigned } from '../../../../utils/format';
 import { STRATEGY_LABELS } from '../../shared/portfolioRows';
@@ -11,6 +11,13 @@ const TEXT = 'px-3 py-2 text-left';
 const EMPTY = 'text-tx-3';
 
 const percentOrDash = (value: number | null) => (value == null ? '-' : formatPercent(value));
+
+const REBALANCE_LABELS: Record<PortfolioRebalance, string> = {
+  NONE: '리밸런싱 없음',
+  YEARLY: '매년 리밸런싱',
+  QUARTERLY: '분기마다 리밸런싱',
+  MONTHLY: '매달 리밸런싱',
+};
 
 // 지금 가치 아래 작은 줄(판 돈 · 배당, 0 이면 뺌)
 const besides = (asset: PortfolioAssetResult) =>
@@ -56,14 +63,16 @@ const AssetRow: React.FC<{ asset: PortfolioAssetResult }> = ({ asset }) => {
   );
 };
 
-// 포트폴리오 종목별 표: 줄마다 전략(이동평균 · 밴드 줄이 사지 않았으면 매수 신호 없음) · 원금 · 지금 가치 · 수익률 · 기여(이익 · 전체 이익 중 몫) · 비중 처음 → 지금, 맨 아래 현금 줄과 종목 밖 이익(0 이 아닐 때) 줄
+// 포트폴리오 종목별 표: 제목 줄 오른쪽 리밸런싱 주기 · 평가일 환율, 줄마다 전략(이동평균 · 밴드 줄이 사지 않았으면 매수 신호 없음) · 원금 · 지금 가치 · 수익률 · 기여(이익 · 전체 이익 중 몫) · 비중 처음 → 지금, 맨 아래 현금 줄과 종목 밖 이익(0 이 아닐 때) 줄
 export const PortfolioAssetTable: React.FC<{ result: PortfolioBacktestResponse }> = ({ result }) => {
   const cashWeight = result.totalAssetKrw > 0 ? Math.round((result.cashKrw / result.totalAssetKrw) * 10000) / 100 : 0;
   return (
     <section className="bg-surface rounded-xl shadow-sm border border-line/50 p-4 sm:p-5">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h3 className="text-lg font-semibold text-tx-1">종목별</h3>
-        <span className="text-sm text-tx-2">평가일 환율 {formatFxRate(result.currentFxRate)}</span>
+        <span className="text-sm text-tx-2">
+          {REBALANCE_LABELS[result.rebalance]} · 평가일 환율 {formatFxRate(result.currentFxRate)}
+        </span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm whitespace-nowrap">

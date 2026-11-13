@@ -2,6 +2,7 @@ import React from 'react';
 import type { TradeStats } from '../../../services/api';
 import { gainLossClass } from '../../../utils/gainLoss';
 import { formatNumber, formatPercent, formatSigned } from '../../../utils/format';
+import type { SellRules } from '../shared/backtestDisplay';
 
 const decimals = (value: number | null, digits: number) =>
   value == null ? '-' : formatNumber(value, { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -25,10 +26,11 @@ const SignedLine: React.FC<{ value: number | null }> = ({ value }) => (
 );
 
 // 파는 전략 결과의 매매 통계 카드(승률 · 평균 익절 · 손절 · 손익비 · 연평균 거래, 끝난 사이클이 없으면 안내 한 줄)
-export const TradeStatsCard: React.FC<{ stats: TradeStats }> = ({ stats }) => {
+export const TradeStatsCard: React.FC<{ stats: TradeStats; sellRules?: SellRules }> = ({ stats, sellRules }) => {
+  // 카드 아래 트레일링 스탑 · 부분 익절 횟수(켠 규칙은 0번도, 아니면 판 거래가 있을 때만)
   const sold = [
-    stats.trailingStopCount > 0 && `고점 대비 하락 매도 ${formatNumber(stats.trailingStopCount)}번`,
-    stats.partialTakeProfitCount > 0 && `부분 익절 ${formatNumber(stats.partialTakeProfitCount)}번`,
+    (sellRules?.trailing || stats.trailingStopCount > 0) && `고점 대비 하락 매도 ${formatNumber(stats.trailingStopCount)}번`,
+    (sellRules?.partial || stats.partialTakeProfitCount > 0) && `부분 익절 ${formatNumber(stats.partialTakeProfitCount)}번`,
   ].filter(Boolean);
 
   return (
