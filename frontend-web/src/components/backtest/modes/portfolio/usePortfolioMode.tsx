@@ -158,6 +158,7 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
       names: saleOrder(rows).map((index) => rowSymbol(rows[index]) || `${index + 1}번 종목`),
       onMove: (position, step) => setEdited(moveSaleOrder(rows, position, step)),
     }),
+    harvest: true,
     // 고친 줄만 저장(고치기 전 줄은 되살린 뒤에도 보던 종목을 따라감)
     saved: { rows: edited ?? [], allocation, total, method, cadence, months, firstPick, rebalance, taxSale },
     load: (saved) => {

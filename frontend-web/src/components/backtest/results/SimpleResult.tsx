@@ -13,12 +13,13 @@ import { DefaultFxNotice } from './DefaultFxNotice';
 import type { MetricCurrency } from './CurrencyToggle';
 import { ResultFold } from './ResultFold';
 import { RiskDetail } from './RiskDetail';
-import { detailMeta, pickMetrics } from './resultValues';
+import { detailMeta, isSale, isYearEndHarvest, pickMetrics } from './resultValues';
 import { assetSeries, simpleDeposits } from './assetSeries';
 import { StatCard } from './StatCard';
 import { purchaseDaySeries, rankOf } from './purchaseDays';
 import { PurchaseDayChart } from './PurchaseDayChart';
 import { CapitalGainsTaxFold } from './CapitalGainsTaxFold';
+import { HarvestTrades } from './HarvestTrades';
 
 interface SimpleResultProps {
   result: SimulationResponse;
@@ -41,6 +42,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
     [result.purchaseDayReturns, currency],
   );
   const rank = rankOf(purchaseDays, result.purchaseDate);
+  const harvestCount = (result.transactions ?? []).filter((tx) => isSale(tx) && isYearEndHarvest(tx)).length;
 
   // 주가 툴팁에 덧붙일 보유 수익률과 여기서 샀다면 평가일까지 수익률
   const tooltipExtra = useMemo(() => {
@@ -121,6 +123,12 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
 
       {result.capitalGainsTax && (
         <CapitalGainsTaxFold tax={result.capitalGainsTax} returnBasis="투자금 기준" />
+      )}
+
+      {harvestCount > 0 && (
+        <ResultFold title="연말 정리 매매" meta={`연말 정리 ${harvestCount}번`}>
+          <HarvestTrades transactions={result.transactions ?? []} />
+        </ResultFold>
       )}
 
       <ResultFold

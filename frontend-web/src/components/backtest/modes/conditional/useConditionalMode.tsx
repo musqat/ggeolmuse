@@ -134,6 +134,7 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
     ]),
     reinvestLocked: sells,
     taxSale: singleTaxSale(options),
+    harvest: true,
     saved: {
       amount: amountPerPurchase,
       unit: amountUnit.unit,

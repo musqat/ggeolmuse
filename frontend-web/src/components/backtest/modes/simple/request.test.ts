@@ -18,9 +18,17 @@ const values: SimpleValues = {
   manualPurchaseFxRate: '1300',
   manualCurrentFxRate: '1350',
   taxSale: 'NONE',
+  yearEndHarvest: false,
 }
 
 describe('buildSimpleRequest', () => {
+  it('양도세 · 연말 정리를 둘 다 켰을 때만 yearEndHarvest 를 싣는다', () => {
+    expect(buildSimpleRequest({ ...values, capitalGainsTax: true, yearEndHarvest: true }, 'AAPL', ctx)).toMatchObject({
+      request: { capitalGainsTax: true, yearEndHarvest: true },
+    })
+    expect(buildSimpleRequest({ ...values, capitalGainsTax: false, yearEndHarvest: true }, 'AAPL', ctx)).not.toHaveProperty('request.yearEndHarvest')
+    expect(buildSimpleRequest({ ...values, capitalGainsTax: true, yearEndHarvest: false }, 'AAPL', ctx)).not.toHaveProperty('request.yearEndHarvest')
+  })
   it('매도일이 비면 오늘로 채운다', () => {
     expect(buildSimpleRequest(values, 'AAPL', ctx)).toStrictEqual({
       request: {

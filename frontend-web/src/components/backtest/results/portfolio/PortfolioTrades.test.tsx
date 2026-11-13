@@ -19,6 +19,28 @@ const options = (name: string) =>
   within(screen.getByRole('combobox', { name })).getAllByRole('option').map((option) => option.textContent)
 
 describe('PortfolioTrades', () => {
+  it('연말 정리 매도는 판 줄, 재매수는 산 줄로 보이고 이유 고르기 이름은 공제 채우기 · 손실 상계 매도 · 재매수', () => {
+    const harvest = (reason: PortfolioTransaction['reason'], trigger: string, shares: number): PortfolioTransaction => ({
+      symbol: 'SPY', reason, date: '2024-12-31', actualDate: '2024-12-31', trigger, shares, price: 500, amount: 0, fxRate: 1450,
+      ...(shares < 0 ? { proceeds: 1000, realizedProfit: 300 } : { cashUsed: 1000 }),
+    })
+    render(
+      <PortfolioTrades
+        transactions={[
+          transactions[0],
+          harvest('HARVEST_GAIN_SELL', '공제 채우기 매도', -2),
+          harvest('HARVEST_GAIN_BUY', '공제 채우기 재매수', 2),
+          harvest('HARVEST_LOSS_SELL', '손실 상계 매도', -2),
+          harvest('HARVEST_LOSS_BUY', '손실 상계 재매수', 2),
+        ]}
+        symbols={['SPY']}
+      />
+    )
+
+    expect(cells(rows()[1])).toEqual(['2024-12-31', 'SPY', '공제 채우기 매도', '2주', '$1,000.00', '+$300.00'])
+    expect(cells(rows()[2])).toEqual(['2024-12-31', 'SPY', '공제 채우기 재매수', '2주', '$1,000.00', '-'])
+    expect(options('이유')).toEqual(['모든 이유', '한 번에 매수', '공제 채우기 매도', '공제 채우기 재매수', '손실 상계 매도', '손실 상계 재매수'])
+  })
   it('양도세 납부용 매도는 판 줄로 보이고 이유 고르기 이름은 양도세 납부용 매도', () => {
     const sold: PortfolioTransaction[] = [
       transactions[0],

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { PeriodEnd, TaxSale } from '@services/api';
 import { oneOf, pickValues } from '../settings/snapshot';
 
-// 모든 모드가 같이 쓰는 세부 설정: 기간 끝 · 배당 재투자 · 수수료 · 배당세 · 양도세(낼 현금이 모자랄 때 포함) · 환율
+// 모든 모드가 같이 쓰는 세부 설정: 기간 끝 · 배당 재투자 · 수수료 · 배당세 · 양도세(낼 현금이 모자랄 때 · 연말 정리 포함) · 환율
 export interface BacktestOptions {
   periodEnd: PeriodEnd;
   reinvestDividends: boolean;
@@ -11,6 +11,8 @@ export interface BacktestOptions {
   capitalGainsTax: boolean;
   // 양도세 낼 현금이 모자랄 때
   taxSale: TaxSale;
+  // 양도세를 켰을 때 결제가 그해 안에 끝나는 마지막 거래일에 공제를 채우거나 손실로 상계
+  yearEndHarvest: boolean;
   fxMode: 'auto' | 'manual';
   // 비우면 그 날짜 시장 환율
   manualPurchaseFxRate: string;
@@ -24,6 +26,7 @@ export const DEFAULT_OPTIONS: BacktestOptions = {
   dividendTax: true,
   capitalGainsTax: true,
   taxSale: 'NONE',
+  yearEndHarvest: false,
   fxMode: 'auto',
   manualPurchaseFxRate: '',
   manualCurrentFxRate: '',
@@ -40,6 +43,7 @@ export interface BacktestOptionsState extends BacktestOptions {
   setDividendTax: (tax: boolean) => void;
   setCapitalGainsTax: (tax: boolean) => void;
   setTaxSale: (taxSale: TaxSale) => void;
+  setYearEndHarvest: (harvest: boolean) => void;
   setFxMode: (mode: 'auto' | 'manual') => void;
   setManualPurchaseFxRate: (rate: string) => void;
   setManualCurrentFxRate: (rate: string) => void;
@@ -55,6 +59,7 @@ export const optionValues = (options: BacktestOptions): BacktestOptions => ({
   dividendTax: options.dividendTax,
   capitalGainsTax: options.capitalGainsTax,
   taxSale: options.taxSale,
+  yearEndHarvest: options.yearEndHarvest,
   fxMode: options.fxMode,
   manualPurchaseFxRate: options.manualPurchaseFxRate,
   manualCurrentFxRate: options.manualCurrentFxRate,
@@ -67,6 +72,7 @@ export const useBacktestOptions = (): BacktestOptionsState => {
   const [dividendTax, setDividendTax] = useState(DEFAULT_OPTIONS.dividendTax);
   const [capitalGainsTax, setCapitalGainsTax] = useState(DEFAULT_OPTIONS.capitalGainsTax);
   const [taxSale, setTaxSale] = useState<TaxSale>(DEFAULT_OPTIONS.taxSale);
+  const [yearEndHarvest, setYearEndHarvest] = useState(DEFAULT_OPTIONS.yearEndHarvest);
   const [fxMode, setFxMode] = useState<'auto' | 'manual'>(DEFAULT_OPTIONS.fxMode);
   const [manualPurchaseFxRate, setManualPurchaseFxRate] = useState(DEFAULT_OPTIONS.manualPurchaseFxRate);
   const [manualCurrentFxRate, setManualCurrentFxRate] = useState(DEFAULT_OPTIONS.manualCurrentFxRate);
@@ -79,6 +85,7 @@ export const useBacktestOptions = (): BacktestOptionsState => {
     setDividendTax(next.dividendTax);
     setCapitalGainsTax(next.capitalGainsTax);
     setTaxSale(oneOf(next.taxSale, TAX_SALES, DEFAULT_OPTIONS.taxSale));
+    setYearEndHarvest(next.yearEndHarvest);
     setFxMode(oneOf(next.fxMode, FX_MODES, DEFAULT_OPTIONS.fxMode));
     setManualPurchaseFxRate(next.manualPurchaseFxRate);
     setManualCurrentFxRate(next.manualCurrentFxRate);
@@ -97,6 +104,8 @@ export const useBacktestOptions = (): BacktestOptionsState => {
     setCapitalGainsTax,
     taxSale,
     setTaxSale,
+    yearEndHarvest,
+    setYearEndHarvest,
     fxMode,
     setFxMode,
     manualPurchaseFxRate,
@@ -114,7 +123,7 @@ const manualRate = (rate: string) => {
 };
 
 // 옵션을 요청 필드로(수수료는 퍼센트 → 비율 · 비면 0, 배당세 15%, 직접 입력 환율은 적은 쪽만)
-export const toOptionFields = (options: Omit<BacktestOptions, 'taxSale'>) => {
+export const toOptionFields = (options: Omit<BacktestOptions, 'taxSale' | 'yearEndHarvest'>) => {
   const manual = options.fxMode === 'manual';
   const purchaseFxRate = manual ? manualRate(options.manualPurchaseFxRate) : undefined;
   const currentFxRate = manual ? manualRate(options.manualCurrentFxRate) : undefined;
@@ -132,3 +141,7 @@ export const toOptionFields = (options: Omit<BacktestOptions, 'taxSale'>) => {
 // 양도세를 켜고 현금이 모자랄 때 팔기를 골랐을 때만 요청 칸
 export const taxSaleFields = (options: Pick<BacktestOptions, 'capitalGainsTax' | 'taxSale'>) =>
   options.capitalGainsTax && options.taxSale !== 'NONE' ? { taxSale: options.taxSale } : {};
+
+// 양도세를 켜고 연말 정리를 켰을 때만 요청 칸
+export const yearEndFields = (options: Pick<BacktestOptions, 'capitalGainsTax' | 'yearEndHarvest'>) =>
+  options.capitalGainsTax && options.yearEndHarvest ? { yearEndHarvest: true } : {};

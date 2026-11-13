@@ -252,6 +252,37 @@ describe('DetailSettings', () => {
     expect(button('IAU 아래로')).toHaveFocus()
   })
 
+  it('연말 정리를 주면 양도세를 켰을 때 세금 칸에 연말 정리 칩과 안내를 보이고, 켜면 접힌 줄에 진하게 적는다', async () => {
+    let options!: BacktestOptionsState
+    render(<Harness startOpen harvest seen={(o) => (options = o)} />)
+
+    const chip = screen.getByRole('button', { name: '연말 정리' })
+    expect(chip).toHaveAttribute('aria-pressed', 'false')
+    expect(chip).toHaveAccessibleDescription(
+      '결제가 그해 안에 끝나는 마지막 거래일(T+1, 2024-05-28 전은 T+2)에 250만원 공제를 채우거나 손실로 상계하도록 팔고 같은 값에 다시 삼',
+    )
+    await userEvent.click(chip)
+
+    expect(options.yearEndHarvest).toBe(true)
+    expect(screen.getByRole('button', { name: '연말 정리' })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(toggle())
+    expect(toggle()).toHaveTextContent('양도세 22% · 연말 정리 · 배당 현금')
+    expect(within(toggle()).getByText('연말 정리').tagName).toBe('B')
+  })
+
+  it('연말 정리를 주지 않으면(비교 모드) 칩이 없고, 양도세를 끄면 칩을 숨기고 접힌 줄에서도 뺀다', async () => {
+    const { unmount } = render(<Harness startOpen />)
+    expect(screen.queryByRole('button', { name: '연말 정리' })).toBeNull()
+    unmount()
+
+    render(<Harness startOpen harvest />)
+    await userEvent.click(screen.getByRole('button', { name: '연말 정리' }))
+    await userEvent.click(screen.getByRole('button', { name: '양도세 22%(연 250만원 공제)' }))
+    expect(screen.queryByRole('button', { name: '연말 정리' })).toBeNull()
+    await userEvent.click(toggle())
+    expect(toggle()).not.toHaveTextContent('연말 정리')
+  })
+
   it('세금 칩은 누를 때마다 켜고 끈다', async () => {
     const seen = vi.fn()
     render(<Harness startOpen seen={seen} />)

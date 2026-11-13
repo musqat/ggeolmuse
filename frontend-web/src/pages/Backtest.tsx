@@ -250,6 +250,7 @@ const Backtest: React.FC = () => {
           reinvestNote={current.reinvestNote}
           messages={detailMessages}
           taxSale={current.taxSale}
+          harvest={current.harvest}
         />
 
         {/* 요약 두 줄 · 실행 */}
@@ -257,7 +258,7 @@ const Backtest: React.FC = () => {
           <SettingsSummary
             id={SUMMARY_ID}
             {...current.summary}
-            changed={changedOptions(options, !!current.reinvestLocked, taxSaleSummary(current.taxSale))}
+            changed={changedOptions(options, !!current.reinvestLocked, taxSaleSummary(current.taxSale), current.harvest)}
             start={period.start}
             end={period.end || getTodayString()}
             errorCount={errorCount}

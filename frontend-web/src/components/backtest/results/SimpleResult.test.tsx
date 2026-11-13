@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SimpleResult } from './SimpleResult'
 import { SimpleChart } from '@components/charts/backtest/SimpleChart'
@@ -34,6 +34,32 @@ const timing = [
 ]
 
 describe('SimpleResult', () => {
+  it('연말 정리 거래가 있으면 연말 정리 매매 접는 칸에 날짜 · 이유 · 수량 · 가격 · 금액 · 실현 손익을 보이고, 없거나 기간 끝 매도뿐이면 칸이 없다', async () => {
+    const transactions = [
+      { date: '2021-12-29', actualDate: '2021-12-29', trigger: '공제 채우기 매도', shares: -38.46153846, price: 150, amount: 0, fxRate: 1300, proceeds: 5769.23, realizedProfit: 1923.08 },
+      { date: '2021-12-29', actualDate: '2021-12-29', trigger: '공제 채우기 재매수', shares: 38.46153846, price: 150, amount: 0, fxRate: 1300, cashUsed: 5769.23 },
+      { date: '2024-01-31', actualDate: '2024-01-31', trigger: '기간 끝 매도', shares: -100, price: 260, amount: 0, fxRate: 1300, proceeds: 26000, realizedProfit: -500 },
+    ]
+    const { unmount } = render(<SimpleResult result={result} symbol="AAPL" purchaseDate="2023-01-03" />)
+    expect(screen.queryByText('연말 정리 매매')).toBeNull()
+    unmount()
+    const saleOnly = render(<SimpleResult result={{ ...result, transactions: transactions.slice(2) }} symbol="AAPL" purchaseDate="2023-01-03" />)
+    expect(screen.queryByText('연말 정리 매매')).toBeNull()
+    saleOnly.unmount()
+
+    render(<SimpleResult result={{ ...result, transactions }} symbol="AAPL" purchaseDate="2023-01-03" />)
+    expect(screen.getByText('· 연말 정리 1번')).toBeInTheDocument()
+    await open('연말 정리 매매')
+
+    const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1)
+    expect(rows.map((row) => within(row).getAllByRole('cell').map((cell) => cell.textContent))).toEqual([
+      ['2021-12-29', '공제 채우기 매도', '38.461538주', '$150.00', '$5,769.23', '+$1,923.08'],
+      ['2021-12-29', '공제 채우기 재매수', '38.461538주', '$150.00', '$5,769.23', '-'],
+      ['2024-01-31', '기간 끝 매도', '100주', '$260.00', '$26,000.00', '-$500.00'],
+    ])
+    expect(within(rows[0]).getByText('+$1,923.08')).toHaveClass('text-gain')
+    expect(screen.getByRole('table').parentElement).toHaveClass('overflow-x-auto')
+  })
   it('카드 넷과 자산 추이 · 주가 추이 · 매수일별 수익률 탭을 위에 두고 상세는 닫아 두며, 차트는 탭을 고를 때 그린다', () => {
     render(<SimpleResult result={result} symbol="AAPL" purchaseDate="2023-01-03" />)
 

@@ -19,6 +19,18 @@ type BacktestCommonRequest = {
   currentFxRate?: number;               // 수동 환율 - 현재
 };
 
+// 양도세를 켰을 때 연말 정리(결제가 그해 안에 끝나는 마지막 거래일에 공제를 채우거나 손실로 상계하도록 팔고 같은 값에 다시 삼)
+export type YearEndHarvestRequest = {
+  yearEndHarvest?: boolean;             // 비우면 끔
+};
+
+// 연말 정리와 기간 끝에 한 번에 판 양도세 비교(같은 요청을 기간 끝에 판다고 보고 다시 돌린 값, KRW)
+export type HarvestComparison = {
+  sellAtEndTaxKrw: number;              // 연말 정리 없이 기간 끝에 한 번에 판 양도세
+  harvestTaxKrw: number;                // 연말 정리하고 기간 끝에 판 양도세
+  savedKrw: number;                     // 앞 둘의 차 (음수면 더 냄)
+};
+
 // 한 해 양도세(KRW, 손실은 그 해 이익과 상계)
 export type CapitalGainsTaxYear = {
   year: number;
@@ -39,10 +51,11 @@ export type CapitalGainsTax = {
   stockKrw: number;                     // 주식 평가 (KRW)
   afterTaxValueKrw: number;             // 총 자산 - 남은 양도세
   afterTaxReturnPercent: number;        // 총 수익률과 같은 기준 금액 대비
+  harvestComparison?: HarvestComparison | null; // 연말 정리를 켜고 기간이 2년 이상일 때만
 };
 
 // 단순 시뮬레이션 요청
-export type SimulationRequest = BacktestCommonRequest & {
+export type SimulationRequest = BacktestCommonRequest & YearEndHarvestRequest & {
   symbol: string;                       // 종목 심볼
   purchaseDate: string;                 // 매수일 (YYYY-MM-DD)
   saleDate?: string;                    // 매도일 (YYYY-MM-DD, 기본값: 오늘)
@@ -115,13 +128,14 @@ export type SimulationResponse = {
   dailyValues?: DailyValue[];               // 매수일 ~ 평가일(마지막 날은 총자산)
   purchaseDayReturns?: PurchaseDayReturn[]; // 매수일 ~ 평가일 전 거래일마다(첫 날은 총 수익률과 같음)
   capitalGainsTax?: CapitalGainsTax | null;
+  transactions?: StrategyTransaction[] | null; // 연말 정리 매도 · 재매수와 기간 끝 매도 (연말 정리를 켰을 때만)
 };
 
 // 적립식 주기
 export type DcaFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY';
 
 // DCA(정기 적립) 전략 요청
-export type DcaStrategyRequest = BacktestCommonRequest & {
+export type DcaStrategyRequest = BacktestCommonRequest & YearEndHarvestRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
@@ -160,7 +174,7 @@ export type TaxSaleRequest = {
 };
 
 // 조건부 매수 전략 요청
-export type ConditionalStrategyRequest = BacktestCommonRequest & TrailingStopRequest & PartialTakeProfitRequest & TaxSaleRequest & {
+export type ConditionalStrategyRequest = BacktestCommonRequest & TrailingStopRequest & PartialTakeProfitRequest & TaxSaleRequest & YearEndHarvestRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
@@ -175,7 +189,7 @@ export type ConditionalStrategyRequest = BacktestCommonRequest & TrailingStopReq
 };
 
 // 이동평균 교차 전략 요청(골든 크로스에 가진 돈 전부로 사고 데드 크로스에 전부 팜)
-export type MaCrossStrategyRequest = BacktestCommonRequest & TrailingStopRequest & PartialTakeProfitRequest & TaxSaleRequest & {
+export type MaCrossStrategyRequest = BacktestCommonRequest & TrailingStopRequest & PartialTakeProfitRequest & TaxSaleRequest & YearEndHarvestRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
@@ -186,7 +200,7 @@ export type MaCrossStrategyRequest = BacktestCommonRequest & TrailingStopRequest
 };
 
 // 이동평균 밴드 전략 요청(수정 종가가 평균 위 선보다 높으면 가진 돈 전부로 사고 아래 선보다 낮으면 전부 팜)
-export type MaBandStrategyRequest = BacktestCommonRequest & TrailingStopRequest & PartialTakeProfitRequest & TaxSaleRequest & {
+export type MaBandStrategyRequest = BacktestCommonRequest & TrailingStopRequest & PartialTakeProfitRequest & TaxSaleRequest & YearEndHarvestRequest & {
   symbol: string;                       // 종목 심볼
   startDate: string;                    // 시작일
   endDate: string;                      // 종료일
@@ -389,7 +403,7 @@ export type PortfolioAssetRequest = {
 };
 
 // 포트폴리오 백테스트 요청(여러 종목을 현금 하나로 사고 평가)
-export type PortfolioBacktestRequest = BacktestCommonRequest & {
+export type PortfolioBacktestRequest = BacktestCommonRequest & YearEndHarvestRequest & {
   startDate: string;
   endDate: string;
   allocation?: PortfolioAllocation;     // 비우면 금액
@@ -418,7 +432,11 @@ export type TradeReason =
   | 'STOP_LOSS'
   | 'STRATEGY_BUY'
   | 'STRATEGY_SELL'
-  | 'TAX_SALE';
+  | 'TAX_SALE'
+  | 'HARVEST_GAIN_SELL'
+  | 'HARVEST_GAIN_BUY'
+  | 'HARVEST_LOSS_SELL'
+  | 'HARVEST_LOSS_BUY';
 
 // 포트폴리오 매매 한 건(양도세 납부 줄은 종목 없음)
 export type PortfolioTransaction = StrategyTransaction & {

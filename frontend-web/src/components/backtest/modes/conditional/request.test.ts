@@ -24,6 +24,7 @@ const values: ConditionalValues = {
   manualPurchaseFxRate: '1300',
   manualCurrentFxRate: '1350',
   taxSale: 'NONE',
+  yearEndHarvest: false,
 }
 
 const base = {
@@ -40,6 +41,13 @@ const base = {
 }
 
 describe('buildConditionalRequest', () => {
+  it('양도세 · 연말 정리를 둘 다 켰을 때만 yearEndHarvest 를 싣는다', () => {
+    expect(buildConditionalRequest({ ...values, capitalGainsTax: true, yearEndHarvest: true }, 'AAPL', ctx)).toMatchObject({
+      request: { capitalGainsTax: true, yearEndHarvest: true },
+    })
+    expect(buildConditionalRequest({ ...values, capitalGainsTax: false, yearEndHarvest: true }, 'AAPL', ctx)).not.toHaveProperty('request.yearEndHarvest')
+    expect(buildConditionalRequest({ ...values, capitalGainsTax: true, yearEndHarvest: false }, 'AAPL', ctx)).not.toHaveProperty('request.yearEndHarvest')
+  })
   it('양도세를 켜고 현금이 모자랄 때 팔아 내기를 고르면 taxSale 로 싣고, 양도세를 끄면 싣지 않는다', () => {
     expect(buildConditionalRequest({ ...values, capitalGainsTax: true, taxSale: 'SELL' }, 'AAPL', ctx)).toMatchObject({
       request: { capitalGainsTax: true, taxSale: 'SELL' },

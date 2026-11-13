@@ -1,6 +1,6 @@
 import type { MaBandStrategyRequest } from '@services/api';
 import type { BuildResult, RunContext } from '../types';
-import { taxSaleFields, toOptionFields, type BacktestOptions } from '../../shared/backtestOptions';
+import { taxSaleFields, toOptionFields, yearEndFields, type BacktestOptions } from '../../shared/backtestOptions';
 import { BAND_ERROR, parseBand } from '../../shared/maBand';
 import { toTrailingStop } from '../../shared/trailingStop';
 import { toPartialTakeProfits, type TakeProfitStep } from '../../shared/partialTakeProfit';
@@ -64,6 +64,7 @@ export const buildMaBandRequest = (
       ...partial.fields,
       ...toOptionFields(values),
       ...taxSaleFields(values),
+      ...yearEndFields(values),
       reinvestDividends: false,
     },
   };

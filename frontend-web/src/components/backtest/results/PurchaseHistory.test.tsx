@@ -75,6 +75,14 @@ describe('PurchaseHistory', () => {
     expect(within(screen.getByText('2024-12-15').closest('tr') as HTMLElement).getByText('미매수 · 계산 오류')).toBeVisible()
   })
 
+  it('연말 정리 매도 · 재매수는 매수 · 매도 횟수에서 빼고 연도 줄에 짝마다 연말 정리로 센다', () => {
+    const sale: StrategyTransaction = { ...bought('2025-12-31', 250), shares: -0.2, amount: 0, trigger: '공제 채우기 매도', proceeds: 50, realizedProfit: 10 }
+    const rebuy: StrategyTransaction = { ...bought('2025-12-31', 250), shares: 0.2, amount: 0, trigger: '공제 채우기 재매수', cashUsed: 50 }
+    render(<PurchaseHistory transactions={[...transactions, sale, rebuy]} skippedRounds={[]} />)
+
+    expect(screen.getByText('매수 2회 · 연말 정리 1회')).toBeInTheDocument()
+  })
+
   it('배당 재투자는 매수 횟수에서 빼고 연도 줄에 따로 센다', () => {
     const dividend: StrategyTransaction = { ...bought('2025-03-14', 250), amount: 0, shares: 0.01, trigger: '배당 재투자' }
     render(<PurchaseHistory transactions={[...transactions, dividend]} skippedRounds={[]} />)

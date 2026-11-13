@@ -60,6 +60,36 @@ test('적립식(DCA) 이 돈다', async () => {
   expect(typeof body.totalReturnPercent, 'DCA 응답에 수익률이 없다').toBe('number');
 });
 
+test('적립식 3년에 양도세 · 연말 정리를 켜면 결제가 그해 안에 끝나는 12월 거래일에 공제 채우기 매도 · 재매수 짝과 기간 끝 매도 대비 양도세 비교를 싣는다', async () => {
+  // 끝 날짜 3년 전부터(시세가 그보다 짧아도 비교의 2년은 요청 시작일로 셈)
+  const threeYears = `${Number(end.slice(0, 4)) - 3}${end.slice(4)}`;
+  const res = await postUntilAllowed(`${API_URL}/analysis/strategy/dca`, {
+    data: {
+      symbol,
+      startDate: threeYears,
+      endDate: end,
+      amountPerPurchase: 300_000,
+      frequency: 'MONTHLY',
+      capitalGainsTax: true,
+      yearEndHarvest: true,
+    },
+  });
+
+  expect(res.status(), `연말 정리를 켠 적립식이 실패했다: ${await res.text()}`).toBe(200);
+  const body = await res.json();
+  type Trade = { trigger: string; date: string; actualDate?: string };
+  const harvests: Trade[] = body.transactions.filter((tx: Trade) => tx.trigger.startsWith('공제 채우기'));
+  expect(harvests.length, '기간 안에 공제 채우기가 한 번도 나지 않았다').toBeGreaterThan(0);
+  expect(harvests.map((tx) => (tx.actualDate ?? tx.date).slice(5, 7)), '공제 채우기가 12월 밖에 났다').toEqual(harvests.map(() => '12'));
+  const days: string[] = body.dailyValues.map((day: { date: string }) => day.date);
+  for (const date of harvests.map((tx) => tx.actualDate ?? tx.date)) {
+    expect(days.some((day) => day > date && day.slice(0, 4) === date.slice(0, 4)), `${date} 뒤에 그해 거래일이 없다`).toBe(true);
+  }
+  const sells = harvests.filter((tx) => tx.trigger === '공제 채우기 매도').length;
+  expect(sells * 2, '공제 채우기 매도 · 재매수가 짝이 아니다').toBe(harvests.length);
+  expect(body.capitalGainsTax.harvestComparison, '기간 끝에 한 번에 판 양도세와의 비교가 없다').toBeTruthy();
+});
+
 test('조건부 매수가 돈다', async () => {
   const res = await postUntilAllowed(`${API_URL}/analysis/strategy/conditional`, {
     data: {

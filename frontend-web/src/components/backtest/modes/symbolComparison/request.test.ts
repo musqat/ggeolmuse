@@ -17,6 +17,7 @@ const values: SymbolComparisonValues = {
   manualPurchaseFxRate: '1300',
   manualCurrentFxRate: '1350',
   taxSale: 'NONE',
+  yearEndHarvest: false,
 }
 
 describe('buildSymbolComparisonRequest', () => {

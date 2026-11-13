@@ -116,6 +116,19 @@ describe('AccumulationChart', () => {
     expect(screen.getByText('1회 매수 • 1회 매도 • 총 0.00주 보유')).toBeInTheDocument()
   })
 
+  it('연말 정리 매도 · 재매수는 점을 찍지 않고 매수 · 매도 횟수에 세지 않는다', async () => {
+    const withHarvest = [
+      { date: '2026-03-01', actualDate: '2026-03-01', price: 100, shares: 1, amount: 140000, fxRate: 1400 },
+      { date: '2026-03-04', price: 101, shares: -1, amount: 0, fxRate: 1396, trigger: '공제 채우기 매도' },
+      { date: '2026-03-04', price: 101, shares: 0.99, amount: 0, fxRate: 1396, trigger: '공제 채우기 재매수', cashUsed: 101 },
+    ]
+    renderWithQuery(<AccumulationChart {...props} transactions={withHarvest} />)
+
+    await waitFor(() => expect(screen.getAllByTestId('line-chart')).toHaveLength(1))
+    expect(readCharts()[0].dots).toEqual([{ fill: '#8b5cf6', x: '2026-03-02', y: 100 }])
+    expect(screen.getByText('1회 매수 • 총 0.99주 보유')).toBeInTheDocument()
+  })
+
   it('전량 매도로 끝나면 부동소수 합이 음수로 남아도 보유를 0.00주로 보인다', async () => {
     const soldOut = [
       { date: '2026-03-02', price: 100, shares: 3.19845656, amount: 140000, fxRate: 1400 },

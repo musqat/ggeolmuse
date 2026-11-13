@@ -82,6 +82,7 @@ export const useMaBandMode = (shared: SharedModeProps): ModeController => {
     reinvestLocked: true,
     reinvestNote: '밴드는 배당을 현금으로',
     taxSale: singleTaxSale(options),
+    harvest: true,
     saved: { amount: investment, window: bandWindow, upper, lower, ...signal.saved, ...trailing.saved, ...partial.saved },
     load: (saved) => {
       const next = pickValues(DEFAULTS, saved);

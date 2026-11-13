@@ -23,6 +23,10 @@ const REASON_LABELS: Record<TradeReason, string> = {
   STOP_LOSS: '손절',
   STRATEGY_BUY: '전략 매수',
   STRATEGY_SELL: '전략 매도',
+  HARVEST_GAIN_SELL: '공제 채우기 매도',
+  HARVEST_GAIN_BUY: '공제 채우기 재매수',
+  HARVEST_LOSS_SELL: '손실 상계 매도',
+  HARVEST_LOSS_BUY: '손실 상계 재매수',
 };
 
 const HEAD = 'px-3 py-2 text-xs font-medium text-tx-2';
