@@ -36,7 +36,7 @@ const TradeDatePicker: React.FC<TradeDatePickerProps> = ({
 
   return (
     <div className="mb-4">
-      <label className="block text-sm font-medium text-tx-1 mb-2">거래일</label>
+      <p className="text-sm font-medium text-tx-1 mb-2">거래일</p>
 
       <div className="grid grid-cols-4 gap-2 mb-2">
         {quickPicks.map(({ label, pick }) => (
@@ -58,6 +58,7 @@ const TradeDatePicker: React.FC<TradeDatePickerProps> = ({
         onChange={onTradeDateChange}
         max={getTodayString()}
         placeholder="날짜를 선택하세요"
+        label="거래일"
         testId="trade-date"
       />
 

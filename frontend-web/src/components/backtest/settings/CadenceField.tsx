@@ -32,17 +32,20 @@ export const CadenceField = ({ label = '언제', cadence, onCadenceChange, month
     'aria-checked': cadence === value,
     tabIndex: cadence === value ? 0 : -1,
     onClick: () => onCadenceChange(value),
+    onKeyDown: onRadioKeys,
   });
 
   return (
     <SettingField label={label} labelId={labelId} message={message} messageId={messageId}>
-      <div role="radiogroup" aria-labelledby={labelId} onKeyDown={onRadioKeys} className="flex flex-wrap items-center gap-1.5">
+      <div role="radiogroup" aria-labelledby={labelId} className="flex flex-wrap items-center gap-1.5">
         {FIXED.map(({ value, label: text }) => (
           <button key={value} type="button" {...radio(value)} className={PILL(cadence === value)}>
             {text}
           </button>
         ))}
+        {/* 빈 곳 누르기는 마우스 편의(키보드는 안의 개월마다 라디오)라 감싼 칸 자체는 역할 없음 */}
         <span
+          role="presentation"
           className={PILL(cadence === 'MONTHS')}
           onClick={(e) => {
             if (e.target === e.currentTarget) onCadenceChange('MONTHS');

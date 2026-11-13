@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { authApi } from '../../services/api';
-import { AuthModalFrame } from './AuthModalParts';
+import { Modal } from '../common/Modal';
 
 interface SignupSuccessModalProps {
   isOpen: boolean;
@@ -29,10 +29,8 @@ const SignupSuccessModal: React.FC<SignupSuccessModalProps> = ({ isOpen, onClose
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <AuthModalFrame title="회원가입 완료" onClose={onClose}>
+    <Modal isOpen={isOpen} onClose={onClose} title="회원가입 완료">
       <div className="text-center mb-6">
         <h3 className="text-lg font-medium text-tx-1 mb-2">
           회원가입이 완료되었습니다
@@ -89,7 +87,7 @@ const SignupSuccessModal: React.FC<SignupSuccessModalProps> = ({ isOpen, onClose
           인증 이메일이 스팸함에 있을 수 있습니다.
         </p>
       </div>
-    </AuthModalFrame>
+    </Modal>
   );
 };
 

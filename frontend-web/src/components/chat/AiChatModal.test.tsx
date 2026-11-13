@@ -79,6 +79,18 @@ beforeEach(() => {
 })
 
 describe('AiChatModal', () => {
+  it('AI 종목 분석 대화 상자로 열려 입력 칸에 포커스, Esc 로 닫으면 연 단추로 포커스 복귀', async () => {
+    renderModal()
+    await userEvent.click(screen.getByRole('button', { name: '채팅 열기' }))
+
+    expect(screen.getByRole('dialog', { name: 'AI 종목 분석' })).toHaveAttribute('aria-modal', 'true')
+    expect(screen.getByRole('textbox', { name: '종목 코드' })).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByRole('button', { name: '채팅 열기' })).toHaveFocus()
+  })
+
   it('종목을 입력하면 대화를 시작하고 남은 횟수를 보인다', async () => {
     startConversation.mockResolvedValueOnce(started('AAPL', 'Apple Inc.'))
     await openAndStart()
@@ -104,7 +116,7 @@ describe('AiChatModal', () => {
     ask.mockResolvedValueOnce(answered('RSI 는 **중립**입니다.', 4))
     await openAndStart()
 
-    await userEvent.type(await screen.findByPlaceholderText(QUESTION_INPUT), 'RSI 어때?{Enter}')
+    await userEvent.type(await screen.findByRole('textbox', { name: '질문' }), 'RSI 어때?{Enter}')
 
     expect(await screen.findByText('중립')).toBeInTheDocument()
     expect(ask).toHaveBeenCalledWith('c-AAPL', 'RSI 어때?')

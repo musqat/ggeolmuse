@@ -1,40 +1,9 @@
 import React, { useState } from 'react';
-import ReactDOM from 'react-dom';
-import { X, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { LAYER } from '@/styles/layers';
 
 const LABEL_CLASS = 'block text-sm font-medium text-tx-1 mb-1';
 const INPUT_CLASS = 'w-full px-3 py-2 border border-line-strong rounded-md focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent';
-
-interface AuthModalFrameProps {
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-}
-
-// 로그인 · 가입 창의 공통 레이아웃(화면을 덮는 배경 · 제목 · 닫기 버튼)
-export const AuthModalFrame: React.FC<AuthModalFrameProps> = ({ title, onClose, children }) =>
-  ReactDOM.createPortal(
-    <div style={{ position: 'fixed', inset: 0, zIndex: LAYER.modal, backgroundColor: 'rgba(0,0,0,0.5)', overflowY: 'auto' }}>
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="bg-surface rounded-lg shadow-xl w-full max-w-md">
-          <div className="flex items-center justify-between p-6 border-b">
-            <h2 className="text-xl font-semibold text-tx-1">{title}</h2>
-            <button
-              onClick={onClose}
-              aria-label="닫기"
-              className="text-tx-3 hover:text-tx-2 transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-          <div className="p-6">{children}</div>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
 
 interface AuthTextFieldProps {
   id: string;
@@ -145,7 +114,7 @@ interface GoogleButtonProps {
   onError: (message: string) => void;
 }
 
-// 구글 로그인 버튼(가입도 같은 흐름)
+// 구글 로그인 버튼(가입도 같은 흐름, 로그인 뒤 지금 화면으로 돌아옴)
 export const GoogleButton: React.FC<GoogleButtonProps> = ({ label, loadingLabel, failMessage, onError }) => {
   const { loginWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -155,7 +124,7 @@ export const GoogleButton: React.FC<GoogleButtonProps> = ({ label, loadingLabel,
     onError('');
 
     try {
-      await loginWithGoogle();
+      await loginWithGoogle({ returnTo: window.location.pathname + window.location.search });
     } catch (error) {
       console.error(failMessage, error);
       onError(failMessage);

@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { rootErrorOptions } from '@/utils/clientErrors'
+import { notify } from './notify'
 import { ErrorBoundary } from './ErrorBoundary'
 
 let shouldThrow = true
@@ -17,6 +19,7 @@ describe('ErrorBoundary', () => {
     shouldThrow = true
     // React 가 잡은 렌더 예외를 콘솔에 찍는 것만 막음
     vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(notify, 'error').mockImplementation(() => {})
   })
   afterEach(() => vi.restoreAllMocks())
 
@@ -41,6 +44,13 @@ describe('ErrorBoundary', () => {
 
     expect(screen.getByText('페이지 내용')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('앱 뿌리의 오류 옵션이면 잡은 렌더 오류를 컴포넌트 위치와 함께 콘솔에 한 번만 남긴다', () => {
+    render(<ErrorBoundary><Flaky /></ErrorBoundary>, { onCaughtError: rootErrorOptions.onCaughtError })
+
+    expect(console.error).toHaveBeenCalledOnce()
+    expect(console.error).toHaveBeenCalledWith('화면 렌더 오류', expect.objectContaining({ message: '렌더 실패' }), expect.stringContaining('Flaky'))
   })
 
   it('다른 화면으로 옮기면(resetKey 가 바뀌면) 안내를 지우고 다시 그린다', () => {

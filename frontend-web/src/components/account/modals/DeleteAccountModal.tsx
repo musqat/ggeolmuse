@@ -32,10 +32,10 @@ const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={
-        <div className="flex items-center">
+        <span className="flex items-center">
           <Trash2 className="w-6 h-6 mr-2 text-danger" />
           계좌 삭제 확인
-        </div>
+        </span>
       }
       footer={footer}
       maxWidth="md"

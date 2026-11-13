@@ -2,11 +2,12 @@ import type { KeyboardEvent } from 'react';
 
 const MOVES = ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'];
 
-// 하나만 고르는 묶음의 화살표 · Home · End(옮긴 항목을 누르고 포커스, 끝에서 처음으로 돎)
+// 라디오 항목의 화살표 · Home · End(같은 묶음에서 옮긴 항목을 누르고 포커스, 끝에서 처음으로 돎)
 export const onRadioKeys = (event: KeyboardEvent<HTMLElement>) => {
-  const target = (event.target as HTMLElement).closest<HTMLElement>('[role="radio"]');
-  if (!target || !MOVES.includes(event.key)) return;
-  const items = [...event.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]')].filter(
+  const target = event.currentTarget;
+  const group = target.closest('[role="radiogroup"]');
+  if (!group || !MOVES.includes(event.key)) return;
+  const items = [...group.querySelectorAll<HTMLElement>('[role="radio"]')].filter(
     (item) => item.getAttribute('aria-disabled') !== 'true',
   );
   const index = items.indexOf(target);

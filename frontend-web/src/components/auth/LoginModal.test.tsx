@@ -35,6 +35,16 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('LoginModal', () => {
+  it('로그인 대화 상자로 열려 이메일 칸에 포커스, Esc 로 닫는다', async () => {
+    const { onClose } = renderModal()
+
+    expect(screen.getByRole('dialog', { name: '로그인' })).toHaveAttribute('aria-modal', 'true')
+    expect(screen.getByLabelText('이메일')).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
   it('이메일과 비밀번호로 로그인하고 창을 닫는다', async () => {
     const user = userEvent.setup()
     const { onClose, onLogin } = renderModal()
@@ -72,6 +82,20 @@ describe('LoginModal', () => {
 
     expect(screen.getByLabelText('비밀번호')).toHaveAttribute('type', 'text')
     expect(screen.getByRole('button', { name: '비밀번호 숨기기' })).toBeInTheDocument()
+  })
+
+  it('구글 로그인은 로그인을 시작한 화면으로 돌아오게 지금 경로를 넘긴다', async () => {
+    const user = userEvent.setup()
+    window.history.pushState({}, '', '/trading?symbol=AAPL')
+    try {
+      renderModal()
+
+      await user.click(screen.getByRole('button', { name: '구글로 로그인' }))
+
+      expect(loginWithGoogle).toHaveBeenCalledWith({ returnTo: '/trading?symbol=AAPL' })
+    } finally {
+      window.history.pushState({}, '', '/')
+    }
   })
 
   it('구글 로그인이 실패하면 알린다', async () => {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { RefreshCw, Trash2, DollarSign, TrendingUp, ArrowUpDown, ChevronLeft, ChevronRight, Pencil, Check, X, PlusCircle, Undo2 } from 'lucide-react';
 import type { Asset } from '@services/adminApi';
 import { formatMarketCap, formatNumber } from '../../utils/format';
@@ -38,6 +38,31 @@ interface AssetListSectionProps {
   searchMode?: boolean;
 }
 
+interface SortHeaderProps {
+  field: string;
+  label: string;
+  sortBy: string;
+  sortDirection: 'asc' | 'desc';
+  onSort: (field: string) => void;
+}
+
+// 누르면 그 열로 정렬하는 머리칸(지금 정렬한 열은 aria-sort 로 방향을 알림)
+function SortHeader({ field, label, sortBy, sortDirection, onSort }: SortHeaderProps) {
+  return (
+    <th
+      aria-sort={sortBy === field ? (sortDirection === 'desc' ? 'descending' : 'ascending') : undefined}
+      className="px-6 py-3 text-left text-xs font-medium text-tx-2 uppercase tracking-wider hover:bg-elevated transition"
+    >
+      <button type="button" onClick={() => onSort(field)} className="flex items-center gap-1 uppercase tracking-wider">
+        {label}
+        {sortBy === field && (
+          <ArrowUpDown className={`w-4 h-4 ${sortDirection === 'desc'?'rotate-180':''}`} />
+        )}
+      </button>
+    </th>
+  );
+}
+
 export default function AssetListSection({
   assets,
   loading,
@@ -73,6 +98,12 @@ export default function AssetListSection({
   // 이름 인라인 편집 상태
   const [editingSymbol, setEditingSymbol] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const editInput = useRef<HTMLInputElement>(null);
+
+  // 이름 수정을 누르면 그 칸으로 포커스
+  useEffect(() => {
+    if (editingSymbol) editInput.current?.focus();
+  }, [editingSymbol]);
 
   const startEdit = (asset: Asset) => {
     setEditingSymbol(asset.symbol);
@@ -98,6 +129,7 @@ export default function AssetListSection({
       onSortChange(field, 'asc');
     }
   };
+  const sortProps = { sortBy, sortDirection, onSort: handleSort };
 
   const formatPrice = (price?: number) => {
     if (price == null) return 'N/A';
@@ -108,20 +140,6 @@ export default function AssetListSection({
     if (!date) return 'N/A';
     return date;
   };
-
-  const SortHeader = ({ field, label }: { field: string; label: string }) => (
-    <th
-      className="px-6 py-3 text-left text-xs font-medium text-tx-2 uppercase tracking-wider cursor-pointer hover:bg-elevated transition"
-      onClick={() => handleSort(field)}
-    >
-      <div className="flex items-center gap-1">
-        {label}
-        {sortBy === field && (
-          <ArrowUpDown className={`w-4 h-4 ${sortDirection === 'desc'?'rotate-180':''}`} />
-        )}
-      </div>
-    </th>
-  );
 
   const pageNumbers: number[] = [];
   const maxPagesToShow = 5;
@@ -170,8 +188,9 @@ export default function AssetListSection({
         <div className="flex items-center gap-4">
           {!searchMode && (
             <div className="flex items-center gap-2">
-              <label className="text-sm text-tx-2">페이지당:</label>
+              <label htmlFor="asset-page-size" className="text-sm text-tx-2">페이지당:</label>
               <select
+                id="asset-page-size"
                 value={pageSize}
                 onChange={(e) => onPageSizeChange(Number(e.target.value))}
                 className="px-3 py-1 border rounded-lg text-sm"
@@ -242,13 +261,13 @@ export default function AssetListSection({
                   className="w-4 h-4 cursor-pointer"
                 />
               </th>
-              <SortHeader field="symbol" label="심볼" />
+              <SortHeader field="symbol" label="심볼" {...sortProps} />
               <th className="px-6 py-3 text-left text-xs font-medium text-tx-2 uppercase tracking-wider">
                 이름
               </th>
-              <SortHeader field="currentPrice" label="가격" />
-              <SortHeader field="marketCap" label="시가총액" />
-              <SortHeader field="latestDataDate" label="최신 데이터" />
+              <SortHeader field="currentPrice" label="가격" {...sortProps} />
+              <SortHeader field="marketCap" label="시가총액" {...sortProps} />
+              <SortHeader field="latestDataDate" label="최신 데이터" {...sortProps} />
               <th className="px-6 py-3 text-left text-xs font-medium text-tx-2 uppercase tracking-wider">
                 타입
               </th>
@@ -275,14 +294,15 @@ export default function AssetListSection({
                   {editingSymbol === asset.symbol ? (
                     <div className="flex items-center gap-1">
                       <input
+                        ref={editInput}
                         type="text"
+                        aria-label={`${asset.symbol} 이름`}
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') saveEdit(asset.symbol);
                           if (e.key === 'Escape') cancelEdit();
                         }}
-                        autoFocus
                         className="px-2 py-1 border rounded text-sm w-56"
                       />
                       <button

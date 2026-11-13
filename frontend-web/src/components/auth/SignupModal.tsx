@@ -4,8 +4,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { getApiErrorMessage, getApiErrorStatus, getServerMessage } from '../../utils/apiError';
 import { NICKNAME_HINT, NICKNAME_RULE, NICKNAME_RULE_MESSAGE } from '../../utils/nickname';
 import { PASSWORD_HINT, PASSWORD_RULE, PASSWORD_RULE_MESSAGE } from '../../utils/password';
+import { Modal } from '../common/Modal';
 import {
-  AuthModalFrame,
   AuthTextField,
   FormError,
   GoogleButton,
@@ -119,10 +119,8 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <AuthModalFrame title="회원가입" onClose={onClose}>
+    <Modal isOpen={isOpen} onClose={onClose} title="회원가입">
       <form onSubmit={handleSubmit} className="space-y-4">
         <AuthTextField
           id="nickname"
@@ -190,6 +188,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
             <form onSubmit={handleResendVerification} className="space-y-3">
               <input
                 type="email"
+                aria-label="인증 메일 받을 이메일"
                 value={resendEmail}
                 onChange={(e) => setResendEmail(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-line-strong rounded-md focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
@@ -220,7 +219,7 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, onSwitchToLo
           </div>
         )}
       </div>
-    </AuthModalFrame>
+    </Modal>
   );
 };
 

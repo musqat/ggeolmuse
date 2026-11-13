@@ -12,6 +12,12 @@ function renderModal(onSubmit = vi.fn().mockResolvedValue(undefined)) {
 const amountInput = () => screen.getByPlaceholderText('입금할 금액을 입력하세요')
 
 describe('DepositModal', () => {
+  it('금액 칸은 이름표로 찾을 수 있다', () => {
+    renderModal()
+
+    expect(screen.getByLabelText('입금 금액 (KRW)')).toBe(amountInput())
+  })
+
   it('빠른 금액은 누를 때마다 더한다', async () => {
     renderModal()
 

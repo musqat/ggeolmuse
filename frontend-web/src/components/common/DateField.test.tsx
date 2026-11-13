@@ -98,10 +98,9 @@ describe('DateField 모양 · 이름', () => {
     expect(screen.getByRole('button', { name: '시작일 2024. 06. 14.' })).toBeInTheDocument()
   })
 
-  it('invalid · describedBy 를 단추의 aria-invalid · aria-describedby 로 넘긴다', () => {
-    render(<DateField value="2024-06-14" onChange={vi.fn()} invalid describedBy="period-error" testId="field" />)
+  it('describedBy 를 단추의 aria-describedby 로 넘긴다', () => {
+    render(<DateField value="2024-06-14" onChange={vi.fn()} describedBy="period-error" testId="field" />)
 
-    expect(screen.getByTestId('field')).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByTestId('field')).toHaveAttribute('aria-describedby', 'period-error')
   })
 

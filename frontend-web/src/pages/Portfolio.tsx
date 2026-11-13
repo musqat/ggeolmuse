@@ -2,7 +2,6 @@ import React from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { usePortfolioData } from '../hooks/usePortfolioData';
-import { LoginRequired } from '../components/common/LoginRequired';
 import { PageSpinner } from '../components/common/Spinner';
 import PortfolioPieChart from '../components/charts/portfolio/PortfolioPieChart';
 import { SummaryCards } from '../components/portfolio/SummaryCards';
@@ -17,11 +16,6 @@ const Portfolio: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const accountId = searchParams.get('accountId');
   const { holdings, summary, balance, exchangeRate, loading } = usePortfolioData(accountId, isAuthenticated);
-
-  // 로그인 안 됨
-  if (!isAuthenticated) {
-    return <LoginRequired description="포트폴리오 기능을 이용하시려면 먼저 로그인해주세요" />;
-  }
 
   // 계좌 ID 없음
   if (!accountId) {

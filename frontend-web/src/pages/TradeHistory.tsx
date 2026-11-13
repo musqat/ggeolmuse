@@ -1,7 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
-import { LoginRequired } from '../components/common/LoginRequired';
 import { PageSpinner } from '../components/common/Spinner';
 import { tradeApi, type TransactionHistoryItem } from '../services/api';
 import { accountListQuery } from '../hooks/useAccounts';
@@ -9,7 +8,7 @@ import { TradeHistoryList } from '../components/trading/history/TradeHistoryList
 import { historyRefetchInterval } from '../components/trading/history/tradeHistory';
 
 const TradeHistory: React.FC = () => {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   const {
     data: transactions = [],
@@ -29,15 +28,6 @@ const TradeHistory: React.FC = () => {
 
   // 계좌 목록(계좌 필터 · 계좌 이름)
   const { data: accounts = [] } = useQuery({ ...accountListQuery, enabled: isAuthenticated });
-
-  if (authLoading) {
-    return <PageSpinner />;
-  }
-
-  // 로그인 안 됨
-  if (!isAuthenticated) {
-    return <LoginRequired description="거래내역을 확인하시려면 먼저 로그인해주세요" />;
-  }
 
   if (loading) {
     return <PageSpinner />;

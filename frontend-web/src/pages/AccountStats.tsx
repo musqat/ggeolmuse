@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useAccountData } from '../hooks/useAccountData';
-import { LoginRequired } from '../components/common/LoginRequired';
 import { PageSpinner } from '../components/common/Spinner';
 import { ProfitFlowChart } from '../components/account/ProfitFlowChart';
 import { ProfitTab } from '../components/account/stats/ProfitTab';
@@ -58,10 +57,6 @@ const AccountStats: React.FC = () => {
     queryFn: async () => (await portfolioApi.getMarketComparison(accountId, period)).data,
     enabled: isAuthenticated && compare && hasPoints,
   });
-
-  if (!isAuthenticated) {
-    return <LoginRequired description="계좌 통계를 보시려면 먼저 로그인해주세요" />;
-  }
 
   if (loading) {
     return <PageSpinner />;

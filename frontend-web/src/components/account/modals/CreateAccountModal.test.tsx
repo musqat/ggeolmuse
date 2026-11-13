@@ -15,6 +15,12 @@ function renderModal() {
 }
 
 describe('CreateAccountModal', () => {
+  it('계좌명 칸은 이름표로 찾을 수 있다', () => {
+    renderModal()
+
+    expect(screen.getByLabelText('계좌명')).toBe(screen.getByPlaceholderText('예: 주식 투자 계좌'))
+  })
+
   it('생성이 실패하면 창과 입력을 그대로 둔다', async () => {
     const onClose = vi.fn()
     const onSubmit = vi.fn().mockRejectedValue(new Error('down'))

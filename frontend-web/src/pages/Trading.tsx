@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
-import { LoginRequired } from '../components/common/LoginRequired';
 import TradeHistoryTab from '../components/trading/TradeHistoryTab';
 import TradingCapacityPanel from '../components/trading/TradingCapacityPanel';
 import { stockApi } from '../services/api';
@@ -23,10 +22,20 @@ import StockSelectionPanel from '@/components/trading/StockSelectionPanel';
 import TradingChartSection from '@/components/trading/TradingChartSection';
 import { SOLID_BUTTON } from '@/styles/buttons';
 
+const TABS = [
+  { key: 'order', label: '주문' },
+  { key: 'history', label: '거래내역' },
+] as const;
+
+type TradingTab = (typeof TABS)[number]['key'];
+
 const Trading: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const [activeTab, setActiveTab] = useState<'order' | 'history'>('order');
+  const [activeTab, setActiveTab] = useState<TradingTab>('order');
+  const tabButtons = useRef<Partial<Record<TradingTab, HTMLButtonElement | null>>>({});
+  const id = useId();
+  const tabId = (key: TradingTab) => `${id}-${key}`;
   const [selectedStock, setSelectedStock] = useState('AAPL');
   const [orderType, setOrderType] = useState<'buy' | 'sell'>('buy');
   const [priceType, setPriceType] = useState<PriceType>('close');
@@ -88,10 +97,23 @@ const Trading: React.FC = () => {
     }
   };
 
-  // 인증되지 않은 사용자를 위한 안내 화면
-  if (!isAuthenticated) {
-    return <LoginRequired description="가상 거래 서비스를 이용하시려면 먼저 로그인해주세요" />;
-  }
+  // 화살표는 옆 탭(끝에서는 반대 끝), Home · End 는 처음 · 마지막 탭
+  const moveTab = (event: React.KeyboardEvent, index: number) => {
+    const last = TABS.length - 1;
+    const next = { ArrowRight: index === last ? 0 : index + 1, ArrowLeft: index === 0 ? last : index - 1, Home: 0, End: last }[
+      event.key
+    ];
+    if (next === undefined) return;
+    event.preventDefault();
+    setActiveTab(TABS[next].key);
+    tabButtons.current[TABS[next].key]?.focus();
+  };
+
+  const panel = {
+    role: 'tabpanel',
+    id: `${tabId(activeTab)}-panel`,
+    'aria-labelledby': tabId(activeTab),
+  } as const;
 
   const currentPrice = order.executionPrice;
   const totalAmount = currentPrice * Number(quantity || 0);
@@ -104,34 +126,42 @@ const Trading: React.FC = () => {
       </div>
 
       <div className="mb-6 border-b border-line">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab('order')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'order'
-                ? 'border-brand text-brand'
-                : 'border-transparent text-tx-2 hover:text-tx-1 hover:border-line-strong'
-            }`}
-          >
-            주문
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'history'
-                ? 'border-brand text-brand'
-                : 'border-transparent text-tx-2 hover:text-tx-1 hover:border-line-strong'
-            }`}
-          >
-            거래내역
-          </button>
-        </nav>
+        <div role="tablist" aria-label="거래 화면" className="-mb-px flex space-x-8">
+          {TABS.map((tab, index) => {
+            const selected = tab.key === activeTab;
+            return (
+              <button
+                key={tab.key}
+                ref={(element) => {
+                  tabButtons.current[tab.key] = element;
+                }}
+                type="button"
+                role="tab"
+                id={tabId(tab.key)}
+                aria-selected={selected}
+                aria-controls={selected ? panel.id : undefined}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => setActiveTab(tab.key)}
+                onKeyDown={(event) => moveTab(event, index)}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  selected
+                    ? 'border-brand text-brand'
+                    : 'border-transparent text-tx-2 hover:text-tx-1 hover:border-line-strong'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {activeTab === 'history' ? (
-        <TradeHistoryTab />
+        <div {...panel}>
+          <TradeHistoryTab />
+        </div>
       ) : (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div {...panel} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 왼쪽: 종목 선택 · 차트 */}
         <div className="lg:col-span-2 space-y-6">
           <StockSelectionPanel
@@ -187,8 +217,9 @@ const Trading: React.FC = () => {
             />
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-tx-1 mb-2">수량</label>
+              <label htmlFor={`${id}-quantity`} className="block text-sm font-medium text-tx-1 mb-2">수량</label>
               <input
+                id={`${id}-quantity`}
                 type="number"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}

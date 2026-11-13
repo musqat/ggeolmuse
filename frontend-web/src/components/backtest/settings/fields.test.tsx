@@ -103,13 +103,14 @@ describe('PeriodField', () => {
     expect(screen.getByTestId('date-start')).not.toHaveAttribute('aria-invalid')
   })
 
-  it('오류가 있으면 칸 아래에 보이고 날짜 단추를 오류 글과 잇는다', () => {
+  it('오류가 있으면 칸 아래에 보이고 날짜 단추는 오류 글과만 잇는다', () => {
     const Broken = () => <PeriodField period={usePeriod()} message={{ kind: 'error', text: '끝 날짜가 시작일과 같거나 앞' }} />
     render(<Broken />)
 
     const message = screen.getByText('끝 날짜가 시작일과 같거나 앞')
-    expect(screen.getByTestId('date-start')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByTestId('date-start')).not.toHaveAttribute('aria-invalid')
     expect(screen.getByTestId('date-start')).toHaveAttribute('aria-describedby', message.id)
+    expect(screen.getByTestId('date-end')).toHaveAttribute('aria-describedby', message.id)
   })
 })
 

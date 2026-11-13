@@ -100,8 +100,9 @@ const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
     >
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-tx-1 mb-2">계좌명</label>
+          <label htmlFor="account-name" className="block text-sm font-medium text-tx-1 mb-2">계좌명</label>
           <input
+            id="account-name"
             type="text"
             value={accountName}
             onChange={(e) => setAccountName(e.target.value)}

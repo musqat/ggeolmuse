@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Edit2, Lock, CheckCircle, Trash2 } from 'lucide-react';
 import type { UserDetail } from '@services/adminApi';
 import { notify } from '@/components/common/notify';
-import { DialogField, FormDialog } from '@/components/common/FormDialog';
+import { DialogActions } from '@/components/common/DialogActions';
+import { DialogField } from '@/components/common/DialogField';
+import { Modal } from '@/components/common/Modal';
 import { SOLID_BUTTON } from '@/styles/buttons';
 import { NICKNAME_RULE, NICKNAME_RULE_MESSAGE } from '@/utils/nickname';
 import { PASSWORD_RULE, PASSWORD_RULE_MESSAGE } from '@/utils/password';
@@ -254,12 +256,18 @@ export default function UserDetailSection({
       </div>
 
       {showNicknameModal && (
-        <FormDialog
+        <Modal
+          isOpen
+          onClose={closeNicknameModal}
           title="닉네임 변경"
-          confirmLabel="변경하기"
-          confirmDisabled={!newNickname.trim()}
-          onConfirm={handleUpdateNickname}
-          onCancel={closeNicknameModal}
+          footer={
+            <DialogActions
+              onCancel={closeNicknameModal}
+              onSubmit={handleUpdateNickname}
+              submitLabel="변경하기"
+              disabled={!newNickname.trim()}
+            />
+          }
         >
           <DialogField
             id="admin-nickname"
@@ -269,33 +277,41 @@ export default function UserDetailSection({
             onChange={(e) => setNewNickname(e.target.value)}
             placeholder="새 닉네임 입력"
           />
-        </FormDialog>
+        </Modal>
       )}
 
       {showPasswordModal && (
-        <FormDialog
+        <Modal
+          isOpen
+          onClose={closePasswordModal}
           title="비밀번호 강제 변경"
-          confirmLabel="변경하기"
-          confirmDisabled={!newPassword || !confirmPassword}
-          onConfirm={handleUpdatePassword}
-          onCancel={closePasswordModal}
+          footer={
+            <DialogActions
+              onCancel={closePasswordModal}
+              onSubmit={handleUpdatePassword}
+              submitLabel="변경하기"
+              disabled={!newPassword || !confirmPassword}
+            />
+          }
         >
-          <DialogField
-            id="admin-new-password"
-            label="새 비밀번호"
-            hint="최소 8자 이상"
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-          />
-          <DialogField
-            id="admin-confirm-password"
-            label="새 비밀번호 확인"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-          />
-        </FormDialog>
+          <div className="space-y-4">
+            <DialogField
+              id="admin-new-password"
+              label="새 비밀번호"
+              hint="최소 8자 이상"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+            <DialogField
+              id="admin-confirm-password"
+              label="새 비밀번호 확인"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+          </div>
+        </Modal>
       )}
     </div>
   );

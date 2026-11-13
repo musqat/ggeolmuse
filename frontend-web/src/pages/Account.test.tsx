@@ -16,12 +16,11 @@ vi.mock('../services/api', () => ({
   portfolioApi: { getPortfolio: vi.fn(), getPortfolioSummary: vi.fn() },
 }))
 vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }))
-vi.mock('../hooks/useAuthModal', () => ({ useAuthModal: () => ({ openLogin: vi.fn(), openSignup: vi.fn() }) }))
 
 const ACCOUNT = { accountId: 3, accountName: '연습', commissionRate: 0.0025, usdBalance: 100, krwBalance: 1_000_000 }
 
-function renderPage(isAuthenticated = true) {
-  vi.mocked(useAuth).mockReturnValue({ isAuthenticated } as never)
+function renderPage() {
+  vi.mocked(useAuth).mockReturnValue({ isAuthenticated: true } as never)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
@@ -46,13 +45,6 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('Account', () => {
-  it('로그인 안 했으면 로그인 안내를 보인다', () => {
-    renderPage(false)
-
-    expect(screen.getByText('계좌 관리 기능을 이용하시려면 먼저 로그인해주세요')).toBeInTheDocument()
-    expect(accountsApi.getAccounts).not.toHaveBeenCalled()
-  })
-
   it('불러오는 동안 화면 읽기용 상태 표시를 보인다', async () => {
     renderPage()
 

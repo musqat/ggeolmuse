@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import {
   User as UserIcon,
@@ -11,29 +11,18 @@ import {
   Check,
   Lock,
 } from "lucide-react";
-import { PageSpinner } from '@/components/common/Spinner';
 import { NicknameDialog } from '@/components/mypage/NicknameDialog';
 import { PasswordDialog } from '@/components/mypage/PasswordDialog';
 import { DeleteAccountDialog } from '@/components/mypage/DeleteAccountDialog';
 
 const MyPage: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading, user, refreshUserData, logout } = useAuth();
+  const { user, refreshUserData, logout } = useAuth();
   const [searchParams] = useSearchParams();
   const [showNicknameModal, setShowNicknameModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   // 구글로 다시 로그인하고 돌아오면(?delete=1) 탈퇴 창을 연 채로 시작
   const [showDeleteModal, setShowDeleteModal] = useState(() => searchParams.get("delete") === "1");
-
-  // 로그인 확인 중
-  if (isLoading) {
-    return <PageSpinner />;
-  }
-
-  // 로그인되지 않은 경우 홈으로 리다이렉트
-  if (!isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
 
   // 닉네임을 바꾼 뒤 사용자 정보 다시 받기(실패하면 이전 정보 유지)
   const refreshAfterNicknameChange = () => {

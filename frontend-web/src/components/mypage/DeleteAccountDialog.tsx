@@ -5,7 +5,9 @@ import { authApi } from '../../services/api';
 import { getServerMessage, getApiErrorStatus } from '../../utils/apiError';
 import { tokenManager } from '../../utils/auth';
 import { notify } from '../common/notify';
-import { DialogField, FormDialog } from '../common/FormDialog';
+import { DialogActions } from '../common/DialogActions';
+import { DialogField } from '../common/DialogField';
+import { Modal } from '../common/Modal';
 
 // 구글 사용자 탈퇴에 필요한 최근 로그인 시간(5분)
 const REAUTH_WINDOW_MS = 5 * 60 * 1000;
@@ -58,58 +60,67 @@ export const DeleteAccountDialog: React.FC<DeleteAccountDialogProps> = ({ hasPas
   const needsReauth = !hasPassword && (reauthRejected || !loggedInRecently());
 
   return (
-    <FormDialog
+    <Modal
+      isOpen
+      onClose={onClose}
       title="회원 탈퇴"
       tone="danger"
-      confirmLabel="탈퇴하기"
-      confirmDisabled={confirmText !== '회원탈퇴' || (hasPassword ? !password : needsReauth)}
-      onConfirm={handleDelete}
-      onCancel={onClose}
-    >
-      <div className="p-4 bg-danger/10 rounded-lg border border-danger/25">
-        <p className="text-sm text-danger font-medium mb-2">
-          주의사항
-        </p>
-        <ul className="text-sm text-danger space-y-1 list-disc list-inside">
-          <li>모든 계좌 정보가 삭제됩니다</li>
-          <li>거래 내역이 모두 삭제됩니다</li>
-          <li>이 작업은 되돌릴 수 없습니다</li>
-        </ul>
-      </div>
-
-      <DialogField
-        id="delete-confirm"
-        tone="danger"
-        label={<>확인을 위해 <strong>"회원탈퇴"</strong>를 입력하세요</>}
-        type="text"
-        value={confirmText}
-        onChange={(e) => setConfirmText(e.target.value)}
-        placeholder="회원탈퇴"
-      />
-
-      {hasPassword ? (
-        <DialogField
-          id="delete-password"
+      footer={
+        <DialogActions
+          onCancel={onClose}
+          onSubmit={handleDelete}
+          submitLabel="탈퇴하기"
           tone="danger"
-          label="비밀번호"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
+          disabled={confirmText !== '회원탈퇴' || (hasPassword ? !password : needsReauth)}
         />
-      ) : needsReauth ? (
-        <div className="p-4 bg-elevated rounded-lg space-y-3">
-          <p className="text-sm text-tx-2">
-            보안을 위해 구글로 다시 로그인한 뒤 탈퇴할 수 있습니다. 로그인하면 이 화면으로 돌아옵니다.
+      }
+    >
+      <div className="space-y-4">
+        <div className="p-4 bg-danger/10 rounded-lg border border-danger/25">
+          <p className="text-sm text-danger font-medium mb-2">
+            주의사항
           </p>
-          <button
-            onClick={() => loginWithGoogle({ reauth: true, returnTo: '/mypage?delete=1' })}
-            className="w-full px-4 py-2 border border-line-strong text-tx-1 rounded-lg hover:bg-surface/50 transition-colors"
-          >
-            구글로 다시 로그인
-          </button>
+          <ul className="text-sm text-danger space-y-1 list-disc list-inside">
+            <li>모든 계좌 정보가 삭제됩니다</li>
+            <li>거래 내역이 모두 삭제됩니다</li>
+            <li>이 작업은 되돌릴 수 없습니다</li>
+          </ul>
         </div>
-      ) : null}
-    </FormDialog>
+
+        <DialogField
+          id="delete-confirm"
+          tone="danger"
+          label={<>확인을 위해 <strong>"회원탈퇴"</strong>를 입력하세요</>}
+          type="text"
+          value={confirmText}
+          onChange={(e) => setConfirmText(e.target.value)}
+          placeholder="회원탈퇴"
+        />
+
+        {hasPassword ? (
+          <DialogField
+            id="delete-password"
+            tone="danger"
+            label="비밀번호"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+          />
+        ) : needsReauth ? (
+          <div className="p-4 bg-elevated rounded-lg space-y-3">
+            <p className="text-sm text-tx-2">
+              보안을 위해 구글로 다시 로그인한 뒤 탈퇴할 수 있습니다. 로그인하면 이 화면으로 돌아옵니다.
+            </p>
+            <button
+              onClick={() => loginWithGoogle({ reauth: true, returnTo: '/mypage?delete=1' })}
+              className="w-full px-4 py-2 border border-line-strong text-tx-1 rounded-lg hover:bg-surface/50 transition-colors"
+            >
+              구글로 다시 로그인
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </Modal>
   );
 };

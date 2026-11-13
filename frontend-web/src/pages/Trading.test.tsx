@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { act, render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -7,7 +7,6 @@ import { AxiosError, type AxiosResponse } from 'axios'
 import { stockApi, tradeApi } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
 import { useAccounts } from '@/hooks/useAccounts'
-import { AuthModalProvider } from '@/contexts/AuthModalContext'
 import Trading from './Trading'
 import { notify } from '@/components/common/notify'
 
@@ -33,8 +32,8 @@ const httpError = (detail: string) =>
 let alertSpy: ReturnType<typeof vi.spyOn>
 let errorSpy: ReturnType<typeof vi.spyOn>
 
-function renderPage({ authenticated = true, accounts = [{ accountId: 3, accountName: '연습' }] } = {}) {
-  vi.mocked(useAuth).mockReturnValue({ isAuthenticated: authenticated, login: vi.fn() } as never)
+function renderPage({ accounts = [{ accountId: 3, accountName: '연습' }] } = {}) {
+  vi.mocked(useAuth).mockReturnValue({ isAuthenticated: true } as never)
   vi.mocked(useAccounts).mockReturnValue({
     accounts, selectedAccountId: accounts[0]?.accountId ?? null, setSelectedAccountId: vi.fn(),
   } as never)
@@ -43,9 +42,7 @@ function renderPage({ authenticated = true, accounts = [{ accountId: 3, accountN
   render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
-        <AuthModalProvider>
-          <Trading />
-        </AuthModalProvider>
+        <Trading />
       </MemoryRouter>
     </QueryClientProvider>
   )
@@ -70,19 +67,6 @@ beforeEach(() => {
   errorSpy = vi.spyOn(notify, 'error').mockImplementation(() => {})
 })
 afterEach(() => vi.restoreAllMocks())
-
-describe('Trading 로그인 전', () => {
-  it('안내와 로그인 버튼을 보여주고, 누르면 로그인 창을 연다', async () => {
-    renderPage({ authenticated: false })
-
-    expect(screen.getByText('로그인이 필요한 서비스입니다')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: /로그인하기/ }))
-
-    expect(screen.getByRole('button', { name: /구글로 로그인/ })).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: '회원가입' }))
-    expect(await screen.findByLabelText('닉네임')).toBeInTheDocument()
-  })
-})
 
 describe('Trading 주문', () => {
   it('종가 매수: 마지막 거래일 · 종가로 주문하고 체결 문구를 띄운 뒤 수량을 1 로 되돌린다', async () => {
@@ -226,11 +210,52 @@ describe('Trading 주문', () => {
     expect(submitButton()).toBeDisabled()
   })
 
-  it('거래내역 탭으로 바꿀 수 있다', async () => {
+  it('주문 · 거래내역은 탭 목록이고 화살표로 옮기거나 누르면 그 탭 내용을 보인다', async () => {
+    const user = userEvent.setup()
     renderPage()
+    const tabs = within(screen.getByRole('tablist', { name: '거래 화면' }))
 
-    await userEvent.click(screen.getByRole('button', { name: '거래내역' }))
+    expect(tabs.getByRole('tab', { name: '주문' })).toHaveAttribute('aria-selected', 'true')
+    tabs.getByRole('tab', { name: '주문' }).focus()
+    await user.keyboard('{ArrowRight}')
 
-    expect(screen.getByText('거래내역 탭')).toBeInTheDocument()
+    expect(tabs.getByRole('tab', { name: '거래내역' })).toHaveAttribute('aria-selected', 'true')
+    expect(tabs.getByRole('tab', { name: '거래내역' })).toHaveFocus()
+    expect(screen.getByRole('tabpanel', { name: '거래내역' })).toHaveTextContent('거래내역 탭')
+    await user.click(tabs.getByRole('tab', { name: '주문' }))
+    expect(screen.getByRole('tabpanel', { name: '주문' })).toBeInTheDocument()
+  })
+
+  it('탭에서 왼쪽 화살표는 처음에서 마지막 탭으로, Home · End 는 처음 · 마지막 탭으로 옮긴다', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    const tabs = within(screen.getByRole('tablist', { name: '거래 화면' }))
+    const order = tabs.getByRole('tab', { name: '주문' })
+    const history = tabs.getByRole('tab', { name: '거래내역' })
+
+    order.focus()
+    await user.keyboard('{ArrowLeft}')
+    expect(history).toHaveAttribute('aria-selected', 'true')
+    expect(history).toHaveFocus()
+
+    await user.keyboard('{Home}')
+    expect(order).toHaveAttribute('aria-selected', 'true')
+    expect(order).toHaveFocus()
+
+    await user.keyboard('{End}')
+    expect(history).toHaveAttribute('aria-selected', 'true')
+    expect(history).toHaveFocus()
+    expect(screen.getByRole('tabpanel', { name: '거래내역' })).toHaveTextContent('거래내역 탭')
+  })
+
+  it('주문 칸마다 이름표가 이어져 있다', async () => {
+    renderPage()
+    await waitForChart()
+
+    expect(screen.getByLabelText('계좌')).toHaveValue('3')
+    expect(screen.getByLabelText('수량')).toHaveValue(10)
+    expect(screen.getByRole('button', { name: /^거래일 / })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('주문 유형'), { target: { value: 'limit' } })
+    expect(await screen.findByLabelText(/^지정가/)).toHaveAttribute('placeholder', '0.00')
   })
 })

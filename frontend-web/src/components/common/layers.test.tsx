@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import AiChatButton from '../chat/AiChatButton'
-import { FormDialog } from './FormDialog'
 import { Modal } from './Modal'
 import { Notifications } from './Notifications'
 import { notify, dismissToast, settleConfirm, readToasts } from './notify'
@@ -20,14 +19,14 @@ afterEach(() => {
 const zOf = (element: HTMLElement) => Number(element.closest<HTMLElement>('.fixed')?.style.zIndex || 0)
 
 describe('떠 있는 층 순서', () => {
-  it('알림은 확인 창 위에, 확인 창은 열린 창 위에, 창은 AI 채팅 버튼 위에 뜬다', () => {
+  it('알림은 맨 위 확인 창 안에, 확인 창은 열린 창 위에, 창은 AI 채팅 버튼 위에 뜬다', () => {
     render(
       <MemoryRouter>
         <AiChatButton />
         <Notifications />
-        <FormDialog title="회원 탈퇴" confirmLabel="탈퇴하기" confirmDisabled={false} onConfirm={vi.fn()} onCancel={vi.fn()}>
+        <Modal isOpen onClose={vi.fn()} title="회원 탈퇴">
           <p>탈퇴 창 내용</p>
-        </FormDialog>
+        </Modal>
         <Modal isOpen onClose={vi.fn()} title="KRW 입금">
           <p>입금 창 내용</p>
         </Modal>
@@ -41,6 +40,6 @@ describe('떠 있는 층 순서', () => {
 
     expect(Math.min(...dialogs)).toBeGreaterThan(chatButton)
     expect(zOf(screen.getByText('정말로 탈퇴하시겠습니까?'))).toBeGreaterThan(Math.max(...dialogs))
-    expect(zOf(screen.getByText('입금에 실패했습니다'))).toBeGreaterThan(zOf(screen.getByText('정말로 탈퇴하시겠습니까?')))
+    expect(within(screen.getByRole('dialog', { name: '확인' })).getByText('입금에 실패했습니다')).toBeInTheDocument()
   })
 })

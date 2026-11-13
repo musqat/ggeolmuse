@@ -49,6 +49,7 @@ export default function AdminMarket() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-tx-3" />
               <input
                 type="text"
+                aria-label="보유 종목 검색"
                 value={market.searchKeyword}
                 onChange={(e) => market.setSearchKeyword(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && market.handleSearch()}

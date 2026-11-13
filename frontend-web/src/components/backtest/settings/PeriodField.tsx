@@ -60,7 +60,6 @@ export const PeriodField = ({ period, message }: PeriodFieldProps) => {
           onChange={period.setStart}
           max={end}
           presets={false}
-          invalid={!agoBad && invalid}
           describedBy={agoBad ? undefined : describedBy}
           testId="date-start"
         />
@@ -82,7 +81,6 @@ export const PeriodField = ({ period, message }: PeriodFieldProps) => {
           min={period.start}
           max={today}
           presets={false}
-          invalid={!agoBad && invalid}
           describedBy={agoBad ? undefined : describedBy}
           testId="date-end"
         />

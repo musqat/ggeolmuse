@@ -164,8 +164,9 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-tx-1 mb-2">환전 방향</label>
+          <label htmlFor="exchange-direction" className="block text-sm font-medium text-tx-1 mb-2">환전 방향</label>
           <select
+            id="exchange-direction"
             value={exchangeFromCurrency}
             onChange={(e) => setExchangeFromCurrency(e.target.value as 'KRW' | 'USD')}
             className="w-full border border-line-strong rounded-md px-3 py-2 focus:ring-2 focus:ring-brand focus:border-brand"
@@ -176,10 +177,11 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-tx-1 mb-2">
+          <label htmlFor="exchange-amount" className="block text-sm font-medium text-tx-1 mb-2">
             환전 금액 ({exchangeFromCurrency})
           </label>
           <input
+            id="exchange-amount"
             type="number"
             value={exchangeAmount}
             onChange={(e) => setExchangeAmount(e.target.value)}
@@ -260,6 +262,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
             <>
               <input
                 type="number"
+                aria-label="수동 환율"
                 value={manualExchangeRate}
                 onChange={(e) => setManualExchangeRate(e.target.value)}
                 placeholder="원하는 환율 입력 (예: 1350)"

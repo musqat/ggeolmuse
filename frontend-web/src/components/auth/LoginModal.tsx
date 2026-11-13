@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { getApiErrorMessage, getApiErrorStatus } from '../../utils/apiError';
+import { Modal } from '../common/Modal';
 import {
-  AuthModalFrame,
   AuthTextField,
   FormError,
   GoogleButton,
@@ -78,10 +78,8 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
     setEmail('');
   };
 
-  if (!isOpen) return null;
-
   return (
-    <AuthModalFrame title={showForgotPassword ? '비밀번호 찾기' : '로그인'} onClose={onClose}>
+    <Modal isOpen={isOpen} onClose={onClose} title={showForgotPassword ? '비밀번호 찾기' : '로그인'}>
       {showForgotPassword ? (
         // 비밀번호 찾기 모드
         forgotPasswordSuccess ? (
@@ -151,7 +149,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
           <SwitchPrompt question="계정이 없으신가요?" action="회원가입" onClick={onSwitchToSignup} />
         </>
       )}
-    </AuthModalFrame>
+    </Modal>
   );
 };
 

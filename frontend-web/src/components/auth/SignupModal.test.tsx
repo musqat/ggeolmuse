@@ -102,7 +102,7 @@ describe('SignupModal', () => {
     renderModal()
 
     await user.click(screen.getByRole('button', { name: '이메일을 못 받으셨나요?' }))
-    await user.type(screen.getByPlaceholderText('이메일을 입력하세요'), 'new@example.local')
+    await user.type(screen.getByRole('textbox', { name: '인증 메일 받을 이메일' }), 'new@example.local')
     await user.click(screen.getByRole('button', { name: '인증 이메일 재전송' }))
 
     expect(resendVerificationEmail).toHaveBeenCalledWith('new@example.local')

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { TrendingUp, Search, Menu, LogOut, User } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthModal } from '../../hooks/useAuthModal';
@@ -11,13 +11,13 @@ import ThemeToggle from './ThemeToggle';
 import { formatNumber } from '../../utils/format';
 
 const Header: React.FC = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
   const { isAuthenticated, user, logout } = useAuth();
   const { openLogin, openSignup } = useAuthModal();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const mobileMenuId = useId();
 
+  // 머리말 메뉴(지금 화면이나 그 아래 화면이면 aria-current, /account/stats 는 계좌, 홈은 / 에서만)
   const navigation = [
     { name: 'Home', href: '/' },
     { name: '종목', href: '/stocks' },
@@ -26,9 +26,6 @@ const Header: React.FC = () => {
     { name: '백테스트', href: '/backtest' },
     { name: '계좌', href: '/account' },
   ];
-
-  // 그 메뉴 화면이거나 그 아래 화면(/account/stats 는 계좌)
-  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(`${path}/`);
 
   // 차트 · 백테스트 · 거래 화면과 같은 키(캐시 공유)
   const { data: supportedSymbols = [] } = useQuery({
@@ -58,23 +55,20 @@ const Header: React.FC = () => {
 
           {/* 데스크탑 네비게이션 */}
           <nav className="hidden md:flex gap-0.5 flex-1">
-            {navigation.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <button
-                  key={item.name}
-                  onClick={() => navigate(item.href)}
-                  aria-current={active ? 'page' : undefined}
-                  className={`px-3 py-[5px] rounded-[6px] text-[13px] font-medium transition-all duration-150 ${
-                    active
-                      ? 'bg-elevated text-tx-1 font-semibold'
-                      : 'text-tx-2 hover:text-tx-1 hover:bg-elevated/60'
-                  }`}
-                >
-                  {item.name}
-                </button>
-              );
-            })}
+            {navigation.map((item) => (
+              <NavLink
+                key={item.name}
+                to={item.href}
+                end={item.href === '/'}
+                className={({ isActive }) =>
+                  `px-3 py-[5px] rounded-[6px] text-[13px] font-medium transition-all duration-150 ${
+                    isActive ? 'bg-elevated text-tx-1 font-semibold' : 'text-tx-2 hover:text-tx-1 hover:bg-elevated/60'
+                  }`
+                }
+              >
+                {item.name}
+              </NavLink>
+            ))}
           </nav>
 
           {/* 우측 */}
@@ -111,13 +105,13 @@ const Header: React.FC = () => {
                     {isLoadingAssets ? '...' : `현금 ₩${formatNumber(Math.floor(cashKrw))}`}
                   </p>
                 </div>
-                <button
-                  onClick={() => navigate('/mypage')}
+                <Link
+                  to="/mypage"
                   className="w-7 h-7 bg-brand text-brand-ink rounded-full flex items-center justify-center hover:bg-brand-dark transition-all"
                   title="마이페이지"
                 >
                   <User className="w-3.5 h-3.5" />
-                </button>
+                </Link>
                 <button
                   onClick={logout}
                   className="p-1.5 text-tx-3 hover:text-tx-1 hover:bg-elevated rounded-[6px] transition-all"
@@ -131,6 +125,8 @@ const Header: React.FC = () => {
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               aria-label="메뉴"
+              aria-expanded={isMobileMenuOpen}
+              aria-controls={isMobileMenuOpen ? mobileMenuId : undefined}
               className="md:hidden p-2 text-tx-3 hover:text-tx-1 hover:bg-elevated rounded-[7px] transition-all"
             >
               <Menu className="w-4 h-4" />
@@ -141,21 +137,22 @@ const Header: React.FC = () => {
 
       {/* 모바일 메뉴 */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-line bg-canvas/95 backdrop-blur-md">
+        <div id={mobileMenuId} className="md:hidden border-t border-line bg-canvas/95 backdrop-blur-md">
           <div className="px-4 py-3 space-y-1">
             {navigation.map((item) => (
-              <button
+              <NavLink
                 key={item.name}
-                onClick={() => { setIsMobileMenuOpen(false); navigate(item.href); }}
-                aria-current={isActive(item.href) ? 'page' : undefined}
-                className={`w-full text-left px-3 py-2 rounded-[7px] text-[13px] font-medium ${
-                  isActive(item.href)
-                    ? 'bg-elevated text-tx-1 font-semibold'
-                    : 'text-tx-2 hover:text-tx-1 hover:bg-elevated'
-                }`}
+                to={item.href}
+                end={item.href === '/'}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={({ isActive }) =>
+                  `block w-full text-left px-3 py-2 rounded-[7px] text-[13px] font-medium ${
+                    isActive ? 'bg-elevated text-tx-1 font-semibold' : 'text-tx-2 hover:text-tx-1 hover:bg-elevated'
+                  }`
+                }
               >
                 {item.name}
-              </button>
+              </NavLink>
             ))}
             {!isAuthenticated && (
               <div className="pt-3 mt-3 border-t border-line flex gap-2">
@@ -181,8 +178,8 @@ const Header: React.FC = () => {
                     {isLoadingAssets ? '...' : `현금 ₩${formatNumber(Math.floor(cashKrw))}`}
                   </p>
                 </div>
-                <button onClick={() => { navigate('/mypage'); setIsMobileMenuOpen(false); }}
-                  className="w-full text-left px-3 py-2 text-[13px] text-tx-2 hover:bg-elevated rounded-[7px]">마이페이지</button>
+                <Link to="/mypage" onClick={() => setIsMobileMenuOpen(false)}
+                  className="block w-full text-left px-3 py-2 text-[13px] text-tx-2 hover:bg-elevated rounded-[7px]">마이페이지</Link>
                 <button onClick={() => { logout(); setIsMobileMenuOpen(false); }}
                   className="w-full text-left px-3 py-2 text-[13px] text-tx-2 hover:bg-elevated rounded-[7px]">로그아웃</button>
               </div>

@@ -108,15 +108,26 @@ describe('Home', () => {
     expect(screen.getByText('/charts/MSFT')).toBeInTheDocument()
   })
 
+  it('목록 종목과 플랫폼 기능 칸은 그 화면으로 가는 링크다', async () => {
+    renderHome()
+
+    expect(await screen.findByRole('link', { name: /MSFT/ })).toHaveAttribute('href', '/charts/MSFT')
+    expect(screen.getByRole('link', { name: /캔들스틱 차트 분석/ })).toHaveAttribute('href', '/charts/AAPL')
+    expect(screen.getByRole('link', { name: /전략 백테스트/ })).toHaveAttribute('href', '/backtest')
+    expect(screen.getByRole('link', { name: /모의 매매/ })).toHaveAttribute('href', '/trading')
+    expect(screen.getByRole('link', { name: /보유 종목 현황/ })).toHaveAttribute('href', '/portfolio')
+    expect(screen.getByRole('link', { name: /계좌 관리/ })).toHaveAttribute('href', '/account')
+  })
+
   it.each([
     ['종목 둘러보기', '/stocks'],
     ['매매 해보기', '/trading'],
     ['백테스트 해보기', '/backtest'],
-  ])('%s 버튼은 %s 로 간다', async (label, path) => {
+  ])('%s 링크는 %s 로 간다', async (label, path) => {
     const user = userEvent.setup()
     renderHome()
 
-    await user.click(screen.getByRole('button', { name: label }))
+    await user.click(screen.getByRole('link', { name: label }))
 
     expect(screen.getByText(path)).toBeInTheDocument()
   })

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useId, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Send, Maximize2, Minimize2 } from 'lucide-react';
 import { aiChatApi } from '../../services/aiChatApi';
@@ -7,6 +7,7 @@ import { useAiChat } from '../../hooks/useAiChat';
 import { loadChatSession, saveChatSession, type ChatSession } from '../../utils/aiChatHistory';
 import { getApiErrorCode, getApiErrorMessage, getApiErrorStatus } from '../../utils/apiError';
 import { LAYER } from '@/styles/layers';
+import { useModalDialog } from '../common/useModalDialog';
 
 interface AiChatModalProps {
   onRequireLogin: () => void;
@@ -52,7 +53,12 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const toastHostRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   const loading = pending !== null;
+  useModalDialog({ open: isOpen, onClose: closeChat, rootRef, panelRef, toastHostRef });
 
   // 대화 변경 시 localStorage 저장
   useEffect(() => {
@@ -167,17 +173,22 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
 
   return ReactDOM.createPortal(
     <div
-      style={{ position: 'fixed', inset: 0, zIndex: LAYER.modal, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', padding: '24px' }}
-      onClick={closeChat}
+      ref={rootRef}
+      style={{ position: 'fixed', inset: 0, zIndex: LAYER.modal, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', padding: '24px' }}
     >
+      <div aria-hidden="true" className="absolute inset-0 bg-black/50" onClick={closeChat} />
       <div
-        className={`bg-surface rounded-2xl shadow-xl w-full flex flex-col ${expanded ? 'max-w-2xl' : 'max-w-md'}`}
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className={`relative bg-surface rounded-2xl shadow-xl w-full flex flex-col focus:outline-none ${expanded ? 'max-w-2xl' : 'max-w-md'}`}
         style={{ height: expanded ? '88vh' : '70vh' }}
-        onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
         <div className="flex items-center justify-between p-4 border-b border-line">
-          <span className="font-bold text-tx-1">AI 종목 분석</span>
+          <h2 id={titleId} className="font-bold text-tx-1">AI 종목 분석</h2>
           <div className="flex items-center gap-1">
             <button
               onClick={() => setExpanded((v) => !v)}
@@ -186,7 +197,7 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
             >
               {expanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
-            <button onClick={closeChat} aria-label="닫기" className="text-tx-3 hover:text-tx-1 p-1">
+            <button onClick={closeChat} aria-label="닫기" data-dialog-close className="text-tx-3 hover:text-tx-1 p-1">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -271,9 +282,11 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
             )}
             <div className="flex gap-2">
               <input
+                aria-label={session ? '질문' : '종목 코드'}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                data-autofocus
                 placeholder={session ? QUESTION_PLACEHOLDER : SYMBOL_PLACEHOLDER}
                 maxLength={session ? QUESTION_MAX_LENGTH : SYMBOL_MAX_LENGTH}
                 className="flex-1 px-3 py-2 border border-line-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
@@ -290,6 +303,7 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
             </div>
           </div>
         )}
+        <div ref={toastHostRef} />
       </div>
     </div>,
     document.body

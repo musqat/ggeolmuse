@@ -38,19 +38,21 @@ export default function UserListSection({
 
       <div className="space-y-2 max-h-[600px] overflow-y-auto">
         {users.map((user) => (
-          <div
+          <button
             key={user.userId}
+            type="button"
+            aria-pressed={selectedUserId === user.userId}
             onClick={() => onSelectUser(user.userId)}
-            className={`p-4 rounded-lg border cursor-pointer transition ${
+            className={`block w-full text-left p-4 rounded-lg border transition ${
               selectedUserId === user.userId
                 ? 'border-brand bg-brand-bg'
                 : 'border-line hover:border-brand/40 hover:bg-surface/50'
             }`}
           >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="font-semibold text-tx-1">{user.username}</p>
+            <span className="flex items-start justify-between">
+              <span className="block flex-1">
+                <span className="flex items-center gap-2">
+                  <span className="block font-semibold text-tx-1">{user.username}</span>
                   {user.role === 'ADMIN' && (
                     <Shield className="w-4 h-4 text-brand" />
                   )}
@@ -59,9 +61,9 @@ export default function UserListSection({
                   ) : (
                     <UserX className="w-4 h-4 text-danger" />
                   )}
-                </div>
-                <p className="text-sm text-tx-2">{user.email}</p>
-                <div className="flex gap-2 mt-2">
+                </span>
+                <span className="block text-sm text-tx-2">{user.email}</span>
+                <span className="flex gap-2 mt-2">
                   <span
                     className={`px-2 py-1 text-xs rounded-full ${
                       user.role === 'ADMIN'
@@ -85,10 +87,10 @@ export default function UserListSection({
                       이메일 인증
                     </span>
                   )}
-                </div>
-              </div>
-            </div>
-          </div>
+                </span>
+              </span>
+            </span>
+          </button>
         ))}
       </div>
 
