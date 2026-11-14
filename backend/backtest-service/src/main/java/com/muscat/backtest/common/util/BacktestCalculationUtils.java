@@ -65,9 +65,7 @@ public final class BacktestCalculationUtils {
       .divide(totalShares, 8, HALF_UP);
   }
 
-  // 평균 환율을 계산합니다 (투자금액 가중평균)
-  // totalFxRateSum = Σ(투자금액 × 환율), totalInvested = Σ투자금액
-  // 가중평균 환율 = Σ(투자금액 × 환율) / Σ투자금액
+  // 투자금액 가중평균 환율(Σ(투자금액 × 환율) ÷ Σ투자금액)
   public static BigDecimal calculateAverageFxRate(BigDecimal totalFxRateSum, BigDecimal totalInvested) {
     if (totalFxRateSum == null) {
       throw new IllegalArgumentException("환율 합계는 null이 될 수 없습니다");
@@ -125,7 +123,16 @@ public final class BacktestCalculationUtils {
       .divide(BigDecimal.valueOf(returnValues.size()), USD_SCALE, HALF_UP);
   }
 
-  // 배당락일 전에 산(실제 거래일 < 배당락일) 주식만 그 배당 대상(배당락일 당일 매수는 제외)
+  // 원천징수를 뺀 배당(세율이 없으면 그대로, roundTax 면 세금을 두 자리 반올림해 뺌)
+  public static BigDecimal afterDividendTax(BigDecimal amount, BigDecimal taxRate, boolean roundTax) {
+    if (taxRate == null || !Decimals.isPositive(taxRate)) {
+      return amount;
+    }
+    BigDecimal tax = amount.multiply(taxRate);
+    return amount.subtract(roundTax ? tax.setScale(USD_SCALE, HALF_UP) : tax);
+  }
+
+  // 배당락일 전에 산(실제 거래일 < 배당락일) 주식만 배당 대상(배당락일 당일 매수는 제외)
   public static boolean receivesDividend(LocalDate tradeDate, LocalDate exDate) {
     return tradeDate != null && exDate != null && tradeDate.isBefore(exDate);
   }
@@ -223,7 +230,7 @@ public final class BacktestCalculationUtils {
       .setScale(USD_SCALE, HALF_UP);
   }
 
-  // 매수 한 번의 수수료(USD, 투자금 KRW 를 그 날짜 환율로 바꾼 달러 × 수수료율)
+  // 매수 한 번의 수수료(USD, 투자금 KRW 를 받은 환율로 바꾼 달러 × 수수료율)
   public static BigDecimal calculatePurchaseFee(BigDecimal investmentAmount, BigDecimal fxRate,
     BigDecimal feeRate) {
     if (feeRate == null || !Decimals.isPositive(feeRate)) {

@@ -103,7 +103,7 @@ class BacktestRequestValidatorTest {
         .doesNotThrowAnyException();
   }
 
-  // "수익률:팔 비율" 을 띄어 적은 단계 목록("[]" 는 빈 목록, "null" 은 비운 단계, 콜론 앞뒤를 비우면 그 칸 null)
+  // "수익률:팔 비율" 을 띄어 적은 단계 목록("[]" 는 빈 목록, "null" 은 비운 단계, 콜론 앞이나 뒤를 비우면 비운 칸 null)
   private static List<PartialTakeProfit> steps(String spec) {
     if (spec == null) {
       return null;
@@ -161,5 +161,29 @@ class BacktestRequestValidatorTest {
       BacktestRequestValidator.requireTradable("BRK.B");
       BacktestRequestValidator.requireDateRange(LocalDate.of(2025, 1, 1), LocalDate.of(2026, 1, 1));
     }).doesNotThrowAnyException();
+  }
+
+  @Test
+  @DisplayName("회당 금액 · 주식 수 가운데 하나만, 회당 금액은 0 초과 · 주식 수는 1 이상")
+  void requirePerPurchase() {
+    assertThatThrownBy(() -> BacktestRequestValidator.requirePerPurchase(null, null))
+        .extracting("code").isEqualTo(BacktestResponse.AMOUNT_OR_SHARES_REQUIRED);
+    assertThatThrownBy(() -> BacktestRequestValidator.requirePerPurchase(new BigDecimal("100000"), 2))
+        .extracting("code").isEqualTo(BacktestResponse.AMOUNT_OR_SHARES_REQUIRED);
+    assertThatThrownBy(() -> BacktestRequestValidator.requirePerPurchase(BigDecimal.ZERO, null))
+        .extracting("code").isEqualTo(BacktestResponse.STRATEGY_AMOUNT_PER_PURCHASE_REQUIRED);
+    assertThatThrownBy(() -> BacktestRequestValidator.requirePerPurchase(null, 0))
+        .extracting("code").isEqualTo(BacktestResponse.INVALID_SHARES_PER_PURCHASE);
+    assertThatCode(() -> BacktestRequestValidator.requirePerPurchase(new BigDecimal("100000"), null)).doesNotThrowAnyException();
+    assertThatCode(() -> BacktestRequestValidator.requirePerPurchase(null, 3)).doesNotThrowAnyException();
+  }
+
+  @Test
+  @DisplayName("예산은 비우거나 0 초과")
+  void requireBudget() {
+    assertThatThrownBy(() -> BacktestRequestValidator.requireBudget(BigDecimal.ZERO))
+        .extracting("code").isEqualTo(BacktestResponse.INVALID_TOTAL_INVESTMENT);
+    assertThatCode(() -> BacktestRequestValidator.requireBudget(null)).doesNotThrowAnyException();
+    assertThatCode(() -> BacktestRequestValidator.requireBudget(new BigDecimal("1000000"))).doesNotThrowAnyException();
   }
 }

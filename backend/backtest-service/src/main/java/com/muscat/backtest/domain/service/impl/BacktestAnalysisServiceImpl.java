@@ -28,6 +28,7 @@ import com.muscat.backtest.domain.dto.response.ComparisonResponse;
 import com.muscat.backtest.domain.dto.response.PortfolioResponse;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
+import com.muscat.backtest.domain.mapper.ComparisonRequestMapper;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.ComparisonItem;
 import com.muscat.backtest.domain.model.StrategyParameter;
@@ -162,7 +163,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     List<ComparisonItem> items = collectComparisonItems(
       request.getSymbols(),
       symbol -> {
-        SimulationRequest simulationRequest = buildSymbolSimulationRequest(request, symbol);
+        SimulationRequest simulationRequest = ComparisonRequestMapper.symbolSimulation(request, symbol);
         SimulationResponse result = tradingSimulationService.runSimulation(simulationRequest,
           false);
         return responseMapper.toComparisonItemFromSimulation(result, symbol);
@@ -227,159 +228,22 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
     return responseMapper.toComparisonResponse(request, items, calculation);
   }
 
-  private SimulationRequest buildSymbolSimulationRequest(SymbolComparisonRequest request,
-    String symbol) {
-    return simulationWithOptions(request)
-      .symbol(symbol)
-      .purchaseDate(request.getStartDate())
-      .build();
-  }
-
-  // 비교 요청의 매도일(종료일) · 투자금 · 수수료 · 환율 · 배당 · 양도세 · 기간 끝 옵션으로 채운 단순 시뮬레이션 요청
-  private SimulationRequest.SimulationRequestBuilder simulationWithOptions(
-    BaseComparisonRequest request) {
-    return SimulationRequest.builder()
-      .saleDate(request.getEndDate())
-      .investmentAmount(request.getInvestmentAmount())
-      .userId(request.getUserId())
-      .tradingFeeRate(orZero(request.getTradingFeeRate()))
-      .purchaseFxRate(request.getPurchaseFxRate())
-      .currentFxRate(request.getCurrentFxRate())
-      .reinvestDividends(reinvests(request))
-      .dividendTaxRate(orZero(request.getDividendTaxRate()))
-      .capitalGainsTax(request.getCapitalGainsTax())
-      .periodEnd(request.getPeriodEnd());
-  }
-
-  // 빈 값은 재투자 안 함
-  private static boolean reinvests(BaseComparisonRequest request) {
-    return Boolean.TRUE.equals(request.getReinvestDividends());
-  }
-
-  // 빈 값은 0(builder 에 null 을 넣으면 @Builder.Default 가 덮임)
-  private static BigDecimal orZero(BigDecimal value) {
-    return value != null ? value : BigDecimal.ZERO;
-  }
-
   private ComparisonItem buildStrategyComparisonItem(StrategyComparisonRequest request,
     StrategyParameter strategyConfig) {
     StrategyType strategyType = strategyConfig.getStrategyType();
     String strategyName = strategyConfig.getName() != null ? strategyConfig.getName()
       : strategyType != null ? strategyType.name() : "UNKNOWN";
 
-    if (strategyType == StrategyType.DCA) {
-      DcaStrategyRequest dcaRequest = DcaStrategyRequest.builder()
-        .symbol(request.getSymbol())
-        .startDate(request.getStartDate())
-        .endDate(request.getEndDate())
-        .userId(request.getUserId())
-        .amountPerPurchase(strategyConfig.getAmountPerPurchase())
-        .frequency(strategyConfig.getFrequency())
-        .firstPurchaseDate(strategyConfig.getFirstPurchaseDate())
-        .purchaseDay(strategyConfig.getPurchaseDay())
-        .investmentInterval(strategyConfig.getInvestmentInterval() != null
-          ? strategyConfig.getInvestmentInterval() : 1)
-        .totalInvestmentLimit(request.getInvestmentAmount())
-        .purchaseFxRate(request.getPurchaseFxRate())
-        .currentFxRate(request.getCurrentFxRate())
-        .reinvestDividends(reinvests(request))
-        .dividendTaxRate(orZero(request.getDividendTaxRate()))
-        .tradingFeeRate(orZero(request.getTradingFeeRate()))
-        .capitalGainsTax(request.getCapitalGainsTax())
-        .periodEnd(request.getPeriodEnd())
-        .build();
-
-      StrategyResponse result = execute(dcaRequest);
-      return responseMapper.toComparisonItemFromStrategy(result, strategyName);
-    }
-
-    if (strategyType == StrategyType.CONDITIONAL_PURCHASE) {
-      boolean sells = strategyConfig.getTakeProfitRate() != null || strategyConfig.getStopLossRate() != null;
-      ConditionalStrategyRequest conditionalRequest = ConditionalStrategyRequest.builder()
-        .symbol(request.getSymbol())
-        .startDate(request.getStartDate())
-        .endDate(request.getEndDate())
-        .userId(request.getUserId())
-        .amountPerPurchase(strategyConfig.getAmountPerPurchase())
-        .totalInvestment(request.getInvestmentAmount())
-        .dropPercentage(strategyConfig.getDropPercentage())
-        .direction(strategyConfig.getDirection())
-        .maxPurchases(strategyConfig.getMaxPurchases())
-        .takeProfitRate(strategyConfig.getTakeProfitRate())
-        .stopLossRate(strategyConfig.getStopLossRate())
-        .purchaseFxRate(request.getPurchaseFxRate())
-        .currentFxRate(request.getCurrentFxRate())
-        // 익절 · 손절을 켠 칩만 재투자 끔
-        .reinvestDividends(!sells && reinvests(request))
-        .dividendTaxRate(orZero(request.getDividendTaxRate()))
-        .tradingFeeRate(orZero(request.getTradingFeeRate()))
-        .capitalGainsTax(request.getCapitalGainsTax())
-        .periodEnd(request.getPeriodEnd())
-        .build();
-
-      StrategyResponse result = execute(conditionalRequest);
-      return responseMapper.toComparisonItemFromStrategy(result, strategyName);
-    }
-
-    if (strategyType == StrategyType.MA_CROSS) {
-      MaCrossStrategyRequest maCrossRequest = MaCrossStrategyRequest.builder()
-        .symbol(request.getSymbol())
-        .startDate(request.getStartDate())
-        .endDate(request.getEndDate())
-        .userId(request.getUserId())
-        .investmentAmount(request.getInvestmentAmount())
-        .shortWindow(strategyConfig.getShortWindow())
-        .longWindow(strategyConfig.getLongWindow())
-        .purchaseFxRate(request.getPurchaseFxRate())
-        .currentFxRate(request.getCurrentFxRate())
-        // 교차마다 전량 팔아 재투자 끔
-        .reinvestDividends(false)
-        .dividendTaxRate(orZero(request.getDividendTaxRate()))
-        .tradingFeeRate(orZero(request.getTradingFeeRate()))
-        .capitalGainsTax(request.getCapitalGainsTax())
-        .periodEnd(request.getPeriodEnd())
-        .build();
-
-      StrategyResponse result = execute(maCrossRequest);
-      return responseMapper.toComparisonItemFromStrategy(result, strategyName);
-    }
-
-    if (strategyType == StrategyType.MA_BAND) {
-      MaBandStrategyRequest maBandRequest = MaBandStrategyRequest.builder()
-        .symbol(request.getSymbol())
-        .startDate(request.getStartDate())
-        .endDate(request.getEndDate())
-        .userId(request.getUserId())
-        .investmentAmount(request.getInvestmentAmount())
-        .bandWindow(strategyConfig.getBandWindow())
-        .upperRate(strategyConfig.getUpperRate())
-        .lowerRate(strategyConfig.getLowerRate())
-        .purchaseFxRate(request.getPurchaseFxRate())
-        .currentFxRate(request.getCurrentFxRate())
-        // 밴드 아래에서 전량 팔아 재투자 끔
-        .reinvestDividends(false)
-        .dividendTaxRate(orZero(request.getDividendTaxRate()))
-        .tradingFeeRate(orZero(request.getTradingFeeRate()))
-        .capitalGainsTax(request.getCapitalGainsTax())
-        .periodEnd(request.getPeriodEnd())
-        .build();
-
-      StrategyResponse result = execute(maBandRequest);
-      return responseMapper.toComparisonItemFromStrategy(result, strategyName);
-    }
-
     if (strategyType == StrategyType.SIMPLE) {
-      SimulationRequest simulationRequest = simulationWithOptions(request)
-        .symbol(request.getSymbol())
-        .purchaseDate(strategyConfig.getPurchaseDate())
-        .build();
+      SimulationRequest simulationRequest = ComparisonRequestMapper.simpleSimulation(request, strategyConfig);
 
       SimulationResponse result = tradingSimulationService.runSimulation(simulationRequest,
         false);
       return responseMapper.toComparisonItemFromSimulation(result, strategyName);
     }
 
-    throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH, "비교할 수 없는 전략 타입: " + strategyType);
+    StrategyResponse result = execute(ComparisonRequestMapper.strategyRequest(request, strategyConfig));
+    return responseMapper.toComparisonItemFromStrategy(result, strategyName);
   }
 
   private <T> List<ComparisonItem> collectComparisonItems(List<T> sources,

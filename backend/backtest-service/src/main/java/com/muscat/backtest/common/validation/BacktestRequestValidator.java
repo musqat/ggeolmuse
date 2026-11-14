@@ -60,6 +60,24 @@ public final class BacktestRequestValidator {
     }
   }
 
+  /** 회당 금액 · 주식 수 가운데 하나만, 회당 금액 0 초과 · 주식 수 1 ~ 상한 검사 */
+  public static void requirePerPurchase(BigDecimal amountPerPurchase, Integer sharesPerPurchase) {
+    if ((amountPerPurchase == null) == (sharesPerPurchase == null)) {
+      throw new BacktestException(BacktestResponse.AMOUNT_OR_SHARES_REQUIRED);
+    }
+    if (amountPerPurchase != null && amountPerPurchase.signum() <= 0) {
+      throw new BacktestException(BacktestResponse.STRATEGY_AMOUNT_PER_PURCHASE_REQUIRED);
+    }
+    requireShares(sharesPerPurchase);
+  }
+
+  /** 예산 0 초과 검사(비우면 통과) */
+  public static void requireBudget(BigDecimal budget) {
+    if (budget != null && budget.signum() <= 0) {
+      throw new BacktestException(BacktestResponse.INVALID_TOTAL_INVESTMENT);
+    }
+  }
+
   /** 주식 수 1 ~ 상한 검사(비우면 통과) */
   public static void requireShares(Integer shares) {
     if (shares != null && (shares < 1 || shares > RequestLimit.MAX_SHARES)) {
