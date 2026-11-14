@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect, useMemo, useId } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import { Search, X } from 'lucide-react';
-import { searchSymbols, symbolName, type SymbolMatch } from '../../utils/symbolSearch';
+import { symbolName, type SymbolMatch } from '../../utils/symbolSearch';
+import { useSymbolSearch } from '../../hooks/useSymbolSearch';
 
 interface StockSearchInputProps {
   value: string;
@@ -36,10 +37,12 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const listId = useId();
+  // 마지막으로 고른 종목(이름 표에 없는 종목의 회사 이름 표시)
+  const [picked, setPicked] = useState<SymbolMatch | null>(null);
 
   // 고른 종목이 칸에 그대로면 목록은 모두
   const query = searchTerm === value ? '' : searchTerm;
-  const filteredStocks = useMemo(() => searchSymbols(supportedSymbols, query, 20), [supportedSymbols, query]);
+  const { matches: filteredStocks, failed: searchFailed } = useSymbolSearch(query, supportedSymbols, 20);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -65,6 +68,7 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
   };
 
   const handleSelectStock = (stock: SymbolMatch) => {
+    setPicked(stock);
     onChange(stock.symbol);
     setSearchTerm(clearOnSelect ? '' : stock.symbol);
     setIsOpen(false);
@@ -131,6 +135,7 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
         variant === 'inline' ? 'left-2 right-2 top-full border border-line-strong' : 'w-full'
       }`}
     >
+      {searchFailed && <p className="px-3 py-1 text-xs text-tx-2">이름 검색을 못 해 티커로만 찾은 결과</p>}
       {filteredStocks.length > 0 ? (
         filteredStocks.map((stock, index) => (
           // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus -- 키보드 고르기는 입력 칸이 aria-activedescendant 로 맡음
@@ -162,7 +167,7 @@ const StockSearchInput: React.FC<StockSearchInputProps> = ({
   );
 
   if (variant === 'inline') {
-    const name = symbolName(value);
+    const name = symbolName(value) || (picked?.symbol === value ? picked.name : '');
     return (
       <div className={`flex min-w-0 flex-1 items-center ${className}`.trim()}>
         <input

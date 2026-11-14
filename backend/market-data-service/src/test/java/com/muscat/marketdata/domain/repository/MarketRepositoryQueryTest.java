@@ -140,6 +140,53 @@ class MarketRepositoryQueryTest {
     }
 
     @Test
+    @DisplayName("공개 이름 검색은 상장 종목만, 같은 코드 → 코드 앞부분 → 코드순으로 개수 상한까지")
+    void searchListedByKeyword() {
+      assets();
+
+      assertThat(assetRepository.searchListedByKeyword("apple", 10)).extracting(Asset::getSymbol).containsExactly("AAPL");
+      assertThat(assetRepository.searchListedByKeyword("s", 10)).extracting(Asset::getSymbol).containsExactly("SPY", "MSFT");
+      assertThat(assetRepository.searchListedByKeyword("spy", 10)).extracting(Asset::getSymbol).containsExactly("SPY");
+      assertThat(assetRepository.searchListedByKeyword("p", 1)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("공개 이름 검색은 지수 제외, 관리자 검색은 지수까지")
+    void listedSearchSkipsIndex() {
+      assets();
+      assetRepository.save(Asset.builder().symbol("^GSPC").name("S&P 500").country("US").currency("USD")
+        .assetType(Asset.INDEX_TYPE).build());
+
+      assertThat(assetRepository.searchListedByKeyword("s&p 500", 10)).extracting(Asset::getSymbol).containsExactly("SPY");
+      assertThat(assetRepository.searchByKeyword("s&p 500", 10)).extracting(Asset::getSymbol)
+        .containsExactly("SPY", "^GSPC");
+    }
+
+    @Test
+    @DisplayName("검색어의 % · _ 는 글자 그대로 찾음")
+    void likeWildcardsAsText() {
+      assets();
+      asset("PCT", "100% Income Fund", "ETF", 1L, true);
+      asset("UND", "Under_Score Inc", "EQUITY", 1L, true);
+
+      assertThat(assetRepository.searchListedByKeyword("%", 10)).extracting(Asset::getSymbol).containsExactly("PCT");
+      assertThat(assetRepository.searchListedByKeyword("0%", 10)).extracting(Asset::getSymbol).containsExactly("PCT");
+      assertThat(assetRepository.searchListedByKeyword("r_s", 10)).extracting(Asset::getSymbol).containsExactly("UND");
+      assertThat(assetRepository.searchByKeyword("_", 10)).extracting(Asset::getSymbol).containsExactly("UND");
+    }
+
+    @Test
+    @DisplayName("관리자 검색도 같은 코드 → 코드 앞부분 → 코드순, 폐지 종목까지")
+    void searchByKeywordOrder() {
+      assets();
+      asset("ASPY", "Aspy Corp", "EQUITY", 1L, false);
+      asset("SPYG", "Spy Growth", "ETF", 1L, true);
+
+      assertThat(assetRepository.searchByKeyword("spy", 10)).extracting(Asset::getSymbol)
+        .containsExactly("SPY", "SPYG", "ASPY");
+    }
+
+    @Test
     @DisplayName("시총 정렬은 활성 종목만, 시총 없는 종목은 오름 · 내림 모두 맨 뒤다")
     void sortedByMarketCap() {
       assets();

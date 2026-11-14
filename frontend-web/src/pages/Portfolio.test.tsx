@@ -6,6 +6,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { accountsApi, portfolioApi } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
 import Portfolio from './Portfolio'
+import { expectRowCards } from '../test/rowCards'
 
 vi.mock('../services/api', () => ({
   portfolioApi: { getAccountPortfolio: vi.fn(), getPortfolioSummary: vi.fn() },
@@ -73,6 +74,12 @@ describe('Portfolio', () => {
     expect(await screen.findByText('$400.00')).toBeInTheDocument()
   })
 
+  it('총 자산 이름에 달러로 바꾼 값이라고 적는다', async () => {
+    renderPage()
+
+    expect(await screen.findByText('총 자산 (달러 환산)')).toBeInTheDocument()
+  })
+
   it('다른 화면에 갔다 바로 돌아와도 받아 둔 환율로 총 자산을 계산한다', async () => {
     const { client, unmount } = renderPage()
     expect(await screen.findByText('$400.00')).toBeInTheDocument()
@@ -103,6 +110,14 @@ describe('Portfolio', () => {
     expect(table.getByText('(+11.11%)')).toBeInTheDocument()
   })
 
+  it('휴대폰 너비에서는 보유 종목 표를 줄마다 카드로 보이고 둘째 칸부터 머리줄 이름을 칸 이름으로 둠', async () => {
+    renderPage()
+
+    const table = await screen.findByRole('table')
+    await within(table).findByText('$90.00')
+    expectRowCards(table)
+  })
+
   it('보유도 현금도 없으면 비었다고 보인다', async () => {
     vi.mocked(portfolioApi.getAccountPortfolio).mockResolvedValue({ data: [] } as never)
     vi.mocked(accountsApi.getAccountBalance).mockResolvedValue({
@@ -112,5 +127,24 @@ describe('Portfolio', () => {
 
     expect(await screen.findByText('보유 자산이 없습니다')).toBeInTheDocument()
     expect(screen.getByText('보유 종목이 없습니다')).toBeInTheDocument()
+  })
+
+  it('손실 보유는 요약 카드 평가손익 · 수익률과 보유 표 손익에 통화 기호 앞 - 와 손실 색', async () => {
+    vi.mocked(portfolioApi.getAccountPortfolio).mockResolvedValue({
+      data: [{ ...HOLDING, currentValue: 167.7, currentPrice: 83.85, unrealizedPnL: -12.3, returnRate: -6.83 }],
+    } as never)
+    vi.mocked(portfolioApi.getPortfolioSummary).mockResolvedValue({
+      data: { totalCurrentValue: 167.7, totalUnrealizedPnL: -12.3, totalReturnRate: -6.83 },
+    } as never)
+    renderPage()
+
+    const table = within(await screen.findByRole('table'))
+    expect(await table.findByText('-$12.30')).toBeInTheDocument()
+    expect(table.getByText('(-6.83%)')).toBeInTheDocument()
+    const cards = screen.getAllByText('-$12.30').filter((el) => !el.closest('table'))
+    expect(cards).toHaveLength(1)
+    expect(cards[0]).toHaveClass('text-loss')
+    expect(screen.getByText('-6.83%')).toHaveClass('text-loss')
+    expect(screen.queryByText(/$-/)).toBeNull()
   })
 })

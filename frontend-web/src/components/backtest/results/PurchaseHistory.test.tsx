@@ -47,7 +47,7 @@ describe('PurchaseHistory', () => {
     expect(row).toBeVisible()
     expect(within(row).getByText('월정액')).toBeInTheDocument()
     expect(within(row).getByText('$236.10')).toBeInTheDocument()
-    expect(within(row).getByText('0.3258주')).toBeInTheDocument()
+    expect(within(row).getByText('0.325807주')).toBeInTheDocument()
     expect(within(row).getByText('₩100,000')).toBeInTheDocument()
     expect(screen.getByText('2025-02-18')).toBeVisible()
     expect(screen.getByText('계획 2025-02-15')).toBeVisible()
@@ -110,7 +110,7 @@ describe('PurchaseHistory', () => {
 
     const saleRow = screen.getByText('2025-03-14').closest('tr') as HTMLElement
     expect(within(saleRow).getByText('20.0%익절')).toBeInTheDocument()
-    expect(within(saleRow).getByText('0.5000주')).toBeInTheDocument()
+    expect(within(saleRow).getByText('0.5주')).toBeInTheDocument()
     expect(within(saleRow).getByText('$125.00 받음')).toBeInTheDocument()
     expect(within(saleRow).getByText('손익 +$20.50')).toBeInTheDocument()
     const rebuyRow = screen.getByText('2025-04-01').closest('tr') as HTMLElement
@@ -140,7 +140,7 @@ describe('PurchaseHistory', () => {
 
     const saleRow = screen.getByText('2025-03-14').closest('tr') as HTMLElement
     expect(within(saleRow).getByText('$1,234.50')).toBeInTheDocument()
-    expect(within(saleRow).getByText('1,500.2500주')).toBeInTheDocument()
+    expect(within(saleRow).getByText('1,500.25주')).toBeInTheDocument()
     expect(within(saleRow).getByText('$1,852,058.63 받음')).toBeInTheDocument()
     expect(within(saleRow).getByText('손익 +$12,345.67')).toBeInTheDocument()
     expect(within(screen.getByText('2025-04-01').closest('tr') as HTMLElement).getByText('판 돈 $12,345.60')).toBeInTheDocument()

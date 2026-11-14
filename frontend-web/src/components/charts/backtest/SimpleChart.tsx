@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Line, YAxis, Tooltip, ReferenceDot } from "recharts";
 import { closeOf, fetchSymbolPrices } from './shared/prices';
+import { formatUsd } from '../../../utils/format';
 import {
   AXIS_PROPS,
   dateAxis,
@@ -65,7 +66,7 @@ export const PriceTooltip: React.FC<PriceTooltipProps> = ({ active, payload, lab
     <div className="bg-surface p-3 border border-line-strong rounded shadow-lg">
       <p className="font-semibold text-tx-1">{label}</p>
       {data.date === purchaseDate && <p className="text-xs text-brand mb-1">매수 시점</p>}
-      <p className="text-sm text-tx-1">주가: ${data.price?.toFixed(2) || "-"}</p>
+      <p className="text-sm text-tx-1">주가: {formatUsd(data.price)}</p>
       {extra?.(data.date)}
     </div>
   );

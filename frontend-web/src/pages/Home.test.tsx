@@ -96,7 +96,7 @@ describe('Home', () => {
     for (const symbol of ['AAPL', 'MSFT', 'GOOGL', 'AMZN']) {
       expect(screen.getByText(symbol)).toBeInTheDocument()
     }
-    expect(screen.getAllByText('—')).toHaveLength(5)
+    expect(screen.getAllByText('-')).toHaveLength(5)
   })
 
   it('목록 종목을 누르면 그 종목 차트로 간다', async () => {
@@ -117,6 +117,14 @@ describe('Home', () => {
     expect(screen.getByRole('link', { name: /모의 매매/ })).toHaveAttribute('href', '/trading')
     expect(screen.getByRole('link', { name: /보유 종목 현황/ })).toHaveAttribute('href', '/portfolio')
     expect(screen.getByRole('link', { name: /계좌 관리/ })).toHaveAttribute('href', '/account')
+  })
+
+  it('시세는 매일 종가 갱신, 모의 매매는 과거 날짜 체결이라고 적고 실시간 · 시장가 · 거래확인은 없음', () => {
+    renderHome()
+
+    expect(screen.getByText('매일 종가 갱신')).toBeInTheDocument()
+    expect(screen.getByText('과거 날짜를 골라 그날 시가 · 고가 · 저가 · 종가나 지정가로 체결')).toBeInTheDocument()
+    expect(screen.queryByText(/실시간|시장가|거래확인/)).toBeNull()
   })
 
   it.each([

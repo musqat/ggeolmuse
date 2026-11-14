@@ -52,7 +52,7 @@ describe('ExchangeModal 수동 환율 범위', () => {
     renderModal()
     await userEvent.click(screen.getByLabelText('수동 환율 입력'))
 
-    expect(await screen.findByText('가능 범위: ₩1,000 ~ ₩1,633')).toBeInTheDocument()
+    expect(await screen.findByText('가능 범위: ₩1,000.00 ~ ₩1,633.00')).toBeInTheDocument()
   })
 
   it('범위 밖 환율은 제출하지 않고 범위를 알려 준다', async () => {
@@ -94,7 +94,7 @@ describe('ExchangeModal 현재 환율', () => {
   it('원화를 달러로 바꿀 때 예상 금액을 보이고 현재 환율로 넘긴 뒤 닫는다', async () => {
     const { onClose, onSubmit } = renderWith({ rate: 1350 })
 
-    await screen.findByText('현재 환율: ₩1,350/USD')
+    await screen.findByText('현재 환율: ₩1,350.00/USD')
     await userEvent.type(screen.getByPlaceholderText('환전할 KRW 금액'), '135000')
     expect(screen.getByText('예상 환전 금액: $100.00')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: '환전하기' }))
@@ -138,7 +138,7 @@ describe('ExchangeModal 환율을 못 받을 때', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: '다시 시도' }))
 
-    expect(await screen.findByText('현재 환율: ₩1,350/USD')).toBeInTheDocument()
+    expect(await screen.findByText('현재 환율: ₩1,350.00/USD')).toBeInTheDocument()
   })
 
   it('수동 환율로는 그대로 환전할 수 있다', async () => {
@@ -158,7 +158,7 @@ describe('ExchangeModal 실패', () => {
   it('환전이 실패하면 창과 금액을 그대로 둔다', async () => {
     const { onClose, onSubmit } = renderWith({ onSubmit: vi.fn().mockRejectedValue(new Error('down')) })
 
-    await screen.findByText('현재 환율: ₩1,339.2/USD')
+    await screen.findByText('현재 환율: ₩1,339.20/USD')
     await userEvent.type(screen.getByPlaceholderText('환전할 KRW 금액'), '100000')
     await userEvent.click(screen.getByRole('button', { name: '환전하기' }))
 

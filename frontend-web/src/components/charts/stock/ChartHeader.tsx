@@ -1,7 +1,7 @@
 import { Search, Sparkles, TrendingDown, TrendingUp } from 'lucide-react';
 import type { PriceSummary } from './priceSummary';
-import { gainLossClass } from '../../../utils/gainLoss';
-import { formatPercent, formatSigned, formatNumber } from '../../../utils/format';
+import { gainLossClass, gainLossTone } from '../../../utils/gainLoss';
+import { formatPercent, formatSigned, formatNumber, formatUsd } from '../../../utils/format';
 import { parseLocalDate } from '../../../utils/dateUtils';
 
 interface ChartHeaderProps {
@@ -19,16 +19,16 @@ const formatDay = (time: string) =>
 const PriceBlock = ({ summary: { last, change, changePercent } }: { summary: PriceSummary }) => (
   <div className="mt-3 space-y-1.5">
     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <span className="text-3xl md:text-4xl font-bold text-tx-1">${last.close.toFixed(2)}</span>
+      <span className="text-3xl md:text-4xl font-bold text-tx-1">{formatUsd(last.close)}</span>
       {change !== null && (
         <span className={`flex items-center gap-1 text-base md:text-xl font-semibold ${gainLossClass(change)}`}>
-          {change >= 0 ? (
-            <TrendingUp className="w-4 h-4 md:w-5 md:h-5" />
-          ) : (
+          {gainLossTone(change) === 'loss' ? (
             <TrendingDown className="w-4 h-4 md:w-5 md:h-5" />
+          ) : (
+            <TrendingUp className="w-4 h-4 md:w-5 md:h-5" />
           )}
           <span>
-            {formatSigned(change, (v) => v.toFixed(2))} ({formatSigned(changePercent, formatPercent)})
+            {formatSigned(change, formatUsd)} ({formatSigned(changePercent, formatPercent)})
           </span>
         </span>
       )}
@@ -40,15 +40,15 @@ const PriceBlock = ({ summary: { last, change, changePercent } }: { summary: Pri
     <div className="grid grid-cols-4 gap-2 md:gap-6 max-w-lg">
       <div>
         <p className="text-[10px] md:text-xs text-tx-2 mb-0.5">시가</p>
-        <p className="text-xs md:text-sm font-semibold text-tx-1">${last.open.toFixed(2)}</p>
+        <p className="text-xs md:text-sm font-semibold text-tx-1">{formatUsd(last.open)}</p>
       </div>
       <div>
         <p className="text-[10px] md:text-xs text-tx-2 mb-0.5">고가</p>
-        <p className="text-xs md:text-sm font-semibold text-gain">${last.high.toFixed(2)}</p>
+        <p className="text-xs md:text-sm font-semibold text-gain">{formatUsd(last.high)}</p>
       </div>
       <div>
         <p className="text-[10px] md:text-xs text-tx-2 mb-0.5">저가</p>
-        <p className="text-xs md:text-sm font-semibold text-loss">${last.low.toFixed(2)}</p>
+        <p className="text-xs md:text-sm font-semibold text-loss">{formatUsd(last.low)}</p>
       </div>
       <div>
         <p className="text-[10px] md:text-xs text-tx-2 mb-0.5">거래량</p>

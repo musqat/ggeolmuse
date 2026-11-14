@@ -3,7 +3,7 @@ import { Plus, Search } from 'lucide-react';
 import type { CompanyOverview } from '@services/adminApi';
 import { Modal } from '@/components/common/Modal';
 import { SOLID_BUTTON } from '@/styles/buttons';
-import { formatNumber } from '../../utils/format';
+import { formatUsd } from '../../utils/format';
 
 interface AddAssetModalProps {
   isOpen: boolean;
@@ -97,7 +97,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({
               <div>
                 <p className="text-tx-2">시가총액</p>
                 <p className="text-tx-1">
-                  {preview.marketCap ? `$${formatNumber(preview.marketCap)}` : '-'}
+                  {preview.marketCap ? formatUsd(preview.marketCap, 0) : '-'}
                 </p>
               </div>
             </div>

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import Stocks from './Stocks'
 import { stockApi } from '../services/api'
+import { expectRowCards } from '../test/rowCards'
 
 vi.mock('../services/api', () => ({ stockApi: { getAllStocksWithPrices: vi.fn() } }))
 
@@ -45,6 +46,16 @@ describe('Stocks 종목 줄', () => {
     renderStocks()
 
     expect(await screen.findByRole('link', { name: /AAPL Inc/ })).toHaveAttribute('href', '/charts/AAPL')
+  })
+})
+
+describe('Stocks 휴대폰 너비', () => {
+  it('줄마다 카드로 보이고 둘째 칸부터 머리줄 이름을 칸 이름으로 둠', async () => {
+    getAllStocksWithPrices.mockResolvedValue(page([stock('AAPL', 0.45), stock('MSFT', null)]))
+    renderStocks()
+
+    await screen.findByText('AAPL Inc')
+    expectRowCards(screen.getByRole('table'))
   })
 })
 

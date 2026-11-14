@@ -11,7 +11,7 @@ import {
   YAxis,
 } from 'recharts';
 import type { PurchaseDayReturn } from '../../../services/api';
-import { formatPercent, formatSigned } from '../../../utils/format';
+import { formatPercent, formatSigned, NO_VALUE } from '../../../utils/format';
 import { gainLossClass } from '../../../utils/gainLoss';
 import {
   AXIS_PROPS,
@@ -89,7 +89,7 @@ export const PurchaseDayChart: React.FC<PurchaseDayChartProps> = ({ returns, cur
         <StatCard label="거래일" value={`${summary.total}일`} sub="매수일부터 평가일 전까지" />
         <StatCard
           label="목표 이상인 날"
-          value={hasTarget ? `${summary.hits}일` : '—'}
+          value={hasTarget ? `${summary.hits}일` : NO_VALUE}
           sub={hasTarget ? `전체의 ${formatPercent(summary.share)}` : undefined}
         />
         <StatCard

@@ -8,7 +8,7 @@ import {
   type ProfitPoint,
   type ProfitSale,
 } from '../../../services/api';
-import { formatKrw } from '../../../utils/format';
+import { formatKrw, formatQuantity, formatUsd } from '../../../utils/format';
 import { gainLossClass } from '../../../utils/gainLoss';
 import { ChartCard } from '@components/charts/backtest/shared/ChartPanel';
 import { formatKrwTick, formatMonthTick } from '@components/charts/backtest/shared/chartStyle';
@@ -16,21 +16,13 @@ import { SignedStat, StatsCards, StatsLoadError, StatsLoading, StatsNotice, Valu
 import { StatsBarChart } from './StatsBarChart';
 import { StatsFold } from './StatsFold';
 import { StatsTable, type StatsColumn } from './StatsTable';
-import {
-  formatQuantity,
-  NO_VALUE_CLASS,
-  signedKrw,
-  signedPercent,
-  signedUsd,
-  usd,
-  withAccountColumn,
-} from './statsFormat';
+import { NO_VALUE_CLASS, signedKrw, signedPercent, signedUsd, withAccountColumn } from './statsFormat';
 
 const SALE_COLUMNS: StatsColumn<ProfitSale>[] = [
   { header: '날짜', cell: (sale) => sale.date },
   { header: '종목', cell: (sale) => sale.symbol },
   { header: '수량', numeric: true, cell: (sale) => formatQuantity(sale.quantity) },
-  { header: '판 가격 $', numeric: true, cell: (sale) => usd(sale.priceUsd) },
+  { header: '판 가격 $', numeric: true, cell: (sale) => formatUsd(sale.priceUsd) },
   {
     header: '실현 손익 $',
     numeric: true,
@@ -54,7 +46,7 @@ const SALE_COLUMNS: StatsColumn<ProfitSale>[] = [
 const HOLDING_COLUMNS: StatsColumn<ProfitHolding>[] = [
   { header: '종목', cell: (holding) => holding.symbol },
   { header: '수량', numeric: true, cell: (holding) => formatQuantity(holding.quantity) },
-  { header: '평균 단가 $', numeric: true, cell: (holding) => usd(holding.averagePriceUsd) },
+  { header: '평균 단가 $', numeric: true, cell: (holding) => formatUsd(holding.averagePriceUsd) },
   {
     header: '종가 $',
     numeric: true,
@@ -64,7 +56,7 @@ const HOLDING_COLUMNS: StatsColumn<ProfitHolding>[] = [
         '-'
       ) : (
         <>
-          {usd(holding.closeUsd)}
+          {formatUsd(holding.closeUsd)}
           <span className="block text-xs text-tx-2">{holding.closeDate}</span>
         </>
       ),

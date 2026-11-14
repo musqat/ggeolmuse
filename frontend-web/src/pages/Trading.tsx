@@ -121,7 +121,7 @@ const Trading: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-tx-1 mb-2">가상 거래</h1>
+        <h1 className="text-3xl font-bold text-tx-1 mb-2">모의 매매</h1>
         <p className="text-tx-2">과거 주식을 매매해보세요</p>
       </div>
 

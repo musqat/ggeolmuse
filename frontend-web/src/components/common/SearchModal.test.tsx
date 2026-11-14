@@ -1,9 +1,19 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { ComponentProps } from 'react'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { stockApi } from '../../services/api'
 import SearchModal from './SearchModal'
+
+vi.mock('../../services/api', () => ({ stockApi: { searchSymbols: vi.fn() } }))
+
+const search = vi.mocked(stockApi.searchSymbols)
+
+beforeEach(() => {
+  search.mockReset()
+  search.mockReturnValue(new Promise(() => {}) as never)
+})
 
 const TWELVE = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'TSLA', 'AMZN', 'META', 'AVGO', 'JPM', 'LLY', 'UNH', 'XOM']
 
@@ -74,6 +84,28 @@ describe('SearchModal', () => {
 
     expect(screen.getByText('MSFT')).toBeInTheDocument()
     expect(screen.queryByText('AAPL')).toBeNull()
+  })
+
+  it('표에 없는 회사 이름은 서버 검색 결과로 찾음', async () => {
+    search.mockResolvedValue({ data: [{ symbol: 'KO', name: 'Coca-Cola Co' }] } as never)
+    const user = userEvent.setup()
+    renderModal({ supportedSymbols: ['AAPL', 'KO'] })
+
+    await user.type(searchInput(), 'coca')
+
+    expect(await screen.findByText('Coca-Cola Co')).toBeInTheDocument()
+    expect(search).toHaveBeenCalledWith('coca', 10, expect.any(AbortSignal))
+  })
+
+  it('서버 검색이 실패하면 안내 한 줄', async () => {
+    search.mockRejectedValue(new Error('network'))
+    const user = userEvent.setup()
+    renderModal()
+
+    await user.type(searchInput(), 'v')
+
+    expect(await screen.findByText('이름 검색을 못 해 티커로만 찾은 결과')).toBeInTheDocument()
+    expect(shownSymbols()[0]).toBe('V')
   })
 
   it('화살표로 고르고 Enter 면 그 종목 차트로 가고 닫는다', async () => {

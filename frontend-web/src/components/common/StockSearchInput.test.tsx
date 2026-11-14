@@ -1,9 +1,18 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { stockApi } from '../../services/api'
 import StockSearchInput from './StockSearchInput'
 
+vi.mock('../../services/api', () => ({ stockApi: { searchSymbols: vi.fn() } }))
+
 const SYMBOLS = ['AAPL', 'MSFT', 'NVDA']
+const search = vi.mocked(stockApi.searchSymbols)
+
+beforeEach(() => {
+  search.mockReset()
+  search.mockReturnValue(new Promise(() => {}) as never)
+})
 
 describe('StockSearchInput', () => {
   it('기본은 돋보기와 테두리가 있는 칸이고 고른 종목을 넘긴다', async () => {
@@ -89,6 +98,29 @@ describe('StockSearchInput', () => {
 
     expect(onChange).toHaveBeenCalledWith('MSFT')
     expect(input).toHaveValue('')
+  })
+
+  it('표에 없는 회사 이름은 서버 검색 결과로 찾고 고른 종목의 이름 표시', async () => {
+    search.mockResolvedValue({ data: [{ symbol: 'KO', name: 'Coca-Cola Co' }] } as never)
+    const onChange = vi.fn()
+    const { rerender } = render(<StockSearchInput value="" onChange={onChange} supportedSymbols={['AAPL', 'KO']} variant="inline" ariaLabel="종목" />)
+
+    await userEvent.type(screen.getByRole('combobox', { name: '종목' }), 'coca')
+    await userEvent.click(await screen.findByText('KO'))
+    rerender(<StockSearchInput value="KO" onChange={onChange} supportedSymbols={['AAPL', 'KO']} variant="inline" ariaLabel="종목" />)
+
+    expect(onChange).toHaveBeenCalledWith('KO')
+    expect(screen.getByText('Coca-Cola Co')).toBeInTheDocument()
+  })
+
+  it('서버 검색이 실패하면 받은 목록에서 찾은 결과와 안내 한 줄', async () => {
+    search.mockRejectedValue(new Error('network'))
+    render(<StockSearchInput value="" onChange={vi.fn()} supportedSymbols={SYMBOLS} placeholder="종목 검색" />)
+
+    await userEvent.type(screen.getByPlaceholderText('종목 검색'), 'ms')
+
+    expect(await screen.findByText('이름 검색을 못 해 티커로만 찾은 결과')).toBeInTheDocument()
+    expect(screen.getByText('MSFT')).toBeInTheDocument()
   })
 
   it('invalid · describedBy 를 입력의 aria-invalid · aria-describedby 로 넘긴다', () => {

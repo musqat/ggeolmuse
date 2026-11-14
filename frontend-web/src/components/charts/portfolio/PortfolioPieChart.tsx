@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { formatShares, formatUsd } from "../../../utils/format";
 
 export interface PieChartData {
   symbol: string;
@@ -179,13 +180,13 @@ const PortfolioPieChart: React.FC<PortfolioPieChartProps> = ({ data }) => {
                     {slices[hoveredIndex].symbol}
                   </div>
                   <div className="text-xs mt-1">
-                    <div>금액: ${slices[hoveredIndex].value.toFixed(2)}</div>
+                    <div>금액: {formatUsd(slices[hoveredIndex].value)}</div>
                     {slices[hoveredIndex].quantity && (
-                      <div>수량: {slices[hoveredIndex].quantity}주</div>
+                      <div>수량: {formatShares(slices[hoveredIndex].quantity)}</div>
                     )}
                     {slices[hoveredIndex].currentPrice && (
                       <div>
-                        가격: ${slices[hoveredIndex].currentPrice.toFixed(2)}
+                        가격: {formatUsd(slices[hoveredIndex].currentPrice)}
                       </div>
                     )}
                     <div>비중: {slices[hoveredIndex].percentage}%</div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowDownRight, RefreshCw, Trash2, Wallet } from 'lucide-react';
 import type { AccountSummary, AccountBalance } from '../../services/api';
+import { formatPercent } from '../../utils/format';
 
 export interface AccountCardProps {
   account: AccountSummary;
@@ -53,12 +54,12 @@ export const AccountCard: React.FC<AccountCardProps> = ({
         {/* 수수료 정보 */}
         <div className="flex items-center justify-between text-sm pt-3 border-t border-line">
           <span className="text-tx-2">거래 수수료</span>
-          <span className="font-medium">{(account.commissionRate * 100).toFixed(2)}%</span>
+          <span className="font-medium">{formatPercent(account.commissionRate * 100)}</span>
         </div>
 
         <div className="flex items-center justify-between text-sm">
           <span className="text-tx-2">슬리피지</span>
-          <span className="font-medium">{(balance.slippageRate * 100).toFixed(2)}%</span>
+          <span className="font-medium">{formatPercent(balance.slippageRate * 100)}</span>
         </div>
 
         {/* 액션 버튼 그룹 */}

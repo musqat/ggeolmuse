@@ -19,6 +19,15 @@ describe('gainLoss', () => {
     expect(gainLossTone(undefined)).toBe('none')
   })
 
+  it('표시 자릿수로 반올림해 0 이 되는 값은 글자에 부호가 없고 색도 중립', () => {
+    expect(formatSigned(-0.004, formatPercent)).toBe('0.00%')
+    expect(gainLossTone(-0.004)).toBe('flat')
+    expect(gainLossClass(-0.004)).toBe('')
+    expect(gainLossBoxClass(0.004)).toBe('bg-brand-bg')
+    expect(gainLossTone(-0.4, 0)).toBe('flat')
+    expect(gainLossTone(-0.4)).toBe('loss')
+  })
+
   it('글자색은 초록 · 빨강 · 회색이고 0 은 색을 넣지 않는다', () => {
     expect(gainLossClass(1)).toBe('text-gain')
     expect(gainLossClass(-1)).toBe('text-loss')

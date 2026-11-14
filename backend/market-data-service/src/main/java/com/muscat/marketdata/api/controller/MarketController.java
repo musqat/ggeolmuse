@@ -5,6 +5,7 @@ import com.muscat.marketdata.common.enums.StockSort;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
 import com.muscat.marketdata.domain.dto.SymbolDto;
+import com.muscat.marketdata.domain.dto.SymbolSearchDto;
 import com.muscat.marketdata.domain.service.AssetService;
 import com.muscat.marketdata.domain.service.CandleService;
 import com.muscat.marketdata.domain.service.FxRateService;
@@ -195,6 +196,36 @@ public class MarketController {
 
     log.debug("활성 종목 티커 조회 완료: {} 개", symbols.size());
     return ResponseEntity.status(HttpStatus.OK).body(symbols);
+  }
+
+  @Operation(
+    summary = "종목 이름 검색",
+    description = "상장 중인 종목(지수 제외)에서 티커나 회사 이름에 검색어가 든 종목, 같은 티커 → 티커 앞부분 → 티커순"
+  )
+  @ApiResponses(value = {
+    @ApiResponse(
+      responseCode = "200",
+      description = "종목 이름 검색 성공",
+      content = @Content(
+        mediaType = "application/json",
+        schema = @Schema(implementation = SymbolSearchDto.class)
+      )
+    ),
+    @ApiResponse(
+      responseCode = "400",
+      description = "빈 검색어 · 50자 넘는 검색어 · 1~20 밖의 개수"
+    )
+  })
+  @GetMapping("/symbols/search")
+  public ResponseEntity<List<SymbolSearchDto>> searchSymbols(
+      @Parameter(description = "검색어 (티커나 회사 이름 일부, 50자까지)", example = "apple", required = true)
+      @RequestParam @NotBlank @Size(max = 50) String q,
+      @Parameter(description = "개수 (1~20)", example = "20")
+      @RequestParam(defaultValue = "20") @Min(1) @Max(20) int limit) {
+    List<SymbolSearchDto> matches = assetService.searchListedSymbols(q, limit).stream()
+      .map(asset -> new SymbolSearchDto(asset.getSymbol(), asset.getName()))
+      .toList();
+    return ResponseEntity.ok(matches);
   }
 
   @Operation(

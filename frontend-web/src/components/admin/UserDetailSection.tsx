@@ -8,7 +8,7 @@ import { Modal } from '@/components/common/Modal';
 import { SOLID_BUTTON } from '@/styles/buttons';
 import { NICKNAME_RULE, NICKNAME_RULE_MESSAGE } from '@/utils/nickname';
 import { PASSWORD_RULE, PASSWORD_RULE_MESSAGE } from '@/utils/password';
-import { formatNumber } from '../../utils/format';
+import { formatKrw, formatUsd } from '../../utils/format';
 
 interface UserDetailSectionProps {
   user: UserDetail | null;
@@ -224,13 +224,13 @@ export default function UserDetailSection({
                     <div>
                       <p className="text-tx-2">KRW 잔액</p>
                       <p className="font-semibold">
-                        ₩{formatNumber(account.balanceKrw)}
+                        {formatKrw(account.balanceKrw)}
                       </p>
                     </div>
                     <div>
                       <p className="text-tx-2">USD 잔액</p>
                       <p className="font-semibold">
-                        ${formatNumber(account.balanceUsd, { minimumFractionDigits: 2 })}
+                        {formatUsd(account.balanceUsd)}
                       </p>
                     </div>
                   </div>

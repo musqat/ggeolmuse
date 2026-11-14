@@ -1,6 +1,6 @@
 import type { PerformanceMetrics, StrategyResponse } from '../../../services/api';
 import { hasValue } from '../../../utils/gainLoss';
-import { formatPercent } from '../../../utils/format';
+import { formatPercent, NO_VALUE } from '../../../utils/format';
 import type { MetricCurrency } from './CurrencyToggle';
 
 // 배당 재투자 거래의 trigger 값
@@ -39,8 +39,8 @@ export const pickMetrics = (result: Pick<StrategyResponse, 'metricsKrw' | 'metri
   };
 };
 
-export const percentOrDash = (value: number | null | undefined) => (hasValue(value) ? formatPercent(value) : '—');
-export const ratioOrDash = (value: number | null | undefined) => (hasValue(value) ? value.toFixed(2) : '—');
+export const percentOrDash = (value: number | null | undefined) => (hasValue(value) ? formatPercent(value) : NO_VALUE);
+export const ratioOrDash = (value: number | null | undefined) => (hasValue(value) ? value.toFixed(2) : NO_VALUE);
 
 // 상세 칸 제목 옆 요약(변동성 · 샤프 · 환차익)
 export const detailMeta = (metrics: PerformanceMetrics | null | undefined, fxReturnText: string) =>

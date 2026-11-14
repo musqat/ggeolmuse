@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { RefreshCw, Trash2, DollarSign, TrendingUp, ArrowUpDown, ChevronLeft, ChevronRight, Pencil, Check, X, PlusCircle, Undo2 } from 'lucide-react';
 import type { Asset } from '@services/adminApi';
-import { formatMarketCap, formatNumber } from '../../utils/format';
+import { formatMarketCap, formatNumber, formatUsd, NO_VALUE } from '../../utils/format';
 import { SOLID_BUTTON } from '@/styles/buttons';
 
 interface AssetListSectionProps {
@@ -131,13 +131,8 @@ export default function AssetListSection({
   };
   const sortProps = { sortBy, sortDirection, onSort: handleSort };
 
-  const formatPrice = (price?: number) => {
-    if (price == null) return 'N/A';
-    return `$${price.toFixed(2)}`;
-  };
-
   const formatDate = (date?: string) => {
-    if (!date) return 'N/A';
+    if (!date) return NO_VALUE;
     return date;
   };
 
@@ -337,7 +332,7 @@ export default function AssetListSection({
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={asset.currentPrice == null ? 'text-tx-3' : 'font-medium'}>
-                    {formatPrice(asset.currentPrice)}
+                    {formatUsd(asset.currentPrice)}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { dateAxis, formatDayTick, formatKrwTick } from './chartStyle';
+import { dateAxis, formatDayTick, formatKrwTick, formatUsdTick } from './chartStyle';
 
 describe('formatDayTick', () => {
   it('월 · 일을 앞자리 0 없이 쓴다', () => {
@@ -36,5 +36,16 @@ describe('formatKrwTick', () => {
     expect(formatKrwTick(0)).toBe('₩0');
     expect(formatKrwTick(-250000)).toBe('-₩25만');
     expect(formatKrwTick(-123000000)).toBe('-₩1.2억');
+  });
+});
+
+describe('formatUsdTick', () => {
+  it('달러 단위로 반올림하고 천 단위 쉼표를 넣는다', () => {
+    expect(formatUsdTick(1499.6)).toBe('$1,500');
+    expect(formatUsdTick(0)).toBe('$0');
+  });
+
+  it('음수는 부호를 통화 기호 앞에 둔다', () => {
+    expect(formatUsdTick(-20)).toBe('-$20');
   });
 });

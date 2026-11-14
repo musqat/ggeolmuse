@@ -5,9 +5,10 @@ export type GainLossTone = "gain" | "loss" | "flat" | "none";
 export const hasValue = (value: MaybeNumber): value is number =>
   value !== null && value !== undefined && !Number.isNaN(value);
 
-export const gainLossTone = (value: MaybeNumber): GainLossTone => {
+// 소수 digits 자리로 반올림해 0 이면 flat(formatSigned 가 부호를 지우는 기준과 같음)
+export const gainLossTone = (value: MaybeNumber, digits = 2): GainLossTone => {
   if (!hasValue(value)) return "none";
-  if (value === 0) return "flat";
+  if (Math.round(Math.abs(value) * 10 ** digits) === 0) return "flat";
   return value > 0 ? "gain" : "loss";
 };
 
@@ -26,7 +27,7 @@ const BOX_CLASS: Record<GainLossTone, string> = {
   none: "bg-brand-bg",
 };
 
-export const gainLossClass = (value: MaybeNumber) => TEXT_CLASS[gainLossTone(value)];
+export const gainLossClass = (value: MaybeNumber, digits?: number) => TEXT_CLASS[gainLossTone(value, digits)];
 
-export const gainLossBoxClass = (value: MaybeNumber) => BOX_CLASS[gainLossTone(value)];
+export const gainLossBoxClass = (value: MaybeNumber, digits?: number) => BOX_CLASS[gainLossTone(value, digits)];
 

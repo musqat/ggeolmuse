@@ -55,15 +55,30 @@ public class AssetRepositoryCustomImpl implements AssetRepositoryCustom {
 
     @Override
     public List<Asset> searchByKeyword(String keyword, int limit) {
+        return searchWhere(keyword, null, limit);
+    }
+
+    @Override
+    public List<Asset> searchListedByKeyword(String keyword, int limit) {
+        return searchWhere(keyword, listed(), limit);
+    }
+
+    // 코드나 이름에 키워드가 든 종목을 같은 코드 → 코드 앞부분 → 코드순으로(filter 가 null 이면 거르지 않음)
+    private List<Asset> searchWhere(String keyword, BooleanExpression filter, int limit) {
         String upperKeyword = keyword.toUpperCase();
+        NumberExpression<Integer> rank = new CaseBuilder()
+            .when(asset.symbol.upper().eq(upperKeyword)).then(0)
+            .when(asset.symbol.upper().startsWith(upperKeyword)).then(1)
+            .otherwise(2);
 
         return queryFactory
             .selectFrom(asset)
             .where(
                 asset.symbol.upper().contains(upperKeyword)
-                    .or(asset.name.upper().contains(upperKeyword))
+                    .or(asset.name.upper().contains(upperKeyword)),
+                filter
             )
-            .orderBy(asset.symbol.asc())
+            .orderBy(rank.asc(), asset.symbol.asc())
             .limit(limit)
             .fetch();
     }

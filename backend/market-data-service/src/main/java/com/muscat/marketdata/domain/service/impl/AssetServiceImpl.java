@@ -88,6 +88,12 @@ public class AssetServiceImpl implements AssetService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<Asset> searchListedSymbols(String keyword, int limit) {
+        return assetRepository.searchListedByKeyword(keyword.trim(), limit);
+    }
+
+    @Override
     @Transactional
     public Asset createAsset(String symbol, String name, String country,
                               String currency, String assetType,
