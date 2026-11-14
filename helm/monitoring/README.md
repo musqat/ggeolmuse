@@ -89,13 +89,14 @@ count(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate)
 
 ## 알림
 
-`helm/ggeolmuse/templates/monitoring/prometheusrule.yaml` 에 알림 20개 · 기록 규칙 12개. ggeolmuse 차트
+`helm/ggeolmuse/templates/monitoring/prometheusrule.yaml` 에 알림 21개 · 기록 규칙 12개. ggeolmuse 차트
 안에 있어 ArgoCD 가 배포한다.
 
 | 그룹 | 규칙 |
 |---|---|
 | service-availability | ServiceDown, ServiceRestarting |
 | resource-usage | HighCpuUsage, HighMemoryUsage, CriticalMemoryUsage |
+| backtest | BacktestSlow |
 | slo-recording | 창(5분 · 30분 · 1시간 · 6시간)별 5xx 비율 · 1초 넘은 비율 · 요청 수 |
 | slo | AvailabilityBurnFast, AvailabilityBurnSlow, LatencyBurnFast, LatencyBurnSlow |
 | config-server | ConfigServerDown, ConfigServerHighLatency, ConfigServerUnauthorized |
@@ -104,6 +105,27 @@ count(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate)
 
 파드·노드 수준은 차트 내장 규칙이 맡는다. Redis·Kafka·Keycloak 은 exporter 가 없어
 `up` 시계열 자체가 없다.
+
+`HighCpuUsage` 는 컨테이너 CPU 사용량(cAdvisor `container_cpu_usage_seconds_total`)을 CPU 한도(kube-state-metrics
+`kube_pod_container_resource_limits`)로 나눈 값이 80% 넘게 5분 이어질 때다. 한도가 없는 컨테이너는 보지 않는다.
+`BacktestSlow` 는 백테스트 종류별 10분 평균 실행 시간(`backtest_run_seconds`)이 10초 넘게 5분 이어질 때다. 게이트웨이
+응답 제한 30초의 3분의 1 이다. 그 10분 동안 실행이 없으면 값이 없어 경보도 없다.
+`HighMemoryUsage` · `CriticalMemoryUsage` 는 GC 뒤 남는 힙(`jvm_gc_live_data_size_bytes`)을 오래 사는 힙 영역 최대
+(`jvm_gc_max_data_size_bytes`)로 나눈 값이 85% · 95% 를 넘을 때다. `ConfigServerHighLatency` 는 5초 구간을 넘은 요청이
+5% 넘게 5분 이어질 때다(P95 5초 초과). config-server 응답 시간의 가장 큰 구간이 5초라 분위수 식으로는 5초를 넘는 값이
+나오지 않는다.
+
+규칙을 고치면 멀티 노드 차트 사본(`k8s/helm/ggeolmuse`)의 같은 파일도 고치고 [`alert-rules-test.yaml`](alert-rules-test.yaml) 에
+경우를 더한다. CI `scan-manifests` 잡이 두 차트를 운영 값으로 렌더한 규칙마다 promtool 로 문법 검사하고 이 테스트를 돌린다.
+로컬에서는 저장소 루트에서 같은 명령을 쓴다. `MSYS_NO_PATHCONV=1` 은 Git Bash 의 경로 변환을 끄는 값이다(다른 셸에서는 영향 없음).
+
+```bash
+helm template ggeolmuse helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml \
+  --show-only templates/monitoring/prometheusrule.yaml \
+  | awk 'spec { sub(/^  /, ""); print } /^spec:$/ { spec = 1 }' > alert-rules.yaml
+MSYS_NO_PATHCONV=1 docker run --rm --network none -v "$PWD:/w" -w /w --entrypoint promtool prom/prometheus:v3.1.0 check rules alert-rules.yaml
+MSYS_NO_PATHCONV=1 docker run --rm --network none -v "$PWD:/w" -w /w --entrypoint promtool prom/prometheus:v3.1.0 test rules helm/monitoring/alert-rules-test.yaml
+```
 
 SLO 알림은 게이트웨이 경로 지표(`spring_cloud_gateway_requests_seconds`)로 가용성 99.5%(5xx 아닌 응답)와 요청의 95% 1초 안
 (백테스트 · 채팅 경로 제외)을 본다. 빠른 소진은 1시간 · 5분 창이 둘 다 예산을 14.4배 속도로 쓸 때(critical), 느린 소진은 6시간 · 30분
@@ -149,12 +171,16 @@ user-service 가 처리한 체결을 `trade_settlements` 에 남겨 다시 넣�
 디플로이먼트 Ready, 공개 주소의 시세 한 번(`/api/market/price/AAPL`), Alertmanager 의 Watchdog 을 보고 같은 웹훅으로
 슬랙에 보낸다. 다 괜찮으면 `:white_check_mark: up` 한 줄, 아니면 해당하는 것만 적는다(`down: <디플로이먼트>` ·
 `시세 <코드>` · `Prometheus 응답 없음` · `Alertmanager 에 Watchdog 없음`). 아침에 이 한 줄이 없으면 예약 기동 · 앱 ·
-바깥 경로 · 슬랙 중 어딘가가 멈춘 것이다. 수동 실행과 정리:
+공개 경로 · 슬랙 중 어딘가가 멈춘 것이다. 수동 실행과 정리:
 
 ```bash
 kubectl create job --from=cronjob/morning-check morning-check-manual
 kubectl delete job morning-check-manual
 ```
+
+**낮 동안 사이트 확인** — 그 뒤로는 terraform 의 [`uptime-check.tf`](../../terraform/uptime-check.tf) 가 AWS 에서 5분마다
+프론트 · 시세 API · /auth 를 GET 으로 확인하고, 실패하면 terraform 의 슬랙 웹훅(`slack_webhook_url`)과 SNS 이메일(`alarm_email`)로 알린다.
+노드 · 클러스터 · Prometheus 가 함께 멈춘 때도 알림이 온다.
 
 <details>
 <summary><b>Slack 라우팅</b></summary>

@@ -10,8 +10,15 @@ ec2_instance_id = "i-xxxxxxxxxxxxxxxxx"
 # 선택 —— 알람 수신 이메일(수신함의 확인 링크를 누른 뒤부터 받음)
 # alarm_email = "you@example.com"
 
-# 선택 —— EC2 종료 알림을 받을 슬랙 웹훅(알람 채널과 같으면 ggeolmuse-secrets 의 SLACK_WEBHOOK_URL)
+# 선택 —— EC2 종료 알림 · 사이트 확인 알림을 받을 슬랙 웹훅(비우면 둘 다 만들지 않음, 알람 채널과 같으면 ggeolmuse-secrets 의 SLACK_WEBHOOK_URL)
 # slack_webhook_url = "https://hooks.slack.com/services/..."
+
+# 선택 —— 가동 시간에 5분마다 AWS 에서 확인할 주소(기본은 프론트 · 시세 API · /auth, slack_webhook_url 이 있을 때만 만듦)
+# uptime_check_urls = {
+#   frontend = "https://ggeolmuse.com/"
+#   price    = "https://ggeolmuse.com/api/market/price/AAPL"
+#   auth     = "https://ggeolmuse.com/auth/realms/muscathan"
+# }
 
 # 기본값을 바꿀 때만
 # scheduler_start_hour = 7

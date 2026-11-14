@@ -1,6 +1,4 @@
-# 로컬 스택 메트릭 수집
-# 대상은 서비스마다 management 포트 9090 의 /actuator/prometheus
-# (ggeolmuse-config/application.yml)
+# 로컬 스택 지표 수집(서비스마다 management 포트 9090 의 /actuator/prometheus)
 
 global:
   # 부하 테스트용 5초 수집(기본 60초면 짧은 스파이크가 점 하나)

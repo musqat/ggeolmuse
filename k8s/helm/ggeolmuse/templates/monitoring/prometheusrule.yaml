@@ -10,9 +10,7 @@ metadata:
     release: prometheus
 spec:
   groups:
-    # ========================================
     # 서비스 가용성 알림
-    # ========================================
     - name: service-availability
       interval: 30s
       rules:
@@ -42,32 +40,36 @@ spec:
             namespace: "{{ `{{ $labels.namespace }}` }}"
             container: "{{ `{{ $labels.container }}` }}"
 
-    # ========================================
     # 리소스 사용량 알림
-    # ========================================
     - name: resource-usage
       interval: 30s
       rules:
         - alert: HighCpuUsage
+          # 컨테이너 CPU 사용량 ÷ CPU 한도(한도 없는 컨테이너는 제외)
           expr: |
             (
-              rate(process_cpu_seconds_total{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)"}[5m]) * 100
+              sum by (namespace, pod, container) (
+                rate(container_cpu_usage_seconds_total{namespace="default", container=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service|chat-service)"}[5m])
+              )
+              / sum by (namespace, pod, container) (
+                kube_pod_container_resource_limits{namespace="default", resource="cpu", container=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service|chat-service)"}
+              )
+              * 100
             ) > 80
           for: 5m
           labels:
             severity: warning
             category: resource
           annotations:
-            summary: "높은 CPU 사용률: {{ `{{ $labels.job }}` }}"
-            description: '{{ `{{ $labels.job }}` }} CPU 사용률 80% 초과 · 5분 지속 · 현재 {{ `{{ $value | printf "%.1f" }}` }}%'
-            instance: "{{ `{{ $labels.instance }}` }}"
+            summary: "높은 CPU 사용률: {{ `{{ $labels.container }}` }}"
+            description: '{{ `{{ $labels.pod }}` }} CPU 한도의 80% 초과 · 5분 지속 · 현재 {{ `{{ $value | printf "%.1f" }}` }}%'
 
         - alert: HighMemoryUsage
-          # GC 뒤 남는 힙 기준(used 는 수거 전 쓰레기 포함)
+          # GC 뒤 남는 힙 ÷ 오래 사는 힙 영역 최대(used 는 수거 전 쓰레기 포함)
           expr: |
             (
               jvm_gc_live_data_size_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)"}
-              / jvm_memory_max_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)", area="heap"}
+              / jvm_gc_max_data_size_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)"}
               * 100
             ) > 85
           for: 5m
@@ -83,7 +85,7 @@ spec:
           expr: |
             (
               jvm_gc_live_data_size_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)"}
-              / jvm_memory_max_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)", area="heap"}
+              / jvm_gc_max_data_size_bytes{job=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service)"}
               * 100
             ) > 95
           for: 2m
@@ -95,9 +97,25 @@ spec:
             description: '{{ `{{ $labels.job }}` }} 힙 사용률 95% 초과 · 2분 지속 · 현재 {{ `{{ $value | printf "%.1f" }}` }}% · OOM 임박'
             instance: "{{ `{{ $labels.instance }}` }}"
 
-    # ========================================
+    # 백테스트 실행 시간
+    - name: backtest
+      interval: 30s
+      rules:
+        - alert: BacktestSlow
+          # 종류별 10분 평균 실행 시간 10초 초과(게이트웨이 응답 제한 30초의 3분의 1), 실행이 없는 창은 값 없음
+          expr: |
+            sum by (kind) (rate(backtest_run_seconds_sum{job="backtest-service"}[10m]))
+            / sum by (kind) (rate(backtest_run_seconds_count{job="backtest-service"}[10m]))
+            > 10
+          for: 5m
+          labels:
+            severity: warning
+            category: backtest
+          annotations:
+            summary: "느린 백테스트: {{ `{{ $labels.kind }}` }}"
+            description: '{{ `{{ $labels.kind }}` }} 백테스트 평균 {{ `{{ $value | printf "%.1f" }}` }}초 · 10분 창 · 5분 지속 · 게이트웨이 응답 제한 30초'
+
     # SLO: 게이트웨이 요청 가용성 99.5% · 95% 1초 안
-    # ========================================
     # 창별 5xx 비율 · 1초 넘은 비율(백테스트 · 채팅 제외) · 요청 수
     - name: slo-recording
       interval: 30s
@@ -117,9 +135,8 @@ spec:
           expr: sum(increase(spring_cloud_gateway_requests_seconds_count{job="gateway-server"}[{{ . }}]))
         {{- end }}
 
-    # 빠른 소진: 30일 예산의 2% 를 1시간에 쓰는 속도(14.4배), 짧은 창은 회복 뒤 빠른 해제용
-    # 느린 소진: 5% 를 6시간에 쓰는 속도(6배)
-    # 요청 20건 미만인 창은 제외(한두 건 실패로 비율이 크게 뜀)
+    # 빠른 소진: 30일 예산 2% 를 1시간에 쓰는 속도(14.4배, 짧은 창은 빠른 해제용) · 느린 소진: 5% 를 6시간에 쓰는 속도(6배)
+    # 요청 20건 미만인 창은 제외
     - name: slo
       interval: 30s
       rules:
@@ -189,10 +206,12 @@ spec:
             description: 'config-server 응답 없음 · 5분 지속 · 나머지 서비스 설정 조회 불가'
 
         - alert: ConfigServerHighLatency
+          # 5초 구간을 넘은 요청 5% 초과 = P95 5초 초과(가장 큰 구간 5초)
           expr: |
-            histogram_quantile(0.95,
-              sum(rate(http_server_requests_seconds_bucket{job="config-server"}[5m])) by (le)
-            ) > 5
+            (
+              1 - sum(rate(http_server_requests_seconds_bucket{job="config-server", le="5.0"}[5m]))
+              / sum(rate(http_server_requests_seconds_count{job="config-server"}[5m]))
+            ) > 0.05
           for: 5m
           labels:
             severity: warning
@@ -212,9 +231,7 @@ spec:
             summary: "Config Server 인증 실패"
             description: 'config-server 401 응답 · 5분 지속 · 분당 {{ `{{ $value | printf "%.0f" }}` }}회 · 클라이언트 비밀번호 불일치 의심'
 
-    # ========================================
     # 서킷브레이커
-    # ========================================
     - name: resilience
       interval: 30s
       rules:
@@ -243,9 +260,7 @@ spec:
             summary: "서킷 메트릭 없음: {{ `{{ $labels.job }}` }} / {{ `{{ $labels.name }}` }}"
             description: '{{ `{{ $labels.job }}` }} 에 {{ `{{ $labels.name }}` }} 서킷 메트릭 없음 · 15분 지속 · 설정 instances 이름과 @CircuitBreaker 이름 불일치 의심'
 
-    # ========================================
     # 체결 잔액 반영
-    # ========================================
     - name: trade-settlement
       interval: 30s
       rules:
