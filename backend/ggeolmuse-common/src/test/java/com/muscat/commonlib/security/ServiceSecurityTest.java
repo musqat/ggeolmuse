@@ -21,6 +21,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @WebMvcTest(controllers = ServiceSecurityTest.Probe.class)
 @ContextConfiguration(classes = {ServiceSecurityTest.SecurityChains.class, ServiceSecurityTest.Probe.class})
+@TestPropertySource(properties = "management.server.port=9090")
 @DisplayName("서비스 보안 설정 조각")
 class ServiceSecurityTest {
 
@@ -87,7 +89,7 @@ class ServiceSecurityTest {
   @DisplayName("관리 포트(9090) 요청은 토큰 없이 통과한다")
   void managementPortIsOpen() throws Exception {
     mockMvc.perform(get("/actuator/health").with(request -> {
-      request.setServerPort(9090);
+      request.setLocalPort(9090);
       return request;
     })).andExpect(status().isOk());
   }
