@@ -140,7 +140,7 @@ public class AccountServiceImpl implements AccountService {
   @Override
   @Transactional
   public void deleteAccount(Long accountId, Long userId) {
-    Account account = accountRepository.findByIdAndUserId(accountId, userId)
+    Account account = accountRepository.findByIdAndUserIdWithLock(accountId, userId)
       .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));
 
     // 잔액 확인 로직 제거 - 잔액이 있어도 삭제 가능
@@ -345,13 +345,13 @@ public class AccountServiceImpl implements AccountService {
   @Transactional
   public void updateUsdBalance(Long accountId, Long userId, BigDecimal usdAmount,
     TransactionType type, String description) {
-    changeUsdBalance(accountId, userId, usdAmount, type, description, false);
+    requireUsdBalanceType(type);
+    changeUsdBalance(validateAccountAccess(accountId, userId), usdAmount, type, description, false);
   }
 
-  private void changeUsdBalance(Long accountId, Long userId, BigDecimal usdAmount,
+  // 잠금으로 읽은 계좌의 USD 잔액 변경 · 내역
+  private void changeUsdBalance(Account account, BigDecimal usdAmount,
     TransactionType type, String description, boolean allowNegative) {
-    requireUsdBalanceType(type);
-    Account account = validateAccountAccess(accountId, userId);
     BigDecimal validatedAmount = validateUsdAmount(usdAmount);
 
     // 검증 + 상태 변경
@@ -366,7 +366,7 @@ public class AccountServiceImpl implements AccountService {
     createTradeHistory(account, validatedAmount, newBalance, type, description);
 
     log.info("USD 잔고 업데이트 완료: accountId={}, 변경금액={}, 변경후잔고={}",
-      accountId, validatedAmount, newBalance);
+      account.getId(), validatedAmount, newBalance);
   }
 
   // 현재 USD/KRW 환율(못 받거나 정상 범위 밖이면 환율 서비스 오류)
@@ -489,7 +489,7 @@ public class AccountServiceImpl implements AccountService {
       return;
     }
     Long userId = resolveUserId(event.getUserId());
-    Account account = findOwnedAccount(event.getAccountId(), userId);
+    Account account = validateAccountAccess(event.getAccountId(), userId);
     LocalDate exDate = event.getExDate();
     Optional<DividendSettlement> settlement = dividendSettlementRepository
       .findByAccountIdAndSymbolAndExDate(account.getId(), event.getSymbol(), exDate);
@@ -500,9 +500,9 @@ public class AccountServiceImpl implements AccountService {
       event.getSymbol(), event.getExDate(), event.getDividendPerShare(), event.getQuantity());
 
     if (delta.signum() > 0) {
-      changeUsdBalance(account.getId(), userId, delta, TransactionType.DIVIDEND, "배당금 수령: " + basis, false);
+      changeUsdBalance(account, delta, TransactionType.DIVIDEND, "배당금 수령: " + basis, false);
     } else if (delta.signum() < 0) {
-      changeUsdBalance(account.getId(), userId, delta, TransactionType.DIVIDEND_REVERSAL, "배당 반환: " + basis, true);
+      changeUsdBalance(account, delta, TransactionType.DIVIDEND_REVERSAL, "배당 반환: " + basis, true);
     }
 
     if (settlement.isPresent()) {
@@ -516,19 +516,6 @@ public class AccountServiceImpl implements AccountService {
   }
 
   // ================== 내부 메서드 ================ //
-
-  private Account findOwnedAccount(Long accountId, Long userId) {
-    Account account = accountRepository.findById(accountId)
-      .orElseThrow(() -> {
-        log.error("계좌를 찾을 수 없음: accountId={}", accountId);
-        return new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
-      });
-    if (!account.getUser().getId().equals(userId)) {
-      log.error("계좌 소유자 불일치: accountId={}, userId={}, owner={}", accountId, userId, account.getUser().getId());
-      throw new AccountException(AccountResponse.ACCOUNT_ACCESS_DENIED);
-    }
-    return account;
-  }
 
   // 환전 환율의 허용 범위 검사
   private void validateExchangeRate(BigDecimal exchangeRate) {
@@ -563,7 +550,7 @@ public class AccountServiceImpl implements AccountService {
   }
 
 
-  // 계좌 접근 권한 검증
+  // 잠금으로 읽은 계좌(남의 계좌면 거절)
   private Account validateAccountAccess(Long accountId, Long userId) {
     Account account = accountRepository.findByIdWithLock(accountId)
       .orElseThrow(() -> new AccountException(AccountResponse.ACCOUNT_NOT_FOUND));

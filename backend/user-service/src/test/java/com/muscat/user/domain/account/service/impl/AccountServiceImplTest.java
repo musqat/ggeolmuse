@@ -501,7 +501,7 @@ class AccountServiceImplTest {
         .balanceUsd(BigDecimal.ZERO)
         .build();
 
-      given(accountRepository.findByIdAndUserId(accountId, userId))
+      given(accountRepository.findByIdAndUserIdWithLock(accountId, userId))
         .willReturn(Optional.of(emptyAccount));
 
       // when
@@ -516,7 +516,7 @@ class AccountServiceImplTest {
     @DisplayName("잔액이 있어도 계좌가 삭제된다 (로그만 기록)")
     void deleteAccount_HasBalance_StillDeletes() {
       // given - testAccount는 잔액이 있음
-      given(accountRepository.findByIdAndUserId(accountId, userId))
+      given(accountRepository.findByIdAndUserIdWithLock(accountId, userId))
         .willReturn(Optional.of(testAccount));
 
       // when
@@ -532,7 +532,7 @@ class AccountServiceImplTest {
     void deleteAccount_OtherUser_ThrowsException() {
       // given
       Long otherUserId = 999L;
-      given(accountRepository.findByIdAndUserId(accountId, otherUserId))
+      given(accountRepository.findByIdAndUserIdWithLock(accountId, otherUserId))
         .willReturn(Optional.empty());
 
       // when & then

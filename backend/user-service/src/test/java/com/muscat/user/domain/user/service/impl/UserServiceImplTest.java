@@ -672,7 +672,7 @@ class UserServiceImplTest {
 
       given(userRepository.findByKeycloakIdWithAccounts(keycloakId)).willReturn(Optional.of(testUser));
       given(passwordEncoder.matches(testPassword, testUser.getPasswordHash())).willReturn(true);
-      given(accountRepository.findByUserIdWithUser(testUser.getId())).willReturn(new ArrayList<>());
+      given(accountRepository.findByUserIdWithLock(testUser.getId())).willReturn(new ArrayList<>());
       doNothing().when(keycloakService).deleteUser(keycloakId);
 
       // when
@@ -710,7 +710,7 @@ class UserServiceImplTest {
       Account second = Account.builder().id(2L).user(testUser).balanceKrw(BigDecimal.ZERO).balanceUsd(new BigDecimal("12.5")).build();
       given(userRepository.findByKeycloakIdWithAccounts(keycloakId)).willReturn(Optional.of(testUser));
       given(passwordEncoder.matches(testPassword, testUser.getPasswordHash())).willReturn(true);
-      given(accountRepository.findByUserIdWithUser(testUser.getId())).willReturn(Arrays.asList(first, second));
+      given(accountRepository.findByUserIdWithLock(testUser.getId())).willReturn(Arrays.asList(first, second));
 
       userService.deleteAccount(keycloakId, testPassword, null);
 
@@ -737,7 +737,7 @@ class UserServiceImplTest {
     void deleteAccount_SocialUserRecentLogin_Deletes() {
       testUser.setPasswordHash(null);
       given(userRepository.findByKeycloakIdWithAccounts(keycloakId)).willReturn(Optional.of(testUser));
-      given(accountRepository.findByUserIdWithUser(testUser.getId())).willReturn(new ArrayList<>());
+      given(accountRepository.findByUserIdWithLock(testUser.getId())).willReturn(new ArrayList<>());
 
       userService.deleteAccount(keycloakId, null, Instant.now().minus(Duration.ofMinutes(1)));
 
@@ -767,7 +767,7 @@ class UserServiceImplTest {
 
       given(userRepository.findByKeycloakIdWithAccounts(keycloakId)).willReturn(Optional.of(testUser));
       given(passwordEncoder.matches(testPassword, testUser.getPasswordHash())).willReturn(true);
-      given(accountRepository.findByUserIdWithUser(testUser.getId())).willReturn(new ArrayList<>());
+      given(accountRepository.findByUserIdWithLock(testUser.getId())).willReturn(new ArrayList<>());
       doThrow(new RuntimeException("Keycloak unavailable"))
         .when(keycloakService).deleteUser(keycloakId);
 
@@ -1288,7 +1288,7 @@ class UserServiceImplTest {
 
       given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
       Account account = Account.builder().id(7L).user(testUser).balanceKrw(new BigDecimal("1000000")).balanceUsd(BigDecimal.ZERO).build();
-      given(accountRepository.findByUserIdWithUser(userId)).willReturn(List.of(account));
+      given(accountRepository.findByUserIdWithLock(userId)).willReturn(List.of(account));
       willDoNothing().given(emailTokenRepository).deleteByUser(testUser);
       willDoNothing().given(passwordResetTokenRepository).deleteByUser(testUser);
       willDoNothing().given(accountRepository).deleteAll(any());
@@ -1301,7 +1301,7 @@ class UserServiceImplTest {
       // then
       verify(emailTokenRepository).deleteByUser(testUser);
       verify(passwordResetTokenRepository).deleteByUser(testUser);
-      verify(accountRepository).findByUserIdWithUser(userId);
+      verify(accountRepository).findByUserIdWithLock(userId);
       verify(accountEventProducer).publishAccountDeleted(account, "회원 탈퇴");
       verify(keycloakService).deleteUser(keycloakId);
       verify(userRepository).delete(testUser);

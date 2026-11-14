@@ -11,6 +11,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
@@ -84,6 +85,10 @@ public class Account {
 
   @UpdateTimestamp
   private LocalDateTime updatedAt;
+
+  // 낡은 상태로 덮어쓰는 갱신을 막는 버전
+  @Version
+  private Long version;
 
   @Override
   public String toString() {
