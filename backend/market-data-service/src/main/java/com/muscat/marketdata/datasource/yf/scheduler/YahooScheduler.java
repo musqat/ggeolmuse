@@ -2,7 +2,7 @@ package com.muscat.marketdata.datasource.yf.scheduler;
 
 import com.muscat.marketdata.datasource.common.FxDataCollector;
 import com.muscat.marketdata.datasource.common.InitialCollectionCheck;
-import com.muscat.marketdata.datasource.yf.service.YahooMarketCapService;
+import com.muscat.marketdata.datasource.common.MarketDataProvider.MarketCapSource;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.FxRateRepository;
@@ -29,7 +29,7 @@ public class YahooScheduler {
     private final AssetRepository assetRepository;
     private final FxRateRepository fxRateRepository;
     private final AssetEventProducer assetEventProducer;
-    private final YahooMarketCapService marketCapService;
+    private final MarketCapSource marketCapSource;
     private final FxDataCollector fxDataCollector;
     private final InitialCollectionCheck initialCollectionCheck;
 
@@ -88,7 +88,7 @@ public class YahooScheduler {
         log.info("=== [YF 스케줄러] 시가총액 업데이트 시작 ===");
 
         List<Asset> assets = assetRepository.findByActiveTrueAndAssetTypeNot(Asset.INDEX_TYPE);
-        int updated = marketCapService.updateAllMarketCaps(assets);
+        int updated = marketCapSource.updateAllMarketCaps(assets);
 
         log.info("=== [YF 스케줄러] 시가총액 업데이트 완료: {}개 ===", updated);
     }

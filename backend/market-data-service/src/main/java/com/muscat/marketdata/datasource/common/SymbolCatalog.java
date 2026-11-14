@@ -1,6 +1,7 @@
 package com.muscat.marketdata.datasource.common;
 
 
+import com.muscat.marketdata.datasource.common.MarketDataProvider.ListingSource;
 import com.muscat.marketdata.domain.entity.Asset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -13,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-// 상장 종목 목록의 유일한 출처 AlphaVantage LISTING_STATUS(시세 공급원과 상관없이 목록은 여기서만)
+// 상장 종목 목록을 받아 거르는 곳(출처는 ListingSource)
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -28,7 +29,7 @@ public class SymbolCatalog {
   // 기호가 평범한 테스트 종목(CBO · CBX · IGZ · ZVV · ZBZX)은 이름으로 거름
   private static final String TEST_ISSUE_NAMES = "listed test,test stock";
 
-  private final ListingStatusSource listingSource;
+  private final ListingSource listingSource;
   private final BundledSymbolSource bundledSource;
 
   // 목록 API 가 비어 있을 때 이미지에 든 CSV 로 대체할지(로컬 · E2E 에서만 켬)

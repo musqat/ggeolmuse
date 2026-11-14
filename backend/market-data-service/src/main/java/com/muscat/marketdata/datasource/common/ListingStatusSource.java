@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ListingStatusSource {
+public class ListingStatusSource implements MarketDataProvider.ListingSource {
 
   private static final Set<String> MAJOR_EXCHANGES =
       Set.of("NYSE", "NASDAQ", "NYSE ARCA", "NYSE MKT", "AMEX", "BATS");
@@ -30,10 +30,12 @@ public class ListingStatusSource {
   private int maxSymbols;
 
   // 상한이 있으면 목록 앞부분만 받음
+  @Override
   public boolean isCapped() {
     return maxSymbols > 0;
   }
 
+  @Override
   public List<Asset> fetch() {
     String csv = client.getCsv("LISTING_STATUS", Map.of());
 
