@@ -120,7 +120,7 @@ jobs:
         run: |
           cd backend/messaging
           mvn -s $GITHUB_WORKSPACE/.mvn/ci-settings.xml install -DskipTests
-      # 읽기 전용 토큰으로 Docker Hub 로그인(익명은 429, Testcontainers 의 Postgres · Kafka 이미지도)
+      # 익명 받기 횟수 제한(429) 회피용 읽기 전용 토큰(Testcontainers 의 Postgres · Kafka 이미지 포함)
       - name: Docker Hub 로그인
         uses: docker/login-action@v4
         with:
@@ -173,13 +173,13 @@ jobs:
       - name: Lint
         run: npx eslint . --max-warnings 0
       - name: Test
-        # vitest run + 커버리지(줄 90 · 분기 80 아래면 실패, 날짜 테스트용 TZ 는 vitest.config.ts 의 Asia/Seoul)
+        # vitest run + 커버리지(줄 90 · 분기 80 아래면 실패)
         run: npm run test:coverage
       - name: Build
         # tsc -b 포함(타입 오류도 여기서)
         run: npm run build
 
-      # Docker Hub 로그인(익명 받기의 횟수 제한 429 회피, 읽기 전용 토큰)
+      # 익명 받기 횟수 제한(429) 회피용 읽기 전용 토큰
       - name: Docker Hub 로그인
         uses: docker/login-action@v4
         with:
@@ -204,7 +204,7 @@ jobs:
           image: frontend-web:ci-${{ github.sha }}
           name: frontend-web
 
-  # chat 테스트(이미지 빌드 scan-images 는 이 잡 통과 뒤)
+  # chat-service 테스트 · 커버리지
   test-chat:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -237,7 +237,7 @@ jobs:
         working-directory: tools
         run: go run ./cmd/chat-coverage "$GITHUB_WORKSPACE/backend/chat-service/coverage.json" 90 80
 
-  # chat 이미지 빌드 · 검사(파이썬이라 build-services 메이븐 잡 밖)
+  # chat-service 이미지 빌드 · 검사(파이썬이라 build-services 메이븐 잡 밖)
   scan-images:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -245,7 +245,7 @@ jobs:
     if: needs.changes.outputs.chat == 'true'
     steps:
       - uses: actions/checkout@v7
-      # Docker Hub 로그인(익명 받기의 횟수 제한 429 회피, 읽기 전용 토큰)
+      # 익명 받기 횟수 제한(429) 회피용 읽기 전용 토큰
       - name: Docker Hub 로그인
         uses: docker/login-action@v4
         with:
@@ -282,26 +282,25 @@ jobs:
           go-version-file: tools/go.mod
           cache-dependency-path: tools/go.sum
 
-      - name: 실제 배포본을 뽑는다
+      - name: values-prod.yaml 로 매니페스트 렌더
         run: |
           helm template ggeolmuse helm/ggeolmuse \
             -f helm/ggeolmuse/values-prod.yaml > rendered.yaml
 
-      # 환경별 파일 없이 기본 값만으로 렌더되는지 확인
-      - name: 기본 값만으로도 렌더되는지 본다
+      - name: values.yaml 만으로 렌더 확인
         run: helm template ggeolmuse helm/ggeolmuse > /dev/null
 
       # NetworkPolicy 허용 목록에 없는 새 서비스 포트 검사(tools/cmd/netpol-check)
-      - name: NetworkPolicy 가 서비스 포트를 전부 여는지 본다
+      - name: NetworkPolicy 서비스 포트 대조
         working-directory: tools
         run: go run ./cmd/netpol-check ../rendered.yaml
 
       # 렌더한 이미지 태그가 Docker Hub 에 있는지(값 파일 오타 · 없는 태그, tools/cmd/image-check)
-      - name: 이미지 태그가 Docker Hub 에 있는지 본다
+      - name: Docker Hub 이미지 태그 확인
         working-directory: tools
         run: go run ./cmd/image-check ../rendered.yaml
 
-      # 이미지 스캔과 같이 설치 · 스캔 실패로 잡을 막지 않음
+      # Trivy 설치 · 스캔 실패로 잡을 막지 않음
       - uses: ./.github/actions/install-trivy
         continue-on-error: true
 
@@ -354,7 +353,7 @@ jobs:
         working-directory: terraform
     steps:
       - uses: actions/checkout@v7
-      # required_version 의 바닥 버전
+      # required_version 하한(1.10) 줄의 버전
       - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.10.5
@@ -383,3 +382,28 @@ jobs:
         run: |
           terraform init -backend=false -input=false
           terraform test
+
+  # 모든 잡 결과 모음(머지 필수 검사, 바뀐 것이 없어 건너뛴 잡은 통과)
+  ci-result:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - changes
+      - build-bom
+      - build-messaging
+      - build-services
+      - build-frontend
+      - test-chat
+      - scan-images
+      - scan-manifests
+      - tools
+      - terraform
+    if: always()
+    steps:
+      - name: 실패하거나 취소된 잡이 있으면 실패
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          exit 1

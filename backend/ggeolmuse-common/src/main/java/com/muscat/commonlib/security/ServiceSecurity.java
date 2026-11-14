@@ -1,5 +1,6 @@
 package com.muscat.commonlib.security;
 
+import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -18,8 +19,6 @@ public final class ServiceSecurity {
     "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**"
   };
 
-  private static final int MANAGEMENT_PORT = 9090;
-
   private ServiceSecurity() {
   }
 
@@ -31,10 +30,11 @@ public final class ServiceSecurity {
     return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
   }
 
-  // 관리 포트(9090)의 헬스 · 지표는 인증 없이 엶
+  // 관리 포트로 받은 요청(헬스 · 지표)은 인증 없이 엶
   public static SecurityFilterChain managementChain(HttpSecurity http) throws Exception {
+    int managementPort = managementPort(http.getSharedObject(ApplicationContext.class).getEnvironment());
     http
-      .securityMatcher(request -> request.getServerPort() == MANAGEMENT_PORT)
+      .securityMatcher(request -> request.getLocalPort() == managementPort)
       .authorizeHttpRequests(auth -> auth
         .anyRequest().permitAll()
       )
@@ -43,6 +43,13 @@ public final class ServiceSecurity {
         .frameOptions(FrameOptionsConfig::disable)
       );
     return http.build();
+  }
+
+  // API 포트와 따로 둔 관리 포트(설정이 없거나 API 포트와 같으면 -1)
+  static int managementPort(Environment environment) {
+    Integer port = environment.getProperty("management.server.port", Integer.class);
+    int serverPort = environment.getProperty("server.port", Integer.class, 8080);
+    return port == null || port == serverPort ? -1 : port;
   }
 
   // API 체인 바탕: CSRF 끔 · CORS 기본 · 세션 없음 · 프레임 옵션 끔

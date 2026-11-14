@@ -48,7 +48,7 @@ func TestSetTagsKeepsOtherBlocks(t *testing.T) {
 		t.Fatal(err)
 	}
 	if strings.Count(out, `tag: "7c93f2b"`) != 1 || !strings.Contains(out, "    # 주석\n    image:\n      tag: \"7c93f2b\"") || !strings.Contains(out, "tag: keep") {
-		t.Fatalf("trade 만 바뀌어야 함\n%s", out)
+		t.Fatalf("기대: trade-service 태그만 바뀜\n%s", out)
 	}
 }
 

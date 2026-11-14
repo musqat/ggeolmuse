@@ -39,7 +39,7 @@ func parsePicks(body string) (map[string]string, bool, error) {
 	fence, commentCol := "", 0
 	for _, raw := range strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n") {
 		line := strings.TrimSpace(raw)
-		// 목록 · 인용 안에서 연 주석이 항목 밖까지 이어지면 GitHub 화면에서 뒤가 숨겨짐
+		// 목록 · 인용 안에서 연 주석이 항목 밖까지 이어지면 오류
 		if inComment {
 			if line != "" && indentOf(raw) < commentCol && !(commentQuote && strings.HasPrefix(line, ">")) {
 				return nil, false, fmt.Errorf("목록 안에서 연 HTML 주석이 항목 밖까지 이어짐(항목 안에서 닫을 것): %q", line)
