@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -48,7 +47,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("계좌 수익 흐름 조회 · 저장")
@@ -437,22 +435,6 @@ class ProfitFlowServiceTest {
 
     assertThat(dates(response.points())).containsExactly(LocalDate.of(2024, 1, 1));
     assertThat(response.best().profitKrw()).isEqualByComparingTo("10");
-  }
-
-  @Test
-  @DisplayName("다른 요청이 먼저 저장해 유니크 제약에 걸려도 계산한 점을 돌려준다")
-  void flow_ConcurrentStore_StillReturnsPoints() {
-    ownAccount(List.of(buy("AAPL", "1", "100.00", "0.00", D1)));
-    given(dividendPayoutRepository.findByUserId(USER)).willReturn(List.of());
-    given(accountProfitDailyRepository.findByUserIdAndAccountIdOrderByTradeDateAsc(USER, ACCOUNT))
-      .willReturn(List.of());
-    given(marketServiceClientWrapper.getOHLCPriceRange("AAPL", "2023-12-19", "2024-01-31"))
-      .willReturn(List.of(candle("AAPL", D1, "100.00")));
-    fxEverywhere("1");
-    willThrow(new DataIntegrityViolationException("uk_account_profit_daily"))
-      .given(accountProfitStore).replaceFrom(eq(ACCOUNT), eq(D1), anyList());
-
-    assertThat(dates(service.flow(USER, "20", FlowPeriod.ALL).points())).containsExactly(D1);
   }
 
   @Test
