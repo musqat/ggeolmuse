@@ -14,6 +14,12 @@ export interface AssetSummary {
   dividendYieldPercent?: number | null;
 }
 
+// 이름 검색 한 건(회사 이름이 없는 종목은 null)
+export interface SymbolSearchResult {
+  symbol: string;
+  name: string | null;
+}
+
 // 종목 목록 정렬 기준(시가총액 큰 순 · 최근 1년 배당수익률 높은 순)
 export type StockSort = 'marketCap' | 'dividendYield';
 
@@ -21,6 +27,13 @@ export const stockApi = {
   // 전체 종목 목록 조회
   getAllSymbols: () =>
     apiClient.get<AssetSummary[]>(`/market/symbols`),
+
+  // 상장 종목에서 티커 · 회사 이름 포함 검색(같은 티커 → 티커 앞부분 → 티커순)
+  searchSymbols: (q: string, limit: number, signal?: AbortSignal) =>
+    apiClient.get<SymbolSearchResult[]>(`/market/symbols/search`, {
+      params: { q, limit },
+      signal,
+    }),
 
   // 특정 종목 현재가 조회
   getCurrentPrice: (symbol: string) =>
