@@ -211,6 +211,7 @@ public class AccountServiceImpl implements AccountService {
     }
 
     BigDecimal totalDeduction = calculation.getTotalKrwDeduction();
+    account.alignExchangeTotals();
     BigDecimal newAvgRate = accountCalculator.calculateNewAverageRate(account, krwAmount,
       exchangeRate);
 
@@ -229,7 +230,7 @@ public class AccountServiceImpl implements AccountService {
     userLogger.logExchangeComplete(accountId, calculation, account, referenceId);
 
     log.info("KRW→USD 환전 완료: 계좌={}, {}, 평균환율={}",
-      accountId, calculation.getSummary(), newAvgRate);
+      accountId, calculation.getSummary(), account.getAvgExchangeRate());
   }
 
   // USD → KRW 환전 처리

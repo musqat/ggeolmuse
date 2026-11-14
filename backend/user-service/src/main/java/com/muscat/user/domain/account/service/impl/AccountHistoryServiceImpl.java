@@ -44,7 +44,7 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
       throw new AccountHistoryException(AccountHistoryResponse.DUPLICATE_TRANSACTION);
     }
 
-    BigDecimal balanceAfter = calculateBalanceAfter(account, amount, currency);
+    BigDecimal balanceAfter = balanceAfter(account, currency);
 
     AccountHistory history = AccountHistory.builder()
       .account(account)
@@ -76,7 +76,7 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
       throw new AccountHistoryException(AccountHistoryResponse.DUPLICATE_TRANSACTION);
     }
 
-    BigDecimal balanceAfter = calculateBalanceAfter(account, exchangedAmount, toCurrency);
+    BigDecimal balanceAfter = balanceAfter(account, toCurrency);
 
     AccountHistory history = AccountHistory.builder()
       .account(account)
@@ -146,11 +146,11 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
     }
   }
 
-  // 거래 후 잔액 계산
-  private BigDecimal calculateBalanceAfter(Account account, BigDecimal amount, String currency) {
+  // 거래 후 잔액: 잔액 변경이 이미 반영된 계좌의 해당 통화 잔액
+  private BigDecimal balanceAfter(Account account, String currency) {
     return switch (currency) {
-      case "KRW" -> account.getBalanceKrw().add(amount);
-      case "USD" -> account.getBalanceUsd().add(amount);
+      case "KRW" -> account.getBalanceKrw();
+      case "USD" -> account.getBalanceUsd();
       default -> throw new AccountHistoryException(AccountHistoryResponse.INVALID_CURRENCY);
     };
   }

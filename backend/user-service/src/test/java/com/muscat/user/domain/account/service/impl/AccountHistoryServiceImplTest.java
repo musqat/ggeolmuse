@@ -120,6 +120,8 @@ class AccountHistoryServiceImplTest {
       assertThat(savedHistory.getAmount()).isEqualByComparingTo(amount);
       assertThat(savedHistory.getCurrency()).isEqualTo(currency);
       assertThat(savedHistory.getReferenceId()).isEqualTo(referenceId);
+      // 계좌는 입금이 이미 반영된 잔액
+      assertThat(savedHistory.getBalanceAfter()).isEqualByComparingTo(testAccount.getBalanceKrw());
     }
 
     @Test
@@ -229,7 +231,11 @@ class AccountHistoryServiceImplTest {
 
       // then
       assertThat(result).isNotNull();
-      verify(accountHistoryRepository).save(any(AccountHistory.class));
+      ArgumentCaptor<AccountHistory> historyCaptor = ArgumentCaptor.forClass(AccountHistory.class);
+      verify(accountHistoryRepository).save(historyCaptor.capture());
+      // 계좌는 환전이 이미 반영된 잔액
+      assertThat(historyCaptor.getValue().getBalanceAfter())
+        .isEqualByComparingTo(testAccount.getBalanceUsd());
     }
 
     @Test

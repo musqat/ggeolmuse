@@ -382,6 +382,8 @@ class AccountServiceImplTest {
       assertThat(testAccount.getBalanceKrw()).isLessThan(new BigDecimal("1000000"));
       assertThat(testAccount.getBalanceUsd()).isGreaterThan(BigDecimal.ZERO);
       assertThat(testAccount.getAvgExchangeRate()).isEqualByComparingTo(exchangeRate);
+      assertThat(testAccount.getTotalExchangedKrw()).isEqualByComparingTo(krwAmount);
+      assertThat(testAccount.getTotalExchangedUsd()).isEqualByComparingTo(expectedUsd);
 
       verify(accountHistoryService).createExchangeHistory(
         eq(accountId), eq("KRW"), eq("USD"), any(), any(), any(), anyString(), anyString());
@@ -655,6 +657,8 @@ class AccountServiceImplTest {
       // given
       testAccount.setBalanceUsd(new BigDecimal("1000.00"));
       testAccount.setAvgExchangeRate(new BigDecimal("1300.00"));
+      testAccount.setTotalExchangedKrw(new BigDecimal("1300000"));
+      testAccount.setTotalExchangedUsd(new BigDecimal("1000.00"));
       BigDecimal usdAmount = new BigDecimal("1000.00"); // 전액 환전
       BigDecimal exchangeRate = new BigDecimal("1300.00");
 
@@ -677,6 +681,7 @@ class AccountServiceImplTest {
       // then
       assertThat(testAccount.getAvgExchangeRate()).isEqualByComparingTo(BigDecimal.ZERO);
       assertThat(testAccount.getTotalExchangedKrw()).isEqualByComparingTo(BigDecimal.ZERO);
+      assertThat(testAccount.getTotalExchangedUsd()).isEqualByComparingTo(BigDecimal.ZERO);
     }
   }
 
