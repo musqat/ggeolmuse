@@ -81,7 +81,7 @@ class DividendBackfillServiceTest {
       new TradePosition("user-1", 20L, "AAPL"), new TradePosition("user-2", 21L, "AAPL")));
     given(dividendPayoutRepository.findDistinctPositions()).willReturn(List.of(
       new TradePosition("user-1", 20L, "AAPL"), new TradePosition("user-3", 22L, "MSFT")));
-    givenSettlements(new DividendSettlementDto(21L, "AAPL", EX_DATE, new BigDecimal("2.03")));
+    givenSettlements(new DividendSettlementDto(21L, "AAPL", EX_DATE, new BigDecimal("2.04")));
 
     int requested = dividendBackfillService.requestAll();
 
@@ -98,8 +98,8 @@ class DividendBackfillServiceTest {
     given(tradeRepository.findDistinctPositions(TradeStatus.COMPLETED)).willReturn(List.of());
     given(dividendPayoutRepository.findDistinctPositions()).willReturn(List.of());
     givenSettlements(
-      new DividendSettlementDto(23L, "AAPL", EX_DATE, new BigDecimal("2.03")),
-      new DividendSettlementDto(24L, "AAPL", EX_DATE, new BigDecimal("2.03")),
+      new DividendSettlementDto(23L, "AAPL", EX_DATE, new BigDecimal("2.04")),
+      new DividendSettlementDto(24L, "AAPL", EX_DATE, new BigDecimal("2.04")),
       new DividendSettlementDto(25L, "AAPL", EX_DATE, BigDecimal.ZERO));
     Trade cancelled = Trade.builder().userId("user-4").accountId(23L).symbol("AAPL").tradeType(TradeType.BUY)
       .quantity(new BigDecimal("10")).tradeDate(LocalDate.of(2024, 1, 2)).status(TradeStatus.CANCELLED).build();
@@ -120,7 +120,7 @@ class DividendBackfillServiceTest {
     given(tradeRepository.findDistinctPositions(TradeStatus.COMPLETED)).willReturn(List.of());
     given(dividendPayoutRepository.findDistinctPositions()).willReturn(List.of());
     given(userServiceClient.getDividendSettlements(0, 500)).willReturn(new DividendSettlementPageDto(
-      List.of(new DividendSettlementDto(21L, "AAPL", EX_DATE, new BigDecimal("2.03"))), false));
+      List.of(new DividendSettlementDto(21L, "AAPL", EX_DATE, new BigDecimal("2.04"))), false));
     given(userServiceClient.getDividendSettlements(1, 500)).willReturn(new DividendSettlementPageDto(
       List.of(new DividendSettlementDto(22L, "AAPL", EX_DATE, new BigDecimal("2.12"))), true));
 
@@ -144,16 +144,16 @@ class DividendBackfillServiceTest {
     given(marketServiceClientWrapper.getDividends(eq("AAPL"), eq("2024-01-02"), anyString()))
       .willReturn(List.of(new DividendDto("2024-02-09", new BigDecimal("0.24"))));
     givenSettlements(
-      new DividendSettlementDto(21L, "AAPL", EX_DATE, new BigDecimal("2.03")),
+      new DividendSettlementDto(21L, "AAPL", EX_DATE, new BigDecimal("2.04")),
       new DividendSettlementDto(22L, "AAPL", EX_DATE, new BigDecimal("2.12")));
 
     List<PayoutDiffResponse> diff = dividendBackfillService.diff();
 
-    // 0.24 × 10 → 세후 2.03(계좌 21 은 같아서 빠지고, 22 는 배당락일 전에 다 팔아 받을 몫이 0)
+    // 0.24 × 10 → 세후 2.04(계좌 21 은 같아서 빠지고, 22 는 배당락일 전에 다 팔아 받을 몫이 0)
     assertThat(diff).extracting(PayoutDiffResponse::accountId, d -> d.settled().toPlainString(),
         d -> d.target().toPlainString(), d -> d.delta().toPlainString(), PayoutDiffResponse::differingRows)
       .containsExactly(
-        tuple(20L, "0", "2.03", "2.03", 1),
+        tuple(20L, "0", "2.04", "2.04", 1),
         tuple(22L, "2.12", "0.00", "-2.12", 1));
     verify(marketServiceClientWrapper, times(1)).getDividends(eq("AAPL"), anyString(), anyString());
   }

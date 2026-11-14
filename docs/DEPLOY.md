@@ -89,6 +89,8 @@ PR 이 기존 데이터를 다시 계산하거나 다시 쌓아야 하면 그 PR
 
 - 보유 평균 단가를 거래일 순서로 쌓게 바꾼 배포: 관리자 토큰으로 `POST /api/admin/trade/holdings/rebuild` 를 한 번 부르고
   응답의 `changed`(바뀐 보유 행 수)를 본다. 다시 불러도 결과가 같다
+- 배당 원천징수율을 15% 로 바꾼 배포: 관리자 토큰으로 `GET /api/admin/trade/dividends/payout-diff` 로 넣은 배당과 받을 몫이 다른 계좌를 보고,
+  `POST /api/admin/trade/dividends/reconcile` 로 다시 계산해 차액을 보낸 뒤 `payout-diff` 가 빈 목록인지 본다
 - 평균 환율을 환전한 달러 누계로 바꾼 배포(user V12): `flyway_schema_history` 에 V12 가 success 인지 보고 아래가 0행인지 본다.
   롤링 중 옛 파드가 처리한 환전이 있으면 행이 나오는데, 그 계좌의 다음 환전 때 코드가 맞추고 바로 맞추려면 V12 의 UPDATE 셋을 다시 돌린다
 

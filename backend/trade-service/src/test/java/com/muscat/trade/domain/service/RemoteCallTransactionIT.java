@@ -163,7 +163,7 @@ class RemoteCallTransactionIT {
 
     assertThat(inTransaction).containsExactly(false);
     assertThat(dividendPayoutRepository.findByAccountIdAndSymbol(ACCOUNT, SYMBOL))
-      .singleElement().satisfies(payout -> assertThat(payout.getNetAmount()).isEqualByComparingTo("2.03"));
+      .singleElement().satisfies(payout -> assertThat(payout.getNetAmount()).isEqualByComparingTo("2.04"));
   }
 
   @Test

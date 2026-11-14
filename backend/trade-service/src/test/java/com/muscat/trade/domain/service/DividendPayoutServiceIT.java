@@ -116,8 +116,8 @@ class DividendPayoutServiceIT {
     int changed = dividendPayoutService.reconcile(USER, ACCOUNT_B, SYMBOL);
 
     assertThat(changed).isEqualTo(2);
-    assertThat(netAmounts(ACCOUNT_A)).containsExactly("2.03", "2.11", "2.20");
-    assertThat(netAmounts(ACCOUNT_B)).containsExactly("2.03", "0.00", "0.00");
+    assertThat(netAmounts(ACCOUNT_A)).containsExactly("2.04", "2.12", "2.21");
+    assertThat(netAmounts(ACCOUNT_B)).containsExactly("2.04", "0.00", "0.00");
     assertThat(dividendPayoutRepository.findAll()).hasSize(6);
   }
 
