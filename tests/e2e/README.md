@@ -85,9 +85,10 @@ market-data 를 여러 번 부른다. 여기가 초록이면 시스템이 살아
 
 ## CI
 
-`e2e.yml` 이 PR 과 master push 에서 돈다. 필수 체크로 두지 않는 이유는 스위트가
-Yahoo Finance 에 의존해서다. 코드와 무관하게 Yahoo 가 흔들리면 머지가 막힌다.
-머지 뒤 이미지를 만들기까지 8분이면 신호가 온다. 손으로 돌리려면 Actions 에서 workflow_dispatch 로 실행한다.
+`e2e.yml` 이 PR 과 master push 에서 돈다. 시세 · 환율이 고정이라 외부가 흔들려도 결과가 같아
+필수 체크(잡 이름 `E2E`)로 둔다. 문서(`*.md` · `docs/`)만 바뀐 PR 은 잡을 건너뛰고, 조건으로 건너뛴 잡은 필수 체크를 통과한다.
+릴리스(`release.yml`)는 머지 커밋의 CI 와 E2E 가 둘 다 성공한 뒤에만 이미지를 내보낸다.
+손으로 돌리려면 Actions 에서 workflow_dispatch 로 실행한다(손으로 돌린 실행은 릴리스로 이어지지 않음).
 
 **시크릿이 필요 없다.** `.env.example` 의 기본값만으로 뜬다.
 시세와 환율은 고정 데이터라 외부 키를 쓰지 않고, KEYCLOAK_SECRET 은 compose 에 박혀 있다.
