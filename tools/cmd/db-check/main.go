@@ -1,7 +1,4 @@
 // db-check 는 운영 DB 를 읽기 전용 백업 계정으로 쿼리하는 임시 파드를 만들고 숫자 결과만 출력한다
-//
-//	go run ./cmd/db-check trade 'SELECT count(*) FROM trades' user 'SELECT count(*) FROM users'
-//	go run ./cmd/db-check -render trade 'SELECT count(*) FROM trades' > pod.yaml   # 매니페스트만
 package main
 
 import (

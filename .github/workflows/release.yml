@@ -1,6 +1,6 @@
 name: 릴리스
 
-# master 커밋의 CI · E2E 가 둘 다 성공하면 머지한 PR 의 빌드할 서비스 칸에서 체크한 서비스(수동 실행은 입력한 서비스) 가운데 운영 배포 이후 바뀐 것만 빌드 · 푸시하고 운영 태그를 커밋(ArgoCD 반영)
+# master 커밋의 CI · E2E 가 둘 다 성공하면 머지한 PR 의 빌드할 서비스 칸에서 체크한 서비스(수동 실행은 입력한 서비스) 가운데 운영 배포 이후 바뀐 것만 빌드 · 푸시하고 운영 태그를 커밋(ArgoCD 반영), 끝에 롤아웃 · 스모크 요청 확인
 # 둘 중 나중에 끝난 쪽의 실행이 릴리스, 먼저 끝난 쪽의 실행은 건너뜀
 on:
   workflow_run:
@@ -219,6 +219,10 @@ jobs:
       SHA: ${{ needs.plan.outputs.sha }}
       TAGS: ${{ needs.plan.outputs.tags }}
       SERVICES: ${{ needs.plan.outputs.services }}
+    # 푸시한 태그 커밋과 태그를 바꾼 서비스(바꿀 서비스가 없으면 빈 값)
+    outputs:
+      commit: ${{ steps.tag.outputs.commit }}
+      services: ${{ steps.tag.outputs.services }}
     steps:
       # 배포 키가 없으면 바로 실패(키 없는 checkout 은 읽기 토큰이라 푸시 불가)
       - name: 배포 키 확인
@@ -246,6 +250,7 @@ jobs:
       # 그사이 올라간 운영 버전 이하면 실패), 커밋 직전에 Hub 이미지 레이블이 릴리스할 커밋인지 대조
       # 커밋 본문의 [skip ci] 로 CI · E2E · 릴리스가 다시 돌지 않음, 푸시가 앞선 커밋 말고 다른 이유로 막히면 바로 실패
       - name: 운영 태그 커밋
+        id: tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -272,6 +277,7 @@ jobs:
             git commit -qam "$subject" -m "[skip ci]"
             if out=$(git push -q origin HEAD:master 2>&1); then
               echo "### 릴리스 — $subject" >> "$GITHUB_STEP_SUMMARY"
+              printf 'commit=%s\nservices=%s\n' "$(git rev-parse HEAD)" "$still" >> "$GITHUB_OUTPUT"
               exit 0
             fi
             if ! grep -qE 'fetch first|non-fast-forward' <<<"$out"; then
@@ -283,3 +289,46 @@ jobs:
           done
           echo "master 에 푸시 실패"
           exit 1
+
+  # 태그 커밋의 ArgoCD 반영 · 상태와 공개 주소 스모크 요청 확인(운영 시간 밖이면 건너뜀)
+  rollout:
+    needs: deploy
+    if: needs.deploy.outputs.commit != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # 읽기 전용 ArgoCD 토큰 시크릿이 있는 환경
+    environment: release
+    env:
+      SERVICES: ${{ needs.deploy.outputs.services }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.deploy.outputs.commit }}
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: tools/go.mod
+          cache: false
+
+      # 토큰이 없으면 경고만(릴리스는 통과)
+      - name: 롤아웃 · 스모크 확인
+        working-directory: tools
+        env:
+          ARGOCD_TOKEN: ${{ secrets.ARGOCD_TOKEN }}
+          # ArgoCD 앞 Cloudflare Access 서비스 토큰
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: |
+          if [ -z "$ARGOCD_TOKEN" ]; then
+            echo "::warning::환경 release 에 ARGOCD_TOKEN 없음, 롤아웃 · 스모크 확인 건너뜀"
+            exit 0
+          fi
+          {
+            echo "### 롤아웃 확인"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          set +e
+          go run ./cmd/rollout-check -values ../helm/ggeolmuse/values-prod.yaml -only "$(jq -r 'join(",")' <<<"$SERVICES")" \
+            -argocd https://argocd.ggeolmuse.com -site https://ggeolmuse.com -wait 20m | tee -a "$GITHUB_STEP_SUMMARY"
+          code=${PIPESTATUS[0]}
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          exit "$code"

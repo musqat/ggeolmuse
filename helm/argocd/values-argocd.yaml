@@ -75,6 +75,11 @@ configs:
     # 서브도메인 기반
     server.insecure: "true"
 
+  rbac:
+    # rollout-check 계정 읽기 전용 권한
+    policy.csv: |
+      g, rollout-check, role:readonly
+
   cm:
     # ArgoCD 서버 URL
     url: ""
@@ -90,6 +95,9 @@ configs:
 
     # 상태 배지 활성화
     statusbadge.enabled: "true"
+
+    # 릴리스 롤아웃 확인용 계정(API 토큰만, 화면 로그인 없음)
+    accounts.rollout-check: apiKey
 
     # 리소스 제외 설정
     resource.exclusions: |

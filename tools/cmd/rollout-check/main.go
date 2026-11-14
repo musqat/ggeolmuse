@@ -1,6 +1,4 @@
-// rollout-check 는 Deployment 마다 이미지 태그 · 준비 · 재시작 수를 보고 운영 값 파일 태그와 대조한다
-//
-//	go run ./cmd/rollout-check -values ../helm/ggeolmuse/values-prod.yaml
+// rollout-check 는 배포된 이미지 태그 · 상태를 운영 값 파일 태그와 대조한다(-argocd 면 ArgoCD API 와 공개 주소로)
 package main
 
 import (
@@ -8,7 +6,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -25,6 +26,11 @@ func main() {
 	kubeconfig := flag.String("kubeconfig", "", "kubeconfig 경로(비우면 KUBECONFIG · ~/.kube/config)")
 	namespace := flag.String("namespace", "default", "네임스페이스")
 	valuesPath := flag.String("values", "", "대조할 운영 값 파일(비우면 대조 안 함)")
+	services := flag.String("only", "", "대조할 서비스(쉼표 구분, 비우면 값 파일 전부)")
+	argocd := flag.String("argocd", "", "ArgoCD 주소(클러스터 대신 ArgoCD API 로 확인, 토큰은 ARGOCD_TOKEN)")
+	app := flag.String("app", "ggeolmuse", "ArgoCD 애플리케이션 이름")
+	site := flag.String("site", "", "스모크 요청 · 운영 시간 확인용 공개 주소")
+	wait := flag.Duration("wait", 20*time.Minute, "ArgoCD 반영 대기 시간")
 	flag.Parse()
 	var want map[string]string
 	if *valuesPath != "" {
@@ -32,10 +38,23 @@ func main() {
 		if err == nil {
 			want, err = expectedTags(string(text))
 		}
+		if err == nil {
+			want, err = only(want, *services)
+		}
 		if err != nil {
 			fmt.Println("FAIL  값 파일:", err)
 			os.Exit(1)
 		}
+	}
+	if *argocd != "" {
+		p := public{argocd: strings.TrimSuffix(*argocd, "/"), app: *app, token: os.Getenv("ARGOCD_TOKEN"),
+			accessID: os.Getenv("CF_ACCESS_CLIENT_ID"), accessSecret: os.Getenv("CF_ACCESS_CLIENT_SECRET"),
+			site: strings.TrimSuffix(*site, "/"), wait: *wait, interval: 15 * time.Second,
+			client: &http.Client{Timeout: 20 * time.Second}, latest: masterTags(*valuesPath)}
+		ctx, cancel := context.WithTimeout(context.Background(), *wait+time.Minute)
+		code := runPublic(ctx, p, want, os.Stdout)
+		cancel()
+		os.Exit(code)
 	}
 	client, err := kube.Client(*kubeconfig)
 	if err != nil {
@@ -59,6 +78,45 @@ func expectedTags(text string) (map[string]string, error) {
 		want[svc] = e.Tag
 	}
 	return want, nil
+}
+
+// masterTags 는 origin master 값 파일의 서비스별 태그를 읽는 함수(못 읽으면 nil)
+func masterTags(path string) func(context.Context) map[string]string {
+	rel := filepath.ToSlash(path)
+	if !filepath.IsAbs(path) && !strings.HasPrefix(rel, "./") && !strings.HasPrefix(rel, "../") {
+		rel = "./" + rel
+	}
+	return func(ctx context.Context) map[string]string {
+		if exec.CommandContext(ctx, "git", "fetch", "-q", "--depth=1", "origin", "master").Run() != nil {
+			return nil
+		}
+		text, err := exec.CommandContext(ctx, "git", "show", "FETCH_HEAD:"+rel).Output()
+		if err != nil {
+			return nil
+		}
+		tags, err := expectedTags(string(text))
+		if err != nil {
+			return nil
+		}
+		return tags
+	}
+}
+
+// only 는 쉼표로 고른 서비스의 태그(비우면 전부, 값 파일에 없는 서비스는 오류)
+func only(want map[string]string, list string) (map[string]string, error) {
+	if strings.TrimSpace(list) == "" {
+		return want, nil
+	}
+	picked := map[string]string{}
+	for _, svc := range strings.Split(list, ",") {
+		svc = strings.TrimSpace(svc)
+		tag, ok := want[svc]
+		if !ok {
+			return nil, fmt.Errorf("값 파일에 %s 없음", svc)
+		}
+		picked[svc] = tag
+	}
+	return picked, nil
 }
 
 // run 은 Deployment 마다 한 줄씩 쓰고 종료 코드(0 통과 · 1 실패)

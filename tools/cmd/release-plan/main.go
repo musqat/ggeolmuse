@@ -1,10 +1,4 @@
 // release-plan 은 다시 빌드 · 배포할 서비스를 고른다
-//
-//	go run ./cmd/release-plan -head "$SHA" -body pr.md     # PR 에서 체크한 서비스와 태그
-//	go run ./cmd/release-plan -head "$SHA" -picks "backtest-service 1.8.0, frontend-web"   # 수동 실행
-//	go run ./cmd/release-plan -head "$SHA"                 # 운영 배포 이후 바뀐 서비스
-//	go run ./cmd/release-plan -head "$SHA" -only "$SERVICES" -tags "$TAGS"   # 배포 직전 다시 확인
-//	git diff --name-only A B | go run ./cmd/release-plan   # 파일 목록으로
 package main
 
 import (

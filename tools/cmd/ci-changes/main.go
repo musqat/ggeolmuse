@@ -1,6 +1,4 @@
 // ci-changes 는 CI 가 빌드 · 테스트할 대상을 고른다(master push 는 전부, PR 은 바뀐 폴더만)
-//
-//	go run ./cmd/ci-changes -event pull_request -base "$BASE" >> "$GITHUB_OUTPUT"
 package main
 
 import (

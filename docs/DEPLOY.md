@@ -43,7 +43,7 @@ mvn test
 master 에 머지하고 머지 커밋의 CI · E2E 가 둘 다 초록이면 `릴리스` 워크플로(`.github/workflows/release.yml`)가 머지한 PR 본문의
 `## 빌드할 서비스` 칸에서 체크한 서비스 가운데 운영 태그부터 바뀐 것만 빌드 · push 하고,
 `helm/ggeolmuse/values-prod.yaml` 의 태그를 바꾼 커밋을 master 에 올린다.
-ArgoCD 가 태그 커밋을 보고 롤아웃한다. CI 의 이미지 빌드는 Trivy 검사용이라 push 하지 않는다.
+ArgoCD 가 태그 커밋을 보고 롤아웃하고, 릴리스 끝의 `rollout` 잡이 새 이미지 반영과 스모크 요청을 확인한다. CI 의 이미지 빌드는 Trivy 검사용이라 push 하지 않는다.
 
     코드 머지  →  CI · E2E 초록  →  PR 에서 체크한 서비스 고르기  →  빌드 · push  →  태그 커밋(봇)  →  ArgoCD sync
 
