@@ -21,10 +21,10 @@ var imageLine = regexp.MustCompile(`(?m)^\s*-?\s*image:\s*["']?([^\s"']+)["']?\s
 // Hub 요청 한 번의 제한 시간
 var client = &http.Client{Timeout: 10 * time.Second}
 
-// 다시 시도 사이 기다리기(테스트에서 바꿈)
+// 다시 시도 사이 기다리기
 var sleep = time.Sleep
 
-// 429 · 5xx · 연결 실패 때 모두 몇 번까지 묻는지
+// 200 · 404 밖의 응답 · 연결 실패 때 모두 몇 번까지 묻는지
 const attempts = 3
 
 func main() {
@@ -111,7 +111,7 @@ func parseRef(image string) (string, string, bool) {
 	return name, tag, true
 }
 
-// lookup 은 200 이면 있음 · 404 면 없음, 그 밖(429 · 5xx · 연결 실패)은 다시 물은 뒤 마지막 응답 코드(연결 실패는 0)
+// lookup 은 200 이면 있음 · 404 면 없음, 그 밖의 응답 · 연결 실패는 다시 물은 뒤 마지막 응답 코드(연결 실패는 0)
 func lookup(hub, repo, tag string) (bool, int) {
 	status := 0
 	for i := range attempts {

@@ -238,7 +238,7 @@ func fromGateway(peers []networkingv1.NetworkPolicyPeer, gateway map[string]stri
 	return false, nil
 }
 
-// 선택자가 그 라벨을 고르는지
+// 선택자가 라벨 집합을 고르는지
 func selects(sel *metav1.LabelSelector, set map[string]string) (bool, error) {
 	s, err := metav1.LabelSelectorAsSelector(sel)
 	if err != nil {

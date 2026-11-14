@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -67,13 +68,17 @@ func run(args []string, summary string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-// 10진 실수만(16진 실수 표기는 거부)
+// 10진 유한 실수만(16진 표기 · NaN · Inf 거부)
 func parseMinimum(s string) (float64, error) {
 	s = strings.TrimSpace(s)
 	if strings.ContainsAny(s, "xX") {
 		return 0, fmt.Errorf("10진 숫자가 아님: %q", s)
 	}
-	return strconv.ParseFloat(s, 64)
+	v, err := strconv.ParseFloat(s, 64)
+	if err == nil && (math.IsNaN(v) || math.IsInf(v, 0)) {
+		return 0, fmt.Errorf("유한한 숫자가 아님: %q", s)
+	}
+	return v, err
 }
 
 // totals 의 줄 · 분기 커버리지 %(칸 이름 대소문자 구분)

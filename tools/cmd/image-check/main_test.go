@@ -60,7 +60,7 @@ func TestParseRef(t *testing.T) {
 	}
 }
 
-// 가짜 Hub: user-service 는 있음, busybox 는 첫 번째에 429 뒤 있음, 나머지는 404
+// 가짜 Hub: user-service 있음, busybox 첫 요청 429 뒤 있음, broken 500, 나머지 404
 func fakeHub(t *testing.T) *httptest.Server {
 	var busybox atomic.Int32
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

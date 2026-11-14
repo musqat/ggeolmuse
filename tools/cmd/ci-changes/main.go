@@ -1,4 +1,4 @@
-// ci-changes 는 CI 가 빌드 · 테스트할 대상을 고른다(master push 는 전부, PR 은 바뀐 폴더만, 베이스 이미지 받기의 Docker Hub 횟수 제한)
+// ci-changes 는 CI 가 빌드 · 테스트할 대상을 고른다(master push 는 전부, PR 은 바뀐 폴더만)
 //
 //	go run ./cmd/ci-changes -event pull_request -base "$BASE" >> "$GITHUB_OUTPUT"
 package main
@@ -17,13 +17,13 @@ import (
 // CI 이미지 빌드 대상인 자바 서비스(채팅 · 프론트는 따로)
 var javaServices = []string{"config-server", "gateway-server", "user-service", "trade-service", "market-data-service", "backtest-service"}
 
-// 바뀌면 PR 도 전부 빌드(모든 잡에 영향: CI 설정 · 공용 액션 · 이 명령 · 메이븐 설정)
+// 바뀌면 PR 도 전부 빌드(모든 잡에 영향: CI 설정 · 공용 액션 · ci-changes 명령 · 메이븐 설정)
 var everything = []string{".github/workflows/ci.yml", ".github/actions/", "tools/cmd/ci-changes/", ".mvn/"}
 
 // 바뀌면 자바 서비스 전부
 var sharedJava = []string{"backend/ggeolmuse-bom/", "backend/ggeolmuse-common/", "backend/messaging/", "backend/pom.xml", "backend/lombok.config"}
 
-// 바뀌면 채팅 테스트 · 이미지(채팅 서비스와 그 커버리지 기준 명령)
+// 바뀌면 채팅 테스트 · 이미지(chat-service · chat-coverage)
 var chatPaths = []string{"backend/chat-service/", "tools/cmd/chat-coverage/"}
 
 // changes 는 빌드할 자바 서비스 · 프론트 · 채팅과 전부 빌드하는지

@@ -52,7 +52,7 @@ func main() {
 // 빌드한 커밋 SHA(7 ~ 40자리)
 var commitSHA = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
 
-// applyTags 는 서비스마다 그 태그로 바꾼 값 파일과 봇 커밋 제목
+// applyTags 는 서비스마다 tags 의 태그로 바꾼 값 파일과 봇 커밋 제목
 func applyTags(text string, services []string, tags map[string]string, built string) (string, string, error) {
 	if !commitSHA.MatchString(built) {
 		return "", "", fmt.Errorf("-built 는 커밋 SHA(받은 값 %q)", built)

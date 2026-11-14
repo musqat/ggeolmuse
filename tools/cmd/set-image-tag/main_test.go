@@ -23,7 +23,7 @@ func TestApplyTags(t *testing.T) {
 	}
 }
 
-// 봇 커밋 제목에서 다시 읽을 수 있는 커밋만(16진수 7 ~ 40자리)
+// built 는 16진수 7 ~ 40자리 커밋만
 func TestApplyTagsBadBuilt(t *testing.T) {
 	tags := map[string]string{"frontend-web": "0123456"}
 	for _, built := range []string{"", "012345", "origin/master", "0123456G"} {
