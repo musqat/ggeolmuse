@@ -382,6 +382,8 @@ class AccountServiceImplTest {
       assertThat(testAccount.getBalanceKrw()).isLessThan(new BigDecimal("1000000"));
       assertThat(testAccount.getBalanceUsd()).isGreaterThan(BigDecimal.ZERO);
       assertThat(testAccount.getAvgExchangeRate()).isEqualByComparingTo(exchangeRate);
+      assertThat(testAccount.getTotalExchangedKrw()).isEqualByComparingTo(krwAmount);
+      assertThat(testAccount.getTotalExchangedUsd()).isEqualByComparingTo(expectedUsd);
 
       verify(accountHistoryService).createExchangeHistory(
         eq(accountId), eq("KRW"), eq("USD"), any(), any(), any(), anyString(), anyString());
@@ -501,7 +503,7 @@ class AccountServiceImplTest {
         .balanceUsd(BigDecimal.ZERO)
         .build();
 
-      given(accountRepository.findByIdAndUserId(accountId, userId))
+      given(accountRepository.findByIdAndUserIdWithLock(accountId, userId))
         .willReturn(Optional.of(emptyAccount));
 
       // when
@@ -516,7 +518,7 @@ class AccountServiceImplTest {
     @DisplayName("잔액이 있어도 계좌가 삭제된다 (로그만 기록)")
     void deleteAccount_HasBalance_StillDeletes() {
       // given - testAccount는 잔액이 있음
-      given(accountRepository.findByIdAndUserId(accountId, userId))
+      given(accountRepository.findByIdAndUserIdWithLock(accountId, userId))
         .willReturn(Optional.of(testAccount));
 
       // when
@@ -532,7 +534,7 @@ class AccountServiceImplTest {
     void deleteAccount_OtherUser_ThrowsException() {
       // given
       Long otherUserId = 999L;
-      given(accountRepository.findByIdAndUserId(accountId, otherUserId))
+      given(accountRepository.findByIdAndUserIdWithLock(accountId, otherUserId))
         .willReturn(Optional.empty());
 
       // when & then
@@ -655,6 +657,8 @@ class AccountServiceImplTest {
       // given
       testAccount.setBalanceUsd(new BigDecimal("1000.00"));
       testAccount.setAvgExchangeRate(new BigDecimal("1300.00"));
+      testAccount.setTotalExchangedKrw(new BigDecimal("1300000"));
+      testAccount.setTotalExchangedUsd(new BigDecimal("1000.00"));
       BigDecimal usdAmount = new BigDecimal("1000.00"); // 전액 환전
       BigDecimal exchangeRate = new BigDecimal("1300.00");
 
@@ -677,6 +681,7 @@ class AccountServiceImplTest {
       // then
       assertThat(testAccount.getAvgExchangeRate()).isEqualByComparingTo(BigDecimal.ZERO);
       assertThat(testAccount.getTotalExchangedKrw()).isEqualByComparingTo(BigDecimal.ZERO);
+      assertThat(testAccount.getTotalExchangedUsd()).isEqualByComparingTo(BigDecimal.ZERO);
     }
   }
 

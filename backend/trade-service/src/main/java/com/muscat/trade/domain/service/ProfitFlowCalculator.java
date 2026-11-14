@@ -10,7 +10,6 @@ import com.muscat.trade.domain.entity.Trade;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -30,10 +29,6 @@ public final class ProfitFlowCalculator {
     BigDecimal investedUsd, BigDecimal investedKrw) {
   }
 
-  static final Comparator<Trade> TRADE_ORDER = Comparator.comparing(Trade::getTradeDate)
-    .thenComparing(Trade::getExecutedAt, Comparator.nullsFirst(Comparator.<LocalDateTime>naturalOrder()))
-    .thenComparing(Trade::getId, Comparator.nullsFirst(Comparator.<Long>naturalOrder()));
-
   private ProfitFlowCalculator() {
   }
 
@@ -43,7 +38,7 @@ public final class ProfitFlowCalculator {
     List<LocalDate> days, int pricePrecision) {
     List<Trade> completed = trades.stream()
       .filter(trade -> trade.getStatus() == TradeStatus.COMPLETED)
-      .sorted(TRADE_ORDER)
+      .sorted(TradeOrder.LEDGER)
       .toList();
     List<DividendPayout> sortedPayouts = payouts.stream()
       .sorted(Comparator.comparing(DividendPayout::getExDate))

@@ -443,7 +443,8 @@ public class UserServiceImpl implements UserService {
     emailTokenRepository.deleteByUser(user);
     passwordResetTokenRepository.deleteByUser(user);
 
-    List<Account> accounts = accountRepository.findByUserIdWithUser(user.getId());
+    // 계좌는 행 잠금 뒤 다시 읽은 지금 버전으로 지움
+    List<Account> accounts = accountRepository.findByUserIdWithLock(user.getId());
     accounts.forEach(account -> accountEventProducer.publishAccountDeleted(account, "회원 탈퇴"));
     accountRepository.deleteAll(accounts);
     log.debug("사용자 계좌 삭제: userId={}, 계좌수={}", user.getId(), accounts.size());

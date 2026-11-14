@@ -1,5 +1,6 @@
 package com.muscat.user.domain.account.entity;
 
+import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.user.domain.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -11,6 +12,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
@@ -34,6 +36,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 public class Account {
 
   public static final BigDecimal DEFAULT_SLIPPAGE_RATE = new BigDecimal("0.001");
+
+  // 두 환전 누계의 비율과 평균 환율이 어긋났다고 보는 차이(1%)
+  private static final BigDecimal TOTALS_TOLERANCE = new BigDecimal("0.01");
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -64,6 +69,11 @@ public class Account {
   @Builder.Default
   private BigDecimal totalExchangedKrw = BigDecimal.ZERO;
 
+  // 총 환전으로 받은 USD 금액 (평균 환율 계산용)
+  @Column(name = "total_exchanged_usd", precision = 15, scale = 2, nullable = false)
+  @Builder.Default
+  private BigDecimal totalExchangedUsd = BigDecimal.ZERO;
+
   // 내 평균 환율 (KRW → USD 환전 시 가중평균)
   @Column(name = "avg_exchange_rate", precision = 10, scale = 6, nullable = false)
   @Builder.Default
@@ -84,6 +94,10 @@ public class Account {
 
   @UpdateTimestamp
   private LocalDateTime updatedAt;
+
+  // 낡은 상태로 덮어쓰는 갱신을 막는 버전
+  @Version
+  private Long version;
 
   @Override
   public String toString() {
@@ -136,28 +150,60 @@ public class Account {
     this.balanceUsd = this.balanceUsd.add(amount);
   }
 
-  // KRW -> USD 환전
+  // KRW -> USD 환전(새 평균이 정상 환율 범위 밖이면 이번 환전 금액으로 두 누계 다시 시작)
   public void executeExchangeKrwToUsd(BigDecimal krwToDeduct, BigDecimal usdToAdd,
                                        BigDecimal newAvgRate, BigDecimal krwAmountForAvg) {
     validateSufficientKrwBalance(krwToDeduct);
 
     this.balanceKrw = this.balanceKrw.subtract(krwToDeduct);
     this.balanceUsd = this.balanceUsd.add(usdToAdd);
-    this.totalExchangedKrw = this.totalExchangedKrw.add(krwAmountForAvg);
-    this.avgExchangeRate = newAvgRate;
+    if (MoneyUtils.isExchangeRateInRange(newAvgRate)) {
+      this.totalExchangedKrw = this.totalExchangedKrw.add(krwAmountForAvg);
+      this.totalExchangedUsd = this.totalExchangedUsd.add(usdToAdd);
+      this.avgExchangeRate = newAvgRate;
+    } else {
+      this.totalExchangedKrw = krwAmountForAvg;
+      this.totalExchangedUsd = usdToAdd;
+      this.avgExchangeRate = ratio(krwAmountForAvg, usdToAdd);
+    }
   }
 
-  // USD -> KRW 환전
+  // 평균 환율과 1% 넘게 어긋난 환전 누계 맞춤(평균 환율 0 이면 두 누계 0, 아니면 달러 누계 = 원화 누계 / 평균 환율)
+  public void alignExchangeTotals() {
+    if (this.avgExchangeRate.signum() == 0) {
+      this.totalExchangedKrw = BigDecimal.ZERO;
+      this.totalExchangedUsd = BigDecimal.ZERO;
+      return;
+    }
+    if (this.totalExchangedUsd.signum() > 0 && ratio(this.totalExchangedKrw, this.totalExchangedUsd)
+        .subtract(this.avgExchangeRate).abs()
+        .compareTo(this.avgExchangeRate.multiply(TOTALS_TOLERANCE)) <= 0) {
+      return;
+    }
+    this.totalExchangedUsd = MoneyUtils.roundUsd(
+        this.totalExchangedKrw.divide(this.avgExchangeRate, 10, MoneyUtils.ROUND_MODE));
+  }
+
+  // USD -> KRW 환전(남은 달러 잔액 비율만큼 두 환전 누계 축소, 달러 잔액이 0 이면 평균 환율도 0)
   public void executeExchangeUsdToKrw(BigDecimal usdToDeduct, BigDecimal krwToAdd) {
     validateSufficientUsdBalance(usdToDeduct);
 
+    BigDecimal usdBefore = this.balanceUsd;
     this.balanceUsd = this.balanceUsd.subtract(usdToDeduct);
     this.balanceKrw = this.balanceKrw.add(krwToAdd);
 
-    // USD 잔액이 0이면 평균환율 리셋
-    if (this.balanceUsd.compareTo(BigDecimal.ZERO) == 0) {
+    BigDecimal remaining = usdBefore.signum() > 0
+        ? this.balanceUsd.divide(usdBefore, 10, MoneyUtils.ROUND_MODE)
+        : BigDecimal.ZERO;
+    this.totalExchangedKrw = MoneyUtils.roundKrw(this.totalExchangedKrw.multiply(remaining));
+    this.totalExchangedUsd = MoneyUtils.roundUsd(this.totalExchangedUsd.multiply(remaining));
+    if (this.balanceUsd.signum() == 0) {
       this.avgExchangeRate = BigDecimal.ZERO;
-      this.totalExchangedKrw = BigDecimal.ZERO;
     }
+  }
+
+  // 원화 / 달러 환율(소수 6자리)
+  private static BigDecimal ratio(BigDecimal krw, BigDecimal usd) {
+    return MoneyUtils.roundExchangeRate(krw.divide(usd, 10, MoneyUtils.ROUND_MODE));
   }
 }

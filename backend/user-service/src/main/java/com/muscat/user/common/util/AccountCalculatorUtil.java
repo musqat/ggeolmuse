@@ -59,16 +59,16 @@ public class AccountCalculatorUtil {
     };
   }
 
-  // 평균 환율 계산
+  // 평균 환율 계산(환전한 원화 누계 / 환전으로 받은 달러 누계)
   public BigDecimal calculateNewAverageRate(Account account, BigDecimal newKrwAmount, BigDecimal newExchangeRate) {
     BigDecimal currentTotalKrw = account.getTotalExchangedKrw() != null ?
         account.getTotalExchangedKrw() : BigDecimal.ZERO;
-    BigDecimal currentUsdBalance = account.getBalanceUsd() != null ?
-        account.getBalanceUsd() : BigDecimal.ZERO;
+    BigDecimal currentTotalUsd = account.getTotalExchangedUsd() != null ?
+        account.getTotalExchangedUsd() : BigDecimal.ZERO;
 
     BigDecimal newTotalKrw = currentTotalKrw.add(newKrwAmount);
     BigDecimal additionalUsd = MoneyUtils.calculateKrwToUsd(newKrwAmount, newExchangeRate);
-    BigDecimal newTotalUsd = currentUsdBalance.add(additionalUsd);
+    BigDecimal newTotalUsd = currentTotalUsd.add(additionalUsd);
 
     if (MoneyUtils.isEqual(newTotalUsd, BigDecimal.ZERO, "USD")) {
       return BigDecimal.ZERO;

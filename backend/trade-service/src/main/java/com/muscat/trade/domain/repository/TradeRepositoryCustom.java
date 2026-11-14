@@ -15,7 +15,7 @@ public interface TradeRepositoryCustom {
     // 그 날짜 전에 이 종목을 체결한 사용자 · 계좌 쌍(계좌 순)
     List<TradePosition> findPositionsTradedBefore(String symbol, TradeStatus status, LocalDate before);
 
-    // FIFO 방식으로 매도 가능 수량 계산
+    // 매도일에 팔 수 있는 수량(뒤 날짜 누적 보유도 음수가 안 되는 만큼)
     BigDecimal calculateSellableQuantity(
             String userId,
             Long accountId,

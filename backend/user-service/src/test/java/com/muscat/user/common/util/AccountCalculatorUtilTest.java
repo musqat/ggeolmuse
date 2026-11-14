@@ -269,12 +269,13 @@ class AccountCalculatorUtilTest {
   class CalculateNewAverageRateTests {
 
     @Test
-    @DisplayName("추가 환전 시 평균 환율 재계산")
+    @DisplayName("추가 환전 시 평균 환율은 USD 잔액이 아니라 환전으로 받은 달러 누계로 다시 구한다")
     void calculateNewAverageRate_Success() {
       // given
       Account account = Account.builder()
-        .balanceUsd(new BigDecimal("1000"))
+        .balanceUsd(new BigDecimal("100"))
         .totalExchangedKrw(new BigDecimal("1300000"))
+        .totalExchangedUsd(new BigDecimal("1000"))
         .build();
 
       BigDecimal newKrwAmount = new BigDecimal("1400000");
@@ -290,23 +291,25 @@ class AccountCalculatorUtilTest {
     }
 
     @Test
-    @DisplayName("USD 잔액이 0인 경우 평균 환율 0 반환")
+    @DisplayName("매수로 USD 잔액이 0 이어도 환전으로 받은 달러 누계로 평균 환율을 구한다")
     void calculateNewAverageRate_ZeroUsd() {
       // given
       Account account = Account.builder()
         .balanceUsd(BigDecimal.ZERO)
-        .totalExchangedKrw(BigDecimal.ZERO)
+        .totalExchangedKrw(new BigDecimal("1300000"))
+        .totalExchangedUsd(new BigDecimal("1000"))
         .build();
 
-      BigDecimal newKrwAmount = new BigDecimal("1300000");
-      BigDecimal newRate = new BigDecimal("1300");
+      BigDecimal newKrwAmount = new BigDecimal("1400000");
+      BigDecimal newRate = new BigDecimal("1400");
 
       // when
       BigDecimal newAvgRate = accountCalculatorUtil.calculateNewAverageRate(
         account, newKrwAmount, newRate);
 
       // then
-      assertThat(newAvgRate).isEqualByComparingTo(newRate);
+      // (1,300,000 + 1,400,000) KRW / (1,000 + 1,000) USD = 1,350
+      assertThat(newAvgRate).isEqualByComparingTo("1350");
     }
 
     @Test

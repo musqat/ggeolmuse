@@ -578,7 +578,7 @@ class TradingServiceImplTest {
     }
 
     @Test
-    @DisplayName("FIFO 방식 위반 시 매도 실패 (매도일 이전 매수 물량 부족)")
+    @DisplayName("매도일과 뒤 날짜 누적 보유로 센 매도 가능 수량보다 많이 팔면 매도 실패")
     void sellStock_FifoViolation_ThrowsException() {
       // given
       BigDecimal existingQuantity = new BigDecimal("20");
@@ -590,7 +590,7 @@ class TradingServiceImplTest {
         .avgPurchasePrice(new BigDecimal("140.00"))
         .build();
 
-      BigDecimal sellableQuantity = new BigDecimal("5"); // FIFO로 계산한 매도 가능 수량
+      BigDecimal sellableQuantity = new BigDecimal("5"); // 매도일과 뒤 날짜 누적 보유 가운데 가장 작은 값
 
       given(holdingsRepository.findByUserIdAndAccountIdAndSymbol(
         TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))

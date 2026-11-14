@@ -22,4 +22,7 @@ public interface AccountRepositoryCustom {
     // 락을 걸고 계좌 조회 (계좌 ID만으로)
     Optional<Account> findByIdWithLock(Long accountId);
 
+    // 사용자의 계좌를 ID 순으로 모두 행 잠금한 뒤 DB 값으로 다시 채운 계좌
+    List<Account> findByUserIdWithLock(Long userId);
+
 }

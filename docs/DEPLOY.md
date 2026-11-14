@@ -82,3 +82,15 @@ Java 서비스는 멀티스테이지 Dockerfile 이고 빌드 컨텍스트가 �
 ArgoCD 자신은 `helm/argocd/application-argocd.yaml` 이 차트 버전과 `values-argocd.yaml` 로 맞춘다.
 자동 동기화는 꺼 두어, 콘솔에서 바꾼 값은 OutOfSync 로만 보인다. 값을 바꾸는 PR 을 머지한 뒤
 ArgoCD 화면에서 `argocd` 앱의 차이를 보고 Sync 한다. 차트 버전은 `install-argocd.sh` 와 같게 둔다.
+
+## 배포 뒤 한 번 하는 일
+
+PR 이 기존 데이터를 다시 계산하거나 다시 쌓아야 하면 그 PR 의 첫 배포 뒤 한 번 한다.
+
+- 보유 평균 단가를 거래일 순서로 쌓게 바꾼 배포: 관리자 토큰으로 `POST /api/admin/trade/holdings/rebuild` 를 한 번 부르고
+  응답의 `changed`(바뀐 보유 행 수)를 본다. 다시 불러도 결과가 같다
+- 평균 환율을 환전한 달러 누계로 바꾼 배포(user V12): `flyway_schema_history` 에 V12 가 success 인지 보고 아래가 0행인지 본다.
+  롤링 중 옛 파드가 처리한 환전이 있으면 행이 나오는데, 그 계좌의 다음 환전 때 코드가 맞추고 바로 맞추려면 V12 의 UPDATE 셋을 다시 돌린다
+
+      SELECT id FROM account WHERE total_exchanged_krw > 0
+        AND (total_exchanged_usd = 0 OR ABS(total_exchanged_krw / total_exchanged_usd - avg_exchange_rate) > 0.01);
