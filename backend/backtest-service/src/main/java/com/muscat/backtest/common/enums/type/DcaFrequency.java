@@ -1,6 +1,6 @@
 package com.muscat.backtest.common.enums.type;
 
-// 적립식 매수 주기와 그 거래에 남기는 매수 이유
+// 적립식 매수 주기와 주기마다 거래에 남기는 매수 이유
 public enum DcaFrequency {
   DAILY("매일 정액", "매일"),    // 첫 매수일부터 거래일마다
   WEEKLY("매주 정액", "매주"),   // 첫 매수일의 요일마다
@@ -12,6 +12,11 @@ public enum DcaFrequency {
   DcaFrequency(String trigger, String every) {
     this.trigger = trigger;
     this.every = every;
+  }
+
+  // 비우면 매달
+  public static DcaFrequency orMonthly(DcaFrequency frequency) {
+    return frequency != null ? frequency : MONTHLY;
   }
 
   public String trigger() {

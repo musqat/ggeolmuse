@@ -3,11 +3,19 @@ package com.muscat.backtest.common.enums.type;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-@DisplayName("적립식 주기의 매수 이유")
+@DisplayName("적립식 주기의 기본값 · 매수 이유")
 class DcaFrequencyTest {
+
+  @Test
+  @DisplayName("주기를 비우면 매달, 정하면 정한 주기")
+  void orMonthly() {
+    assertThat(DcaFrequency.orMonthly(null)).isEqualTo(DcaFrequency.MONTHLY);
+    assertThat(DcaFrequency.orMonthly(DcaFrequency.WEEKLY)).isEqualTo(DcaFrequency.WEEKLY);
+  }
 
   @ParameterizedTest(name = "{0} · {1}개월 · {2}주 → {3}")
   @CsvSource({

@@ -64,7 +64,7 @@ public class DCAStrategy implements InvestmentStrategy {
     BacktestLogger.setStrategyContext(request.getUserId(), "DCA", request.getSymbol());
 
     try {
-      DcaFrequency frequency = request.getFrequency() != null ? request.getFrequency() : DcaFrequency.MONTHLY;
+      DcaFrequency frequency = DcaFrequency.orMonthly(request.getFrequency());
       log.info("DCA 전략 실행 시작: {} - {} 회당 {}", request.getSymbol(), frequency, request.perPurchase());
 
       LocalDate today = LocalDate.now();
@@ -134,7 +134,7 @@ public class DCAStrategy implements InvestmentStrategy {
     List<StrategyTransaction> transactions = new ArrayList<>();
     Integer sharesPerPurchase = request.getSharesPerPurchase();
 
-    // 넣은 돈 · 예산 부족으로 사지 못한 회차 수와 그 첫 계획일
+    // 넣은 돈 · 예산 부족으로 사지 못한 회차 수 · 처음 못 산 계획일
     BigDecimal totalInvestedSoFar = BigDecimal.ZERO;
     BigDecimal investmentLimit = request.getTotalInvestmentLimit();
     int shortRounds = 0;
