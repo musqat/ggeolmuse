@@ -1,7 +1,4 @@
 // set-image-tag 는 운영 값 파일에서 서비스의 이미지 태그 줄만 바꾼다
-//
-//	go run ./cmd/set-image-tag ../helm/ggeolmuse/values-prod.yaml 7c93f2b user-service chat-service
-//	go run ./cmd/set-image-tag -tags '{"user-service":"1.8.0"}' -built "$SHA" ../helm/ggeolmuse/values-prod.yaml user-service   # 서비스별 태그 · 봇 커밋 제목
 package main
 
 import (

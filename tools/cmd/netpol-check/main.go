@@ -1,6 +1,4 @@
 // netpol-check 는 NetworkPolicy 가 게이트웨이에서 business 서비스의 containerPort 로 오는 트래픽을 여는지 대조한다
-//
-//	go run ./cmd/netpol-check rendered.yaml
 package main
 
 import (

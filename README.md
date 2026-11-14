@@ -165,11 +165,11 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 ## 테스트
 
-백엔드 **2,658 개**, 프론트 **1,648 개**, E2E **69 개**.
+백엔드 **2,671 개**, 프론트 **1,648 개**, E2E **70 개**.
 
 | 서비스 | 테스트 |
 |---|---|
-| market-data-service | 559 |
+| market-data-service | 572 |
 | user-service | 452 |
 | backtest-service | 983 |
 | trade-service | 416 |
@@ -179,11 +179,11 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 | messaging | 25 |
 | chat-service | 158 |
 | frontend-web | 1,648 |
-| E2E (Playwright) | 69 |
+| E2E (Playwright) | 70 |
 
 E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마다 돈다.
-필수 체크로 두지 않은 이유는 시세를 Yahoo Finance 에서 받아서다 — 코드와
-무관하게 외부가 흔들리면 머지가 막힌다.
+시세 · 환율은 market-data 의 고정 데이터라 외부가 흔들려도 결과가 같다.
+그래서 필수 체크로 두고, 릴리스도 같은 커밋의 E2E 성공을 기다린다.
 
 <details>
 <summary><b>커버리지와 그 한계</b></summary>
@@ -198,7 +198,7 @@ CI 에서 그 아래면 빌드를 실패시킨다(자바 JaCoCo · chat `tools/c
 | user | 98.4% | 87.7% |
 | trade | 99.5% | 96.6% |
 | backtest | 99.0% | 94.3% |
-| market-data | 97.9% | 88.2% |
+| market-data | 97.9% | 88.3% |
 | chat | 98.4% | 89.6% |
 | frontend-web | 95.0% | 89.6% |
 
@@ -247,7 +247,7 @@ MSK·ElastiCache→파드 내 실행. values 파일만 바꾸면 되돌릴 수 �
 ```
 GitHub Actions          빌드 · 테스트 · Trivy 스캔(PR)
         ↓
-GitHub Actions 릴리스    CI 초록 뒤 PR 에서 체크한 서비스 가운데 바뀐 것만 push, 운영 태그 커밋
+GitHub Actions 릴리스    CI · E2E 초록 뒤 PR 에서 체크한 서비스 가운데 바뀐 것만 push, 운영 태그 커밋
         ↓
 ArgoCD (GitOps)         Helm 차트를 추적해 동기화
         ↓

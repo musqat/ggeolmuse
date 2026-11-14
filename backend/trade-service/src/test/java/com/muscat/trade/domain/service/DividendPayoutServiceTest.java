@@ -81,7 +81,7 @@ class DividendPayoutServiceTest {
       .build();
   }
 
-  // 세후는 손으로 셈: 0.24 × 10 → 2.03, 0.25 × 10 → 2.11, 0.26 × 10 → 2.20
+  // 세후는 손으로 셈: 0.24 × 10 → 2.04, 0.25 × 10 → 2.12, 0.26 × 10 → 2.21
   private static DividendPayout payout(LocalDate exDate, String perShare, String gross, String tax, String net) {
     return DividendPayout.of(USER, ACCOUNT, SYMBOL, exDate,
       new DividendAmounts(new BigDecimal(perShare), new BigDecimal("10"), new BigDecimal(gross),
@@ -91,9 +91,9 @@ class DividendPayoutServiceTest {
 
   private static List<DividendPayout> paidThreeTimes() {
     return new ArrayList<>(List.of(
-      payout(EX_2024_02, "0.24", "2.40", "0.37", "2.03"),
-      payout(EX_2025_05, "0.25", "2.50", "0.39", "2.11"),
-      payout(EX_2026_08, "0.26", "2.60", "0.40", "2.20")));
+      payout(EX_2024_02, "0.24", "2.40", "0.36", "2.04"),
+      payout(EX_2025_05, "0.25", "2.50", "0.38", "2.12"),
+      payout(EX_2026_08, "0.26", "2.60", "0.39", "2.21")));
   }
 
   private void givenTrades(Trade... trades) {
@@ -127,9 +127,9 @@ class DividendPayoutServiceTest {
     assertThat(published(3)).extracting(DividendPayout::getExDate, p -> p.getNetAmount().toPlainString(),
         p -> p.getShares().stripTrailingZeros().toPlainString())
       .containsExactly(
-        tuple(EX_2024_02, "2.03", "10"),
-        tuple(EX_2025_05, "2.11", "10"),
-        tuple(EX_2026_08, "2.20", "10"));
+        tuple(EX_2024_02, "2.04", "10"),
+        tuple(EX_2025_05, "2.12", "10"),
+        tuple(EX_2026_08, "2.21", "10"));
     verify(dividendPayoutRepository, times(3)).save(any(DividendPayout.class));
   }
 
@@ -147,7 +147,7 @@ class DividendPayoutServiceTest {
 
     assertThat(changed).isEqualTo(2);
     assertThat(published(2)).extracting(DividendPayout::getExDate).containsExactly(EX_2025_05, EX_2026_08);
-    assertThat(existing.get(0).getNetAmount()).isEqualByComparingTo("2.03");
+    assertThat(existing.get(0).getNetAmount()).isEqualByComparingTo("2.04");
     assertThat(existing.get(1).getNetAmount()).isEqualByComparingTo("0");
     assertThat(existing.get(1).getShares()).isEqualByComparingTo("0");
     assertThat(existing.get(2).getNetAmount()).isEqualByComparingTo("0");
@@ -167,7 +167,7 @@ class DividendPayoutServiceTest {
     assertThat(changed).isEqualTo(3);
     assertThat(published(3)).extracting(DividendPayout::getExDate, p -> p.getNetAmount().toPlainString())
       .containsExactly(
-        tuple(EX_2024_02, "2.03"),
+        tuple(EX_2024_02, "2.04"),
         tuple(EX_2025_05, "0.00"),
         tuple(EX_2026_08, "0.00"));
   }
@@ -199,9 +199,9 @@ class DividendPayoutServiceTest {
     assertThat(published(4)).extracting(DividendPayout::getExDate, p -> p.getNetAmount().toPlainString())
       .containsExactly(
         tuple(before, "0.00"),
-        tuple(EX_2024_02, "2.03"),
-        tuple(EX_2025_05, "2.11"),
-        tuple(EX_2026_08, "2.20"));
+        tuple(EX_2024_02, "2.04"),
+        tuple(EX_2025_05, "2.12"),
+        tuple(EX_2026_08, "2.21"));
   }
 
   @Test
@@ -293,9 +293,9 @@ class DividendPayoutServiceTest {
       trade(2, TradeType.BUY, "5", LocalDate.of(2025, 1, 2)),
       trade(3, TradeType.SELL, "10", LocalDate.of(2025, 6, 1)));
     given(dividendPayoutRepository.findByUserId(USER)).willReturn(List.of(
-      payout(LocalDate.of(2024, 2, 9), "0.24", "2.40", "0.37", "2.03"),
-      payout(LocalDate.of(2025, 2, 7), "0.25", "3.75", "0.58", "3.17"),
-      payout(LocalDate.of(2025, 5, 12), "0.25", "3.75", "0.58", "3.17")));
+      payout(LocalDate.of(2024, 2, 9), "0.24", "2.40", "0.36", "2.04"),
+      payout(LocalDate.of(2025, 2, 7), "0.25", "3.75", "0.56", "3.19"),
+      payout(LocalDate.of(2025, 5, 12), "0.25", "3.75", "0.56", "3.19")));
 
     // 남은 건 2025-01-02 매수 5주(주당 0.25 × 5주 → 세후 1.06, 배당락일 둘)
     assertThat(dividendPayoutService.dividendsOnHeldShares(USER).get(POSITION)).isEqualByComparingTo("2.12");
@@ -312,15 +312,15 @@ class DividendPayoutServiceTest {
       .build();
     givenUserTrades(trade(1, TradeType.BUY, "10", LocalDate.of(2024, 1, 2)), msft);
     given(dividendPayoutRepository.findByUserId(USER)).willReturn(List.of(
-      payout(EX_2024_02, "0.24", "2.40", "0.37", "2.03"),
+      payout(EX_2024_02, "0.24", "2.40", "0.36", "2.04"),
       DividendPayout.of(USER, OTHER_ACCOUNT, "MSFT", LocalDate.of(2024, 2, 14),
         DividendAmounts.of(new BigDecimal("0.75"), new BigDecimal("3")), LocalDateTime.of(2026, 10, 1, 9, 0))));
 
     Map<TradePosition, BigDecimal> totals = dividendPayoutService.dividendsOnHeldShares(USER);
 
-    // MSFT 0.75 × 3주 → 세전 2.25 · 세금 0.35 · 세후 1.90
-    assertThat(totals.get(POSITION)).isEqualByComparingTo("2.03");
-    assertThat(totals.get(new TradePosition(USER, OTHER_ACCOUNT, "MSFT"))).isEqualByComparingTo("1.90");
+    // MSFT 0.75 × 3주 → 세전 2.25 · 세금 0.34 · 세후 1.91
+    assertThat(totals.get(POSITION)).isEqualByComparingTo("2.04");
+    assertThat(totals.get(new TradePosition(USER, OTHER_ACCOUNT, "MSFT"))).isEqualByComparingTo("1.91");
     verify(tradeRepository, times(1)).findByUserIdAndStatusOrderByExecutedAtAscIdAsc(USER, TradeStatus.COMPLETED);
     verify(dividendPayoutRepository, times(1)).findByUserId(USER);
   }
@@ -332,8 +332,8 @@ class DividendPayoutServiceTest {
     DividendPayout zeroed = DividendPayout.of(USER, ACCOUNT, SYMBOL, EX_2025_05,
       DividendAmounts.of(new BigDecimal("0.25"), BigDecimal.ZERO), LocalDateTime.of(2026, 10, 1, 9, 0));
     given(dividendPayoutRepository.findByUserId(USER)).willReturn(List.of(
-      payout(EX_2024_02, "0.24", "2.40", "0.37", "2.03"), zeroed));
+      payout(EX_2024_02, "0.24", "2.40", "0.36", "2.04"), zeroed));
 
-    assertThat(dividendPayoutService.dividendsOnHeldShares(USER).get(POSITION)).isEqualByComparingTo("2.03");
+    assertThat(dividendPayoutService.dividendsOnHeldShares(USER).get(POSITION)).isEqualByComparingTo("2.04");
   }
 }

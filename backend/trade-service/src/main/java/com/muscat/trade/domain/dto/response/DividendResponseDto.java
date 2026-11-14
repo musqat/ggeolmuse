@@ -26,10 +26,10 @@ public record DividendResponseDto(
     @Schema(description = "세전 배당금", example = "2.40")
     BigDecimal grossAmount,
 
-    @Schema(description = "원천징수 세액 (15.4%)", example = "0.37")
+    @Schema(description = "원천징수 세액 (15%)", example = "0.36")
     BigDecimal taxAmount,
 
-    @Schema(description = "세후 배당금", example = "2.03")
+    @Schema(description = "세후 배당금", example = "2.04")
     BigDecimal netAmount,
 
     @Schema(description = "배당락일", example = "2024-03-15")

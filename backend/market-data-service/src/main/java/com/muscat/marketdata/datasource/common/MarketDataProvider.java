@@ -38,6 +38,14 @@ public final class MarketDataProvider {
     List<Asset> fetchSymbols();
   }
 
+  // 상장 종목 목록(isCapped 는 상한으로 목록 앞부분만 받는지)
+  public interface ListingSource {
+
+    List<Asset> fetch();
+
+    boolean isCapped();
+  }
+
   // 종목 하나의 상세(미리보기 · 등록, AlphaVantage 는 OVERVIEW, Yahoo 는 chart meta)
   public interface AssetInfoSource {
     Asset getAsset(String symbol);

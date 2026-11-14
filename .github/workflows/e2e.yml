@@ -1,26 +1,56 @@
 name: E2E
 
-# PR · master push 에서 실행(Yahoo Finance 에 기대는 스위트라 필수 체크 아님)
+# PR · master push 에서 실행(스택은 market-data 고정 시세, docker-compose.e2e.yml)
+# 필수 체크(잡 이름 E2E)
 on:
   pull_request:
     branches: [ master ]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
   push:
     branches: [ master ]
   workflow_dispatch:
 
-# 같은 PR 에 새 커밋이 오면 이전 실행 취소(master 는 도는 실행은 끝까지, 대기 실행은 새 머지 실행으로 바뀜)
+# 같은 PR 에 새 커밋이 오면 이전 실행 취소(master 는 커밋마다 따로 끝까지, 릴리스가 커밋마다 결과를 봄)
 concurrency:
-  group: e2e-${{ github.event.pull_request.number || github.ref }}
+  group: e2e-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # 문서만 바뀐 PR 은 E2E 건너뜀(조건으로 건너뛴 잡은 필수 체크에서 통과)
+  changes:
+    name: e2e-changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.pick.outputs.run }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: pick
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(git diff --name-only "$BASE" HEAD)
+          if grep -qvE '(\.md$|^docs/)' <<<"$files"; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
   e2e:
     name: E2E
+    needs: changes
+    # 문서만 바뀐 PR 만 건너뜀(고르기가 실패해도 E2E 는 돎)
+    if: ${{ !cancelled() && needs.changes.outputs.run != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    # docker compose 명령마다 기본 파일 위에 E2E 덮어쓰기
+    env:
+      COMPOSE_FILE: docker-compose.yml:docker-compose.e2e.yml
 
     steps:
       - uses: actions/checkout@v7
@@ -31,10 +61,21 @@ jobs:
           cache: npm
           cache-dependency-path: tests/e2e/package-lock.json
 
-      # 시크릿 없이 .env.example 기본값으로 기동(Yahoo 는 키 없음, 선택 키는 없으면 안 씀)
+      # 시크릿 없이 .env.example 기본값으로 기동(시세 · 환율은 고정 데이터, 선택 키는 없으면 안 씀)
       - name: compose 환경 변수 준비
         working-directory: docker-compose
         run: cp .env.example .env
+
+      # 설정 리포 main 끝 커밋을 이 실행의 config-server 라벨로 고정하고 잡 요약에 남김(못 읽으면 main)
+      - name: 설정 리포 커밋 고정
+        run: |
+          head=$(git ls-remote https://github.com/musqat/ggeolmuse-config.git refs/heads/main | cut -f1)
+          if [ -n "$head" ]; then
+            echo "CONFIG_GIT_LABEL=$head" >> "$GITHUB_ENV"
+            echo "설정 리포 커밋 ${head:0:7}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning title=설정 리포::main 끝 커밋을 못 읽어 main 으로 띄움"
+          fi
 
       # 익명 받기 횟수 제한(429) 회피용 읽기 전용 토큰
       - name: Docker Hub 로그인

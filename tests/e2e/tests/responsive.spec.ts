@@ -4,6 +4,9 @@ import { test, expect } from '@playwright/test';
 // devices[...] 는 describe 안에서 쓰면 워커를 새로 띄워 안 씀
 const MOBILE = { width: 390, height: 844 };
 
+// 고정 시세 종목 · 기간 안의 차트
+const CHART = '/charts/FQA?period=custom&start=2025-01-02&end=2025-06-30';
+
 /** 가로 스크롤이 생기면 화면이 넘친 것 */
 async function overflowsHorizontally(page: import('@playwright/test').Page) {
   return page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
@@ -13,14 +16,14 @@ test.describe('모바일 폭', () => {
   test.use({ viewport: MOBILE });
 
   test('차트 화면이 가로로 넘치지 않는다', async ({ page }) => {
-    await page.goto('/charts');
+    await page.goto(CHART);
     await page.waitForLoadState('networkidle');
 
     expect(await overflowsHorizontally(page), '가로 스크롤이 생겼다').toBe(false);
   });
 
   test('지표 패널이 접혀 있다', async ({ page }) => {
-    await page.goto('/charts');
+    await page.goto(CHART);
     await page.waitForLoadState('networkidle');
 
     // 좁은 폭에서 패널이 보이면 캔들 영역을 밀어냄
@@ -28,7 +31,7 @@ test.describe('모바일 폭', () => {
   });
 
   test('지표 버튼으로 시트를 열어 지표를 바꾼다', async ({ page }) => {
-    await page.goto('/charts');
+    await page.goto(CHART);
     await page.waitForLoadState('networkidle');
 
     // 옆 패널 대신 차트 위 버튼
@@ -62,7 +65,7 @@ test.describe('데스크톱 폭', () => {
       if (m.type() === 'error') errors.push(m.text());
     });
 
-    await page.goto('/charts');
+    await page.goto(CHART);
     await page.waitForLoadState('networkidle');
 
     expect(errors, `콘솔 에러: ${errors.join(' / ')}`).toHaveLength(0);

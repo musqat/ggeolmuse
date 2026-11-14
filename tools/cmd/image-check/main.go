@@ -1,6 +1,4 @@
 // image-check 는 렌더한 매니페스트의 이미지 태그가 Docker Hub 에 있는지 대조한다(다른 레지스트리 · digest 고정은 건너뜀)
-//
-//	go run ./cmd/image-check ../rendered.yaml
 package main
 
 import (

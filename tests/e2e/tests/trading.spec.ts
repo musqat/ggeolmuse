@@ -40,23 +40,16 @@ test('입금하고 사면 보유 종목과 거래 내역에 남는다', async ()
     KRW_DEPOSIT
   );
 
-  // 미국 주식은 USD 로 매수(환율은 스택이 들고 있는 값 그대로)
+  // 미국 주식은 USD 로 매수(고정 시세 FQA 의 끝에서 다섯째 거래일)
   const { symbol } = await pickSymbol(plain);
   const { end: tradeDate } = await priceRange(plain, symbol);
+  expect([symbol, tradeDate]).toEqual(['FQA', '2025-06-24']);
 
-  // 환율은 스택에 있으면 쓰고 없으면 직접 넣음(환율 수집 Yahoo 가 비어도 거래 확인이 막히지 않게)
+  // 거래일 고정 환율로 환전
   const fxRes = await plain.post(`${API_URL}/market/fx/bulk`, { data: [tradeDate] });
   expect(fxRes.status(), '환율 조회가 실패했다').toBe(200);
-  const collected = Object.values(await fxRes.json())[0] as number | undefined;
-
-  const MANUAL_RATE = 1350;
-  const rate = collected && collected > 0 ? collected : MANUAL_RATE;
-  if (!collected) {
-    test.info().annotations.push({
-      type: 'note',
-      description: `스택에 ${tradeDate} 환율이 없어 수동 환율 ${MANUAL_RATE} 을 썼다`,
-    });
-  }
+  const rate = Object.values(await fxRes.json())[0] as number;
+  expect(rate, '거래일 환율이 고정 환율과 다르다').toBe(1348.71);
 
   const exchange = await auth.post(`${API_URL}/accounts/${accountId}/exchange`, {
     data: {
@@ -122,7 +115,7 @@ test('입금하고 사면 보유 종목과 거래 내역에 남는다', async ()
   const balance = Number(cap.availableBalance);
   const price = Number(cap.currentPrice);
   const maxShares = Number(cap.maxShares);
-  expect(price, '현재가가 없다').toBeGreaterThan(0);
+  expect(price, '거래일 종가가 고정 시세와 다르다').toBe(134.97);
 
   // 최대 수량의 총액은 슬리피지와 수수료까지 넣어도 잔고 안
   expect(
@@ -203,6 +196,8 @@ test('판 만큼 매도 가능 금액이 그대로 들어오고 보유 · 거래
     const sellCap = await canSell.json();
     expect(Number(sellCap.maxSellableShares), '산 한 주를 팔 수 없다고 한다').toBe(1);
     const proceeds = Number(Number(sellCap.totalValue).toFixed(2));
+    // 고정 종가에서 슬리피지 0.1% · 수수료 0.2% 를 뺀 금액
+    expect(proceeds, '매도 가능 금액이 고정 시세 계산과 다르다').toBe(134.57);
 
     const before = await usdBalance();
     const sell = await auth.post(`${API_URL}/trade/sell`, { data: order });

@@ -1,6 +1,4 @@
 // chat-coverage 는 coverage.py JSON 의 줄 · 분기 커버리지를 최소치와 비교하고 표를 잡 요약에 남긴다
-//
-//	go run ./cmd/chat-coverage <coverage.json> <줄 최소치> <분기 최소치>
 package main
 
 import (
