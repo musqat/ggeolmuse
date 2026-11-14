@@ -1,6 +1,6 @@
 import { test as setup, expect, request } from '@playwright/test';
 import { API_URL, BASE_URL, MARKET_URL, SEED_EMAIL, SEED_PASSWORD, STORAGE_STATE, TOKEN_FILE } from '../playwright.config';
-import { pickPricedSymbols } from './fixtures';
+import { FIXED_SYMBOLS, pickPricedSymbols } from './fixtures';
 
 // 로그인 화면 대신 localStorage 의 accessToken 으로 로그인 상태를 만듦
 setup('시드 계정으로 토큰을 받아 저장한다', async () => {
@@ -9,7 +9,7 @@ setup('시드 계정으로 토큰을 받아 저장한다', async () => {
   // 그 주소로 받은 시세가 있는 종목 수(조회 실패는 0)
   const pricedCount = (baseUrl: string) => async () => {
     try {
-      return (await pickPricedSymbols(api, 10, baseUrl)).length;
+      return (await pickPricedSymbols(api, FIXED_SYMBOLS.length, baseUrl)).length;
     } catch {
       return 0;
     }
@@ -22,7 +22,7 @@ setup('시드 계정으로 토큰을 받아 저장한다', async () => {
       intervals: [2000],
       message: '시세가 있는 종목이 생기지 않는다. 스택 기동이 끝나지 않았다',
     })
-    .toBeGreaterThanOrEqual(10);
+    .toBeGreaterThanOrEqual(FIXED_SYMBOLS.length);
 
   // 게이트웨이 경로 확인
   await expect
@@ -31,7 +31,7 @@ setup('시드 계정으로 토큰을 받아 저장한다', async () => {
       intervals: [2000],
       message: '게이트웨이가 market-data 로 보내지 못한다',
     })
-    .toBeGreaterThanOrEqual(10);
+    .toBeGreaterThanOrEqual(FIXED_SYMBOLS.length);
 
   const res = await api.post(`${API_URL}/auth/login`, {
     data: { email: SEED_EMAIL, password: SEED_PASSWORD },

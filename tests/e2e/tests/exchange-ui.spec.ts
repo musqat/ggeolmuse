@@ -2,7 +2,7 @@ import { test, expect, request, type APIRequestContext } from '@playwright/test'
 import { readFile } from 'node:fs/promises';
 import { API_URL, TOKEN_FILE } from '../playwright.config';
 
-// 화면에서 입금 → 환전 → 잔액(환율은 스택에 없어도 돌게 수동 입력, 만든 계좌는 끝에 지움)
+// 화면에서 입금 → 환전 → 잔액(환율은 허용 범위 가운데 값을 수동 입력, 만든 계좌는 끝에 지움)
 
 const DEPOSIT_KRW = 2_000_000;
 const EXCHANGE_USD = 1_000;
@@ -51,16 +51,11 @@ test('화면에서 입금하고 환전하면 계좌 잔액이 바뀐다', async 
 
     await card.getByRole('button', { name: '환전', exact: true }).click();
 
-    // 현재 환율을 서버가 주면 그 값, 못 주면(503) 다시 시도 · 수동 환율 안내
+    // 현재 환율은 고정 환율 마지막 날(2025-06-30) 값
     const current = await auth.get(`${API_URL}/accounts/exchange-rates/current`);
-    if (current.ok()) {
-      const shown = Number(await current.json()).toLocaleString('en-US');
-      await expect(page.getByRole('dialog', { name: '환전' }).getByText(`현재 환율: ₩${shown}/USD`), '환전 창의 현재 환율이 서버 값과 다르다').toBeVisible();
-    } else {
-      expect(current.status(), `현재 환율이 503 이 아닌 이유로 실패한다: ${await current.text()}`).toBe(503);
-      await expect(page.getByRole('alert'), '환율을 못 받았는데 안내가 없다').toContainText('환율을 불러오지 못했습니다');
-      await expect(page.getByRole('button', { name: '다시 시도' })).toBeVisible();
-    }
+    expect(current.status(), `현재 환율을 못 받는다: ${await current.text()}`).toBe(200);
+    expect(await current.json(), '현재 환율이 고정 환율 마지막 값이 아니다').toBe(1346.17);
+    await expect(page.getByRole('dialog', { name: '환전' }).getByText('현재 환율: ₩1,346.17/USD'), '환전 창의 현재 환율이 서버 값과 다르다').toBeVisible();
 
     await page.getByPlaceholder('환전할 KRW 금액').fill(String(exchangeKrw));
     await page.getByLabel('수동 환율 입력').check();

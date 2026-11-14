@@ -1,0 +1,11 @@
+# E2E 스택 덮어쓰기(docker compose -f docker-compose.yml -f docker-compose.e2e.yml): 고정 시세
+services:
+
+  market-data-service:
+    environment:
+      # 외부 시세 호출 대신 jar 안 고정 데이터(FQA · FQB · SPY, 2023-07-03 ~ 2025-06-30)
+      SPRING_PROFILES_ACTIVE: "dev,no-file-logging,fixed-quotes"
+      # 일봉 수집 · 환율 채우기 기간이 고정 데이터 첫날까지 닿는 10년
+      SYMBOL_LOOKBACK_DAYS: "3650"
+      FX_BACKFILL_ENABLED: "true"
+      FX_BACKFILL_LOOKBACK: "3650"

@@ -1,7 +1,10 @@
 import { APIRequestContext } from '@playwright/test';
 import { API_URL } from '../playwright.config';
 
-// 로컬 compose 는 알파벳 앞쪽 38종목 · 2년치만 받아 종목 · 기간을 박지 않음
+// 스택은 market-data 고정 시세(docker-compose.e2e.yml)라 고른 종목 · 기간과 계산 값이 늘 같음
+
+/** 고정 시세 종목(시가총액 순, market-data 의 fixed-quotes/symbols.csv) */
+export const FIXED_SYMBOLS = ['FQA', 'FQB', 'SPY'];
 
 export interface TestSymbol {
   symbol: string;

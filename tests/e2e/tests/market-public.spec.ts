@@ -1,6 +1,6 @@
 import { test, expect, request } from '@playwright/test';
 import { API_URL } from '../playwright.config';
-import { pickSymbol } from './fixtures';
+import { FIXED_SYMBOLS, pickSymbol } from './fixtures';
 
 /**
  * 가입 전에도 열린 시장 데이터(라우트가 바뀌어 닫히면 첫 화면부터 빔)
@@ -22,7 +22,10 @@ test.describe('공개 시장 데이터', () => {
     });
     expect(paged.status()).toBe(200);
     const body = await paged.json();
-    expect(body.content?.length ?? 0).toBeGreaterThan(0);
+    // 시가총액 순 고정 종목과 2025-06-30 종가
+    const rows: { symbol: string; currentPrice: number }[] = body.content ?? [];
+    expect(rows.map((row) => row.symbol), '종목이 고정 시세 종목이 아니다').toEqual(FIXED_SYMBOLS);
+    expect(rows.map((row) => row.currentPrice), '현재가가 고정 시세 마지막 종가가 아니다').toEqual([141.8, 61.94, 568.58]);
 
     await api.dispose();
   });
@@ -60,11 +63,15 @@ test.describe('공개 시장 데이터', () => {
 
     const body = await res.json();
     const rows = Array.isArray(body) ? body : (Object.values(body)[0] as Array<{ date: string }>);
-    expect(rows.length, '차트를 그릴 시세가 없다').toBeGreaterThan(30);
-
     // 날짜 정렬(차트가 정렬을 믿고 그려 뒤섞이면 선이 갈지자)
     const dates = rows.map((r) => r.date);
     expect(dates, '날짜가 오름차순이 아니다').toEqual([...dates].sort());
+
+    // 고정 시세 FQA 의 500 거래일(첫날 · 마지막 날 시가 · 종가)
+    expect(symbol).toBe('FQA');
+    expect(rows, '차트를 그릴 시세가 고정 시세 거래일 수와 다르다').toHaveLength(500);
+    expect(rows[0]).toMatchObject({ date: '2023-07-03', openPrice: 102.11, closePrice: 102.09 });
+    expect(rows[rows.length - 1]).toMatchObject({ date: '2025-06-30', openPrice: 140.92, closePrice: 141.8 });
 
     await api.dispose();
   });

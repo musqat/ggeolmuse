@@ -94,6 +94,15 @@ docker-compose logs -f user-service  # 로그 확인
 docker-compose down               # 종료
 ```
 
+### E2E 스택
+
+`docker-compose.e2e.yml` 을 위에 얹으면 market-data 가 `fixed-quotes` 프로필로 외부 시세 대신 jar 안 고정 데이터
+(FQA · FQB · SPY, 2023-07-03 ~ 2025-06-30)를 쓴다. CI 의 E2E 와 같은 스택이다.
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d --build
+```
+
 ---
 
 ## 자주 겪는 문제
