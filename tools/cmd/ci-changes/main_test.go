@@ -16,25 +16,27 @@ func TestPick(t *testing.T) {
 		files []string
 		want  changes
 	}{
-		{"push 는 전부", true, nil, changes{javaServices, true, true, true}},
-		{"서비스 한 곳만 바뀐 PR", false, []string{"backend/user-service/src/main/java/A.java"},
+		{"push: 전부", true, nil, changes{javaServices, true, true, true}},
+		{"user-service 파일: user-service", false, []string{"backend/user-service/src/main/java/A.java"},
 			changes{[]string{"user-service"}, false, false, false}},
-		{"테스트 파일도 그 서비스를 빌드(CI 는 테스트를 돌림)", false, []string{"backend/trade-service/src/test/java/T.java"},
+		{"trade-service 테스트 파일: trade-service", false, []string{"backend/trade-service/src/test/java/T.java"},
 			changes{[]string{"trade-service"}, false, false, false}},
-		{"공용 모듈이면 자바 서비스 전부", false, []string{"backend/ggeolmuse-common/src/main/java/C.java"},
+		{"공용 모듈: 자바 전부", false, []string{"backend/ggeolmuse-common/src/main/java/C.java"},
 			changes{javaServices, false, false, false}},
-		{"BOM · messaging · backend/pom.xml 도", false, []string{"backend/ggeolmuse-bom/pom.xml", "backend/messaging/x", "backend/pom.xml"},
+		{"BOM · messaging · 상위 pom: 자바 전부", false, []string{"backend/ggeolmuse-bom/pom.xml", "backend/messaging/x", "backend/pom.xml"},
 			changes{javaServices, false, false, false}},
-		{"서비스 pom 은 그 서비스만", false, []string{"backend/user-service/pom.xml"}, changes{[]string{"user-service"}, false, false, false}},
-		{"CI 설정이면 전부", false, []string{".github/workflows/ci.yml"}, changes{javaServices, true, true, true}},
-		{"공용 액션이면 전부", false, []string{".github/actions/trivy-image-scan/action.yml"}, changes{javaServices, true, true, true}},
-		{"메이븐 설정이면 전부", false, []string{".mvn/ci-settings.xml"}, changes{javaServices, true, true, true}},
-		{"이 명령이 바뀌면 전부", false, []string{"tools/cmd/ci-changes/main.go"}, changes{javaServices, true, true, true}},
-		{"다른 워크플로는 전부가 아님", false, []string{".github/workflows/release.yml"}, changes{[]string{}, false, false, false}},
-		{"프론트만", false, []string{"frontend-web/src/App.tsx"}, changes{[]string{}, true, false, false}},
-		{"채팅만", false, []string{"backend/chat-service/app/main.py"}, changes{[]string{}, false, true, false}},
-		{"문서만", false, []string{"docs/DEPLOY.md", "README.md"}, changes{[]string{}, false, false, false}},
-		{"PR 에 바뀐 파일이 없으면 아무것도", false, nil, changes{[]string{}, false, false, false}},
+		{"user-service pom: user-service", false, []string{"backend/user-service/pom.xml"}, changes{[]string{"user-service"}, false, false, false}},
+		{"CI 설정: 전부", false, []string{".github/workflows/ci.yml"}, changes{javaServices, true, true, true}},
+		{"공용 액션: 전부", false, []string{".github/actions/trivy-image-scan/action.yml"}, changes{javaServices, true, true, true}},
+		{"메이븐 설정: 전부", false, []string{".mvn/ci-settings.xml"}, changes{javaServices, true, true, true}},
+		{"ci-changes 명령: 전부", false, []string{"tools/cmd/ci-changes/main.go"}, changes{javaServices, true, true, true}},
+		{"릴리스 워크플로: 없음", false, []string{".github/workflows/release.yml"}, changes{[]string{}, false, false, false}},
+		{"lombok 설정: 자바 전부", false, []string{"backend/lombok.config"}, changes{javaServices, false, false, false}},
+		{"프론트 파일: 프론트", false, []string{"frontend-web/src/App.tsx"}, changes{[]string{}, true, false, false}},
+		{"채팅 파일: 채팅", false, []string{"backend/chat-service/app/main.py"}, changes{[]string{}, false, true, false}},
+		{"채팅 커버리지 명령: 채팅", false, []string{"tools/cmd/chat-coverage/main.go"}, changes{[]string{}, false, true, false}},
+		{"문서: 없음", false, []string{"docs/DEPLOY.md", "README.md"}, changes{[]string{}, false, false, false}},
+		{"바뀐 파일 없음: 없음", false, nil, changes{[]string{}, false, false, false}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -61,7 +63,7 @@ func TestWrite(t *testing.T) {
 	}
 }
 
-// 임시 저장소: 갈라진 뒤 PR 쪽에서 바뀐 파일만(master 쪽 변경은 빼고), 한글 경로는 따옴표 없이
+// 갈라진 뒤 PR 쪽에서 바뀐 파일만(master 쪽 변경 제외, 한글 경로는 따옴표 없이)
 func TestChangedFiles(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git 없음")

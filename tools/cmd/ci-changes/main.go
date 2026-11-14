@@ -21,7 +21,10 @@ var javaServices = []string{"config-server", "gateway-server", "user-service", "
 var everything = []string{".github/workflows/ci.yml", ".github/actions/", "tools/cmd/ci-changes/", ".mvn/"}
 
 // 바뀌면 자바 서비스 전부
-var sharedJava = []string{"backend/ggeolmuse-bom/", "backend/ggeolmuse-common/", "backend/messaging/", "backend/pom.xml"}
+var sharedJava = []string{"backend/ggeolmuse-bom/", "backend/ggeolmuse-common/", "backend/messaging/", "backend/pom.xml", "backend/lombok.config"}
+
+// 바뀌면 채팅 테스트 · 이미지(채팅 서비스와 그 커버리지 기준 명령)
+var chatPaths = []string{"backend/chat-service/", "tools/cmd/chat-coverage/"}
 
 // changes 는 빌드할 자바 서비스 · 프론트 · 채팅과 전부 빌드하는지
 type changes struct {
@@ -61,7 +64,7 @@ func pick(push bool, files []string) changes {
 		}
 	}
 	c.frontend = all || slices.ContainsFunc(files, func(f string) bool { return strings.HasPrefix(f, "frontend-web/") })
-	c.chat = all || slices.ContainsFunc(files, func(f string) bool { return strings.HasPrefix(f, "backend/chat-service/") })
+	c.chat = all || slices.ContainsFunc(files, func(f string) bool { return under(f, chatPaths) })
 	return c
 }
 

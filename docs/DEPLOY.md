@@ -69,8 +69,8 @@ ArgoCD 가 그 커밋을 보고 롤아웃한다. CI 의 이미지 빌드는 Triv
   키가 없으면 첫 단계에서 멈추니 키를 넣고 실패한 작업만 다시 돌린다
 
 처음 머지 전 준비: Deploy keys 에 쓰기 키 하나 등록 → 환경 `release`(배포 브랜치 master)에 `RELEASE_DEPLOY_KEY` →
-ruleset `master` 우회 대상에 Deploy keys(Always), 규칙은 삭제 · 강제 푸시 금지 · PR 필수 · 필수 검사(`changes` · `tools` · `terraform` ·
-`scan-manifests`) → enforcement Active.
+ruleset `master` 우회 대상에 Deploy keys(Always), 규칙은 삭제 · 강제 푸시 금지 · PR 필수 · 필수 검사 `ci-result`(CI 잡
+결과를 모은 잡) → enforcement Active.
 
 Java 서비스는 멀티스테이지 Dockerfile 이고 빌드 컨텍스트가 레포 루트다.
 `ggeolmuse-bom` 을 먼저 설치해야 해서다. frontend 와 chat-service 만 자기 폴더가

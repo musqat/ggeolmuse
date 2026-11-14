@@ -165,7 +165,7 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 ## 테스트
 
-백엔드 **2,639 개**, 프론트 **1,647 개**, E2E **69 개**.
+백엔드 **2,642 개**, 프론트 **1,647 개**, E2E **69 개**.
 
 | 서비스 | 테스트 |
 |---|---|
@@ -175,7 +175,7 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 | trade-service | 412 |
 | gateway-server | 21 |
 | config-server | 5 |
-| ggeolmuse-common | 36 |
+| ggeolmuse-common | 39 |
 | messaging | 25 |
 | chat-service | 158 |
 | frontend-web | 1,647 |
