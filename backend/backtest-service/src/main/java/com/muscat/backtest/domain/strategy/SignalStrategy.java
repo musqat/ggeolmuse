@@ -40,14 +40,12 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
   private static final class Book {
     private final TradeLedger ledger;
     private final TradeLedger.Holding holding = new TradeLedger.Holding();
-    private final TrailingStop trailing;
-    private final TakeProfitLadder ladder;
+    private final PartialExits partials;
     private boolean started;
 
-    private Book(TradeLedger ledger, TrailingStop trailing, TakeProfitLadder ladder) {
+    private Book(TradeLedger ledger, PartialExits partials) {
       this.ledger = ledger;
-      this.trailing = trailing;
-      this.ladder = ladder;
+      this.partials = partials;
     }
 
     // 첫 매수 전이거나 판 돈이 남았는지(판 돈을 양도세로 다 냈으면 사지 않음)
@@ -62,8 +60,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
         ? ledger.buyWithCash(holding, planned, date, price, ledger.cash(), trigger, null)
         : ledger.buyWithDeposit(holding, planned, date, price, request.getInvestmentAmount(), trigger, null);
       started = true;
-      trailing.open(buy.getPrice(), buy.getPrice());
-      ladder.open();
+      partials.open(buy.getPrice(), buy.getPrice());
     }
 
     // 받은 날짜 · 가격으로 정한 주식 · 원가를 판 거래(계획일은 신호 난 날)
@@ -79,17 +76,12 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
 
     // 트레일링 스탑 다음 부분 익절에 닿으면 정한 몫을 당일 종가에 팖(다 팔았으면 true)
     private boolean sellPart(LocalDate date, BigDecimal close) {
-      SaleShare trailed = trailing.check(close, holding.shares(), holding.cost());
-      SaleShare exit = trailed != null ? trailed : ladder.check(close, holding.shares(), holding.cost());
+      SaleShare exit = partials.check(close, holding.shares(), holding.cost());
       if (exit == null) {
         return false;
       }
       StrategyTransaction sale = sell(date, date, close, exit.shares(), exit.cost(), exit.trigger());
-      if (exit == trailed) {
-        trailing.sold(sale.getPrice());
-      } else {
-        ladder.sold();
-      }
+      partials.sold(sale.getPrice());
       return exit.all();
     }
   }
@@ -210,8 +202,8 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
     List<SkippedRound> skippedRounds = new ArrayList<>();
     TradeLedger ledger = new TradeLedger(request.getTradingFeeRate(), request.getPurchaseFxRate(), fxRates,
       Boolean.TRUE.equals(request.getCapitalGainsTax()));
-    Book book = new Book(ledger, TrailingStop.of(request.getTrailingStopRate(), request.getTrailingSellRate()),
-      TakeProfitLadder.of(request.getPartialTakeProfits()));
+    Book book = new Book(ledger, PartialExits.of(request.getTrailingStopRate(), request.getTrailingSellRate(),
+      request.getPartialTakeProfits()));
     TradeLedger.Holding position = book.holding;
     SignalHolding target = new SignalHolding(signal, signalPrices, start);
     Set<LocalDate> harvestDates = YearEndHarvest.enabled(request.getCapitalGainsTax(), request.getYearEndHarvest())

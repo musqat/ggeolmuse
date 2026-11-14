@@ -3,7 +3,6 @@ package com.muscat.backtest.domain.strategy;
 import com.muscat.backtest.common.calculation.TradeStatsCalculator;
 import com.muscat.backtest.common.engine.CapitalGainsTaxPayer;
 import com.muscat.backtest.common.engine.StrategyFinalizer;
-import com.muscat.backtest.common.engine.TradeLedger;
 import com.muscat.backtest.common.engine.YearEndHarvest;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.SkipReason;
@@ -12,7 +11,6 @@ import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.logging.BacktestLogger;
-import com.muscat.backtest.common.util.RoundPurchase;
 import com.muscat.backtest.common.util.BacktestDataUtils;
 import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.FxRates;
@@ -21,15 +19,11 @@ import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.StrategyRequest;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
-import com.muscat.backtest.domain.model.PurchaseDecision;
 import com.muscat.backtest.domain.model.SkippedRound;
-import com.muscat.backtest.domain.model.SkippedSpan;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import com.muscat.commonlib.dto.OHLCPriceDto;
-import com.muscat.commonlib.util.MoneyUtils;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,8 +43,6 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
   private final MarketDataClientWrapper marketData;
   private final ResponseMapper responseMapper;
-
-  private static final PurchaseDecision NO_BUY = new PurchaseDecision(false, null, "");
 
   @Override
   public StrategyType getStrategyType() {
@@ -127,16 +119,8 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
   // 회당 금액 · 주식 수 가운데 하나만, 예산 · 최대 횟수는 비우거나 0 보다 큼
   private void validateLimits(ConditionalStrategyRequest request) {
-    if ((request.getAmountPerPurchase() == null) == (request.getSharesPerPurchase() == null)) {
-      throw new BacktestException(BacktestResponse.AMOUNT_OR_SHARES_REQUIRED);
-    }
-    if (request.getAmountPerPurchase() != null && !Decimals.isPositive(request.getAmountPerPurchase())) {
-      throw new BacktestException(BacktestResponse.STRATEGY_AMOUNT_PER_PURCHASE_REQUIRED);
-    }
-    BacktestRequestValidator.requireShares(request.getSharesPerPurchase());
-    if (request.getTotalInvestment() != null && !Decimals.isPositive(request.getTotalInvestment())) {
-      throw new BacktestException(BacktestResponse.INVALID_TOTAL_INVESTMENT);
-    }
+    BacktestRequestValidator.requirePerPurchase(request.getAmountPerPurchase(), request.getSharesPerPurchase());
+    BacktestRequestValidator.requireBudget(request.getTotalInvestment());
     if (request.getMaxPurchases() != null && request.getMaxPurchases() <= 0) {
       throw new BacktestException(BacktestResponse.INVALID_MAX_PURCHASES);
     }
@@ -168,11 +152,6 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     return YearEndHarvest.enabled(request.getCapitalGainsTax(), request.getYearEndHarvest());
   }
 
-  // 남은 예산(null 이면 제한 없음)을 넘는 금액인지
-  private static boolean exceeds(BigDecimal amount, BigDecimal budgetLeft) {
-    return budgetLeft != null && amount.compareTo(budgetLeft) > 0;
-  }
-
   // 조건부 매수 실행(시세가 깨진 날 종가 0 이하 · 계산이 실패한 날은 사지 않고 이유를 남긴 뒤 다음 날 다시)
   private StrategyPurchases executeConditionalPurchases(
     ConditionalStrategyRequest request, LocalDate actualEndDate, CapitalGainsTaxPayer taxPayer) {
@@ -182,13 +161,13 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     Set<LocalDate> harvestDates = sells(request) && harvests(request)
       ? YearEndHarvest.dates(priceMap, request.getStartDate(), actualEndDate)
       : Set.of();
-    Run run = new Run(request, taxPayer, fxRateMap, harvestDates);
+    ConditionalRun run = new ConditionalRun(request, taxPayer, fxRateMap, harvestDates, sells(request));
     List<SkippedRound> skippedRounds = new ArrayList<>();
     BigDecimal previousClose = null;
     LocalDate currentDate = request.getStartDate();
 
     // 메모리에서 데이터 조회 (API 호출 없음), 파는 규칙을 켜면 새 돈 회차를 다 쓴 뒤에도 끝까지 봄
-    while (!currentDate.isAfter(actualEndDate) && (run.sells || !run.rounds.used())) {
+    while (!currentDate.isAfter(actualEndDate) && run.active()) {
       OHLCPriceDto priceData = priceMap.get(currentDate);
       boolean usable = PriceLookup.isUsable(priceData);
       try {
@@ -210,9 +189,9 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     }
 
     log.info("조건부 매수 전략 완료: {}회 매수, 사지 못한 날 {}, 예산 부족 {}회",
-      run.ledger.transactions().size(), skippedRounds.size(), run.rounds.shortRounds);
-    return new StrategyPurchases(new ArrayList<>(run.ledger.transactions()), skippedRounds, priceMap, fxRateMap,
-      run.rounds.span());
+      run.transactions().size(), skippedRounds.size(), run.shortRounds());
+    return new StrategyPurchases(new ArrayList<>(run.transactions()), skippedRounds, priceMap, fxRateMap,
+      run.span());
   }
 
   // 기간 일봉(쓸 수 있는 일봉이 없으면 DATA_NOT_FOUND)
@@ -239,255 +218,5 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     FxRates fxRateMap = BacktestDataUtils.buildDailyFxRateMap(marketData, firstPrice, actualEndDate);
     log.info("환율 데이터 조회 완료: {}개", fxRateMap.size());
     return fxRateMap;
-  }
-
-  // 새 돈을 넣은 회차 수 · 넣은 돈(KRW)과 예산 부족으로 사지 못한 회차 수 · 처음 못 산 날짜
-  private static final class Rounds {
-    private final Integer maxPurchases;
-    private final BigDecimal budget;
-    private int purchased;
-    private BigDecimal deposited = BigDecimal.ZERO;
-    private int shortRounds;
-    private LocalDate shortFrom;
-
-    private Rounds(Integer maxPurchases, BigDecimal budget) {
-      this.maxPurchases = maxPurchases;
-      this.budget = budget;
-    }
-
-    // 최대 횟수(null 이면 제한 없음)에 닿았는지
-    private boolean used() {
-      return maxPurchases != null && purchased + shortRounds >= maxPurchases;
-    }
-
-    // 남은 예산(null 이면 제한 없음), 처음 예산이 모자란 날짜부터는 새 돈을 넣지 않음
-    private BigDecimal budgetLeft() {
-      return budget == null ? null : shortFrom != null ? BigDecimal.ZERO : budget.subtract(deposited);
-    }
-
-    // 새 돈을 넣은 매수면 회차 · 넣은 돈에 셈
-    private void bought(StrategyTransaction buy) {
-      if (Decimals.isPositive(buy.getAmount())) {
-        purchased++;
-        deposited = deposited.add(buy.getAmount());
-      }
-    }
-
-    // 예산이 모자라 사지 못한 회차
-    private void shortOn(LocalDate date) {
-      shortRounds++;
-      shortFrom = shortFrom == null ? date : shortFrom;
-    }
-
-    // 예산 부족 구간(없으면 null)
-    private SkippedSpan span() {
-      return shortFrom == null ? null : new SkippedSpan(shortFrom, shortRounds, SkipReason.OVER_BUDGET);
-    }
-  }
-
-  // 한 번 돌리는 동안의 모의 계좌 · 보유 · 회차와 익절 · 손절 · 트레일링 스탑 · 부분 익절 · 연말 정리 날
-  private static final class Run {
-    private final ConditionalStrategyRequest request;
-    private final CapitalGainsTaxPayer taxPayer;
-    private final Set<LocalDate> harvestDates;
-    private final boolean sells;
-    private final TradeLedger ledger;
-    private final TradeLedger.Holding holding = new TradeLedger.Holding();
-    private final Rounds rounds;
-    private final TakeProfitStopLoss exits;
-    private final TrailingStop trailing;
-    private final TakeProfitLadder ladder;
-
-    private Run(ConditionalStrategyRequest request, CapitalGainsTaxPayer taxPayer, FxRates fxRates,
-      Set<LocalDate> harvestDates) {
-      this.request = request;
-      this.taxPayer = taxPayer;
-      this.harvestDates = harvestDates;
-      this.sells = sells(request);
-      this.ledger = new TradeLedger(request.getTradingFeeRate(), request.getPurchaseFxRate(), fxRates,
-        Boolean.TRUE.equals(request.getCapitalGainsTax()));
-      this.rounds = new Rounds(request.getMaxPurchases(), request.getTotalInvestment());
-      this.exits = TakeProfitStopLoss.of(request.getTakeProfitRate(), request.getStopLossRate());
-      this.trailing = TrailingStop.of(request.getTrailingStopRate(), request.getTrailingSellRate());
-      this.ladder = TakeProfitLadder.of(request.getPartialTakeProfits());
-    }
-
-    // 쓸 수 있는 일봉 하루: 양도세 → 매도 규칙 → (판 날이 아니면) 조건 매수 → 연말 정리
-    private void day(LocalDate date, OHLCPriceDto priceData, BigDecimal previousClose) {
-      BigDecimal close = PriceLookup.effectiveClose(priceData);
-      // 양도세 낼 현금이 모자라면 당일 종가에 모자란 만큼 팔고 냄(하루 매도 한 번에 세지 않고 당일 매수도 봄)
-      ledger.sellAndPayTax(taxPayer, request.getTaxSale(), holding, date, close);
-      StrategyTransaction sale = sell(date, priceData);
-      if (sale != null) {
-        log.debug("조건부 매도 실행: {} - {} ({}주, 실현 손익 ${})",
-          date, sale.getTrigger(), sale.getShares().negate(), sale.getRealizedProfit());
-      } else {
-        buyOnCondition(date, priceData, close, previousClose);
-      }
-      // 당일 사고팔기 뒤 연말 정리
-      if (harvestDates.contains(date)) {
-        ledger.harvestSingle(holding, date, close);
-      }
-    }
-
-    // 익절 · 손절 → 트레일링 스탑 → 부분 익절 차례로 본 매도(당일 산 주식은 매도를 본 뒤라 팔지 않음, 팔지 않으면 null)
-    private StrategyTransaction sell(LocalDate date, OHLCPriceDto priceData) {
-      StrategyTransaction sale = sells && holding.held() ? sellIfTriggered(date, priceData) : null;
-      if (sale == null && holding.held()) {
-        sale = trailingSale(date, priceData);
-      }
-      if (sale == null && holding.held()) {
-        sale = ladderSale(date, priceData);
-      }
-      return sale;
-    }
-
-    // 전 거래일 종가 대비 조건에 맞으면 사고 예산이 모자라 못 산 회차를 셈
-    private void buyOnCondition(LocalDate date, OHLCPriceDto priceData, BigDecimal close, BigDecimal previousClose) {
-      var purchaseDecision = previousClose == null
-        ? NO_BUY
-        : evaluatePurchaseCondition(previousClose, priceData, request.getDropPercentage(),
-          PriceDirection.orDrop(request.getDirection()));
-      boolean roundsUsed = rounds.used();
-      StrategyTransaction transaction = purchaseDecision.shouldBuy()
-        ? buy(request, ledger, priceData, date, purchaseDecision, roundsUsed, rounds.budgetLeft())
-        : null;
-      if (purchaseDecision.shouldBuy() && transaction == null && !roundsUsed) {
-        rounds.shortOn(date);
-      }
-      if (transaction != null) {
-        if (!holding.held()) {
-          trailing.open(transaction.getPrice(), close);
-          ladder.open();
-        }
-        ledger.buy(holding, transaction);
-        rounds.bought(transaction);
-        log.debug("조건부 매수 실행: {} - {} ({}원 투자, {}주 매수)",
-          date, purchaseDecision.trigger(), transaction.getAmount(), transaction.getShares());
-      }
-    }
-
-    // 보유분 평균 단가(수수료 포함)의 익절 · 손절 기준가에 닿으면 기준가에 전량 매도(아니면 null)
-    private StrategyTransaction sellIfTriggered(LocalDate date, OHLCPriceDto priceData) {
-      TakeProfitStopLoss.Exit exit = exits.check(priceData, holding.shares(), holding.cost());
-      return exit == null
-        ? null
-        : ledger.sell(holding, date, date, exit.price(), holding.shares(), holding.cost(), exit.trigger(), null);
-    }
-
-    // 당일 종가가 트레일링 스탑 기준가 × (1 - 하락 비율) 이하면 보유의 팔 비율만큼 당일 종가에 팔고 판 값을 새 기준가로(아니면 null)
-    private StrategyTransaction trailingSale(LocalDate date, OHLCPriceDto priceData) {
-      BigDecimal close = PriceLookup.effectiveClose(priceData);
-      SaleShare exit = trailing.check(close, holding.shares(), holding.cost());
-      if (exit == null) {
-        return null;
-      }
-      StrategyTransaction sale = ledger.sell(holding, date, date, close, exit.shares(), exit.cost(), exit.trigger(),
-        null);
-      trailing.sold(close);
-      return sale;
-    }
-
-    // 당일 종가가 부분 익절 단계에 닿으면 보유의 단계 팔 비율만큼 당일 종가에 팔고 닿은 단계를 씀(아니면 null)
-    private StrategyTransaction ladderSale(LocalDate date, OHLCPriceDto priceData) {
-      BigDecimal close = PriceLookup.effectiveClose(priceData);
-      SaleShare exit = ladder.check(close, holding.shares(), holding.cost());
-      if (exit == null) {
-        return null;
-      }
-      StrategyTransaction sale = ledger.sell(holding, date, date, close, exit.shares(), exit.cost(), exit.trigger(),
-        null);
-      ladder.sold();
-      return sale;
-    }
-  }
-
-  // 회당 금액 · 주식 수만큼 사되 판 돈을 먼저 쓰고 모자란 만큼만 새로 넣음
-  // 횟수를 다 썼거나 새로 넣을 돈이 남은 예산을 넘으면 판 돈으로만(판 돈이 없거나 한 주도 못 사면 null)
-  private static StrategyTransaction buy(ConditionalStrategyRequest request, TradeLedger ledger,
-    OHLCPriceDto priceData, LocalDate date, PurchaseDecision decision, boolean roundsUsed, BigDecimal budgetLeft) {
-    BigDecimal fxRate = ledger.fxOn(date);
-    Fill fill = request.getSharesPerPurchase() != null
-      ? fillShares(request, decision.price(), fxRate, ledger.cash(), roundsUsed, budgetLeft)
-      : fillAmount(request, ledger, decision.price(), fxRate, roundsUsed, budgetLeft);
-    if (fill == null) {
-      return null;
-    }
-    return StrategyTransaction.builder()
-      .date(date)
-      .actualDate(priceData.date())
-      .price(decision.price())
-      .shares(fill.shares())
-      .fee(fill.fee())
-      .amount(fill.deposit())
-      .cashUsed(fill.cashUsed())
-      .fxRate(fxRate)
-      .defaultFxDate(ledger.defaultFxDate(date))
-      .trigger(decision.trigger())
-      .build();
-  }
-
-  // 한 번 사는 주식 수 · 수수료(USD) · 새로 넣는 돈(KRW) · 쓰는 판 돈(USD, 새 돈만이면 null)
-  private record Fill(BigDecimal shares, BigDecimal fee, BigDecimal deposit, BigDecimal cashUsed) {}
-
-  // 회당 금액만큼, 판 돈으로만 살 때는 판 돈만큼
-  private static Fill fillAmount(ConditionalStrategyRequest request, TradeLedger ledger, BigDecimal price,
-    BigDecimal fxRate, boolean roundsUsed, BigDecimal budgetLeft) {
-    BigDecimal amount = request.getAmountPerPurchase();
-    BigDecimal cash = ledger.cash();
-    if (!Decimals.isPositive(cash)) {
-      if (roundsUsed || exceeds(amount, budgetLeft)) {
-        return null;
-      }
-      // 수수료를 차감하고 남은 달러로 매수
-      RoundPurchase purchase = RoundPurchase.byAmount(amount, price, fxRate, request.getTradingFeeRate());
-      return new Fill(purchase.shares(), purchase.feeUsd(), amount, null);
-    }
-    BigDecimal needUsd = amount.divide(fxRate, 8, RoundingMode.HALF_UP);
-    BigDecimal topUp = needUsd.compareTo(cash) > 0
-      ? amount.subtract(cash.multiply(fxRate)).setScale(2, RoundingMode.HALF_UP)
-      : BigDecimal.ZERO;
-    boolean cashOnly = roundsUsed || exceeds(topUp, budgetLeft);
-    BigDecimal budgetUsd = cashOnly ? needUsd.min(cash) : needUsd;
-    BigDecimal fee = ledger.fee(budgetUsd);
-    return new Fill(budgetUsd.subtract(fee).divide(price, 8, RoundingMode.HALF_UP), fee,
-      cashOnly ? BigDecimal.ZERO : topUp, cash.min(budgetUsd));
-  }
-
-  // 주식 수만큼(매수가 × 주식 수 + 수수료), 판 돈으로만 살 때는 판 돈으로 살 수 있는 주식 수까지
-  private static Fill fillShares(ConditionalStrategyRequest request, BigDecimal price, BigDecimal fxRate,
-    BigDecimal cash, boolean roundsUsed, BigDecimal budgetLeft) {
-    boolean hasCash = Decimals.isPositive(cash);
-    if (!hasCash && roundsUsed) {
-      return null;
-    }
-    int shares = request.getSharesPerPurchase();
-    RoundPurchase full = RoundPurchase.byShares(shares, price, fxRate, request.getTradingFeeRate());
-    if (!hasCash) {
-      return exceeds(full.amountKrw(), budgetLeft) ? null : new Fill(full.shares(), full.feeUsd(), full.amountKrw(), null);
-    }
-    if (full.costUsd().compareTo(cash) <= 0) {
-      return new Fill(full.shares(), full.feeUsd(), BigDecimal.ZERO, full.costUsd());
-    }
-    BigDecimal topUp = MoneyUtils.convertUsdToKrw(full.costUsd().subtract(cash), fxRate);
-    if (!roundsUsed && !exceeds(topUp, budgetLeft)) {
-      return new Fill(full.shares(), full.feeUsd(), topUp, cash);
-    }
-    RoundPurchase partial = RoundPurchase.withinUsd(shares, cash, price, fxRate, request.getTradingFeeRate());
-    return partial == null ? null : new Fill(partial.shares(), partial.feeUsd(), BigDecimal.ZERO, partial.costUsd());
-  }
-
-  // 방향에 맞는 기준가를 넘은 날 매수, 둘 다 닿은 날은 시가부터 하락 기준가 아래면 하락 · 아니면 상승 기준가
-  private static PurchaseDecision evaluatePurchaseCondition(BigDecimal previousClose, OHLCPriceDto price,
-    BigDecimal percentage, PriceDirection direction) {
-    BigDecimal drop = direction == PriceDirection.RISE
-      ? null : IntradayCross.price(previousClose, price, percentage, false);
-    BigDecimal rise = direction == PriceDirection.DROP
-      ? null : IntradayCross.price(previousClose, price, percentage, true);
-    boolean rising = rise != null && !IntradayCross.atOpen(drop, price);
-    BigDecimal buyPrice = rising ? rise : drop;
-    return buyPrice == null
-      ? NO_BUY
-      : new PurchaseDecision(true, buyPrice, IntradayCross.label(previousClose, buyPrice, rising ? "상승" : "하락"));
   }
 }
