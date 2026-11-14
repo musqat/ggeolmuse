@@ -24,6 +24,7 @@ import com.muscat.trade.domain.event.TradeSavedEvent;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.domain.service.HoldingsCalculator;
+import com.muscat.trade.domain.service.HoldingsRebuilder;
 import com.muscat.trade.domain.service.IdempotencyGuard;
 import com.muscat.trade.domain.service.MarketDataService;
 import com.muscat.trade.domain.service.TradingService;
@@ -61,6 +62,7 @@ public class TradingServiceImpl implements TradingService {
   private final TransactionTemplate transactionTemplate;
   private final TradeMetrics tradeMetrics;
   private final IdempotencyGuard idempotencyGuard;
+  private final HoldingsRebuilder holdingsRebuilder;
 
   @Override
   public TradeResponseDto buyStock(String userId, Long accountId, String symbol, BigDecimal quantity,
@@ -150,7 +152,7 @@ public class TradingServiceImpl implements TradingService {
     BigDecimal currentHoldings = holdings.map(Holdings::getTotalQuantity)
       .orElse(BigDecimal.ZERO);
 
-    // FIFO 방식으로 실제 매도 가능 수량 계산
+    // 매도일에 팔 수 있는 수량(뒤 날짜 누적 보유까지 봄)
     BigDecimal maxSellableShares = calculateSellableQuantity(userId, accountId,
       request.getSymbol(), request.getTradeDate());
 
@@ -381,7 +383,7 @@ public class TradingServiceImpl implements TradingService {
   private Trade executeTradeDbTransaction(String userId, Long accountId, String symbol,
     BigDecimal quantity, BigDecimal tradePrice, BigDecimal totalAmount,
     BigDecimal fee, LocalDate tradeDate, TradeType tradeType) {
-    // 매도는 보유 행 락을 잡은 뒤 날짜 기준 매도 가능량을 다시 확인(락 밖 사전 검사로는 동시 매도가 같은 물량을 가져감)
+    // 매도는 보유 행 잠금 뒤 매도 가능량(뒤 날짜 누적 보유 포함)을 다시 확인(잠금 밖 사전 검사로는 동시 매도가 같은 물량을 가져감)
     if (tradeType == TradeType.SELL) {
       holdingsRepository.findByUserIdAndAccountIdAndSymbolWithLock(userId, accountId, symbol);
       BigDecimal sellable = tradeRepository.calculateSellableQuantity(userId, accountId, symbol,
@@ -407,10 +409,20 @@ public class TradingServiceImpl implements TradingService {
 
     Trade savedTrade = tradeRepository.save(trade);
     if (tradeType == TradeType.SELL) {
-      updateHoldings(savedTrade);
+      applySellToHoldings(savedTrade);
     }
 
     return savedTrade;
+  }
+
+  // 뒤 거래일 체결이 있는 과거 날짜 매도는 보유를 거래일 순서로 다시 쌓고, 아니면 지금 보유에서 뺌
+  private void applySellToHoldings(Trade sell) {
+    if (tradeRepository.existsByUserIdAndAccountIdAndSymbolAndStatusAndTradeDateAfter(sell.getUserId(),
+      sell.getAccountId(), sell.getSymbol(), TradeStatus.COMPLETED, sell.getTradeDate())) {
+      holdingsRebuilder.rebuild(sell.getUserId(), sell.getAccountId(), sell.getSymbol());
+      return;
+    }
+    updateHoldings(sell);
   }
 
   // 체결을 보유에 반영 (비관적 Lock)
@@ -439,7 +451,7 @@ public class TradingServiceImpl implements TradingService {
       oldAvgPrice, holdings == null ? BigDecimal.ZERO : holdings.getAvgPurchasePrice());
   }
 
-  // 매도 가능 여부 검증 (FIFO 방식 - 매도일 이전 매수 물량만 매도 가능)
+  // 매도 가능 여부 검증(보유량 · 매도일과 뒤 날짜 누적 보유)
   private void validateSellEligibility(String userId, Long accountId, String symbol,
     BigDecimal quantity, LocalDate sellDate) {
     // 1. 기본 보유량 확인
@@ -458,7 +470,7 @@ public class TradingServiceImpl implements TradingService {
       throw new NotEnoughHoldingsException();
     }
 
-    // 2. FIFO 방식으로 매도 가능 수량 계산
+    // 2. 매도일과 뒤 날짜 누적 보유로 매도 가능 수량 계산
     BigDecimal sellableQuantity = calculateSellableQuantity(userId, accountId, symbol, sellDate);
 
     if (sellableQuantity.compareTo(quantity) < 0) {
@@ -471,7 +483,7 @@ public class TradingServiceImpl implements TradingService {
       userId, symbol, sellDate, sellableQuantity, quantity);
   }
 
-  // FIFO 방식으로 매도 가능 수량 계산 (DB 집계 쿼리 사용)
+  // 매도 가능 수량(체결을 원장 순서로 읽는 쿼리 하나)
   private BigDecimal calculateSellableQuantity(String userId, Long accountId, String symbol,
     LocalDate sellDate) {
     // DB 레벨에서 집계하여 성능 최적화

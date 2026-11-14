@@ -24,12 +24,9 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 // 계좌 수익 흐름 조회(저장분을 읽고 모자라거나 바뀐 날짜만 다시 계산해 저장, 원격 호출은 트랜잭션 밖)
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProfitFlowService {
@@ -89,7 +86,7 @@ public class ProfitFlowService {
       .filter(day -> unsettled == null || day.date().isBefore(unsettled))
       .map(day -> AccountProfitDaily.of(userId, accountId, day, startedAt))
       .toList();
-    save(accountId, from, rows);
+    accountProfitStore.replaceFrom(accountId, from, rows);
 
     return Stream.concat(
         stored.stream()
@@ -151,14 +148,5 @@ public class ProfitFlowService {
 
     return ProfitFlowCalculator.calculate(trades, payouts, closes, portfolioStatsReader.fxRates(range), range,
       tradeProperties.getCalculation().getPricePrecision());
-  }
-
-  // 같은 계좌를 다른 요청이 먼저 저장했으면 저장만 넘김
-  private void save(Long accountId, LocalDate from, List<AccountProfitDaily> rows) {
-    try {
-      accountProfitStore.replaceFrom(accountId, from, rows);
-    } catch (DataIntegrityViolationException e) {
-      log.info("수익 흐름 저장이 다른 요청과 겹쳐 넘어감: accountId={}, from={}", accountId, from);
-    }
   }
 }

@@ -15,9 +15,10 @@ public class AccountProfitStore {
 
   private final AccountProfitDailyRepository accountProfitDailyRepository;
 
-  // 같은 날짜 새 줄이 유니크 제약에 걸리지 않게 삭제를 insert 전에 DB 에 반영
+  // 같은 계좌 저장은 잠금으로 하나씩, 같은 날짜 새 줄이 유니크 제약에 걸리지 않게 삭제를 insert 전에 DB 에 반영
   @Transactional
   public void replaceFrom(Long accountId, LocalDate from, List<AccountProfitDaily> rows) {
+    accountProfitDailyRepository.lockAccount(accountId);
     accountProfitDailyRepository.deleteByAccountIdAndTradeDateGreaterThanEqual(accountId, from);
     accountProfitDailyRepository.flush();
     accountProfitDailyRepository.saveAll(rows);

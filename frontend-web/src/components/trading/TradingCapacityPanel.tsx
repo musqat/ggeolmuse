@@ -171,9 +171,7 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
               )}
 
             <div className="mt-3 p-2 bg-loss/10 rounded text-xs text-loss">
-              {tradeDate} 이전에 매수한{" "}
-              {capacity.maxSellableShares?.toFixed(2) || "0"}주만 매도 가능
-              (FIFO)
+              {`${tradeDate} 매도 가능 ${capacity.maxSellableShares?.toFixed(2) || "0"}주(뒤 날짜 거래까지 반영)`}
             </div>
           </>
         ) : (

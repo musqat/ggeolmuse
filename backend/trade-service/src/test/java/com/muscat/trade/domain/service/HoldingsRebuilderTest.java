@@ -92,6 +92,26 @@ class HoldingsRebuilderTest {
   }
 
   @Test
+  @DisplayName("쌓은 수량 · 평균 단가가 기존 보유와 다를 때만 바뀜으로 셈")
+  void rebuild_ReportsChange() {
+    Holdings same = Holdings.builder().userId("user-1").accountId(20L).symbol("AAPL")
+      .totalQuantity(new BigDecimal("5")).avgPurchasePrice(new BigDecimal("140.00"))
+      .totalInvestedAmount(new BigDecimal("700.00")).build();
+    givenHoldings(same);
+    givenTrades(trade(1, TradeType.BUY, "5", "140.00"));
+
+    assertThat(rebuilder.rebuild("user-1", 20L, "AAPL", false)).isFalse();
+
+    Holdings stale = Holdings.builder().userId("user-1").accountId(20L).symbol("AAPL")
+      .totalQuantity(new BigDecimal("5")).avgPurchasePrice(new BigDecimal("120.00"))
+      .totalInvestedAmount(new BigDecimal("600.00")).build();
+    givenHoldings(stale);
+
+    assertThat(rebuilder.rebuild("user-1", 20L, "AAPL", false)).isTrue();
+    assertThat(stale.getAvgPurchasePrice()).isEqualByComparingTo("140.00");
+  }
+
+  @Test
   @DisplayName("남은 체결이 없으면 보유를 지운다")
   void rebuild_NoTrades_DeletesExisting() {
     Holdings existing = Holdings.builder().userId("user-1").accountId(20L).symbol("AAPL")

@@ -106,6 +106,14 @@ class AccountServiceIntegrationTest {
     userRepository.deleteAll();
   }
 
+  // 종류 · 통화가 같은 마지막 거래 내역
+  private AccountHistory historyOf(TransactionType type, String currency) {
+    return accountHistoryRepository.findAll().stream()
+      .filter(h -> h.getTransactionType() == type && currency.equals(h.getCurrency()))
+      .reduce((first, second) -> second)
+      .orElseThrow();
+  }
+
   @Nested
   @DisplayName("계좌 생성 통합 테스트")
   class CreateAccountIntegrationTests {
@@ -193,6 +201,8 @@ class AccountServiceIntegrationTest {
 
       // 거래내역이 생성되었는지 확인
       assertThat(accountHistoryRepository.count()).isGreaterThan(historiesCountBefore);
+      assertThat(historyOf(TransactionType.EXCHANGE, "USD").getBalanceAfter())
+        .isEqualByComparingTo(updatedAccount.getBalanceUsd());
     }
 
     @Test
@@ -221,6 +231,8 @@ class AccountServiceIntegrationTest {
 
       // KRW 잔액이 증가했는지 확인
       assertThat(updatedAccount.getBalanceKrw()).isGreaterThan(krwBalanceBeforeSell);
+      assertThat(historyOf(TransactionType.EXCHANGE, "KRW").getBalanceAfter())
+        .isEqualByComparingTo(updatedAccount.getBalanceKrw());
     }
 
     @Test
@@ -241,6 +253,66 @@ class AccountServiceIntegrationTest {
       Account unchangedAccount = accountRepository.findById(testAccount.getId()).orElseThrow();
       assertThat(unchangedAccount.getBalanceKrw()).isEqualByComparingTo(originalKrwBalance);
       assertThat(unchangedAccount.getBalanceUsd()).isEqualByComparingTo(originalUsdBalance);
+    }
+
+    @Test
+    @DisplayName("환전 → 매수 → 환전 뒤 평균 환율은 환전한 원화 누계를 환전한 달러 누계로 나눈 값이다")
+    void exchangeBuyExchange_AverageRateIsWeightedByExchangedUsd() {
+      accountService.exchangeKrwToUsd(testAccount.getId(), testUserId, new BigDecimal("130000"), new BigDecimal("1300"));
+      accountService.updateUsdBalance(testAccount.getId(), testUserId, new BigDecimal("-90.00"),
+        TransactionType.TRADE_BUY, "주식 매수: AAPL");
+      accountService.exchangeKrwToUsd(testAccount.getId(), testUserId, new BigDecimal("140000"), new BigDecimal("1400"));
+
+      // (130,000 + 140,000) 원 / (100 + 100) 달러
+      Account account = accountRepository.findById(testAccount.getId()).orElseThrow();
+      assertThat(account.getAvgExchangeRate()).isEqualByComparingTo("1350");
+      assertThat(account.getTotalExchangedUsd()).isEqualByComparingTo("200.00");
+    }
+
+    @Test
+    @DisplayName("매수로 달러를 거의 다 쓴 뒤 적은 금액을 환전해도 평균 환율은 두 환전의 달러 가중 평균이다")
+    void exchangeAfterSpendingAlmostAllUsd_AverageRateIsWeightedByExchangedUsd() {
+      accountService.exchangeKrwToUsd(testAccount.getId(), testUserId, new BigDecimal("650000"), TEST_EXCHANGE_RATE);
+      accountService.updateUsdBalance(testAccount.getId(), testUserId, new BigDecimal("-499.99"),
+        TransactionType.TRADE_BUY, "주식 매수: AAPL");
+      accountService.exchangeKrwToUsd(testAccount.getId(), testUserId, new BigDecimal("1400"), new BigDecimal("1400"));
+
+      // (650,000 + 1,400) 원 / (500 + 1) 달러
+      Account account = accountRepository.findById(testAccount.getId()).orElseThrow();
+      assertThat(account.getAvgExchangeRate()).isEqualByComparingTo("1300.199601");
+      assertThat(account.getBalanceUsd()).isEqualByComparingTo("1.01");
+    }
+
+    @Test
+    @DisplayName("부분 역환전 뒤 환전하면 역환전한 달러는 평균 환율에 무게를 갖지 않는다")
+    void exchangeAfterPartialReverseExchange_ReversedUsdHasNoWeight() {
+      accountService.exchangeKrwToUsd(testAccount.getId(), testUserId, new BigDecimal("130000"), TEST_EXCHANGE_RATE);
+      accountService.exchangeUsdToKrw(testAccount.getId(), testUserId, new BigDecimal("99.99"), TEST_EXCHANGE_RATE);
+      accountService.exchangeKrwToUsd(testAccount.getId(), testUserId, new BigDecimal("140000"), new BigDecimal("1400"));
+
+      // 남은 0.01 달러 몫(13 원 / 0.01 달러)과 새 환전(140,000 원 / 100 달러)
+      Account account = accountRepository.findById(testAccount.getId()).orElseThrow();
+      assertThat(account.getTotalExchangedKrw()).isEqualByComparingTo("140013");
+      assertThat(account.getTotalExchangedUsd()).isEqualByComparingTo("100.01");
+      assertThat(account.getAvgExchangeRate()).isEqualByComparingTo("1399.990001");
+    }
+
+    @Test
+    @DisplayName("달러 누계 없이 원화 누계만 남은 계좌도 평균 환율로 달러 누계를 맞춰 환전한다")
+    void exchangeWithKrwTotalOnly_DerivesUsdTotalFromAverage() {
+      Account stale = accountRepository.findById(testAccount.getId()).orElseThrow();
+      stale.setBalanceUsd(new BigDecimal("1000.00"));
+      stale.setTotalExchangedKrw(new BigDecimal("1300000"));
+      stale.setTotalExchangedUsd(BigDecimal.ZERO);
+      stale.setAvgExchangeRate(new BigDecimal("1300"));
+      accountRepository.save(stale);
+
+      accountService.exchangeKrwToUsd(testAccount.getId(), testUserId, new BigDecimal("13000"), TEST_EXCHANGE_RATE);
+
+      // (1,300,000 + 13,000) 원 / (1,300,000 / 1,300 + 10) 달러
+      Account account = accountRepository.findById(testAccount.getId()).orElseThrow();
+      assertThat(account.getTotalExchangedUsd()).isEqualByComparingTo("1010.00");
+      assertThat(account.getAvgExchangeRate()).isEqualByComparingTo("1300");
     }
   }
 
@@ -275,6 +347,8 @@ class AccountServiceIntegrationTest {
 
       // 거래내역 확인
       assertThat(accountHistoryRepository.count()).isGreaterThan(historiesCountBefore);
+      assertThat(historyOf(TransactionType.DEPOSIT, "KRW").getBalanceAfter())
+        .isEqualByComparingTo(expectedBalance);
     }
   }
 

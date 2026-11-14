@@ -1,13 +1,9 @@
 package com.muscat.trade.domain.repository;
 
 import com.muscat.trade.domain.entity.Holdings;
-import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 // Holdings Repository
@@ -22,13 +18,6 @@ public interface HoldingsRepository extends JpaRepository<Holdings, Long>, Holdi
 
   // 사용자 · 계좌 · 종목으로 보유 단건 조회
   Optional<Holdings> findByUserIdAndAccountIdAndSymbol(String userId, Long accountId, String symbol);
-
-  // 비관적 락으로 보유 종목 조회 (매수/매도 동시성 제어)
-  @Lock(LockModeType.PESSIMISTIC_WRITE)
-  @Query("SELECT h FROM Holdings h WHERE h.userId = :userId AND h.accountId = :accountId AND h.symbol = :symbol")
-  Optional<Holdings> findByUserIdAndAccountIdAndSymbolWithLock(@Param("userId") String userId,
-      @Param("accountId") Long accountId,
-      @Param("symbol") String symbol);
 
   // 계좌 삭제 시 모든 보유 자산 삭제
   void deleteByAccountId(Long accountId);

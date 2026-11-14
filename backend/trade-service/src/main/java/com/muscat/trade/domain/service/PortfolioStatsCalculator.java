@@ -83,7 +83,7 @@ public final class PortfolioStatsCalculator {
     }
   }
 
-  // 한 계좌의 기준 날짜까지 매도(체결 순서)와 종목마다의 값
+  // 한 계좌의 기준 날짜까지 매도(거래일 순서)와 종목마다의 값
   public record Replay(List<SellResult> sells, Map<String, SymbolTotals> symbols) {
   }
 
@@ -128,7 +128,7 @@ public final class PortfolioStatsCalculator {
   private static List<Trade> completedUntil(List<Trade> trades, LocalDate until) {
     return trades.stream()
       .filter(trade -> trade.getStatus() == TradeStatus.COMPLETED && !trade.getTradeDate().isAfter(until))
-      .sorted(ProfitFlowCalculator.TRADE_ORDER)
+      .sorted(TradeOrder.LEDGER)
       .toList();
   }
 
@@ -492,7 +492,7 @@ public final class PortfolioStatsCalculator {
     Map<LocalDate, BigDecimal> fxRates, int pricePrecision) {
     List<Trade> completed = account.trades().stream()
       .filter(trade -> trade.getStatus() == TradeStatus.COMPLETED)
-      .sorted(ProfitFlowCalculator.TRADE_ORDER)
+      .sorted(TradeOrder.LEDGER)
       .toList();
     Map<String, Holdings> positions = new HashMap<>();
     BigDecimal shares = ZERO;
