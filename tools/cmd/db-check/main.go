@@ -45,7 +45,7 @@ var databases = map[string]struct{ key, name string }{
 	"keycloak": {"DB_URL_USER", "keycloak"},
 }
 
-// 파드 상태를 다시 묻는 간격(테스트에서 바꿈)
+// 파드 상태를 다시 묻는 간격
 var pollEvery = 2 * time.Second
 
 // 기다려도 시작되지 않는 컨테이너 대기 까닭

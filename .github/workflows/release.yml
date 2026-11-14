@@ -52,7 +52,7 @@ jobs:
           go-version-file: tools/go.mod
           cache: false
 
-      # 머지는 그 머지 커밋, 수동 실행은 CI 가 성공한 가장 최근 master 커밋
+      # 머지는 CI 가 성공한 머지 커밋, 수동 실행은 CI 가 성공한 가장 최근 master 커밋
       - name: 릴리스할 커밋
         env:
           GH_TOKEN: ${{ github.token }}
@@ -76,7 +76,7 @@ jobs:
             --jq "[.[] | select(.merged_at != null and .merge_commit_sha == \"$SHA\")][0].body // \"\"" \
             > "$RUNNER_TEMP/pr-body.md"
 
-      # 수동 실행은 입력한 목록을 PR 칸과 같은 규칙으로 검사
+      # 수동 실행은 입력한 목록을 PR 의 빌드할 서비스 칸과 같은 규칙으로 검사
       - name: 빌드할 서비스 고르기
         id: plan
         working-directory: tools
@@ -115,7 +115,7 @@ jobs:
     if: needs.plan.outputs.services != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # 같은 서비스 · 태그 빌드는 하나씩(뒤 실행은 앞 실행이 올린 이미지의 레이블 대조로 실패)
+    # 같은 서비스 · 태그 빌드는 하나씩(뒤 실행은 이미지 레이블의 커밋이 같으면 건너뜀 · 다르면 실패)
     concurrency:
       group: build-${{ matrix.service }}-${{ fromJSON(needs.plan.outputs.tags)[matrix.service] }}
       cancel-in-progress: false
@@ -161,7 +161,7 @@ jobs:
             *) printf 'context=.\nfile=backend/%s/Dockerfile\n' "$SERVICE" ;;
           esac >> "$GITHUB_OUTPUT"
 
-      # 쓰기 토큰(CI 토큰은 읽기 전용)
+      # Docker Hub 쓰기 토큰
       - uses: docker/login-action@v4
         if: steps.hub.outputs.skip != 'true'
         with:
@@ -213,8 +213,8 @@ jobs:
           cache: false
       - uses: azure/setup-helm@v5
 
-      # 최신 master 에서 다시 고른 뒤 태그를 바꿈(동시에 돈 다른 릴리스가 먼저 커밋했으면 그 위에서 다시, 더 새 커밋이 배포된 서비스는 뺌,
-      # 그사이 올라간 운영 버전 이하면 실패), 커밋 직전에 Hub 이미지 레이블이 이 커밋인지 대조
+      # 최신 master 에서 다시 고른 뒤 태그를 바꿈(동시에 돈 다른 릴리스가 먼저 커밋했으면 새 master 에서 다시, 더 새 커밋이 배포된 서비스는 뺌,
+      # 그사이 올라간 운영 버전 이하면 실패), 커밋 직전에 Hub 이미지 레이블이 릴리스할 커밋인지 대조
       # 커밋 본문의 [skip ci] 로 CI · E2E · 릴리스가 다시 돌지 않음, 푸시가 앞선 커밋 말고 다른 이유로 막히면 바로 실패
       - name: 운영 태그 커밋
         run: |

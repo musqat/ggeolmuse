@@ -14,7 +14,7 @@ runs:
   steps:
     - uses: ./.github/actions/install-trivy
 
-    # JSON 으로 한 번 스캔, convert 로 두 형식(재스캔 없음)
+    # JSON 으로 한 번 스캔, convert 로 SARIF · 표 출력(재스캔 없음)
     - name: ${{ inputs.name }} 스캔
       uses: aquasecurity/trivy-action@v0.36.0
       env:
@@ -31,7 +31,7 @@ runs:
 
     - name: SARIF 와 표로 변환
       shell: bash
-      # 리포트 위치는 워크스페이스 루트(호출 잡의 working-directory 와 무관)
+      # 리포트 위치를 워크스페이스 루트로 고정
       working-directory: ${{ github.workspace }}
       run: |
         trivy convert --format sarif \

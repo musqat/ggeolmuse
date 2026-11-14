@@ -42,16 +42,16 @@ func TestParsePicks(t *testing.T) {
 		{"요약 인라인 코드의 닫히지 않은 <!-- 는 칸을 지우지 않음",
 			"## 요약\n - 줄 끝 `<!--` 는 버전 아님\n\n## 빌드할 서비스\n<!-- 안내 -->\n- [x] backtest-service 1.8.0\n",
 			map[string]string{"backtest-service": "1.8.0"}, true},
-		{"코드 블록 안의 닫히지 않은 <!-- 도",
+		{"코드 블록 안의 닫히지 않은 <!-- 는 칸을 지우지 않음",
 			"## 요약\n```\n<!--\n```\n\n## 빌드할 서비스\n<!-- 안내 -->\n- [x] frontend-web\n",
 			map[string]string{"frontend-web": ""}, true},
 		{"닫히지 않은 주석 블록 뒤는 보지 않음", "## 빌드할 서비스\n- [x] user-service\n<!--\n- [x] trade-service\n",
 			map[string]string{"user-service": ""}, true},
-		{"빈 주석 <!--> 은 그 줄에서 닫힘", "## 빌드할 서비스\n<!-->\n- [x] user-service\n",
+		{"빈 주석 <!-->: 한 줄 주석", "## 빌드할 서비스\n<!-->\n- [x] user-service\n",
 			map[string]string{"user-service": ""}, true},
-		{"빈 주석 <!---> 도", "## 빌드할 서비스\n<!--->\n- [x] user-service\n",
+		{"빈 주석 <!--->: 한 줄 주석", "## 빌드할 서비스\n<!--->\n- [x] user-service\n",
 			map[string]string{"user-service": ""}, true},
-		{"목록 표지 뒤 한 줄 주석은 그 줄만 숨김", "## 빌드할 서비스\n- <!-- [x] trade-service -->\n- [x] user-service\n",
+		{"목록 표지 뒤 한 줄 주석: 주석 줄만 숨김", "## 빌드할 서비스\n- <!-- [x] trade-service -->\n- [x] user-service\n",
 			map[string]string{"user-service": ""}, true},
 		{"네 개짜리 펜스 안의 ``` 는 닫지 않음", "## 요약\n````md\n```\n## 빌드할 서비스\n- [x] user-service\n```\n````\n",
 			map[string]string{}, false},
@@ -61,7 +61,7 @@ func TestParsePicks(t *testing.T) {
 			map[string]string{"user-service": ""}, true},
 		{"줄 머리 인라인 코드 ``` 는 펜스가 아님", "## 요약\n```make test``` 로 돌렸다\n\n## 빌드할 서비스\n- [x] user-service\n",
 			map[string]string{"user-service": ""}, true},
-		{"항목 안에서 닫는 들여 쓴 주석은 그 줄들만 숨김", "## 빌드할 서비스\n- [x] user-service\n  <!--\n  메모\n\n  -->\n- [x] trade-service\n",
+		{"항목 안에서 닫는 들여 쓴 주석: 주석 줄만 숨김", "## 빌드할 서비스\n- [x] user-service\n  <!--\n  메모\n\n  -->\n- [x] trade-service\n",
 			map[string]string{"user-service": "", "trade-service": ""}, true},
 		{"목록 표지 뒤에서 열고 항목 안에서 닫는 주석", "## 빌드할 서비스\n- [x] user-service\n- <!-- 보류\n  - [x] trade-service\n  -->\n",
 			map[string]string{"user-service": ""}, true},
@@ -85,7 +85,7 @@ func TestParsePicks(t *testing.T) {
 	}
 }
 
-// 목록 항목 안에서 연 펜스가 닫히지 않아 칸 제목까지 코드로 보이면 조용히 보류하지 않고 오류
+// 목록 항목 안에서 연 펜스가 닫히지 않아 칸 제목까지 코드로 보이면 오류
 func TestParsePicksOpenFence(t *testing.T) {
 	body := "## 요약\n- 예\n  ```\n  code\n- 다음\n\n## 빌드할 서비스\n- [x] user-service\n"
 	if _, _, err := parsePicks(body); err == nil || !strings.Contains(err.Error(), "닫히지 않은 코드 블록") {
@@ -139,16 +139,16 @@ func TestParsePicksErrors(t *testing.T) {
 		body string
 		want string
 	}{
-		{"체크한 모르는 이름은 쓸 수 있는 이름과 함께", "- [x] backtest 1.8.0", "쓸 수 있는 서비스: config-server"},
+		{"체크한 모르는 이름: 쓸 수 있는 서비스 안내", "- [x] backtest 1.8.0", "쓸 수 있는 서비스: config-server"},
 		{"배포하지 않는 모듈", "- [x] ggeolmuse-common", "모르는 서비스"},
 		{"버전 두 자리", "- [x] backtest-service 1.8", "버전 모양"},
-		{"v 붙은 버전", "- [x] backtest-service v1.8.0", "버전 모양"},
-		{"앞에 0 붙은 버전", "- [x] backtest-service 01.8.0", "버전 모양"},
+		{"v 로 시작하는 버전", "- [x] backtest-service v1.8.0", "버전 모양"},
+		{"0 으로 시작하는 버전", "- [x] backtest-service 01.8.0", "버전 모양"},
 		{"버전 뒤에 글", "- [x] backtest-service 1.8.0 (조건부)", "버전 모양"},
 		{"체크 칸 글자가 x 가 아님", "- [o] backtest-service", "체크 칸"},
 		{"같은 서비스 두 번", "- [x] user-service\n- [x] user-service 1.8.0", "두 번"},
 		{"칸 제목 두 번", "- [x] user-service\n\n## 빌드할 서비스\n- [x] trade-service", "칸이 두 번"},
-		// 목록 · 인용 안에서 연 주석이 닫히기 전에 항목이 끝나면 GitHub 화면에서 뒤가 다 숨겨져 줄 단위로 따라갈 수 없음
+		// 목록 · 인용 안에서 연 주석이 닫히기 전에 항목이 끝나면 오류
 		{"인용 안에서 열고 인용 밖으로 나간 주석", "> <!-- 메모\n- [x] user-service", "항목 밖까지"},
 		{"항목 안에서 열고 다음 항목으로 넘어간 주석", "- [x] user-service\n  <!-- 보류\n- [x] trade-service\n  -->\n- [x] chat-service", "항목 밖까지"},
 	}

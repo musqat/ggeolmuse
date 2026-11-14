@@ -22,10 +22,11 @@ func TestDecide(t *testing.T) {
 		want  []string
 	}{
 		{"서비스 하나의 코드", []string{"backend/user-service/src/main/java/A.java"}, []string{"user-service"}},
-		{"공용 라이브러리는 자바 여섯", []string{"backend/messaging/src/main/java/E.java"}, javaSix},
-		{"마이그레이션도 그 서비스로", []string{"backend/user-service/src/main/resources/db/migration/V10__x.sql", "frontend-web/src/App.tsx"}, []string{"user-service", "frontend-web"}},
-		{"테스트 · 문서만이면 없음", []string{"backend/user-service/src/test/java/AT.java", "frontend-web/src/App.test.tsx", "backend/chat-service/tests/test_x.py", "README.md"}, []string{}},
-		{"CI · 차트만이면 없음", []string{".github/workflows/release.yml", "helm/ggeolmuse/values-prod.yaml"}, []string{}},
+		{"공용 라이브러리: 자바 여섯", []string{"backend/messaging/src/main/java/E.java"}, javaSix},
+		{"lombok 설정: 자바 여섯", []string{"backend/lombok.config"}, javaSix},
+		{"user-service 마이그레이션: user-service", []string{"backend/user-service/src/main/resources/db/migration/V10__x.sql", "frontend-web/src/App.tsx"}, []string{"user-service", "frontend-web"}},
+		{"테스트 · 문서만: 없음", []string{"backend/user-service/src/test/java/AT.java", "frontend-web/src/App.test.tsx", "backend/chat-service/tests/test_x.py", "README.md"}, []string{}},
+		{"CI · 차트만: 없음", []string{".github/workflows/release.yml", "helm/ggeolmuse/values-prod.yaml"}, []string{}},
 		{"chat 과 프론트", []string{"backend/chat-service/app/main.py", "frontend-web/package.json"}, []string{"chat-service", "frontend-web"}},
 	}
 	for _, c := range cases {
@@ -96,15 +97,15 @@ func TestPlanPicks(t *testing.T) {
 		picks map[string]string
 		want  releasePlan
 	}{
-		{"체크한 바뀐 서비스만 내고 바뀐 나머지는 보류", map[string]string{"user-service": ""},
+		{"user-service 체크: user-service 배포 · chat-service 보류", map[string]string{"user-service": ""},
 			releasePlan{services: []string{"user-service"}, tags: map[string]string{"user-service": "0123456"},
 				held: []string{"chat-service"}, unchanged: []string{}}},
-		{"체크가 없으면 아무것도 내지 않음", map[string]string{},
+		{"체크 없음: 배포 없음", map[string]string{},
 			releasePlan{services: []string{}, tags: map[string]string{}, held: []string{"user-service", "chat-service"}, unchanged: []string{}}},
-		{"체크했지만 안 바뀐 서비스는 건너뜀(버전이 낮아도 오류 없음)", map[string]string{"frontend-web": "1.0.0", "chat-service": "1.8.0"},
+		{"안 바뀐 서비스 체크: 건너뜀(낮은 버전도 오류 없음)", map[string]string{"frontend-web": "1.0.0", "chat-service": "1.8.0"},
 			releasePlan{services: []string{"chat-service"}, tags: map[string]string{"chat-service": "1.8.0"},
 				held: []string{"user-service"}, unchanged: []string{"frontend-web"}}},
-		{"운영이 커밋 태그면 이력의 가장 높은 버전보다 높으면 됨", map[string]string{"user-service": "1.7.1"},
+		{"운영 커밋 태그 · 이력 최고 버전 초과: 통과", map[string]string{"user-service": "1.7.1"},
 			releasePlan{services: []string{"user-service"}, tags: map[string]string{"user-service": "1.7.1"},
 				held: []string{"chat-service"}, unchanged: []string{}}},
 	}
@@ -127,7 +128,7 @@ func TestPlanPicksVersionFloor(t *testing.T) {
 	for _, version := range []string{"1.7.0", "1.6.9"} {
 		_, err := planPicks(entries, "0123456789abcdef", repo, map[string]string{"user-service": version})
 		if err == nil || !strings.Contains(err.Error(), "이전 최고 버전 1.7.0") {
-			t.Fatalf("%s: 오류 %v, 기대에 가장 높은 버전 1.7.0", version, err)
+			t.Fatalf("%s: 오류 %v, 기대 이전 최고 버전 1.7.0", version, err)
 		}
 	}
 	noHistory, _ := planFixture()
@@ -137,7 +138,7 @@ func TestPlanPicksVersionFloor(t *testing.T) {
 	}
 }
 
-// 배포 직전 다시 볼 때도 같은 하한(커밋 태그 · 태그 없는 서비스는 안 봄)
+// 배포 직전 다시 볼 때의 버전 하한(커밋 태그 · 태그 없는 서비스는 안 봄)
 func TestCheckFloors(t *testing.T) {
 	_, repo := planFixture()
 	tags := map[string]string{"user-service": "1.7.0", "chat-service": "0123456"}
@@ -328,7 +329,7 @@ func TestGitRepo(t *testing.T) {
 		t.Fatalf("이력의 가장 높은 버전 %v, %v, 기대 1.8.0", got, err)
 	}
 
-	// 봇 커밋을 되돌리면 앞 버전을 처음 낸 커밋, 되돌림을 다시 되돌리면 다시 빌드한 커밋
+	// 봇 커밋을 되돌리면 앞 버전을 처음 낸 커밋, 되돌림을 다시 되돌리면 첫 봇 커밋에 적힌 빌드 커밋
 	userEntry := func() values.Entry {
 		text, err := r.show(valuesPath)
 		if err != nil {
@@ -378,7 +379,7 @@ func TestGitRepo(t *testing.T) {
 	if err != nil || len(picks) != 0 || !strings.Contains(notes.String(), "빌드할 서비스 칸 없음") {
 		t.Fatalf("칸 없는 본문 %v, %v, 안내 %q", picks, err, notes.String())
 	}
-	// 수동 실행 목록도 같은 계획
+	// 수동 실행 목록: PR 칸과 같은 계획
 	picks, err = parseList("user-service")
 	if err != nil {
 		t.Fatal(err)
@@ -410,7 +411,7 @@ func TestGitRepo(t *testing.T) {
 		t.Fatalf("봇 커밋 아닌 제목의 운영 커밋 %q, 기대 %q", got, plain)
 	}
 
-	// 봇 커밋 위에 올린 PR 커밋의 날짜가 옛날이어도 처음 그 버전이 된 커밋은 봇 커밋(이력은 조상부터)
+	// 봇 커밋 위에 올린 PR 커밋의 날짜가 옛날이어도 처음 2.0.0 이 된 커밋은 봇 커밋(이력은 조상부터)
 	tagged := func(tag, a, b string) string {
 		return "services:\n  userService:\n    image:\n      tag: \"" + tag + "\"\n# " + a + "\n#\n#\n#\n# " + b + "\n"
 	}

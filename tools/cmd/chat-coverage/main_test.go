@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// coverage.py JSON 파일(totals 의 줄 · 분기 칸)
+// 받은 본문을 담은 임시 coverage.json 경로
 func coverageFile(t *testing.T, body string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "coverage.json")
@@ -33,15 +33,15 @@ func TestRun(t *testing.T) {
 		code     int
 		stdout   string
 	}{
-		{"둘 다 최소치 이상이면 표만 내고 통과", totals(24, 26, 9, 10), []string{"90", "80"}, 0,
+		{"둘 다 최소치 이상: 통과", totals(24, 26, 9, 10), []string{"90", "80"}, 0,
 			head + "| 줄 | 92.31% | 90% |\n| 분기 | 90.00% | 80% |\n\n"},
-		{"최소치와 같으면 통과", totals(9, 10, 8, 10), []string{"90", "80"}, 0,
+		{"최소치와 같음: 통과", totals(9, 10, 8, 10), []string{"90", "80"}, 0,
 			head + "| 줄 | 90.00% | 90% |\n| 분기 | 80.00% | 80% |\n\n"},
-		{"줄이 최소치 아래면 실패", totals(89, 100, 8, 10), []string{"90", "80"}, 1,
+		{"줄 최소치 아래: 실패", totals(89, 100, 8, 10), []string{"90", "80"}, 1,
 			head + "| 줄 | 89.00% | 90% |\n| 분기 | 80.00% | 80% |\n\n최소치 미달: 줄\n"},
-		{"분기만 최소치 아래면 분기만 미달", totals(9, 10, 79, 100), []string{"90", "80"}, 1,
+		{"분기만 최소치 아래: 분기만 미달", totals(9, 10, 79, 100), []string{"90", "80"}, 1,
 			head + "| 줄 | 90.00% | 90% |\n| 분기 | 79.00% | 80% |\n\n최소치 미달: 분기\n"},
-		{"둘 다 최소치 아래면 줄 · 분기 차례로 미달", totals(1, 2, 1, 4), []string{"90", "80"}, 1,
+		{"둘 다 최소치 아래: 줄 · 분기 차례로 미달", totals(1, 2, 1, 4), []string{"90", "80"}, 1,
 			head + "| 줄 | 50.00% | 90% |\n| 분기 | 25.00% | 80% |\n\n최소치 미달: 줄, 분기\n"},
 		{"값은 소수 둘째 반올림", totals(2, 3, 1, 3), []string{"0", "0"}, 0,
 			head + "| 줄 | 66.67% | 0% |\n| 분기 | 33.33% | 0% |\n\n"},
@@ -120,29 +120,31 @@ func TestRunFailures(t *testing.T) {
 		name string
 		args func(t *testing.T) []string
 	}{
-		{"인자가 셋이 아니면 실패", func(t *testing.T) []string { return []string{coverageFile(t, totals(1, 1, 1, 1)), "90"} }},
-		{"최소치가 숫자가 아니면 실패", func(t *testing.T) []string { return []string{coverageFile(t, totals(1, 1, 1, 1)), "90", "많이"} }},
-		{"최소치가 16진 실수면 실패", func(t *testing.T) []string { return []string{coverageFile(t, totals(1, 1, 1, 1)), "0x1p3", "80"} }},
-		{"totals 이름의 대소문자가 다르면 실패", func(t *testing.T) []string {
+		{"인자 셋 아님", func(t *testing.T) []string { return []string{coverageFile(t, totals(1, 1, 1, 1)), "90"} }},
+		{"숫자 아닌 최소치", func(t *testing.T) []string { return []string{coverageFile(t, totals(1, 1, 1, 1)), "90", "많이"} }},
+		{"16진 실수 최소치", func(t *testing.T) []string { return []string{coverageFile(t, totals(1, 1, 1, 1)), "0x1p3", "80"} }},
+		{"NaN 최소치", func(t *testing.T) []string { return []string{coverageFile(t, totals(1, 1, 1, 1)), "NaN", "80"} }},
+		{"Inf 최소치", func(t *testing.T) []string { return []string{coverageFile(t, totals(1, 1, 1, 1)), "90", "Inf"} }},
+		{"totals 이름 대소문자 다름", func(t *testing.T) []string {
 			return []string{coverageFile(t, `{"TOTALS": {"covered_lines": 1, "num_statements": 1, "covered_branches": 1, "num_branches": 1}}`), "90", "80"}
 		}},
-		{"칸 이름의 대소문자가 다르면 실패", func(t *testing.T) []string {
+		{"칸 이름 대소문자 다름", func(t *testing.T) []string {
 			return []string{coverageFile(t, `{"totals": {"COVERED_LINES": 1, "num_statements": 1, "covered_branches": 1, "num_branches": 1}}`), "90", "80"}
 		}},
-		{"칸이 null 이면 실패", func(t *testing.T) []string {
+		{"null 칸", func(t *testing.T) []string {
 			return []string{coverageFile(t, `{"totals": {"covered_lines": null, "num_statements": 1, "covered_branches": 1, "num_branches": 1}}`), "90", "80"}
 		}},
-		{"파일이 없으면 실패", func(t *testing.T) []string { return []string{missing, "90", "80"} }},
-		{"JSON 이 아니면 실패", func(t *testing.T) []string { return []string{coverageFile(t, "<html>"), "90", "80"} }},
-		{"totals 가 없으면 실패", func(t *testing.T) []string { return []string{coverageFile(t, `{"files": {}}`), "90", "80"} }},
-		{"분기 칸이 없으면 실패", func(t *testing.T) []string {
+		{"파일 없음", func(t *testing.T) []string { return []string{missing, "90", "80"} }},
+		{"JSON 아님", func(t *testing.T) []string { return []string{coverageFile(t, "<html>"), "90", "80"} }},
+		{"totals 없음", func(t *testing.T) []string { return []string{coverageFile(t, `{"files": {}}`), "90", "80"} }},
+		{"분기 칸 없음", func(t *testing.T) []string {
 			return []string{coverageFile(t, `{"totals": {"covered_lines": 1, "num_statements": 1}}`), "90", "80"}
 		}},
-		{"칸이 숫자가 아니면 실패", func(t *testing.T) []string {
+		{"숫자 아닌 칸", func(t *testing.T) []string {
 			return []string{coverageFile(t, `{"totals": {"covered_lines": "1", "num_statements": 1, "covered_branches": 1, "num_branches": 1}}`), "90", "80"}
 		}},
-		{"문장 수가 0 이면 실패", func(t *testing.T) []string { return []string{coverageFile(t, totals(0, 0, 1, 1)), "90", "80"} }},
-		{"분기 수가 0 이면 표 없이 실패", func(t *testing.T) []string { return []string{coverageFile(t, totals(1, 1, 0, 0)), "90", "80"} }},
+		{"문장 수 0", func(t *testing.T) []string { return []string{coverageFile(t, totals(0, 0, 1, 1)), "90", "80"} }},
+		{"분기 수 0", func(t *testing.T) []string { return []string{coverageFile(t, totals(1, 1, 0, 0)), "90", "80"} }},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

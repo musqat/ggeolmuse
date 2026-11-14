@@ -16,7 +16,7 @@ import (
 // 커밋 SHA(7 ~ 40자리)
 var commitSHA = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
 
-// releasePlan 은 배포할 서비스 · 태그 · 보류 서비스(바뀌었지만 체크 안 함) · 변경 없는 서비스
+// releasePlan 은 배포할 서비스 · 태그 · 보류 서비스(바뀌었지만 체크 안 함) · 체크했지만 안 바뀐 서비스
 type releasePlan struct {
 	services  []string
 	tags      map[string]string
@@ -195,7 +195,7 @@ func (g gitRepo) highestVersions() (map[string]string, error) {
 	return highest, nil
 }
 
-// 봇 커밋이면 제목 끝 괄호의 빌드한 커밋, 아니면 그 커밋
+// 봇 커밋이면 제목 끝 괄호의 빌드한 커밋, 아니면 받은 커밋
 func (g gitRepo) builtCommit(commit string) string {
 	subject, err := g.git("log", "-1", "--format=%s", commit)
 	if err != nil {

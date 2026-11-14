@@ -28,7 +28,7 @@ const valuesPath = "helm/ggeolmuse/values-prod.yaml"
 var services = []string{"config-server", "gateway-server", "user-service", "trade-service", "market-data-service", "backtest-service", "chat-service", "frontend-web"}
 
 // 바뀌면 자바 서비스 전부 다시 빌드
-var sharedJava = []string{"backend/ggeolmuse-bom/", "backend/ggeolmuse-common/", "backend/messaging/", "backend/pom.xml"}
+var sharedJava = []string{"backend/ggeolmuse-bom/", "backend/ggeolmuse-common/", "backend/messaging/", "backend/pom.xml", "backend/lombok.config"}
 
 func main() {
 	head := flag.String("head", "", "릴리스할 커밋")
@@ -189,7 +189,7 @@ func (g gitRepo) show(path string) (string, error) {
 	return out, nil
 }
 
-// 운영에 배포된 커밋: 커밋 태그면 그 커밋, 버전이면 그 버전을 처음 배포한 봇 커밋에 적힌 빌드 커밋
+// 운영에 배포된 커밋: 커밋 태그면 태그의 커밋, 버전 태그면 처음 같은 태그가 된 커밋(봇 커밋이면 제목 괄호의 빌드 커밋)
 func (g gitRepo) deployedCommit(svc string, e values.Entry) (string, bool) {
 	if values.TagPattern.MatchString(e.Tag) && !strings.Contains(e.Tag, ".") {
 		out, err := g.git("rev-parse", "--verify", "--quiet", e.Tag+"^{commit}")

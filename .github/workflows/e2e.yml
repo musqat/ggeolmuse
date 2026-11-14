@@ -1,7 +1,6 @@
 name: E2E
 
 # PR · master push 에서 실행(Yahoo Finance 에 기대는 스위트라 필수 체크 아님)
-# 릴리스는 CI 만 기다림
 on:
   pull_request:
     branches: [ master ]
@@ -12,7 +11,7 @@ on:
     branches: [ master ]
   workflow_dispatch:
 
-# 같은 PR 에 새 커밋이 오면 이전 실행 취소(master 는 도는 실행은 끝까지, 대기 실행은 새 머지의 것으로 바뀜)
+# 같은 PR 에 새 커밋이 오면 이전 실행 취소(master 는 도는 실행은 끝까지, 대기 실행은 새 머지 실행으로 바뀜)
 concurrency:
   group: e2e-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -37,7 +36,7 @@ jobs:
         working-directory: docker-compose
         run: cp .env.example .env
 
-      # Docker Hub 로그인(익명 받기의 횟수 제한 429 회피, 읽기 전용 토큰)
+      # 익명 받기 횟수 제한(429) 회피용 읽기 전용 토큰
       - name: Docker Hub 로그인
         uses: docker/login-action@v4
         with:
@@ -77,12 +76,11 @@ jobs:
             exit 0
           fi
           echo "::warning::브라우저가 뜨지 않아 의존 패키지를 apt 로 받는다"
-          # 우분투 저장소 주소가 안 풀려도 오래 붙잡히지 않게 apt 대기와 전체 시간을 짧게
+          # 우분투 저장소 주소가 안 풀려도 오래 걸리지 않게 apt 대기와 전체 시간을 짧게 제한
           printf 'Acquire::Retries "1";\nAcquire::http::Timeout "20";\nAcquire::https::Timeout "20";\n' \
             | sudo tee /etc/apt/apt.conf.d/99-e2e-timeouts > /dev/null
           timeout 240 npx playwright install-deps chromium
 
-      # 게이트웨이 대기는 setup 프로젝트 몫
       - name: E2E 실행
         working-directory: tests/e2e
         run: npx playwright test
@@ -100,7 +98,7 @@ jobs:
         working-directory: docker-compose
         run: |
           docker compose logs --tail 200
-          # 앞쪽 기동 구간 따로 저장(폴링 로그에 밀려 나감)
+          # 앞쪽 기동 구간 따로 출력(폴링 로그에 밀려 나감)
           docker compose logs market-data-service | head -400
           # 게이트웨이 경로별 서킷 상태 · 성공 · 실패 · 거절 수(관리 포트는 컨테이너 안에서만 열림)
           docker compose exec -T gateway-server wget -qO- http://localhost:9090/actuator/prometheus \

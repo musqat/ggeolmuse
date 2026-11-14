@@ -170,7 +170,7 @@ func splitImage(image string) (string, string) {
 	return image, "latest"
 }
 
-// restartCount 는 그 Deployment 파드들의 재시작 수 합
+// restartCount 는 Deployment 파드들의 재시작 수 합
 func restartCount(ctx context.Context, client kubernetes.Interface, d *appsv1.Deployment) (int32, error) {
 	selector, err := metav1.LabelSelectorAsSelector(d.Spec.Selector)
 	if err != nil {
