@@ -102,6 +102,13 @@ describe('TradingCapacityPanel', () => {
     expect(screen.queryByText('현재 평가액')).toBeNull()
   })
 
+  it('매도 가능 수량은 고른 거래일 기준이고 뒤 날짜 거래까지 반영했다고 알림', async () => {
+    renderPanel('sell', 'close', 100)
+
+    expect(await screen.findByText('2026-10-05 매도 가능 10.00주(뒤 날짜 거래까지 반영)')).toBeInTheDocument()
+    expect(screen.queryByText(/FIFO|이전에 매수한/)).toBeNull()
+  })
+
   it('지정가 매도는 수수료만 뺐다고 알린다', async () => {
     renderPanel('sell', 'limit', 100)
 

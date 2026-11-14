@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 
 import com.muscat.messaging.event.TradeRejectedEvent;
 import com.muscat.messaging.event.TradeSettledEvent;
+import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.enums.type.PriceType;
 import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
@@ -29,6 +30,8 @@ import com.muscat.trade.domain.service.TradeCancellationService;
 import com.muscat.trade.domain.service.TradeConfirmationService;
 import com.muscat.trade.infra.client.UserServiceClientWrapper;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -48,6 +51,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.orm.jpa.EntityManagerHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -317,7 +322,7 @@ class TradingServiceIT {
     @Test
     @DisplayName("매도 거래 실행 시 Holdings 수량이 감소한다")
     void sellStock_DecreasesHoldings() {
-      // given - 먼저 매수하여 Holdings 생성 (FIFO 검증을 위해 실제 매수 거래 필요)
+      // given - 먼저 매수하여 Holdings 생성 (매도 가능 수량은 완료된 매수 거래로 셈)
       buyAndSettle(TEST_SYMBOL, "20");
 
       // when - 매도
@@ -345,7 +350,7 @@ class TradingServiceIT {
     @Test
     @DisplayName("전량 매도 시 Holdings가 삭제된다")
     void sellStock_FullAmount_DeletesHoldings() {
-      // given - 매수하여 Holdings 생성 (FIFO 검증을 위해 실제 매수 거래 필요)
+      // given - 매수하여 Holdings 생성 (매도 가능 수량은 완료된 매수 거래로 셈)
       buyAndSettle(TEST_SYMBOL, "10");
 
       // when - 전량 매도
@@ -514,6 +519,160 @@ class TradingServiceIT {
       assertThat(inTransaction).hasSize(2).containsOnly(false);
       assertThat(tradeRepository.findById(response.id())).get()
         .satisfies(trade -> assertThat(trade.getEventPublishedAt()).isNotNull());
+    }
+  }
+
+  @Nested
+  @DisplayName("과거 날짜 매도")
+  class PastDateSellTests {
+
+    private static final LocalDate DAY1 = LocalDate.of(2026, 10, 1);
+
+    private void buyOnAndSettle(LocalDate date, String quantity) {
+      settle(tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL, new BigDecimal(quantity), date,
+        PriceType.CLOSE, null).id());
+    }
+
+    private TradeResponseDto sellOn(LocalDate date, String quantity) {
+      return tradingService.sellStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL, new BigDecimal(quantity), date,
+        PriceType.CLOSE, null);
+    }
+
+    private BigDecimal holdingQuantity() {
+      return holdingsRepository.findByUserIdAndAccountIdAndSymbol(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL)
+        .map(Holdings::getTotalQuantity).orElse(BigDecimal.ZERO);
+    }
+
+    @Test
+    @DisplayName("1일 매수 10 · 3일 매도 10 · 4일 매수 10 뒤 2일 매도 10 은 3일 보유가 음수가 되어 거절하고 체결 · 보유는 그대로다")
+    void laterHoldingWouldGoNegative_Rejected() {
+      buyOnAndSettle(DAY1, "10");
+      sellOn(DAY1.plusDays(2), "10");
+      buyOnAndSettle(DAY1.plusDays(3), "10");
+
+      assertThatThrownBy(() -> sellOn(DAY1.plusDays(1), "10"))
+        .isInstanceOf(TradeException.class)
+        .hasMessage(TradeResponse.INSUFFICIENT_SELLABLE_QUANTITY.getMessage());
+      assertThat(tradeRepository.count()).isEqualTo(3);
+      assertThat(holdingQuantity()).isEqualByComparingTo("10");
+    }
+
+    @Test
+    @DisplayName("과거 날짜 매도는 뒤 날짜 누적 보유가 모두 0 이상인 만큼까지 받는다")
+    void laterHoldingStaysNonNegative_Accepted() {
+      buyOnAndSettle(DAY1, "10");
+      sellOn(DAY1.plusDays(2), "4");
+      buyOnAndSettle(DAY1.plusDays(3), "10");
+
+      assertThatThrownBy(() -> sellOn(DAY1.plusDays(1), "7")).isInstanceOf(TradeException.class);
+      sellOn(DAY1.plusDays(1), "6");
+
+      assertThat(holdingQuantity()).isEqualByComparingTo("10");
+    }
+  }
+
+  @Nested
+  @DisplayName("보유 잠금 · 버전")
+  class HoldingsLockTests {
+
+    @Autowired
+    private EntityManagerFactory entityManagerFactory;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    // 웹 요청처럼 스레드에 영속성 컨텍스트 하나를 묶어 두고 실행
+    private void inOpenContext(Runnable call) {
+      EntityManager entityManager = entityManagerFactory.createEntityManager();
+      TransactionSynchronizationManager.bindResource(entityManagerFactory, new EntityManagerHolder(entityManager));
+      try {
+        call.run();
+      } finally {
+        TransactionSynchronizationManager.unbindResource(entityManagerFactory);
+        entityManager.close();
+      }
+    }
+
+    private void sellNow(String quantity) {
+      tradingService.sellStock(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL, new BigDecimal(quantity), LocalDate.now(),
+        PriceType.CLOSE, null);
+    }
+
+    @Test
+    @DisplayName("먼저 읽은 보유가 컨텍스트에 남아 있어도 잠금 뒤 다시 읽어 그새 다른 매도가 줄인 수량에서 뺀다")
+    void rereadsHoldingsAfterLock() throws Exception {
+      buyAndSettle(TEST_SYMBOL, "10");
+      CountDownLatch firstChecked = new CountDownLatch(1);
+      CountDownLatch otherSold = new CountDownLatch(1);
+      // 먼저 온 매도는 보유를 읽은 뒤 가격을 정하는 자리에서 다른 매도가 끝나기를 기다림
+      given(marketDataService.determineTradePrice(eq(TEST_SYMBOL), any(LocalDate.class), any(PriceType.class), any()))
+        .willAnswer(invocation -> {
+          if ("first-seller".equals(Thread.currentThread().getName())) {
+            firstChecked.countDown();
+            assertThat(otherSold.await(10, TimeUnit.SECONDS)).isTrue();
+          }
+          return STOCK_PRICE;
+        });
+
+      ExecutorService pool = Executors.newSingleThreadExecutor(task -> new Thread(task, "first-seller"));
+      Future<?> first = pool.submit(() -> inOpenContext(() -> sellNow("3")));
+      assertThat(firstChecked.await(10, TimeUnit.SECONDS)).isTrue();
+      sellNow("4");
+      otherSold.countDown();
+      first.get(15, TimeUnit.SECONDS);
+      pool.shutdown();
+
+      assertThat(holdingsRepository.findByUserIdAndAccountIdAndSymbol(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
+        .get().satisfies(holdings -> assertThat(holdings.getTotalQuantity()).isEqualByComparingTo("3"));
+    }
+
+    @Test
+    @DisplayName("키 없는 매도 둘이 같이 들어오면 잠금 순서대로 하나만 체결되고 다른 하나는 매도 가능 수량 부족이다")
+    void concurrentSellsWithoutKey_OneFilled() throws Exception {
+      buyAndSettle(TEST_SYMBOL, "10");
+      CountDownLatch bothPriced = new CountDownLatch(2);
+      // 둘 다 사전 검사를 지나 가격을 정한 뒤 같이 트랜잭션에 들어감
+      given(marketDataService.determineTradePrice(eq(TEST_SYMBOL), any(LocalDate.class), any(PriceType.class), any()))
+        .willAnswer(invocation -> {
+          bothPriced.countDown();
+          assertThat(bothPriced.await(10, TimeUnit.SECONDS)).isTrue();
+          return STOCK_PRICE;
+        });
+
+      ExecutorService pool = Executors.newFixedThreadPool(2);
+      Callable<String> sell = () -> {
+        try {
+          sellNow("6");
+          return "FILLED";
+        } catch (TradeException e) {
+          return e.getErrorCode();
+        }
+      };
+      Future<String> first = pool.submit(sell);
+      Future<String> second = pool.submit(sell);
+      List<String> outcomes = List.of(first.get(15, TimeUnit.SECONDS), second.get(15, TimeUnit.SECONDS));
+      pool.shutdown();
+
+      assertThat(outcomes).containsExactlyInAnyOrder("FILLED", "INSUFFICIENT_SELLABLE_QUANTITY");
+      assertThat(holdingsRepository.findByUserIdAndAccountIdAndSymbol(TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL))
+        .get().satisfies(holdings -> assertThat(holdings.getTotalQuantity()).isEqualByComparingTo("4"));
+    }
+
+    @Test
+    @DisplayName("보유를 바꿀 때마다 보유 버전이 하나씩 오른다")
+    void versionIncrementsOnChange() {
+      buyAndSettle(TEST_SYMBOL, "10");
+      long before = holdingsVersion();
+
+      sellNow("3");
+      sellNow("2");
+
+      assertThat(holdingsVersion()).isEqualTo(before + 2);
+    }
+
+    private long holdingsVersion() {
+      return jdbcTemplate.queryForObject("select version from holdings where user_id = ? and account_id = ? and symbol = ?",
+        Long.class, TEST_USER_ID, TEST_ACCOUNT_ID, TEST_SYMBOL);
     }
   }
 

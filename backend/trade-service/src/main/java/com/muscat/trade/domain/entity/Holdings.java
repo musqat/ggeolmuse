@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
@@ -66,6 +67,10 @@ public class Holdings {
   @UpdateTimestamp
   @Column(nullable = false)
   private LocalDateTime lastUpdatedAt; // 최종 수정일시
+
+  // 낡은 상태로 덮어쓰는 갱신을 막는 버전
+  @Version
+  private Long version;
 
   // ============================================
   // 도메인 메서드 (Domain Methods)

@@ -111,7 +111,7 @@ class TradeRepositoryQueryTest {
   }
 
   @Nested
-  @DisplayName("매도 가능 수량 (해당 날짜까지의 매수 합 − 매도 합)")
+  @DisplayName("매도 가능 수량 (매도일까지와 뒤 체결마다의 누적 보유 가운데 최솟값)")
   class SellableQuantity {
 
     @BeforeEach
@@ -142,6 +142,38 @@ class TradeRepositoryQueryTest {
 
       save(USER, 10, "AAPL", TradeType.SELL, "20", "200", LocalDate.of(2026, 10, 6), 9);
       assertThat(sellable(LocalDate.of(2026, 10, 6))).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("매도일 뒤 날짜의 누적 보유가 더 작으면 뒤 보유까지만 판다(1일 매수 10 · 3일 매도 10 · 4일 매수 10 이면 2일에 0)")
+    void limitedByLaterHoldings() {
+      save(USER, 30, "NVDA", TradeType.BUY, "10", "100", LocalDate.of(2026, 10, 1), 9);
+      save(USER, 30, "NVDA", TradeType.SELL, "10", "100", LocalDate.of(2026, 10, 3), 9);
+      save(USER, 30, "NVDA", TradeType.BUY, "10", "100", LocalDate.of(2026, 10, 4), 9);
+
+      assertThat(tradeRepository.calculateSellableQuantity(USER, 30L, "NVDA", LocalDate.of(2026, 10, 2)))
+        .isEqualByComparingTo("0");
+      assertThat(tradeRepository.calculateSellableQuantity(USER, 30L, "NVDA", LocalDate.of(2026, 10, 4)))
+        .isEqualByComparingTo("10");
+    }
+
+    @Test
+    @DisplayName("뒤 날짜 안에서도 체결 시각 순서로 보유가 음수가 되지 않는 만큼만 판다(5일 매도 5 뒤 매수 5 면 3일에 5)")
+    void limitedWithinLaterDay() {
+      save(USER, 40, "AMD", TradeType.BUY, "10", "100", LocalDate.of(2026, 10, 1), 9);
+      save(USER, 40, "AMD", TradeType.SELL, "5", "50", LocalDate.of(2026, 10, 5), 9);
+      save(USER, 40, "AMD", TradeType.BUY, "5", "50", LocalDate.of(2026, 10, 5), 10);
+
+      assertThat(tradeRepository.calculateSellableQuantity(USER, 40L, "AMD", LocalDate.of(2026, 10, 3)))
+        .isEqualByComparingTo("5");
+    }
+
+    @Test
+    @DisplayName("매도일 뒤 날짜들의 누적 보유 가운데 가장 작은 값까지 판다")
+    void minimumOfLaterHoldings() {
+      // 날짜순 누적 보유 10(1일) → 6(3일) → 11(5일)
+      assertThat(sellable(LocalDate.of(2026, 10, 2))).isEqualByComparingTo("6");
+      assertThat(sellable(LocalDate.of(2026, 10, 4))).isEqualByComparingTo("6");
     }
 
     @Test
