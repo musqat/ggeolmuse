@@ -5,6 +5,16 @@ import { stockApi, type StockSort } from '../services/api';
 import { formatMarketCap, formatPercent, formatUsd } from '../utils/format';
 import { Spinner } from '../components/common/Spinner';
 import { StockLogo } from '../components/common/StockLogo';
+import {
+  ROW_CARD_BODY,
+  ROW_CARD_CELL,
+  ROW_CARD_HEAD,
+  ROW_CARD_ROW,
+  ROW_CARD_TABLE,
+  ROW_CARD_TITLE,
+} from '../components/common/rowCards';
+
+const CELL = `${ROW_CARD_CELL} sm:py-3 sm:px-4`;
 
 interface StockSymbol {
   symbol: string;
@@ -178,8 +188,8 @@ const Stocks: React.FC = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
+          <table className={ROW_CARD_TABLE}>
+            <thead className={ROW_CARD_HEAD}>
               <tr className="border-b border-line">
                 <th className="text-left py-3 px-4 text-sm font-semibold text-tx-1">이름</th>
                 <th className="text-left py-3 px-4 text-sm font-semibold text-tx-1">티커</th>
@@ -188,15 +198,15 @@ const Stocks: React.FC = () => {
                 <th className="text-right py-3 px-4 text-sm font-semibold text-tx-1">배당수익률</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className={ROW_CARD_BODY}>
               {symbols.map((stock) => (
-                // 줄 어디를 눌러도 차트로(키보드 · 새 탭은 이름 칸 링크)
+                // 줄 어디를 눌러도 차트로(키보드 · 새 탭은 이름 칸 링크), 휴대폰 너비는 줄마다 카드
                 <tr
                   key={stock.symbol}
                   onClick={() => handleSymbolClick(stock.symbol)}
-                  className="border-b border-line/50 hover:bg-brand-bg cursor-pointer transition-colors"
+                  className={`${ROW_CARD_ROW} sm:border-b sm:border-line/50 hover:bg-brand-bg cursor-pointer transition-colors`}
                 >
-                  <td className="py-3 px-4">
+                  <td className={`${ROW_CARD_TITLE} sm:py-3 sm:px-4`}>
                     <Link
                       to={`/charts/${stock.symbol}`}
                       onClick={(event) => event.stopPropagation()}
@@ -206,18 +216,18 @@ const Stocks: React.FC = () => {
                       <span className="text-sm text-tx-1">{stock.name}</span>
                     </Link>
                   </td>
-                  <td className="py-3 px-4">
+                  <td className={`${CELL} sm:text-left`} data-label="티커">
                     <span className="font-semibold text-tx-1">{stock.symbol}</span>
                   </td>
-                  <td className="py-3 px-4 text-right">
+                  <td className={CELL} data-label="주가">
                     <span className="text-tx-1">
                       {stock.currentPrice ? formatUsd(stock.currentPrice) : '-'}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-right text-tx-2">
+                  <td className={`${CELL} text-tx-2`} data-label="시가총액">
                     {formatMarketCap(stock.marketCap, 1)}
                   </td>
-                  <td className="py-3 px-4 text-right text-tx-2">
+                  <td className={`${CELL} text-tx-2`} data-label="배당수익률">
                     {stock.dividendYieldPercent != null ? formatPercent(stock.dividendYieldPercent) : '-'}
                   </td>
                 </tr>

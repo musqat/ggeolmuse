@@ -104,15 +104,15 @@ const Home: React.FC = () => {
         {/* 좌측 */}
         <div>
           <div className="inline-flex items-center gap-2 text-[12px] font-semibold text-brand uppercase tracking-wide mb-5">
-            <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
-            실시간 데이터 자동 갱신
+            <span className="w-1.5 h-1.5 rounded-full bg-brand" />
+            매일 종가 갱신
           </div>
           <h1 className="text-5xl sm:text-[56px] font-extrabold tracking-[-2.5px] leading-[1.08] text-tx-1 mb-5">
             투자 전략,<br />
             <span className="text-tx-3 font-bold">직접 검증하세요</span>
           </h1>
           <p className="text-[15.5px] text-tx-2 leading-[1.7] mb-8 max-w-[420px]">
-            미국 주식을 리스크 없이 매매해보고, 백테스트로<br />
+            미국 주식을 과거 시세로 모의 매매해 보고, 백테스트로<br />
             전략 성과를 데이터로 확인하세요.
           </p>
           <div className="flex flex-wrap gap-2.5">
@@ -255,7 +255,7 @@ const Home: React.FC = () => {
             <p className="text-[10.5px] font-bold uppercase tracking-wide text-tx-3">Trading</p>
             <div>
               <p className="text-[16px] font-bold tracking-tight text-tx-1">모의 매매</p>
-              <p className="text-[12.5px] text-tx-2 mt-1">시장가 · 지정가 · 거래확인</p>
+              <p className="text-[12.5px] text-tx-2 mt-1">과거 날짜를 골라 그날 시가 · 고가 · 저가 · 종가나 지정가로 체결</p>
             </div>
           </Link>
 

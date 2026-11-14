@@ -2,6 +2,16 @@ import React, { useId, useState } from 'react';
 import type { PortfolioTransaction, TradeReason } from '../../../../services/api';
 import { gainLossClass } from '../../../../utils/gainLoss';
 import { formatShares, formatSigned, formatUsd } from '../../../../utils/format';
+import {
+  ROW_CARD_BODY,
+  ROW_CARD_CELL,
+  ROW_CARD_HEAD,
+  ROW_CARD_PLAIN_CELL,
+  ROW_CARD_PLAIN_ROW,
+  ROW_CARD_ROW,
+  ROW_CARD_TABLE,
+  ROW_CARD_TITLE,
+} from '../../../common/rowCards';
 
 interface PortfolioTradesProps {
   transactions: PortfolioTransaction[];
@@ -30,8 +40,9 @@ const REASON_LABELS: Record<TradeReason, string> = {
 };
 
 const HEAD = 'px-3 py-2 text-xs font-medium text-tx-2';
-const TEXT = 'px-3 py-2 text-left';
-const NUMBER = 'px-3 py-2 text-right tabular-nums';
+const TITLE = `${ROW_CARD_TITLE} sm:px-3 sm:py-2`;
+const TEXT = `${ROW_CARD_CELL} sm:px-3 sm:py-2 sm:text-left`;
+const NUMBER = `${ROW_CARD_CELL} sm:px-3 sm:py-2 tabular-nums`;
 const SELECT = 'bg-surface border border-line rounded-btn px-3 py-2 text-sm text-tx-1';
 const Dash: React.FC = () => <span className="text-tx-3">-</span>;
 
@@ -51,8 +62,8 @@ const amountUsd = (tx: PortfolioTransaction) => {
 const TradeRow: React.FC<{ tx: PortfolioTransaction }> = ({ tx }) => {
   const tradedOn = tx.actualDate ?? tx.date;
   return (
-    <tr>
-      <td className={TEXT}>
+    <tr className={ROW_CARD_ROW}>
+      <td className={TITLE}>
         <div>{tradedOn}</div>
         {tradedOn !== tx.date && (
           <div className="text-xs text-tx-3">
@@ -60,13 +71,13 @@ const TradeRow: React.FC<{ tx: PortfolioTransaction }> = ({ tx }) => {
           </div>
         )}
       </td>
-      <td className={`${TEXT} font-medium`}>{tx.symbol ?? <Dash />}</td>
-      <td className={TEXT}>{tx.trigger ?? (tx.reason ? REASON_LABELS[tx.reason] : <Dash />)}</td>
-      <td className={NUMBER}>
+      <td className={`${TEXT} font-medium`} data-label="종목">{tx.symbol ?? <Dash />}</td>
+      <td className={TEXT} data-label="이유">{tx.trigger ?? (tx.reason ? REASON_LABELS[tx.reason] : <Dash />)}</td>
+      <td className={NUMBER} data-label="수량">
         {isPayment(tx) ? <Dash /> : formatShares(Math.abs(tx.shares))}
       </td>
-      <td className={NUMBER}>{amountUsd(tx)}</td>
-      <td className={NUMBER}>
+      <td className={NUMBER} data-label="금액">{amountUsd(tx)}</td>
+      <td className={NUMBER} data-label="실현 손익">
         {isSale(tx) && tx.realizedProfit != null ? (
           <span className={gainLossClass(tx.realizedProfit)}>{formatSigned(tx.realizedProfit, formatUsd)}</span>
         ) : (
@@ -77,7 +88,7 @@ const TradeRow: React.FC<{ tx: PortfolioTransaction }> = ({ tx }) => {
   );
 };
 
-// 포트폴리오 매매 내역: 종목 · 이유 고르기와 거래 표(이유 칸은 거래 글, 금액 · 실현 손익은 달러)
+// 포트폴리오 매매 내역: 종목 · 이유 고르기와 거래 표(이유 칸은 거래 글, 금액 · 실현 손익은 달러, 휴대폰 너비는 줄마다 카드)
 export const PortfolioTrades: React.FC<PortfolioTradesProps> = ({ transactions, symbols }) => {
   const [symbol, setSymbol] = useState('');
   const [reason, setReason] = useState('');
@@ -115,8 +126,8 @@ export const PortfolioTrades: React.FC<PortfolioTradesProps> = ({ transactions, 
         <span className="ml-auto">{shown.length}건</span>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm whitespace-nowrap">
-          <thead>
+        <table className={`${ROW_CARD_TABLE} text-sm sm:whitespace-nowrap`}>
+          <thead className={ROW_CARD_HEAD}>
             <tr className="border-b border-line">
               <th scope="col" className={`${HEAD} text-left`}>날짜</th>
               <th scope="col" className={`${HEAD} text-left`}>종목</th>
@@ -126,10 +137,10 @@ export const PortfolioTrades: React.FC<PortfolioTradesProps> = ({ transactions, 
               <th scope="col" className={`${HEAD} text-right`}>실현 손익</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-line/50 text-tx-1">
+          <tbody className={`${ROW_CARD_BODY} text-tx-1 sm:divide-y sm:divide-line/50`}>
             {shown.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-tx-2">
+              <tr className={ROW_CARD_PLAIN_ROW}>
+                <td colSpan={6} className={`${ROW_CARD_PLAIN_CELL} px-3 py-6 text-center text-tx-2`}>
                   고른 종목 · 이유의 거래가 없습니다
                 </td>
               </tr>

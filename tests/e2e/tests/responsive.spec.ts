@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator } from '@playwright/test';
+import { runTwoSymbolPortfolio } from './backtestForm';
 
 // 좁은 폭에서 지표 패널이 접혀 캔들이 안 찌그러지는지 봄
 // devices[...] 는 describe 안에서 쓰면 워커를 새로 띄워 안 씀
@@ -10,6 +11,16 @@ const CHART = '/charts/FQA?period=custom&start=2025-01-02&end=2025-06-30';
 /** 가로 스크롤이 생기면 화면이 넘친 것 */
 async function overflowsHorizontally(page: import('@playwright/test').Page) {
   return page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+}
+
+/** 줄 카드 표: 머리줄이 숨고 첫 줄 둘째 칸이 칸 이름(::before)을 그림 */
+async function expectRowCards(table: Locator) {
+  await expect(table.locator('thead')).toBeHidden();
+  const cell = table.locator('tbody tr').first().locator('td[data-label]').first();
+  await expect(cell).toBeVisible();
+  expect(await cell.getAttribute('data-label'), '칸 이름이 비었다').toBeTruthy();
+  const label = await cell.evaluate((el) => getComputedStyle(el, '::before').content);
+  expect(label, '칸 이름을 그리지 않는다').not.toMatch(/^(none|normal|"")$/);
 }
 
 test.describe('모바일 폭', () => {
@@ -53,6 +64,20 @@ test.describe('모바일 폭', () => {
     await page.goto('/backtest');
     await expect(page.getByTestId('backtest-run')).toBeVisible();
 
+    expect(await overflowsHorizontally(page), '가로 스크롤이 생겼다').toBe(false);
+  });
+
+  test('종목 목록은 줄 카드로 칸 이름을 보이고 가로로 넘치지 않음', async ({ page }) => {
+    await page.goto('/stocks');
+
+    await expectRowCards(page.getByRole('table'));
+    expect(await overflowsHorizontally(page), '가로 스크롤이 생겼다').toBe(false);
+  });
+
+  test('포트폴리오 결과의 종목별 표는 줄 카드로 칸 이름을 보이고 가로로 넘치지 않음', async ({ page }) => {
+    await runTwoSymbolPortfolio(page);
+
+    await expectRowCards(page.getByRole('table'));
     expect(await overflowsHorizontally(page), '가로 스크롤이 생겼다').toBe(false);
   });
 });

@@ -10,7 +10,7 @@ interface StatCardProps {
   testId?: string;
   // 칸 너비 등 바깥 배치
   className?: string;
-  // 휴대폰 두 칸 배치용(여백 · 값 글자를 줄이고 긴 값은 칸 안에서 줄바꿈)
+  // 휴대폰 두 칸 배치용(여백 · 값 글자를 15px 로 줄여 부호 있는 열 자리 금액까지 한 줄, 더 긴 값만 칸 안에서 줄바꿈)
   compact?: boolean;
 }
 
@@ -31,7 +31,7 @@ export const StatCard: React.FC<StatCardProps> = ({
       {note && <span className="font-normal"> · {note}</span>}
     </p>
     <p
-      className={`${compact ? 'text-xl sm:text-2xl break-words' : 'text-2xl'} font-bold mt-1 ${valueClassName}`}
+      className={`${compact ? 'text-[15px] tracking-tight sm:text-2xl sm:tracking-normal break-words' : 'text-2xl'} font-bold mt-1 ${valueClassName}`}
       data-testid={testId}
     >
       {value}

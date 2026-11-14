@@ -3,6 +3,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { PortfolioAssetResult, PortfolioBacktestResponse, TradeReason } from '../../../../services/api'
 import { PortfolioResult } from './PortfolioResult'
+import { expectRowCards } from '../../../../test/rowCards'
 
 // 자산 추이는 받은 통화 · 일별 값 수 · 넣은 돈 합만 보임
 vi.mock('../AssetChart', () => ({
@@ -186,6 +187,12 @@ describe('PortfolioResult', () => {
     expect(within(other).getByRole('rowheader')).toHaveTextContent('현금 환율 차 · 양도세')
     expect(cells(other)).toEqual(['-', '-', '-', '-', '-₩260,000', '-'])
     expect(within(other).getByText('-₩260,000')).toHaveClass('text-loss')
+  })
+
+  it('휴대폰 너비에서는 종목별 표를 줄마다 카드로 보이고 둘째 칸부터 머리줄 이름을 칸 이름으로 둠', () => {
+    render(<PortfolioResult result={result} />)
+
+    expectRowCards(screen.getByRole('table'))
   })
 
   it('종목별 표 제목 줄 오른쪽에 리밸런싱 주기를 평가일 환율 앞에 보인다', () => {

@@ -22,7 +22,7 @@ const Header: React.FC = () => {
     { name: 'Home', href: '/' },
     { name: '종목', href: '/stocks' },
     { name: '차트', href: '/charts/AAPL' },
-    { name: '거래', href: '/trading' },
+    { name: '모의 매매', href: '/trading' },
     { name: '백테스트', href: '/backtest' },
     { name: '계좌', href: '/account' },
   ];

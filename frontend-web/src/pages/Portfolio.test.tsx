@@ -6,6 +6,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { accountsApi, portfolioApi } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
 import Portfolio from './Portfolio'
+import { expectRowCards } from '../test/rowCards'
 
 vi.mock('../services/api', () => ({
   portfolioApi: { getAccountPortfolio: vi.fn(), getPortfolioSummary: vi.fn() },
@@ -107,6 +108,14 @@ describe('Portfolio', () => {
     expect(table.getByText('$200.00')).toBeInTheDocument()
     expect(table.getByText('+$20.00')).toBeInTheDocument()
     expect(table.getByText('(+11.11%)')).toBeInTheDocument()
+  })
+
+  it('휴대폰 너비에서는 보유 종목 표를 줄마다 카드로 보이고 둘째 칸부터 머리줄 이름을 칸 이름으로 둠', async () => {
+    renderPage()
+
+    const table = await screen.findByRole('table')
+    await within(table).findByText('$90.00')
+    expectRowCards(table)
   })
 
   it('보유도 현금도 없으면 비었다고 보인다', async () => {

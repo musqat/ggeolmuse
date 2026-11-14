@@ -3,6 +3,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { PortfolioTransaction } from '../../../../services/api'
 import { PortfolioTrades } from './PortfolioTrades'
+import { expectRowCards } from '../../../../test/rowCards'
 
 const transactions: PortfolioTransaction[] = [
   { symbol: 'SPY', reason: 'BUY', date: '2020-01-02', actualDate: '2020-01-02', trigger: '한 번에 매수', shares: 20.12345678, price: 324.87, amount: 6000000, fxRate: 1200, fee: 0 },
@@ -19,6 +20,12 @@ const options = (name: string) =>
   within(screen.getByRole('combobox', { name })).getAllByRole('option').map((option) => option.textContent)
 
 describe('PortfolioTrades', () => {
+  it('휴대폰 너비에서는 줄마다 카드로 보이고 둘째 칸부터 머리줄 이름을 칸 이름으로 둠', () => {
+    render(<PortfolioTrades transactions={transactions} symbols={['SPY', 'QQQ']} />)
+
+    expectRowCards(screen.getByRole('table'))
+  })
+
   it('연말 정리 매도는 판 줄, 재매수는 산 줄로 보이고 이유 고르기 이름은 공제 채우기 · 손실 상계 매도 · 재매수', () => {
     const harvest = (reason: PortfolioTransaction['reason'], trigger: string, shares: number): PortfolioTransaction => ({
       symbol: 'SPY', reason, date: '2024-12-31', actualDate: '2024-12-31', trigger, shares, price: 500, amount: 0, fxRate: 1450,

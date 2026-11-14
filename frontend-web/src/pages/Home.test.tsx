@@ -119,6 +119,14 @@ describe('Home', () => {
     expect(screen.getByRole('link', { name: /계좌 관리/ })).toHaveAttribute('href', '/account')
   })
 
+  it('시세는 매일 종가 갱신, 모의 매매는 과거 날짜 체결이라고 적고 실시간 · 시장가 · 거래확인은 없음', () => {
+    renderHome()
+
+    expect(screen.getByText('매일 종가 갱신')).toBeInTheDocument()
+    expect(screen.getByText('과거 날짜를 골라 그날 시가 · 고가 · 저가 · 종가나 지정가로 체결')).toBeInTheDocument()
+    expect(screen.queryByText(/실시간|시장가|거래확인/)).toBeNull()
+  })
+
   it.each([
     ['종목 둘러보기', '/stocks'],
     ['매매 해보기', '/trading'],
