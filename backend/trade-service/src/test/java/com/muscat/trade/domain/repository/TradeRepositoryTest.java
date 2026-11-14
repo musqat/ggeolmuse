@@ -95,7 +95,7 @@ class TradeRepositoryTest {
   }
 
   @Test
-  @DisplayName("보유 다시 쌓기용 조회는 완료된 체결만 반영 순서대로 준다")
+  @DisplayName("한 종목 조회는 완료된 체결만 체결 시각 순서로 준다")
   void findCompleted_InExecutionOrder() {
     Trade later = saveTrade(TradeType.BUY, "1", TradeStatus.COMPLETED, LocalDateTime.of(2026, 10, 7, 10, 0));
     saveTrade(TradeType.BUY, "2", TradeStatus.CANCELLED, LocalDateTime.of(2026, 10, 7, 9, 0));

@@ -24,6 +24,7 @@ import com.muscat.trade.domain.event.TradeSavedEvent;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.repository.TradeRepository;
 import com.muscat.trade.domain.service.HoldingsCalculator;
+import com.muscat.trade.domain.service.HoldingsRebuilder;
 import com.muscat.trade.domain.service.IdempotencyGuard;
 import com.muscat.trade.domain.service.MarketDataService;
 import com.muscat.trade.domain.service.TradingService;
@@ -61,6 +62,7 @@ public class TradingServiceImpl implements TradingService {
   private final TransactionTemplate transactionTemplate;
   private final TradeMetrics tradeMetrics;
   private final IdempotencyGuard idempotencyGuard;
+  private final HoldingsRebuilder holdingsRebuilder;
 
   @Override
   public TradeResponseDto buyStock(String userId, Long accountId, String symbol, BigDecimal quantity,
@@ -407,10 +409,20 @@ public class TradingServiceImpl implements TradingService {
 
     Trade savedTrade = tradeRepository.save(trade);
     if (tradeType == TradeType.SELL) {
-      updateHoldings(savedTrade);
+      applySellToHoldings(savedTrade);
     }
 
     return savedTrade;
+  }
+
+  // 뒤 거래일 체결이 있는 과거 날짜 매도는 보유를 거래일 순서로 다시 쌓고, 아니면 지금 보유에서 뺌
+  private void applySellToHoldings(Trade sell) {
+    if (tradeRepository.existsByUserIdAndAccountIdAndSymbolAndStatusAndTradeDateAfter(sell.getUserId(),
+      sell.getAccountId(), sell.getSymbol(), TradeStatus.COMPLETED, sell.getTradeDate())) {
+      holdingsRebuilder.rebuild(sell.getUserId(), sell.getAccountId(), sell.getSymbol());
+      return;
+    }
+    updateHoldings(sell);
   }
 
   // 체결을 보유에 반영 (비관적 Lock)

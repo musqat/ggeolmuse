@@ -6,7 +6,6 @@ import com.muscat.trade.domain.entity.Trade;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,10 +13,6 @@ import java.util.stream.Collectors;
 
 // 배당을 받을 수량 — 배당락일 전(거래일 < 배당락일)에 체결된 매수 합 − 매도 합(당일 · 이후 매수는 못 받고 매도는 받음)
 public final class DividendEntitlement {
-
-  private static final Comparator<Trade> TRADE_ORDER = Comparator.comparing(Trade::getTradeDate)
-    .thenComparing(Trade::getExecutedAt, Comparator.nullsLast(Comparator.naturalOrder()))
-    .thenComparing(Trade::getId, Comparator.nullsLast(Comparator.naturalOrder()));
 
   private DividendEntitlement() {
   }
@@ -39,7 +34,7 @@ public final class DividendEntitlement {
   public static List<HeldBuy> remainingByBuyBefore(List<Trade> trades, LocalDate exDate) {
     Map<Long, List<Trade>> tradesByAccount = trades.stream()
       .filter(trade -> counts(trade, exDate))
-      .sorted(TRADE_ORDER)
+      .sorted(TradeOrder.LEDGER)
       .collect(Collectors.groupingBy(Trade::getAccountId, LinkedHashMap::new, Collectors.toList()));
 
     List<HeldBuy> held = new ArrayList<>();

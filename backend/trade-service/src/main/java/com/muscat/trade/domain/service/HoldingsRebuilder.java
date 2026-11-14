@@ -10,11 +10,12 @@ import com.muscat.trade.domain.repository.TradeRepository;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-// 완료된 체결을 반영 순서대로 다시 쌓아 한 종목 보유를 덮어씀
+// 완료된 체결을 계좌 통계와 같은 거래일 순서로 다시 쌓아 한 종목 보유를 덮어씀
 @Slf4j
 @Component
 public class HoldingsRebuilder {
@@ -41,15 +42,16 @@ public class HoldingsRebuilder {
     rebuild(userId, accountId, symbol, true);
   }
 
-  // reviewUncovered 가 false 면 보유보다 많은 매도를 검토 카운터에 세지 않음
-  public void rebuild(String userId, Long accountId, String symbol, boolean reviewUncovered) {
+  // reviewUncovered 가 false 면 보유보다 많은 매도를 검토 카운터에 세지 않음(수량이나 평균 단가가 바뀌었으면 true)
+  public boolean rebuild(String userId, Long accountId, String symbol, boolean reviewUncovered) {
     Optional<Holdings> existing =
       holdingsRepository.findByUserIdAndAccountIdAndSymbolWithLock(userId, accountId, symbol);
     int pricePrecision = tradeProperties.getCalculation().getPricePrecision();
 
     Holdings rebuilt = null;
-    for (Trade trade : tradeRepository.findByUserIdAndAccountIdAndSymbolAndStatusOrderByExecutedAtAscIdAsc(
-      userId, accountId, symbol, TradeStatus.COMPLETED)) {
+    List<Trade> ledger = tradeRepository.findByUserIdAndAccountIdAndSymbolAndStatusOrderByExecutedAtAscIdAsc(
+      userId, accountId, symbol, TradeStatus.COMPLETED).stream().sorted(TradeOrder.LEDGER).toList();
+    for (Trade trade : ledger) {
       HoldingsCalculator.Applied applied = HoldingsCalculator.apply(rebuilt, trade, pricePrecision);
       if (applied.uncovered()) {
         if (reviewUncovered) {
@@ -63,6 +65,9 @@ public class HoldingsRebuilder {
 
     BigDecimal oldQuantity = existing.map(Holdings::getTotalQuantity).orElse(BigDecimal.ZERO);
     BigDecimal oldAvgPrice = existing.map(Holdings::getAvgPurchasePrice).orElse(BigDecimal.ZERO);
+    boolean changed = rebuilt == null ? existing.isPresent()
+      : existing.isEmpty() || oldQuantity.compareTo(rebuilt.getTotalQuantity()) != 0
+        || oldAvgPrice.compareTo(rebuilt.getAvgPurchasePrice()) != 0;
     if (rebuilt == null) {
       existing.ifPresent(holdingsRepository::delete);
     } else if (existing.isPresent()) {
@@ -74,5 +79,6 @@ public class HoldingsRebuilder {
     tradeLogger.logHoldingsUpdate(userId, String.valueOf(accountId), symbol, oldQuantity,
       rebuilt == null ? BigDecimal.ZERO : rebuilt.getTotalQuantity(),
       oldAvgPrice, rebuilt == null ? BigDecimal.ZERO : rebuilt.getAvgPurchasePrice());
+    return changed;
   }
 }
