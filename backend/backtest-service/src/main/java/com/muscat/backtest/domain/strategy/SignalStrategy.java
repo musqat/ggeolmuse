@@ -32,18 +32,22 @@ import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 
 // 신호 전략 공통 매매: 시작일부터 매매 종목 일봉마다 일봉 날짜까지의 신호로 들고 있을지 정하고, 양도세를 낸 뒤 당일 종가에(고르면 다음 거래일 시가 매도 →
-// 양도세 납부 → 시가 매수 차례로) 가진 돈 전부로 사거나 전량 팜(트레일링 스탑 · 부분 익절은 정한 몫, 처음 매수는 원금, 그 뒤는 판 돈, 신호 종목은 시작일 전 일봉을 더 받아 시작일부터 신호를 봄)
+// 양도세 납부 → 시가 매수 차례로) 가진 돈 전부로 사거나 전량 팜(트레일링 스탑 · 부분 익절은 정한 몫, 처음 매수는 원금, 이후 매수는 판 돈, 신호 종목은 시작일 전 일봉을 더 받아 시작일부터 신호를 봄)
 @Slf4j
 abstract class SignalStrategy<R extends SignalStrategyRequest> implements InvestmentStrategy {
 
-  // 모의 계좌 · 보유와 첫 매수를 했는지
+  // 모의 계좌 · 보유 · 트레일링 스탑 · 부분 익절과 첫 매수를 했는지
   private static final class Book {
     private final TradeLedger ledger;
     private final TradeLedger.Holding holding = new TradeLedger.Holding();
+    private final TrailingStop trailing;
+    private final TakeProfitLadder ladder;
     private boolean started;
 
-    private Book(TradeLedger ledger) {
+    private Book(TradeLedger ledger, TrailingStop trailing, TakeProfitLadder ladder) {
       this.ledger = ledger;
+      this.trailing = trailing;
+      this.ladder = ladder;
     }
 
     // 첫 매수 전이거나 판 돈이 남았는지(판 돈을 양도세로 다 냈으면 사지 않음)
@@ -52,8 +56,8 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
     }
 
     // 원금(첫 매수)이나 판 돈 전부로 사고 트레일링 스탑 기준가 · 부분 익절 첫 단계를 엶(계획일은 신호 난 날)
-    private void buy(SignalStrategyRequest request, LocalDate planned, LocalDate date, BigDecimal price, String trigger,
-      TrailingStop trailing, TakeProfitLadder ladder) {
+    private void buy(SignalStrategyRequest request, LocalDate planned, LocalDate date, BigDecimal price,
+      String trigger) {
       StrategyTransaction buy = started
         ? ledger.buyWithCash(holding, planned, date, price, ledger.cash(), trigger, null)
         : ledger.buyWithDeposit(holding, planned, date, price, request.getInvestmentAmount(), trigger, null);
@@ -71,6 +75,22 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
     // 보유 전량 매도
     private void sellAll(LocalDate planned, LocalDate date, BigDecimal price, String trigger) {
       sell(planned, date, price, holding.shares(), holding.cost(), trigger);
+    }
+
+    // 트레일링 스탑 다음 부분 익절에 닿으면 정한 몫을 당일 종가에 팖(다 팔았으면 true)
+    private boolean sellPart(LocalDate date, BigDecimal close) {
+      SaleShare trailed = trailing.check(close, holding.shares(), holding.cost());
+      SaleShare exit = trailed != null ? trailed : ladder.check(close, holding.shares(), holding.cost());
+      if (exit == null) {
+        return false;
+      }
+      StrategyTransaction sale = sell(date, date, close, exit.shares(), exit.cost(), exit.trigger());
+      if (exit == trailed) {
+        trailing.sold(sale.getPrice());
+      } else {
+        ladder.sold();
+      }
+      return exit.all();
     }
   }
 
@@ -185,27 +205,15 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
     TradeSignal signal, LocalDate actualEndDate, CapitalGainsTaxPayer taxPayer) {
     LocalDate start = request.getStartDate();
     List<OHLCPriceDto> candles = SignalPrices.usable(priceMap);
-    LocalDate firstInPeriod = candles.stream()
-      .map(OHLCPriceDto::date)
-      .filter(date -> !date.isBefore(start))
-      .findFirst()
-      .orElseThrow(() -> new BacktestException(BacktestResponse.DATA_NOT_FOUND,
-        label() + " 전략 실행 가능한 데이터가 없습니다"));
-
-    FxRates fxRates = FxRates.EMPTY;
-    if (request.getPurchaseFxRate() == null) {
-      fxRates = BacktestDataUtils.buildDailyFxRateMap(marketData, firstInPeriod, actualEndDate);
-      log.info("환율 데이터 조회 완료: {}개", fxRates.size());
-    }
+    FxRates fxRates = loadFxRates(request, candles, actualEndDate);
 
     List<SkippedRound> skippedRounds = new ArrayList<>();
     TradeLedger ledger = new TradeLedger(request.getTradingFeeRate(), request.getPurchaseFxRate(), fxRates,
       Boolean.TRUE.equals(request.getCapitalGainsTax()));
-    Book book = new Book(ledger);
+    Book book = new Book(ledger, TrailingStop.of(request.getTrailingStopRate(), request.getTrailingSellRate()),
+      TakeProfitLadder.of(request.getPartialTakeProfits()));
     TradeLedger.Holding position = book.holding;
     SignalHolding target = new SignalHolding(signal, signalPrices, start);
-    TrailingStop trailing = TrailingStop.of(request.getTrailingStopRate(), request.getTrailingSellRate());
-    TakeProfitLadder ladder = TakeProfitLadder.of(request.getPartialTakeProfits());
     Set<LocalDate> harvestDates = YearEndHarvest.enabled(request.getCapitalGainsTax(), request.getYearEndHarvest())
       ? YearEndHarvest.dates(priceMap, start, actualEndDate)
       : Set.of();
@@ -231,15 +239,14 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
           wanted = false;
         }
         if (due != null && due.buy() && !position.held() && book.buyable()) {
-          book.buy(request, due.signalDate(), date, PriceLookup.effectiveOpen(candle), signal.buyTrigger(), trailing,
-            ladder);
+          book.buy(request, due.signalDate(), date, PriceLookup.effectiveOpen(candle), signal.buyTrigger());
         }
         boolean holding = position.held();
         if (!holding && wanted && book.buyable()) {
           if (nextOpen) {
             order = new SignalOrder(date, true);
           } else {
-            book.buy(request, date, date, close, signal.buyTrigger(), trailing, ladder);
+            book.buy(request, date, date, close, signal.buyTrigger());
           }
         } else if (holding && !wanted) {
           if (nextOpen) {
@@ -247,20 +254,8 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
           } else {
             book.sellAll(date, date, close, signal.sellTrigger());
           }
-        } else if (holding) {
-          SaleShare trailed = trailing.check(close, position.shares(), position.cost());
-          SaleShare exit = trailed != null ? trailed : ladder.check(close, position.shares(), position.cost());
-          if (exit != null) {
-            StrategyTransaction sale = book.sell(date, date, close, exit.shares(), exit.cost(), exit.trigger());
-            if (exit == trailed) {
-              trailing.sold(sale.getPrice());
-            } else {
-              ladder.sold();
-            }
-            if (exit.all()) {
-              target.soldOut();
-            }
-          }
+        } else if (holding && book.sellPart(date, close)) {
+          target.soldOut();
         }
         // 당일 사고팔기 뒤 연말 정리
         if (harvestDates.contains(date)) {
@@ -274,5 +269,22 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
 
     log.info("{} 전략 완료: 거래 {}건, 계산 실패 {}회", label(), ledger.transactions().size(), skippedRounds.size());
     return new StrategyPurchases(new ArrayList<>(ledger.transactions()), skippedRounds, priceMap, fxRates);
+  }
+
+  // 기간 첫 일봉부터 평가일까지 날마다 환율(기간 안 일봉이 없으면 DATA_NOT_FOUND, 수동 환율이면 빈 값)
+  private FxRates loadFxRates(R request, List<OHLCPriceDto> candles, LocalDate actualEndDate) {
+    LocalDate start = request.getStartDate();
+    LocalDate firstInPeriod = candles.stream()
+      .map(OHLCPriceDto::date)
+      .filter(date -> !date.isBefore(start))
+      .findFirst()
+      .orElseThrow(() -> new BacktestException(BacktestResponse.DATA_NOT_FOUND,
+        label() + " 전략 실행 가능한 데이터가 없습니다"));
+    if (request.getPurchaseFxRate() != null) {
+      return FxRates.EMPTY;
+    }
+    FxRates fxRates = BacktestDataUtils.buildDailyFxRateMap(marketData, firstInPeriod, actualEndDate);
+    log.info("환율 데이터 조회 완료: {}개", fxRates.size());
+    return fxRates;
   }
 }

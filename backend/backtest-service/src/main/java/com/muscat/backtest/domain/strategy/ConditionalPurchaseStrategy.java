@@ -168,11 +168,6 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     return YearEndHarvest.enabled(request.getCapitalGainsTax(), request.getYearEndHarvest());
   }
 
-  // 최대 횟수(null 이면 제한 없음)에 닿았는지
-  private static boolean reached(Integer maxPurchases, int rounds) {
-    return maxPurchases != null && rounds >= maxPurchases;
-  }
-
   // 남은 예산(null 이면 제한 없음)을 넘는 금액인지
   private static boolean exceeds(BigDecimal amount, BigDecimal budgetLeft) {
     return budgetLeft != null && amount.compareTo(budgetLeft) > 0;
@@ -181,106 +176,26 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
   // 조건부 매수 실행(시세가 깨진 날 종가 0 이하 · 계산이 실패한 날은 사지 않고 이유를 남긴 뒤 다음 날 다시)
   private StrategyPurchases executeConditionalPurchases(
     ConditionalStrategyRequest request, LocalDate actualEndDate, CapitalGainsTaxPayer taxPayer) {
-
-    BigDecimal previousClose = null;
-
-    //  BULK API 사용: 전체 기간의 가격 데이터를 한 번에 조회
-    log.info("조건부 매수 전략 - Bulk 데이터 조회 시작: {} ~ {}", request.getStartDate(), actualEndDate);
-    java.util.Map<LocalDate, OHLCPriceDto> priceMap = BacktestDataUtils.buildPriceMap(
-      marketData, request.getSymbol(), request.getStartDate(), actualEndDate);
-    if (priceMap.values().stream().noneMatch(PriceLookup::isUsable)) {
-      throw new BacktestException(BacktestResponse.DATA_NOT_FOUND,
-        "조건부 매수 전략 실행 가능한 데이터가 없습니다");
-    }
-
-    //  BULK API 사용: 전체 기간의 환율 데이터를 한 번에 조회 (수동 설정이 없는 경우만)
-    FxRates fxRateMap = FxRates.EMPTY;
-    if (request.getPurchaseFxRate() == null) {
-      // 첫 시세일부터 평가일까지
-      LocalDate firstPrice = priceMap.keySet().stream().min(LocalDate::compareTo).orElse(actualEndDate);
-      fxRateMap = BacktestDataUtils.buildDailyFxRateMap(marketData, firstPrice, actualEndDate);
-      log.info("환율 데이터 조회 완료: {}개", fxRateMap.size());
-    }
-
-    LocalDate currentDate = request.getStartDate();
-    Integer maxPurchases = request.getMaxPurchases();
-    BigDecimal budget = request.getTotalInvestment();
-    int purchaseCount = 0;
-    // 넣은 돈(KRW) · 예산 부족으로 사지 못한 회차 수와 그 첫 날짜
-    BigDecimal deposited = BigDecimal.ZERO;
-    int shortRounds = 0;
-    LocalDate shortFrom = null;
-    List<SkippedRound> skippedRounds = new ArrayList<>();
-    boolean sells = sells(request);
-    TakeProfitStopLoss exits = TakeProfitStopLoss.of(request.getTakeProfitRate(), request.getStopLossRate());
-    TrailingStop trailing = TrailingStop.of(request.getTrailingStopRate(), request.getTrailingSellRate());
-    TakeProfitLadder ladder = TakeProfitLadder.of(request.getPartialTakeProfits());
-    TradeLedger ledger = new TradeLedger(request.getTradingFeeRate(), request.getPurchaseFxRate(), fxRateMap,
-      Boolean.TRUE.equals(request.getCapitalGainsTax()));
-    TradeLedger.Holding holding = new TradeLedger.Holding();
+    java.util.Map<LocalDate, OHLCPriceDto> priceMap = loadPrices(request, actualEndDate);
+    FxRates fxRateMap = loadFxRates(request, priceMap, actualEndDate);
     // 매도 규칙을 켠 요청의 연말 정리 날
-    Set<LocalDate> harvestDates = sells && harvests(request)
+    Set<LocalDate> harvestDates = sells(request) && harvests(request)
       ? YearEndHarvest.dates(priceMap, request.getStartDate(), actualEndDate)
       : Set.of();
+    Run run = new Run(request, taxPayer, fxRateMap, harvestDates);
+    List<SkippedRound> skippedRounds = new ArrayList<>();
+    BigDecimal previousClose = null;
+    LocalDate currentDate = request.getStartDate();
 
     // 메모리에서 데이터 조회 (API 호출 없음), 파는 규칙을 켜면 새 돈 회차를 다 쓴 뒤에도 끝까지 봄
-    while (!currentDate.isAfter(actualEndDate) && (sells || !reached(maxPurchases, purchaseCount + shortRounds))) {
+    while (!currentDate.isAfter(actualEndDate) && (run.sells || !run.rounds.used())) {
       OHLCPriceDto priceData = priceMap.get(currentDate);
       boolean usable = PriceLookup.isUsable(priceData);
       try {
         if (priceData != null && priceData.available() && !usable) {
           skippedRounds.add(new SkippedRound(currentDate, SkipReason.NO_PRICE));
         } else if (usable) {
-          BigDecimal close = PriceLookup.effectiveClose(priceData);
-          // 양도세 낼 현금이 모자라면 당일 종가에 모자란 만큼 팖(하루 매도 한 번에 세지 않고 당일 매수도 봄)
-          ledger.sellAndPayTax(taxPayer, request.getTaxSale(), holding, currentDate, close);
-          // 익절 · 손절 → 트레일링 스탑 → 부분 익절 차례로 보고 판 날은 사지 않음(당일 산 주식은 매도를 본 뒤라 팔지 않음)
-          StrategyTransaction sale = sells && holding.held()
-            ? sellIfTriggered(ledger, holding, priceData, currentDate, exits)
-            : null;
-          if (sale == null && holding.held()) {
-            sale = trailingSale(ledger, holding, priceData, currentDate, trailing);
-          }
-          if (sale == null && holding.held()) {
-            sale = ladderSale(ledger, holding, priceData, currentDate, ladder);
-          }
-          if (sale != null) {
-            log.debug("조건부 매도 실행: {} - {} ({}주, 실현 손익 ${})",
-              currentDate, sale.getTrigger(), sale.getShares().negate(), sale.getRealizedProfit());
-          } else {
-            var purchaseDecision = previousClose == null
-              ? NO_BUY
-              : evaluatePurchaseCondition(previousClose, priceData, request.getDropPercentage(),
-                PriceDirection.orDrop(request.getDirection()));
-
-            boolean roundsUsed = reached(maxPurchases, purchaseCount + shortRounds);
-            // 처음 예산이 모자란 날짜부터는 새 돈을 넣지 않음
-            BigDecimal budgetLeft = budget == null ? null : shortFrom != null ? BigDecimal.ZERO : budget.subtract(deposited);
-            StrategyTransaction transaction = purchaseDecision.shouldBuy()
-              ? buy(request, ledger, priceData, currentDate, purchaseDecision, roundsUsed, budgetLeft)
-              : null;
-            if (purchaseDecision.shouldBuy() && transaction == null && !roundsUsed) {
-              shortRounds++;
-              shortFrom = shortFrom == null ? currentDate : shortFrom;
-            }
-            if (transaction != null) {
-              if (!holding.held()) {
-                trailing.open(transaction.getPrice(), close);
-                ladder.open();
-              }
-              ledger.buy(holding, transaction);
-              if (Decimals.isPositive(transaction.getAmount())) {
-                purchaseCount++;
-                deposited = deposited.add(transaction.getAmount());
-              }
-              log.debug("조건부 매수 실행: {} - {} ({}원 투자, {}주 매수)",
-                currentDate, purchaseDecision.trigger(), transaction.getAmount(), transaction.getShares());
-            }
-          }
-          // 당일 사고팔기 뒤 연말 정리
-          if (harvestDates.contains(currentDate)) {
-            ledger.harvestSingle(holding, currentDate, close);
-          }
+          run.day(currentDate, priceData, previousClose);
         }
 
       } catch (RuntimeException e) {
@@ -295,15 +210,202 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     }
 
     log.info("조건부 매수 전략 완료: {}회 매수, 사지 못한 날 {}, 예산 부족 {}회",
-      ledger.transactions().size(), skippedRounds.size(), shortRounds);
-    SkippedSpan shortfall = shortFrom == null ? null : new SkippedSpan(shortFrom, shortRounds, SkipReason.OVER_BUDGET);
-    return new StrategyPurchases(new ArrayList<>(ledger.transactions()), skippedRounds, priceMap, fxRateMap, shortfall);
+      run.ledger.transactions().size(), skippedRounds.size(), run.rounds.shortRounds);
+    return new StrategyPurchases(new ArrayList<>(run.ledger.transactions()), skippedRounds, priceMap, fxRateMap,
+      run.rounds.span());
+  }
+
+  // 기간 일봉(쓸 수 있는 일봉이 없으면 DATA_NOT_FOUND)
+  private java.util.Map<LocalDate, OHLCPriceDto> loadPrices(ConditionalStrategyRequest request,
+    LocalDate actualEndDate) {
+    // 기간 일봉을 한 번에 조회
+    log.info("조건부 매수 전략 - Bulk 데이터 조회 시작: {} ~ {}", request.getStartDate(), actualEndDate);
+    java.util.Map<LocalDate, OHLCPriceDto> priceMap = BacktestDataUtils.buildPriceMap(
+      marketData, request.getSymbol(), request.getStartDate(), actualEndDate);
+    if (priceMap.values().stream().noneMatch(PriceLookup::isUsable)) {
+      throw new BacktestException(BacktestResponse.DATA_NOT_FOUND,
+        "조건부 매수 전략 실행 가능한 데이터가 없습니다");
+    }
+    return priceMap;
+  }
+
+  // 첫 시세일부터 평가일까지 날마다 환율(수동 환율이면 빈 값)
+  private FxRates loadFxRates(ConditionalStrategyRequest request, java.util.Map<LocalDate, OHLCPriceDto> priceMap,
+    LocalDate actualEndDate) {
+    if (request.getPurchaseFxRate() != null) {
+      return FxRates.EMPTY;
+    }
+    LocalDate firstPrice = priceMap.keySet().stream().min(LocalDate::compareTo).orElse(actualEndDate);
+    FxRates fxRateMap = BacktestDataUtils.buildDailyFxRateMap(marketData, firstPrice, actualEndDate);
+    log.info("환율 데이터 조회 완료: {}개", fxRateMap.size());
+    return fxRateMap;
+  }
+
+  // 새 돈을 넣은 회차 수 · 넣은 돈(KRW)과 예산 부족으로 사지 못한 회차 수 · 처음 못 산 날짜
+  private static final class Rounds {
+    private final Integer maxPurchases;
+    private final BigDecimal budget;
+    private int purchased;
+    private BigDecimal deposited = BigDecimal.ZERO;
+    private int shortRounds;
+    private LocalDate shortFrom;
+
+    private Rounds(Integer maxPurchases, BigDecimal budget) {
+      this.maxPurchases = maxPurchases;
+      this.budget = budget;
+    }
+
+    // 최대 횟수(null 이면 제한 없음)에 닿았는지
+    private boolean used() {
+      return maxPurchases != null && purchased + shortRounds >= maxPurchases;
+    }
+
+    // 남은 예산(null 이면 제한 없음), 처음 예산이 모자란 날짜부터는 새 돈을 넣지 않음
+    private BigDecimal budgetLeft() {
+      return budget == null ? null : shortFrom != null ? BigDecimal.ZERO : budget.subtract(deposited);
+    }
+
+    // 새 돈을 넣은 매수면 회차 · 넣은 돈에 셈
+    private void bought(StrategyTransaction buy) {
+      if (Decimals.isPositive(buy.getAmount())) {
+        purchased++;
+        deposited = deposited.add(buy.getAmount());
+      }
+    }
+
+    // 예산이 모자라 사지 못한 회차
+    private void shortOn(LocalDate date) {
+      shortRounds++;
+      shortFrom = shortFrom == null ? date : shortFrom;
+    }
+
+    // 예산 부족 구간(없으면 null)
+    private SkippedSpan span() {
+      return shortFrom == null ? null : new SkippedSpan(shortFrom, shortRounds, SkipReason.OVER_BUDGET);
+    }
+  }
+
+  // 한 번 돌리는 동안의 모의 계좌 · 보유 · 회차와 익절 · 손절 · 트레일링 스탑 · 부분 익절 · 연말 정리 날
+  private static final class Run {
+    private final ConditionalStrategyRequest request;
+    private final CapitalGainsTaxPayer taxPayer;
+    private final Set<LocalDate> harvestDates;
+    private final boolean sells;
+    private final TradeLedger ledger;
+    private final TradeLedger.Holding holding = new TradeLedger.Holding();
+    private final Rounds rounds;
+    private final TakeProfitStopLoss exits;
+    private final TrailingStop trailing;
+    private final TakeProfitLadder ladder;
+
+    private Run(ConditionalStrategyRequest request, CapitalGainsTaxPayer taxPayer, FxRates fxRates,
+      Set<LocalDate> harvestDates) {
+      this.request = request;
+      this.taxPayer = taxPayer;
+      this.harvestDates = harvestDates;
+      this.sells = sells(request);
+      this.ledger = new TradeLedger(request.getTradingFeeRate(), request.getPurchaseFxRate(), fxRates,
+        Boolean.TRUE.equals(request.getCapitalGainsTax()));
+      this.rounds = new Rounds(request.getMaxPurchases(), request.getTotalInvestment());
+      this.exits = TakeProfitStopLoss.of(request.getTakeProfitRate(), request.getStopLossRate());
+      this.trailing = TrailingStop.of(request.getTrailingStopRate(), request.getTrailingSellRate());
+      this.ladder = TakeProfitLadder.of(request.getPartialTakeProfits());
+    }
+
+    // 쓸 수 있는 일봉 하루: 양도세 → 매도 규칙 → (판 날이 아니면) 조건 매수 → 연말 정리
+    private void day(LocalDate date, OHLCPriceDto priceData, BigDecimal previousClose) {
+      BigDecimal close = PriceLookup.effectiveClose(priceData);
+      // 양도세 낼 현금이 모자라면 당일 종가에 모자란 만큼 팔고 냄(하루 매도 한 번에 세지 않고 당일 매수도 봄)
+      ledger.sellAndPayTax(taxPayer, request.getTaxSale(), holding, date, close);
+      StrategyTransaction sale = sell(date, priceData);
+      if (sale != null) {
+        log.debug("조건부 매도 실행: {} - {} ({}주, 실현 손익 ${})",
+          date, sale.getTrigger(), sale.getShares().negate(), sale.getRealizedProfit());
+      } else {
+        buyOnCondition(date, priceData, close, previousClose);
+      }
+      // 당일 사고팔기 뒤 연말 정리
+      if (harvestDates.contains(date)) {
+        ledger.harvestSingle(holding, date, close);
+      }
+    }
+
+    // 익절 · 손절 → 트레일링 스탑 → 부분 익절 차례로 본 매도(당일 산 주식은 매도를 본 뒤라 팔지 않음, 팔지 않으면 null)
+    private StrategyTransaction sell(LocalDate date, OHLCPriceDto priceData) {
+      StrategyTransaction sale = sells && holding.held() ? sellIfTriggered(date, priceData) : null;
+      if (sale == null && holding.held()) {
+        sale = trailingSale(date, priceData);
+      }
+      if (sale == null && holding.held()) {
+        sale = ladderSale(date, priceData);
+      }
+      return sale;
+    }
+
+    // 전 거래일 종가 대비 조건에 맞으면 사고 예산이 모자라 못 산 회차를 셈
+    private void buyOnCondition(LocalDate date, OHLCPriceDto priceData, BigDecimal close, BigDecimal previousClose) {
+      var purchaseDecision = previousClose == null
+        ? NO_BUY
+        : evaluatePurchaseCondition(previousClose, priceData, request.getDropPercentage(),
+          PriceDirection.orDrop(request.getDirection()));
+      boolean roundsUsed = rounds.used();
+      StrategyTransaction transaction = purchaseDecision.shouldBuy()
+        ? buy(request, ledger, priceData, date, purchaseDecision, roundsUsed, rounds.budgetLeft())
+        : null;
+      if (purchaseDecision.shouldBuy() && transaction == null && !roundsUsed) {
+        rounds.shortOn(date);
+      }
+      if (transaction != null) {
+        if (!holding.held()) {
+          trailing.open(transaction.getPrice(), close);
+          ladder.open();
+        }
+        ledger.buy(holding, transaction);
+        rounds.bought(transaction);
+        log.debug("조건부 매수 실행: {} - {} ({}원 투자, {}주 매수)",
+          date, purchaseDecision.trigger(), transaction.getAmount(), transaction.getShares());
+      }
+    }
+
+    // 보유분 평균 단가(수수료 포함)의 익절 · 손절 기준가에 닿으면 기준가에 전량 매도(아니면 null)
+    private StrategyTransaction sellIfTriggered(LocalDate date, OHLCPriceDto priceData) {
+      TakeProfitStopLoss.Exit exit = exits.check(priceData, holding.shares(), holding.cost());
+      return exit == null
+        ? null
+        : ledger.sell(holding, date, date, exit.price(), holding.shares(), holding.cost(), exit.trigger(), null);
+    }
+
+    // 당일 종가가 트레일링 스탑 기준가 × (1 - 하락 비율) 이하면 보유의 팔 비율만큼 당일 종가에 팔고 판 값을 새 기준가로(아니면 null)
+    private StrategyTransaction trailingSale(LocalDate date, OHLCPriceDto priceData) {
+      BigDecimal close = PriceLookup.effectiveClose(priceData);
+      SaleShare exit = trailing.check(close, holding.shares(), holding.cost());
+      if (exit == null) {
+        return null;
+      }
+      StrategyTransaction sale = ledger.sell(holding, date, date, close, exit.shares(), exit.cost(), exit.trigger(),
+        null);
+      trailing.sold(close);
+      return sale;
+    }
+
+    // 당일 종가가 부분 익절 단계에 닿으면 보유의 단계 팔 비율만큼 당일 종가에 팔고 닿은 단계를 씀(아니면 null)
+    private StrategyTransaction ladderSale(LocalDate date, OHLCPriceDto priceData) {
+      BigDecimal close = PriceLookup.effectiveClose(priceData);
+      SaleShare exit = ladder.check(close, holding.shares(), holding.cost());
+      if (exit == null) {
+        return null;
+      }
+      StrategyTransaction sale = ledger.sell(holding, date, date, close, exit.shares(), exit.cost(), exit.trigger(),
+        null);
+      ladder.sold();
+      return sale;
+    }
   }
 
   // 회당 금액 · 주식 수만큼 사되 판 돈을 먼저 쓰고 모자란 만큼만 새로 넣음
   // 횟수를 다 썼거나 새로 넣을 돈이 남은 예산을 넘으면 판 돈으로만(판 돈이 없거나 한 주도 못 사면 null)
-  private StrategyTransaction buy(ConditionalStrategyRequest request, TradeLedger ledger, OHLCPriceDto priceData,
-    LocalDate date, PurchaseDecision decision, boolean roundsUsed, BigDecimal budgetLeft) {
+  private static StrategyTransaction buy(ConditionalStrategyRequest request, TradeLedger ledger,
+    OHLCPriceDto priceData, LocalDate date, PurchaseDecision decision, boolean roundsUsed, BigDecimal budgetLeft) {
     BigDecimal fxRate = ledger.fxOn(date);
     Fill fill = request.getSharesPerPurchase() != null
       ? fillShares(request, decision.price(), fxRate, ledger.cash(), roundsUsed, budgetLeft)
@@ -375,45 +477,8 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     return partial == null ? null : new Fill(partial.shares(), partial.feeUsd(), BigDecimal.ZERO, partial.costUsd());
   }
 
-  // 보유분 평균 단가(수수료 포함)의 익절 · 손절 기준가에 닿으면 기준가에 전량 매도(아니면 null)
-  private static StrategyTransaction sellIfTriggered(TradeLedger ledger, TradeLedger.Holding holding,
-    OHLCPriceDto priceData, LocalDate date, TakeProfitStopLoss exits) {
-    TakeProfitStopLoss.Exit exit = exits.check(priceData, holding.shares(), holding.cost());
-    return exit == null
-      ? null
-      : ledger.sell(holding, date, date, exit.price(), holding.shares(), holding.cost(), exit.trigger(), null);
-  }
-
-  // 당일 종가가 트레일링 스탑 기준가 × (1 - 하락 비율) 이하면 보유의 팔 비율만큼 당일 종가에 팔고 판 값을 새 기준가로(아니면 null)
-  private static StrategyTransaction trailingSale(TradeLedger ledger, TradeLedger.Holding holding,
-    OHLCPriceDto priceData, LocalDate date, TrailingStop trailing) {
-    BigDecimal close = PriceLookup.effectiveClose(priceData);
-    SaleShare exit = trailing.check(close, holding.shares(), holding.cost());
-    if (exit == null) {
-      return null;
-    }
-    StrategyTransaction sale = ledger.sell(holding, date, date, close, exit.shares(), exit.cost(), exit.trigger(),
-      null);
-    trailing.sold(close);
-    return sale;
-  }
-
-  // 당일 종가가 부분 익절 단계에 닿으면 보유의 단계 팔 비율만큼 당일 종가에 팔고 닿은 단계를 씀(아니면 null)
-  private static StrategyTransaction ladderSale(TradeLedger ledger, TradeLedger.Holding holding,
-    OHLCPriceDto priceData, LocalDate date, TakeProfitLadder ladder) {
-    BigDecimal close = PriceLookup.effectiveClose(priceData);
-    SaleShare exit = ladder.check(close, holding.shares(), holding.cost());
-    if (exit == null) {
-      return null;
-    }
-    StrategyTransaction sale = ledger.sell(holding, date, date, close, exit.shares(), exit.cost(), exit.trigger(),
-      null);
-    ladder.sold();
-    return sale;
-  }
-
   // 방향에 맞는 기준가를 넘은 날 매수, 둘 다 닿은 날은 시가부터 하락 기준가 아래면 하락 · 아니면 상승 기준가
-  private PurchaseDecision evaluatePurchaseCondition(BigDecimal previousClose, OHLCPriceDto price,
+  private static PurchaseDecision evaluatePurchaseCondition(BigDecimal previousClose, OHLCPriceDto price,
     BigDecimal percentage, PriceDirection direction) {
     BigDecimal drop = direction == PriceDirection.RISE
       ? null : IntradayCross.price(previousClose, price, percentage, false);
