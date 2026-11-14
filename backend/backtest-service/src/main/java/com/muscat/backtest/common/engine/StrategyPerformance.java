@@ -114,7 +114,7 @@ public final class StrategyPerformance {
     return index;
   }
 
-  // 그 날짜 종가 기준 보유 주식 수(그 날짜에 산 것 포함)
+  // 받은 날짜 종가 기준 보유 주식 수(당일 산 것 포함)
   private static BigDecimal sharesOn(List<StrategyTransaction> transactions, LocalDate date) {
     return transactions.stream()
         .filter(tx -> !tx.tradedOn().isAfter(date))
@@ -122,7 +122,7 @@ public final class StrategyPerformance {
         .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
-  // 그 날짜까지 매도로 받고 매수에 쓰고 남은 현금(USD)
+  // 받은 날짜까지 매도로 받고 매수에 쓰고 남은 현금(USD)
   private static BigDecimal tradeCashOn(List<StrategyTransaction> transactions, LocalDate date) {
     return transactions.stream()
         .filter(tx -> !tx.tradedOn().isAfter(date))
@@ -148,7 +148,7 @@ public final class StrategyPerformance {
   // 배당락일과 세후 현금 배당(USD)
   private record CashDividend(LocalDate exDate, BigDecimal amountUsd) {}
 
-  // 배당락일마다 그때 보유 주식 수로 받은 세후 배당
+  // 배당락일마다 배당락일 보유 주식 수로 받은 세후 배당
   private static List<CashDividend> cashDividends(List<StrategyTransaction> transactions,
       DividendHistoryDto dividendHistory, BigDecimal taxRate, LocalDate valuationDate) {
     if (dividendHistory == null || dividendHistory.getDividends() == null || transactions.isEmpty()) {
@@ -167,9 +167,7 @@ public final class StrategyPerformance {
           .map(StrategyTransaction::getShares)
           .reduce(BigDecimal.ZERO, BigDecimal::add);
       BigDecimal gross = dividend.getAmount().multiply(shares);
-      BigDecimal afterTax = taxRate != null && Decimals.isPositive(taxRate)
-          ? gross.subtract(gross.multiply(taxRate))
-          : gross;
+      BigDecimal afterTax = BacktestCalculationUtils.afterDividendTax(gross, taxRate, false);
       result.add(new CashDividend(exDate, afterTax));
     }
     return result;

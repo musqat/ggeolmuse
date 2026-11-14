@@ -356,7 +356,7 @@ class BacktestCalculationUtilsTest {
     }
 
     @Test
-    @DisplayName("단순 매수: 매수일이 배당락일이면 그 배당은 빠진다")
+    @DisplayName("단순 매수: 매수일이 배당락일이면 배당에서 빠짐")
     void fixedShares_PurchaseOnExDate_Excluded() {
       assertThat(BacktestCalculationUtils.calculateTotalDividends(history(), new BigDecimal("100"), exDate, exDate.plusMonths(3)))
         .isEqualByComparingTo("0");
@@ -650,7 +650,7 @@ class BacktestCalculationUtilsTest {
     }
 
     @Test
-    @DisplayName("거래 목록 기준: 기간 밖 · 권리락일 없음 · 금액 없음은 빼고 그 날짜 보유 주식으로 센다")
+    @DisplayName("거래 목록 기준: 기간 밖 · 권리락일 없음 · 금액 없음은 빼고 배당락일 보유 주식으로 셈")
     void byTransactions() {
       List<StrategyTransaction> txs = List.of(StrategyTransaction.builder().date(start).actualDate(start)
         .shares(BigDecimal.TEN).amount(BigDecimal.ONE).fxRate(BigDecimal.ONE).build());
@@ -693,5 +693,17 @@ class BacktestCalculationUtilsTest {
       assertThat(BacktestCalculationUtils.receivesDividend(null, end)).isFalse();
       assertThat(BacktestCalculationUtils.receivesDividend(start, null)).isFalse();
     }
+  }
+
+  @Test
+  @DisplayName("배당 원천징수는 세율이 없으면 그대로, 재투자는 세금을 두 자리 반올림해 빼고 현금은 그대로 곱해 뺌")
+  void afterDividendTax() {
+    BigDecimal gross = new BigDecimal("10.37");
+    BigDecimal rate = new BigDecimal("0.15");
+
+    assertThat(BacktestCalculationUtils.afterDividendTax(gross, null, true)).isEqualByComparingTo("10.37");
+    assertThat(BacktestCalculationUtils.afterDividendTax(gross, BigDecimal.ZERO, false)).isEqualByComparingTo("10.37");
+    assertThat(BacktestCalculationUtils.afterDividendTax(gross, rate, true)).isEqualByComparingTo("8.81");
+    assertThat(BacktestCalculationUtils.afterDividendTax(gross, rate, false)).isEqualByComparingTo("8.8145");
   }
 }

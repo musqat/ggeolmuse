@@ -67,10 +67,7 @@ public class StrategyCalculator {
         // 현금으로 받는 배당도 원천징수 차감(재투자 배당은 이미 차감한 값)
         BigDecimal cashDividendKrw = BigDecimal.ZERO;
         if (hasCashDividend) {
-            BigDecimal afterTax = totalDividends;
-            if (dividendTaxRate != null && Decimals.isPositive(dividendTaxRate)) {
-                afterTax = totalDividends.subtract(totalDividends.multiply(dividendTaxRate));
-            }
+            BigDecimal afterTax = BacktestCalculationUtils.afterDividendTax(totalDividends, dividendTaxRate, false);
             cashDividendKrw = MoneyUtils.convertUsdToKrw(afterTax, currentFxRate.rate());
         }
 

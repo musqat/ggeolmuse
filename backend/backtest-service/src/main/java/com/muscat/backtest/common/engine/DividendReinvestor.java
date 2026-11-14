@@ -127,11 +127,8 @@ public final class DividendReinvestor {
         .setScale(BacktestConstants.Money.SCALE, BacktestConstants.Money.ROUNDING_MODE);
 
     BigDecimal taxRate = dividendTaxRate;
-    BigDecimal afterTaxDividend = dividendAmount;
+    BigDecimal afterTaxDividend = BacktestCalculationUtils.afterDividendTax(dividendAmount, taxRate, true);
     if (taxRate != null && Decimals.isPositive(taxRate)) {
-      BigDecimal taxAmount = dividendAmount.multiply(taxRate)
-          .setScale(BacktestConstants.Money.SCALE, BacktestConstants.Money.ROUNDING_MODE);
-      afterTaxDividend = dividendAmount.subtract(taxAmount);
       log.debug("배당 원천징수: {} - 배당금 ${} → 세후 ${} (세율 {}%)",
           dividend.getExDate(), dividendAmount, afterTaxDividend,
           taxRate.multiply(BacktestConstants.Money.PERCENTAGE_MULTIPLIER));

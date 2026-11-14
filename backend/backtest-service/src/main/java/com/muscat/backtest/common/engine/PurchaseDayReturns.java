@@ -4,7 +4,6 @@ import com.muscat.backtest.common.constants.BacktestConstants;
 import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.PriceLookup;
-import com.muscat.backtest.common.util.RoundPurchase;
 import com.muscat.backtest.domain.dto.response.PurchaseDayReturn;
 import com.muscat.backtest.infra.client.dto.DividendHistoryDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
@@ -18,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-// 기간의 거래일마다 그 날짜에 샀다면 평가일까지의 총 수익률(단순 매수 시뮬레이션과 같은 수수료 · 배당 · 환율 계산)
+// 기간의 거래일마다 당일에 샀다면 평가일까지의 총 수익률(단순 매수 시뮬레이션과 같은 수수료 · 배당 · 환율 계산)
 public final class PurchaseDayReturns {
 
   /** 매수 조건과 평가일 값(주식 수가 있으면 투자 금액 대신, 재투자 가격은 배당락일마다 미리 찾아 둔 값) */
@@ -42,24 +41,14 @@ public final class PurchaseDayReturns {
     return points;
   }
 
-  // 그 날짜 종가 · 환율로 같은 투자 금액이나 같은 주식 수를 사서 평가일까지 보유했을 때(수수료 · 남은 현금 · 배당 재투자 또는 세후 현금 배당)
+  // 받은 날짜 종가 · 환율로 같은 투자 금액이나 같은 주식 수를 사서 평가일까지 보유했을 때(수수료 · 남은 현금 · 배당 재투자 또는 세후 현금 배당)
   private static PurchaseDayReturn returnOn(LocalDate date, BigDecimal priceUsd, BigDecimal fxRate, Inputs in) {
-    BigDecimal investmentKrw = in.investmentKrw();
-    BigDecimal usdAmount;
-    BigDecimal shares;
-    BigDecimal remainingCash = BigDecimal.ZERO;
-    if (in.shares() != null) {
-      RoundPurchase purchase = RoundPurchase.byShares(in.shares(), priceUsd, fxRate, in.feeRate());
-      investmentKrw = purchase.amountKrw();
-      usdAmount = purchase.costUsd();
-      shares = purchase.shares();
-    } else {
-      usdAmount = MoneyUtils.convertKrwToUsd(investmentKrw, fxRate);
-      shares = BacktestCalculationUtils.calculateSharesWithFee(usdAmount, priceUsd, in.feeRate());
-      BigDecimal fee = BacktestCalculationUtils.calculateTradingFee(usdAmount, in.feeRate());
-      BigDecimal totalCost = BacktestCalculationUtils.calculateTotalCost(shares, priceUsd, fee);
-      remainingCash = BacktestCalculationUtils.calculateRemainingCash(usdAmount, totalCost);
-    }
+    SimulationCalculator.Purchase purchase = SimulationCalculator.purchase(in.investmentKrw(), in.shares(), priceUsd,
+      fxRate, in.feeRate());
+    BigDecimal investmentKrw = purchase.investmentKrw();
+    BigDecimal usdAmount = purchase.usdAmount();
+    BigDecimal shares = purchase.shares();
+    BigDecimal remainingCash = purchase.remainingCash();
 
     BigDecimal cashDividendUsd = BigDecimal.ZERO;
     if (in.reinvest()) {
@@ -70,13 +59,14 @@ public final class PurchaseDayReturns {
         if (!Decimals.isPositive(amount) || exPrice == null) {
           continue;
         }
-        shares = shares.add(afterTax(amount, in.taxRate(), true).divide(exPrice, 8, RoundingMode.HALF_UP));
+        shares = shares.add(BacktestCalculationUtils.afterDividendTax(amount, in.taxRate(), true)
+          .divide(exPrice, 8, RoundingMode.HALF_UP));
       }
     } else {
       BigDecimal total = BacktestCalculationUtils.calculateTotalDividends(
         in.dividendHistory(), shares, date, in.valuationDate());
       if (Decimals.isPositive(total)) {
-        cashDividendUsd = afterTax(total, in.taxRate(), false);
+        cashDividendUsd = BacktestCalculationUtils.afterDividendTax(total, in.taxRate(), false);
       }
     }
 
@@ -91,7 +81,7 @@ public final class PurchaseDayReturns {
       MoneyUtils.roundUsd(MoneyUtils.calculateReturnRate(usdAmount, totalAssetUsd)));
   }
 
-  // 그 날짜에 산 주식이 받는 배당(배당락일이 산 날 뒤 · 평가일까지, 날짜순)
+  // 받은 날짜에 산 주식이 받는 배당(배당락일이 산 날 뒤 · 평가일까지, 날짜순)
   private static List<DividendHistoryDto.DividendPayment> received(LocalDate date, Inputs in) {
     if (in.dividendHistory() == null || in.dividendHistory().getDividends() == null) {
       return List.of();
@@ -101,17 +91,5 @@ public final class PurchaseDayReturns {
       .filter(d -> BacktestCalculationUtils.receivesDividend(date, d.getExDate()) && !d.getExDate().isAfter(in.valuationDate()))
       .sorted(Comparator.comparing(DividendHistoryDto.DividendPayment::getExDate))
       .toList();
-  }
-
-  // 원천징수를 뺀 배당(재투자는 세금을 배당 자릿수로 반올림해 뺌, 현금은 그대로 곱해 뺌)
-  private static BigDecimal afterTax(BigDecimal amount, BigDecimal taxRate, boolean reinvest) {
-    if (taxRate == null || !Decimals.isPositive(taxRate)) {
-      return amount;
-    }
-    BigDecimal tax = amount.multiply(taxRate);
-    if (reinvest) {
-      tax = tax.setScale(BacktestConstants.Money.SCALE, BacktestConstants.Money.ROUNDING_MODE);
-    }
-    return amount.subtract(tax);
   }
 }

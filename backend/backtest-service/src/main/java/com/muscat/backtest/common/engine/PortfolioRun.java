@@ -14,6 +14,7 @@ import com.muscat.backtest.common.enums.type.PortfolioRebalance;
 import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
 import com.muscat.backtest.common.enums.type.TaxSale;
 import com.muscat.backtest.common.enums.type.TradeReason;
+import com.muscat.backtest.common.util.BacktestCalculationUtils;
 import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.FxRates;
 import com.muscat.backtest.common.util.PriceLookup;
@@ -160,7 +161,7 @@ final class PortfolioRun {
           continue;
         }
         BigDecimal gross = payment.getAmount().multiply(held).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal afterTax = gross.subtract(withholding(gross));
+        BigDecimal afterTax = BacktestCalculationUtils.afterDividendTax(gross, request.getDividendTaxRate(), true);
         if (!Decimals.isPositive(afterTax)) {
           continue;
         }
@@ -174,14 +175,6 @@ final class PortfolioRun {
         }
       }
     }
-  }
-
-  // 배당 원천징수(USD 두 자리, 세율이 없으면 0)
-  private BigDecimal withholding(BigDecimal gross) {
-    BigDecimal rate = request.getDividendTaxRate();
-    return rate != null && Decimals.isPositive(rate)
-      ? gross.multiply(rate).setScale(2, RoundingMode.HALF_UP)
-      : BigDecimal.ZERO;
   }
 
   // 받은 배당 전부로 받은 일봉의 종가 · 환율에 삼(수수료 없음)

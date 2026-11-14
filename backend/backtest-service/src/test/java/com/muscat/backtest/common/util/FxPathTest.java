@@ -16,7 +16,7 @@ class FxPathTest {
   private static final LocalDate JAN4 = LocalDate.of(2024, 1, 4);
 
   @Test
-  @DisplayName("시장 환율은 그 날짜 이하 가장 늦은 기록, 첫 기록 전 날은 첫 기록으로 채운다")
+  @DisplayName("시장 환율은 받은 날짜 이하 가장 늦은 기록, 첫 기록 전 날은 첫 기록")
   void marketFillsBeforeFirstRecord() {
     Function<LocalDate, BigDecimal> fx = FxPath.market(
       Map.of(JAN2, new BigDecimal("1300"), JAN4, new BigDecimal("1320")), new BigDecimal("1350"));
@@ -55,5 +55,15 @@ class FxPathTest {
     Function<LocalDate, BigDecimal> fx = FxPath.interpolated(JAN2, new BigDecimal("1300"), JAN2, new BigDecimal("1400"));
 
     assertThat(fx.apply(JAN2)).isEqualByComparingTo("1300");
+  }
+
+  @Test
+  @DisplayName("일괄 환율은 날짜 문자열 키를 날짜로 읽고, 받지 못했으면 주어진 환율 하나")
+  void marketFromBulk() {
+    Function<LocalDate, BigDecimal> fx = FxPath.marketFromBulk(Map.of("2024-01-02", new BigDecimal("1300")),
+      new BigDecimal("1350"));
+
+    assertThat(fx.apply(JAN4)).isEqualByComparingTo("1300");
+    assertThat(FxPath.marketFromBulk(null, new BigDecimal("1350")).apply(JAN2)).isEqualByComparingTo("1350");
   }
 }

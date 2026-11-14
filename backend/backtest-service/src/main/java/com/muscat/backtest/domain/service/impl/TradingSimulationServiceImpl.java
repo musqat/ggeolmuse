@@ -1,11 +1,11 @@
 package com.muscat.backtest.domain.service.impl;
 
 import com.muscat.backtest.common.calculation.CapitalGainsTaxCalculator;
-import com.muscat.backtest.common.calculation.PerformanceCalculator;
-import com.muscat.backtest.common.calculation.StrategyCalculator;
-import com.muscat.backtest.common.constants.BacktestConstants;
 import com.muscat.backtest.common.engine.PeriodEndSale;
 import com.muscat.backtest.common.engine.PurchaseDayReturns;
+import com.muscat.backtest.common.engine.SimulationCalculator;
+import com.muscat.backtest.common.engine.SimulationPerformance;
+import com.muscat.backtest.common.engine.StrategyPerformance;
 import com.muscat.backtest.common.engine.YearEndHarvest;
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
@@ -16,39 +16,32 @@ import com.muscat.backtest.common.util.BacktestHistoryUtils;
 import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.FxPath;
 import com.muscat.backtest.common.util.PriceLookup;
-import com.muscat.backtest.common.util.RoundPurchase;
 import com.muscat.backtest.common.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
-import com.muscat.backtest.domain.dto.response.DailyValue;
 import com.muscat.backtest.domain.dto.response.PurchaseDayReturn;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
-import com.muscat.backtest.domain.model.HoldingStep;
 import com.muscat.backtest.domain.model.OptimalTiming;
 import com.muscat.backtest.domain.model.SimulationCalculationResult;
 import com.muscat.backtest.domain.model.SimulationContext;
-import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.domain.service.TradingSimulationService;
 import com.muscat.backtest.infra.client.MarketDataClientWrapper;
 import com.muscat.backtest.infra.client.dto.FxRateDto;
 import com.muscat.backtest.infra.client.dto.DividendDto;
 import com.muscat.backtest.infra.client.dto.DividendHistoryDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
-import com.muscat.commonlib.util.MoneyUtils;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableSet;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
 
 @Service
 @RequiredArgsConstructor
@@ -93,7 +86,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       context.valuationDate());
     Map<String, BigDecimal> fxRates = bulkFxRates(candles);
     Function<LocalDate, BigDecimal> fx = fxPath(context, fxRates);
-    SimulationCalculationResult calculation = calculateSimulation(context, fx);
+    SimulationCalculationResult calculation = SimulationCalculator.calculate(context, fx, closeOn(context));
     return buildSimulationResponse(context, calculation, candles, fxRates, fx);
   }
 
@@ -162,307 +155,6 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       currentFxRate, dividendHistory, valuationDate, priceMap);
   }
 
-  // 손익 계산 (매수가·주식수·수수료·배당재투자·연말 정리·환차익 → 총자산/수익률)
-  private SimulationCalculationResult calculateSimulation(SimulationContext context,
-    Function<LocalDate, BigDecimal> fx) {
-    BigDecimal purchasePriceUsd = PriceLookup.effectiveClose(context.purchaseData());
-    BigDecimal purchaseFxRate = context.purchaseFxRate().rate();
-    BigDecimal currentFxRate = context.currentFxRate().rate();
-    BigDecimal currentPriceUsd = context.valuationPrice();
-    Purchase purchase = purchase(context, purchasePriceUsd, purchaseFxRate);
-    BigDecimal remainingCash = purchase.remainingCash();
-    BigDecimal tradingFee = purchase.fee();
-    BigDecimal buyCostUsd = purchase.shares().multiply(purchasePriceUsd).add(tradingFee);
-
-    // 매수일부터의 보유 단계 · 양도세 계산 거래(산 것 · 재투자 · 연말 정리 · 기간 끝 매도)
-    LocalDate tradeDate = context.purchaseData().date();
-    HoldingTrail trail = new HoldingTrail(harvestDates(context), context, fx);
-    trail.step(tradeDate, purchase.shares(), remainingCash);
-    trail.taxTrade(StrategyTransaction.builder().date(tradeDate).actualDate(tradeDate).price(purchasePriceUsd)
-      .shares(purchase.shares()).fee(tradingFee).cashUsed(buyCostUsd).fxRate(purchaseFxRate).build());
-
-    BigDecimal stockReturn = currentPriceUsd.subtract(purchasePriceUsd);
-    BigDecimal stockReturnPercent = MoneyUtils.calculateReturnRate(purchasePriceUsd,
-      currentPriceUsd);
-    BigDecimal fxReturn = currentFxRate.subtract(purchaseFxRate);
-    BigDecimal fxReturnPercent = MoneyUtils.calculateReturnRate(purchaseFxRate, currentFxRate);
-
-    boolean reinvested = Boolean.TRUE.equals(context.request().getReinvestDividends());
-    Dividends dividends = reinvested
-      ? reinvestDividends(context, trail, purchase.shares(), remainingCash)
-      : keepDividendsAsCash(context, trail, purchase.shares(), remainingCash);
-    BigDecimal shares = trail.harvestBefore(context.valuationDate().plusDays(1), dividends.shares(),
-      dividends.cash());
-    tradingFee = tradingFee.add(trail.harvestFees());
-    // 받은 배당 총액(세전, 배당마다 배당락일 주식 수로)
-    BigDecimal totalDividends = reinvested
-      ? dividends.gross()
-      : dividends.gross().setScale(BacktestConstants.Money.SCALE, BacktestConstants.Money.ROUNDING_MODE);
-
-    BigDecimal dividendYield = BacktestCalculationUtils.calculateDividendYield(
-      totalDividends, shares, currentPriceUsd);
-
-    // 재투자를 끄면 세후 배당을 현금으로(켜면 이미 주식 수에 포함)
-    BigDecimal cashDividendKrw = BigDecimal.ZERO;
-    if (!reinvested && Decimals.isPositive(totalDividends)) {
-      BigDecimal dividendTaxRate = context.request().getDividendTaxRate();
-      BigDecimal afterTax = dividendTaxRate != null && Decimals.isPositive(dividendTaxRate)
-        ? totalDividends.subtract(totalDividends.multiply(dividendTaxRate))
-        : totalDividends;
-      cashDividendKrw = MoneyUtils.convertUsdToKrw(afterTax, currentFxRate);
-    }
-
-    // 기간 끝에 팔면 주식 0 · 판 돈은 남은 현금으로(환율은 평가일 환율)
-    StrategyTransaction endSale = PeriodEnd.sells(context.request().getPeriodEnd())
-      ? PeriodEndSale.of(shares, context.priceMap(), context.valuationDate(), currentPriceUsd,
-        context.request().getTradingFeeRate(), currentFxRate)
-      : null;
-    BigDecimal heldShares = shares;
-    if (endSale != null) {
-      endSale.setRealizedProfit(endSale.getProceeds().subtract(StrategyCalculator.holdingCost(trail.taxTransactions())));
-      trail.taxTrade(endSale);
-      heldShares = BigDecimal.ZERO;
-      remainingCash = remainingCash.add(endSale.getProceeds());
-      tradingFee = tradingFee.add(endSale.getFee());
-      trail.step(endSale.tradedOn(), BigDecimal.ZERO, trail.steps().getLast().cashUsd().add(endSale.getProceeds()));
-    }
-
-    // 재투자 · 기간 끝 매도 후 현재 가치
-    BigDecimal currentValueUsd = heldShares.multiply(currentPriceUsd);
-    BigDecimal currentValueKrw = Decimals.isPositive(currentValueUsd)
-      ? MoneyUtils.convertUsdToKrw(currentValueUsd, currentFxRate)
-      : BigDecimal.ZERO;
-
-    // 남은 현금도 자산에 포함 (USD → KRW 환산)
-    BigDecimal remainingCashKrw = Decimals.isPositive(remainingCash)
-      ? MoneyUtils.convertUsdToKrw(remainingCash, currentFxRate)
-      : BigDecimal.ZERO;
-
-    BigDecimal totalAssetKrw = currentValueKrw.add(remainingCashKrw).add(cashDividendKrw);
-
-    // 총 수익 = 총 자산 - 투자금
-    BigDecimal totalReturnKrw = totalAssetKrw.subtract(purchase.investmentKrw());
-
-    // 총 수익률 = (총 자산 / 투자금) - 1
-    BigDecimal totalReturnPercent = MoneyUtils.calculateReturnRate(purchase.investmentKrw(), totalAssetKrw);
-
-    return new SimulationCalculationResult(purchase.investmentKrw(),
-      purchasePriceUsd, shares, currentPriceUsd, currentValueUsd, currentValueKrw,
-      stockReturn, stockReturnPercent, purchaseFxRate, currentFxRate, fxReturn, fxReturnPercent,
-      totalDividends, dividendYield, tradingFee, remainingCash, totalAssetKrw, totalReturnKrw,
-      totalReturnPercent,
-      dividends.reinvested(), dividends.reinvestDates(), trail.steps(), trail.taxTransactions(),
-      trail.harvestTransactions(endSale));
-  }
-
-  // 매수일에 산 원금(KRW) · 주식 수 · 수수료(USD) · 남은 달러
-  private record Purchase(BigDecimal investmentKrw, BigDecimal shares, BigDecimal fee, BigDecimal remainingCash) {}
-
-  // 투자 금액이면 환전한 달러로 수수료를 빼고 사고, 주식 수면 정한 주식 수 × 종가 + 수수료를 원화로
-  private static Purchase purchase(SimulationContext context, BigDecimal priceUsd, BigDecimal fxRate) {
-    SimulationRequest request = context.request();
-    if (request.getSharesPerPurchase() != null) {
-      RoundPurchase purchase = RoundPurchase.byShares(request.getSharesPerPurchase(), priceUsd, fxRate,
-        request.getTradingFeeRate());
-      return new Purchase(purchase.amountKrw(), purchase.shares(), purchase.feeUsd(), BigDecimal.ZERO);
-    }
-    BigDecimal investmentKrw = request.getInvestmentAmount();
-    BigDecimal usdAmount = MoneyUtils.convertKrwToUsd(investmentKrw, fxRate);
-    log.debug("환전 계산: KRW {} → USD {} (환율: {})", investmentKrw, usdAmount, fxRate);
-    BigDecimal shares = BacktestCalculationUtils.calculateSharesWithFee(usdAmount, priceUsd,
-      request.getTradingFeeRate());
-    BigDecimal tradingFee = BacktestCalculationUtils.calculateTradingFee(usdAmount, request.getTradingFeeRate());
-    BigDecimal totalCost = BacktestCalculationUtils.calculateTotalCost(shares, priceUsd, tradingFee);
-    return new Purchase(investmentKrw, shares, tradingFee,
-      BacktestCalculationUtils.calculateRemainingCash(usdAmount, totalCost));
-  }
-
-  // 배당을 받은 뒤 주식 수 · 현금(USD) · 받은 세전 배당 합 · 재투자한 세후 배당 합 · 재투자 날짜
-  private record Dividends(BigDecimal shares, BigDecimal cash, BigDecimal gross, BigDecimal reinvested,
-                           List<LocalDate> reinvestDates) {}
-
-  // 배당락일 순서로 배당락일 주식 수로 받은 세후 배당을 배당일 주가(휴장일이면 직전 거래일)로 재투자, 배당마다 먼저 배당락일 전 연말 정리
-  private Dividends reinvestDividends(SimulationContext context, HoldingTrail trail, BigDecimal shares,
-    BigDecimal cash) {
-    BigDecimal dividendsReinvested = BigDecimal.ZERO;
-    BigDecimal grossDividends = BigDecimal.ZERO;
-    List<LocalDate> reinvestDates = new ArrayList<>();
-    if (context.dividendHistory() == null
-      || context.dividendHistory().getDividends() == null
-      || context.dividendHistory().getDividends().isEmpty()) {
-      return new Dividends(shares, cash, grossDividends, dividendsReinvested, reinvestDates);
-    }
-
-    log.info("배당금 재투자 실행 시작: {} 개의 배당 내역", context.dividendHistory().getDividends().size());
-
-    LocalDate purchaseDate = context.purchaseData().date();
-
-    // 배당락일이 매수 뒤 · 평가일까지인 배당을 배당락일 순서로
-    var dividends = context.dividendHistory().getDividends().stream()
-      .filter(d -> d.getExDate() != null)
-      .filter(d -> BacktestCalculationUtils.receivesDividend(purchaseDate, d.getExDate())
-        && !d.getExDate().isAfter(context.valuationDate()))
-      .sorted((d1, d2) -> d1.getExDate().compareTo(d2.getExDate()))
-      .toList();
-
-    BigDecimal held = shares;
-    for (var dividend : dividends) {
-      held = trail.harvestBefore(dividend.getExDate(), held, cash);
-      // 배당락일 보유 주식 수 × 주당 배당(세전)
-      BigDecimal dividendAmount = dividend.getAmount().multiply(held)
-        .setScale(BacktestConstants.Money.SCALE, BacktestConstants.Money.ROUNDING_MODE);
-      if (!Decimals.isPositive(dividendAmount)) {
-        continue;
-      }
-      grossDividends = grossDividends.add(dividendAmount);
-
-      // 배당 원천징수(세율이 있을 때만)
-      BigDecimal taxRate = context.request().getDividendTaxRate();
-      BigDecimal afterTaxDividend = dividendAmount;
-      if (taxRate != null && Decimals.isPositive(taxRate)) {
-        BigDecimal taxAmount = dividendAmount.multiply(taxRate)
-          .setScale(BacktestConstants.Money.SCALE, BacktestConstants.Money.ROUNDING_MODE);
-        afterTaxDividend = dividendAmount.subtract(taxAmount);
-        log.info("배당 원천징수: {} - 배당금 ${} → 세후 ${} (세율 {}%)",
-          dividend.getExDate(), dividendAmount, afterTaxDividend,
-          taxRate.multiply(BacktestConstants.Money.PERCENTAGE_MULTIPLIER));
-      }
-
-      // 배당일 주가(휴장일이면 직전 거래일)
-      BigDecimal dividendDayPrice = PriceLookup.effectiveClose(getHistoricalPrice(
-        context.request().getSymbol(), dividend.getExDate(), context.priceMap()));
-
-      // 세후 배당으로 더 산 주식 수
-      BigDecimal additionalShares = afterTaxDividend.divide(
-        dividendDayPrice, 8, java.math.RoundingMode.HALF_UP);
-
-      held = held.add(additionalShares);
-      dividendsReinvested = dividendsReinvested.add(afterTaxDividend);
-      reinvestDates.add(dividend.getExDate());
-      trail.step(dividend.getExDate(), held, cash);
-      // 재투자 주식의 원가는 세후 배당 × 배당락일 환율
-      trail.taxTrade(StrategyTransaction.builder().date(dividend.getExDate()).actualDate(dividend.getExDate())
-        .price(dividendDayPrice).shares(additionalShares).amount(BigDecimal.ZERO).cashUsed(afterTaxDividend)
-        .fxRate(trail.fx.apply(dividend.getExDate())).build());
-
-      log.info("배당 재투자: {} - ${} ({}주 보유) -> {}주 추가 매수 @${}",
-        dividend.getExDate(), afterTaxDividend, held, additionalShares, dividendDayPrice);
-    }
-
-    log.info("배당금 재투자 완료: 총 ${} 재투자, 최종 보유 {}주", dividendsReinvested, held);
-    return new Dividends(held, cash, grossDividends, dividendsReinvested, reinvestDates);
-  }
-
-  // 배당락일마다 배당락일 주식 수로 받은 세후 배당을 현금으로 쌓음, 배당마다 먼저 배당락일 전 연말 정리
-  private static Dividends keepDividendsAsCash(SimulationContext context, HoldingTrail trail, BigDecimal shares,
-    BigDecimal cash) {
-    BigDecimal taxRate = context.request().getDividendTaxRate();
-    BigDecimal held = shares;
-    BigDecimal kept = cash;
-    BigDecimal grossDividends = BigDecimal.ZERO;
-    for (DividendHistoryDto.DividendPayment dividend : cashDividends(context)) {
-      held = trail.harvestBefore(dividend.getExDate(), held, kept);
-      BigDecimal gross = dividend.getAmount().multiply(held);
-      grossDividends = grossDividends.add(gross);
-      kept = kept.add(taxRate != null && Decimals.isPositive(taxRate) ? gross.subtract(gross.multiply(taxRate)) : gross);
-      trail.step(dividend.getExDate(), held, kept);
-    }
-    return new Dividends(held, kept, grossDividends, BigDecimal.ZERO, new ArrayList<>());
-  }
-
-  // 매수일 뒤 평가일까지 배당락일이 온 금액 있는 배당(배당락일 순서)
-  private static List<DividendHistoryDto.DividendPayment> cashDividends(SimulationContext context) {
-    if (context.dividendHistory() == null || context.dividendHistory().getDividends() == null) {
-      return List.of();
-    }
-    LocalDate purchaseDate = context.purchaseData().date();
-    return context.dividendHistory().getDividends().stream()
-      .filter(d -> d.getExDate() != null && d.getAmount() != null)
-      .filter(d -> BacktestCalculationUtils.receivesDividend(purchaseDate, d.getExDate())
-        && !d.getExDate().isAfter(context.valuationDate()))
-      .sorted(Comparator.comparing(DividendHistoryDto.DividendPayment::getExDate))
-      .toList();
-  }
-
-  // 양도세와 연말 정리를 켜면 매수일 뒤 연말 정리 날, 아니면 null
-  private static NavigableSet<LocalDate> harvestDates(SimulationContext context) {
-    SimulationRequest request = context.request();
-    return YearEndHarvest.enabled(request.getCapitalGainsTax(), request.getYearEndHarvest())
-      ? YearEndHarvest.dates(context.priceMap(), context.purchaseData().date(), context.valuationDate())
-      : null;
-  }
-
-  // 보유 단계 · 양도세 계산 거래를 남기고 연말 정리 날마다 당일 종가에 연말 정리(날이 null 이면 연말 정리 끔)
-  private static final class HoldingTrail {
-    private final NavigableSet<LocalDate> dates;
-    private final SimulationContext context;
-    private final Function<LocalDate, BigDecimal> fx;
-    private final List<StrategyTransaction> taxTransactions = new ArrayList<>();
-    private final List<HoldingStep> steps = new ArrayList<>();
-    private final List<StrategyTransaction> trades = new ArrayList<>();
-
-    private HoldingTrail(NavigableSet<LocalDate> dates, SimulationContext context, Function<LocalDate, BigDecimal> fx) {
-      this.dates = dates;
-      this.context = context;
-      this.fx = fx;
-    }
-
-    private List<HoldingStep> steps() {
-      return steps;
-    }
-
-    private List<StrategyTransaction> taxTransactions() {
-      return taxTransactions;
-    }
-
-    // 받은 날짜부터 주식 수 · 현금(USD)
-    private void step(LocalDate from, BigDecimal shares, BigDecimal cash) {
-      steps.add(new HoldingStep(from, shares, cash));
-    }
-
-    // 양도세 계산 거래
-    private void taxTrade(StrategyTransaction tx) {
-      taxTransactions.add(tx);
-    }
-
-    // before 앞 연말 정리 날마다 연말 정리한 뒤 주식 수(현금은 그대로)
-    private BigDecimal harvestBefore(LocalDate before, BigDecimal shares, BigDecimal cash) {
-      BigDecimal held = shares;
-      while (dates != null && !dates.isEmpty() && dates.first().isBefore(before)) {
-        LocalDate date = dates.pollFirst();
-        YearEndHarvest.Trade trade = YearEndHarvest.single(date, taxTransactions,
-          PriceLookup.effectiveClose(context.priceMap().get(date)), held, StrategyCalculator.holdingCost(taxTransactions),
-          context.request().getTradingFeeRate(), fx.apply(date), false);
-        if (trade != null) {
-          List.of(trade.sale(), trade.rebuy()).forEach(tx -> {
-            taxTransactions.add(tx);
-            trades.add(tx);
-          });
-          held = held.add(trade.sharesChange());
-          steps.add(new HoldingStep(date, held, cash));
-        }
-      }
-      return held;
-    }
-
-    // 연말 정리 매도 · 재매수 수수료 합(USD)
-    private BigDecimal harvestFees() {
-      return trades.stream().map(StrategyTransaction::getFee).reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
-    // 연말 정리 거래와 기간 끝 매도(끄면 null)
-    private List<StrategyTransaction> harvestTransactions(StrategyTransaction endSale) {
-      if (dates == null) {
-        return null;
-      }
-      List<StrategyTransaction> all = new ArrayList<>(trades);
-      if (endSale != null) {
-        all.add(endSale);
-      }
-      return all;
-    }
-  }
-
   // 최적 타이밍 · 일별 가치 · 지표를 더한 응답
   private SimulationResponse buildSimulationResponse(SimulationContext context,
     SimulationCalculationResult calculation, List<OHLCPriceDto> candles, Map<String, BigDecimal> fxRates,
@@ -507,18 +199,11 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
         calculation.investmentKrw())
       : null);
     response.setTransactions(calculation.transactions());
-    List<DailyValue> dailyValues = dailyValues(candles, fx, calculation, context);
-    // 원금: 원화는 투자금, 달러는 그것을 매수 환율로 바꾼 값
-    BigDecimal krwCapital = calculation.investmentKrw();
-    BigDecimal usdCapital = MoneyUtils.convertKrwToUsd(krwCapital, calculation.purchaseFxRate());
-    List<Double> usdIndex = index(dailyValues, usdCapital, DailyValue::valueUsd);
-    List<Double> krwIndex = index(dailyValues, krwCapital, DailyValue::valueKrw);
-    List<LocalDate> dates = dailyValues.stream().map(DailyValue::date).toList();
-
-    response.setMetricsKrw(PerformanceCalculator.compute(dates, krwIndex, context.request().getPurchaseDate()));
-    response.setMetricsUsd(PerformanceCalculator.compute(dates, usdIndex, context.request().getPurchaseDate()));
-    response.setDailyValues(DailyValue.withDrawdowns(dailyValues,
-      PerformanceCalculator.drawdownPercents(usdIndex), PerformanceCalculator.drawdownPercents(krwIndex)));
+    StrategyPerformance.Result performance = SimulationPerformance.of(candles, fx, calculation, context.valuationDate(),
+      context.request().getPurchaseDate());
+    response.setMetricsKrw(performance.metricsKrw());
+    response.setMetricsUsd(performance.metricsUsd());
+    response.setDailyValues(performance.dailyValues());
     response.setPurchaseDayReturns(purchaseDayReturns(candles, context, calculation, fxRates));
     return response;
   }
@@ -547,7 +232,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     SimulationCalculationResult calculation, Map<String, BigDecimal> fxRates) {
     LocalDate tradeDate = context.purchaseData().date();
     BigDecimal manual = context.request().getPurchaseFxRate();
-    Function<LocalDate, BigDecimal> market = FxPath.market(fxRecords(fxRates), marketDataClientWrapper.defaultFxRate());
+    Function<LocalDate, BigDecimal> market = FxPath.marketFromBulk(fxRates, marketDataClientWrapper.defaultFxRate());
     return date -> date.equals(tradeDate) ? calculation.purchaseFxRate() : manual != null ? manual : market.apply(date);
   }
 
@@ -564,8 +249,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       if (exDate != null && dividend.getAmount() != null && Decimals.isPositive(dividend.getAmount())
         && BacktestCalculationUtils.receivesDividend(tradeDate, exDate)
         && !exDate.isAfter(context.valuationDate())) {
-        prices.computeIfAbsent(exDate, date -> PriceLookup.effectiveClose(
-          getHistoricalPrice(context.request().getSymbol(), date, context.priceMap())));
+        prices.computeIfAbsent(exDate, closeOn(context));
       }
     }
     return prices;
@@ -603,54 +287,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       return FxPath.interpolated(context.purchaseData().date(), purchaseFxRate,
         context.valuationDate(), context.currentFxRate().rate());
     }
-    return FxPath.market(fxRecords(fxRates), purchaseFxRate);
-  }
-
-  // 날짜 문자열 키를 날짜로 바꾼 환율
-  private static Map<LocalDate, BigDecimal> fxRecords(Map<String, BigDecimal> fxRates) {
-    Map<LocalDate, BigDecimal> records = new HashMap<>();
-    if (fxRates != null) {
-      fxRates.forEach((date, rate) -> records.put(LocalDate.parse(date), rate));
-    }
-    return records;
-  }
-
-  // 일봉마다 보유 주식 × 종가 + 현금(원화는 일봉 날짜 경로 환율), 평가일은 결과의 총자산
-  private static List<DailyValue> dailyValues(List<OHLCPriceDto> candles, Function<LocalDate, BigDecimal> fx,
-    SimulationCalculationResult calculation, SimulationContext context) {
-    List<HoldingStep> steps = calculation.holdingSteps();
-    List<DailyValue> values = new ArrayList<>();
-    int step = 0;
-    for (OHLCPriceDto candle : candles) {
-      if (!candle.date().isBefore(context.valuationDate())) {
-        break;
-      }
-      if (!PriceLookup.isUsable(candle)) {
-        continue;
-      }
-      while (step + 1 < steps.size() && !steps.get(step + 1).from().isAfter(candle.date())) {
-        step++;
-      }
-      HoldingStep holding = steps.get(step);
-      BigDecimal valueUsd = MoneyUtils.roundUsd(
-        PriceLookup.effectiveClose(candle).multiply(holding.shares()).add(holding.cashUsd()));
-      values.add(new DailyValue(candle.date(), valueUsd, DailyValue.toKrw(valueUsd, fx.apply(candle.date()))));
-    }
-    values.add(new DailyValue(context.valuationDate(),
-      calculation.totalAssetKrw().divide(calculation.currentFxRate(), 2, RoundingMode.HALF_UP),
-      calculation.totalAssetKrw()));
-    return values;
-  }
-
-  // 원금을 1 로 둔 일별 지수
-  private static List<Double> index(List<DailyValue> values, BigDecimal capital,
-    Function<DailyValue, BigDecimal> value) {
-    List<Double> index = new ArrayList<>();
-    double base = capital.doubleValue();
-    for (DailyValue daily : values) {
-      index.add(value.apply(daily).doubleValue() / base);
-    }
-    return index;
+    return FxPath.marketFromBulk(fxRates, purchaseFxRate);
   }
 
   // 산 날 · 평가일 가운데 환율이 없어 기본 환율로 계산한 날
@@ -663,51 +300,17 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       .toList();
   }
 
-  // 최적 타이밍 계산 (원화 주가 기준, 매수일 <= 매도일 제약 아래 최대 수익)
+  // 최적 매매 시점(일봉이 없거나 기간 환율을 못 받았거나 계산이 실패하면 빈 값)
   private OptimalTiming calculateOptimalTiming(List<OHLCPriceDto> ordered, Map<String, BigDecimal> fxRates) {
     if (ordered.isEmpty() || fxRates == null) {
       return OptimalTiming.empty();
     }
     try {
-      // 전 구간 최저가 · 최고가를 따로 뽑으면 매도일이 매수일보다 앞설 수 있음
-      // 날짜순으로 일봉마다 당일까지 원화 주가가 가장 낮은 날에 산 수익률만 계산
-      Function<LocalDate, BigDecimal> fx = FxPath.market(fxRecords(fxRates), marketDataClientWrapper.defaultFxRate());
-      OHLCPriceDto minSoFar = ordered.get(0);
-      OHLCPriceDto bestBuy = ordered.get(0);
-      OHLCPriceDto bestSell = ordered.get(0);
-      BigDecimal bestReturn = BigDecimal.ZERO;
-
-      for (OHLCPriceDto candle : ordered) {
-        if (krwPrice(candle, fx).compareTo(krwPrice(minSoFar, fx)) < 0) {
-          minSoFar = candle;
-        }
-
-        BigDecimal ret = MoneyUtils.calculateReturnRate(
-          krwPrice(minSoFar, fx), krwPrice(candle, fx));
-
-        if (ret.compareTo(bestReturn) > 0) {
-          bestReturn = ret;
-          bestBuy = minSoFar;
-          bestSell = candle;
-        }
-      }
-
-      // 내내 하락이면 매수일 = 매도일 = 시작일 · 수익률 0(사지 않는 게 최선)
-      return new OptimalTiming(
-        bestBuy.date(),
-        PriceLookup.effectiveClose(bestBuy),
-        bestSell.date(),
-        PriceLookup.effectiveClose(bestSell),
-        bestReturn
-      );
+      return OptimalTiming.best(ordered, FxPath.marketFromBulk(fxRates, marketDataClientWrapper.defaultFxRate()));
     } catch (Exception e) {
       log.warn("최적 타이밍 계산 실패: {}", e.getMessage());
       return OptimalTiming.empty();
     }
-  }
-
-  private static BigDecimal krwPrice(OHLCPriceDto candle, Function<LocalDate, BigDecimal> fx) {
-    return PriceLookup.effectiveClose(candle).multiply(fx.apply(candle.date()));
   }
 
   // 백테스트 이력 저장 (userId 없으면 skip)
@@ -744,6 +347,11 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     OHLCPriceDto next = PriceLookup.nextAvailable(
       marketDataClientWrapper::getOHLCPrice, symbol, purchaseDate, valuationDate, 7);
     return next != null ? next : getHistoricalPriceWithRetry(symbol, purchaseDate);
+  }
+
+  // 받은 날짜 종가(휴장일이면 직전 거래일, 기간 일봉에 없을 때만 날짜별 조회)
+  private Function<LocalDate, BigDecimal> closeOn(SimulationContext context) {
+    return date -> PriceLookup.effectiveClose(getHistoricalPrice(context.request().getSymbol(), date, context.priceMap()));
   }
 
   // 받은 날짜 시세(휴장일이면 직전 거래일), 기간 일봉에 없을 때만 날짜별 조회
