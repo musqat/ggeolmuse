@@ -15,7 +15,7 @@ describe('DefaultFxNotice', () => {
     render(<DefaultFxNotice dates={['2013-06-03', '2013-07-01', '2013-08-01', '2013-09-02', '2013-10-01']} />)
 
     const note = screen.getByRole('note')
-    expect(note).toHaveTextContent('환율 기록이 없어 기본 환율 ₩1,350 으로 계산한 날이 있습니다')
+    expect(note).toHaveTextContent('환율 기록이 없어 기본 환율 ₩1,350.00 으로 계산한 날이 있습니다')
     expect(note).toHaveTextContent('2013-06-03 · 2013-07-01 · 2013-08-01 외 2일')
   })
 

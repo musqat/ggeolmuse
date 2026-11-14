@@ -1,7 +1,7 @@
 import React, { useId, useState } from 'react';
 import type { PortfolioTransaction, TradeReason } from '../../../../services/api';
 import { gainLossClass } from '../../../../utils/gainLoss';
-import { formatNumber, formatSigned, formatUsd } from '../../../../utils/format';
+import { formatShares, formatSigned, formatUsd } from '../../../../utils/format';
 
 interface PortfolioTradesProps {
   transactions: PortfolioTransaction[];
@@ -63,7 +63,7 @@ const TradeRow: React.FC<{ tx: PortfolioTransaction }> = ({ tx }) => {
       <td className={`${TEXT} font-medium`}>{tx.symbol ?? <Dash />}</td>
       <td className={TEXT}>{tx.trigger ?? (tx.reason ? REASON_LABELS[tx.reason] : <Dash />)}</td>
       <td className={NUMBER}>
-        {isPayment(tx) ? <Dash /> : `${formatNumber(Math.abs(tx.shares), { maximumFractionDigits: 6 })}주`}
+        {isPayment(tx) ? <Dash /> : formatShares(Math.abs(tx.shares))}
       </td>
       <td className={NUMBER}>{amountUsd(tx)}</td>
       <td className={NUMBER}>

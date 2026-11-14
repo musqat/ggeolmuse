@@ -219,11 +219,11 @@ describe('SimpleResult', () => {
     expect(screen.queryByText(/휴장일이라/)).toBeNull()
   })
 
-  it('보유 주식수는 소수 둘째 자리까지 보여준다', async () => {
-    render(<SimpleResult result={{ ...result, shares: 3.141592 }} symbol="AAPL" purchaseDate="2023-01-03" />)
+  it('보유 주식수는 소수 여섯째 자리까지 보여준다', async () => {
+    render(<SimpleResult result={{ ...result, shares: 3.14159265 }} symbol="AAPL" purchaseDate="2023-01-03" />)
     await open('상세')
 
-    expect(screen.getByText('3.14 주')).toBeInTheDocument()
+    expect(screen.getByText('3.141593주')).toBeInTheDocument()
   })
 })
 

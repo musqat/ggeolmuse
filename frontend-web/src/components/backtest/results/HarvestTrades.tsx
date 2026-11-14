@@ -1,7 +1,7 @@
 import React from 'react';
 import type { StrategyTransaction } from '../../../services/api';
 import { gainLossClass } from '../../../utils/gainLoss';
-import { formatNumber, formatSigned, formatUsd } from '../../../utils/format';
+import { formatShares, formatSigned, formatUsd } from '../../../utils/format';
 import { isSale } from './resultValues';
 
 const HEAD = 'px-3 py-2 text-xs font-medium text-tx-2';
@@ -28,7 +28,7 @@ export const HarvestTrades: React.FC<{ transactions: StrategyTransaction[] }> = 
           <tr key={`${tx.date}-${index}`} className="border-b border-line/50 last:border-0">
             <td className={TEXT}>{tx.actualDate ?? tx.date}</td>
             <td className={TEXT}>{tx.trigger}</td>
-            <td className={NUMBER}>{`${formatNumber(Math.abs(tx.shares), { maximumFractionDigits: 6 })}주`}</td>
+            <td className={NUMBER}>{formatShares(Math.abs(tx.shares))}</td>
             <td className={NUMBER}>{formatUsd(tx.price)}</td>
             <td className={NUMBER}>{formatUsd((isSale(tx) ? tx.proceeds : tx.cashUsed) ?? 0)}</td>
             <td className={NUMBER}>

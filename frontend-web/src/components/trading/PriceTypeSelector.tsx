@@ -1,5 +1,6 @@
 import React, { useId } from 'react';
 import type { PriceType, OHLCData } from '@/utils/priceUtils';
+import { formatUsd } from '@/utils/format';
 
 // 지정가면 가격 입력 칸과 당일 OHLC 범위를 보여 줌
 interface PriceTypeSelectorProps {
@@ -39,7 +40,7 @@ const PriceTypeSelector: React.FC<PriceTypeSelectorProps> = ({
       {priceType === 'limit' && ohlcData && (
         <div className="mb-4">
           <label htmlFor={`${id}-limit`} className="block text-sm font-medium text-tx-1 mb-2">
-            지정가 (${ohlcData.low.toFixed(2)} ~ ${ohlcData.high.toFixed(2)})
+            지정가 ({formatUsd(ohlcData.low)} ~ {formatUsd(ohlcData.high)})
           </label>
           <input
             id={`${id}-limit`}

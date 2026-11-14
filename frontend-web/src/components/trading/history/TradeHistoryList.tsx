@@ -5,7 +5,7 @@ import { parseLocalDate } from '../../../utils/dateUtils';
 import TradeCancelledBadge from '../TradeCancelledBadge';
 import TradePendingBadge from '../TradePendingBadge';
 import { applyFilters, groupByDay, summarize, type HistoryFilter } from './tradeHistory';
-import { formatNumber } from '../../../utils/format';
+import { formatQuantity, formatSigned, formatUsd } from '../../../utils/format';
 
 interface AccountOption {
   accountId: number;
@@ -25,18 +25,12 @@ const FILTERS: { value: HistoryFilter; label: string }[] = [
   { value: 'DIVIDEND', label: '배당' },
 ];
 
-// 유형별 꼬리표 색과 금액 부호(나간 돈 -, 들어온 돈 +, 바탕 10% 라 작은 글자도 대비 4.5 이상)
+// 유형별 꼬리표 색과 금액 부호(나간 돈 -1, 들어온 돈 +1, 바탕 10% 라 작은 글자도 대비 4.5 이상)
 const TYPE_STYLE = {
-  BUY: { label: '매수', chip: 'bg-gain/10 text-gain', sign: '-' },
-  SELL: { label: '매도', chip: 'bg-loss/10 text-loss', sign: '+' },
-  DIVIDEND: { label: '배당', chip: 'bg-info/10 text-info', sign: '+' },
+  BUY: { label: '매수', chip: 'bg-gain/10 text-gain', sign: -1 },
+  SELL: { label: '매도', chip: 'bg-loss/10 text-loss', sign: 1 },
+  DIVIDEND: { label: '배당', chip: 'bg-info/10 text-info', sign: 1 },
 } as const;
-
-const usd = (value: number) =>
-  `$${formatNumber(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-// 소수 주식이라 넷째 자리까지(끝의 0 은 뺌)
-const shares = (value: number) => formatNumber(value, { maximumFractionDigits: 4 });
 
 // 2026. 10. 08. (목)
 const dayLabel = (date: string) =>
@@ -57,13 +51,13 @@ const orderTime = (executedAt: string | undefined) =>
 const detailParts = (item: TransactionHistoryItem): string[] =>
   item.type === 'DIVIDEND'
     ? [
-        `${shares(item.shares ?? 0)}주 × ${usd(item.dividendPerShare ?? 0)}`,
-        `세전 ${usd(item.grossAmount ?? 0)}`,
-        `원천징수 ${usd(item.taxAmount ?? 0)}`,
+        `${formatQuantity(item.shares ?? 0)}주 × ${formatUsd(item.dividendPerShare ?? 0, 6)}`,
+        `세전 ${formatUsd(item.grossAmount ?? 0)}`,
+        `원천징수 ${formatUsd(item.taxAmount ?? 0)}`,
       ]
     : [
-        `${shares(item.quantity ?? 0)}주 × ${usd(item.price ?? 0)}`,
-        ...(item.fee ? [`수수료 ${usd(item.fee)}`] : []),
+        `${formatQuantity(item.quantity ?? 0)}주 × ${formatUsd(item.price ?? 0)}`,
+        ...(item.fee ? [`수수료 ${formatUsd(item.fee)}`] : []),
       ];
 
 // 요약에서 뺀 거래 수(예: 취소 1건 · 정산 중 1건 제외)
@@ -117,8 +111,7 @@ const HistoryRow = ({ item, accountName }: HistoryRowProps) => {
             item.type === 'DIVIDEND' ? 'text-gain' : 'text-tx-1'
           } ${cancelled ? 'line-through' : ''}`}
         >
-          {style.sign}
-          {usd(item.totalAmount)}
+          {formatSigned(style.sign * item.totalAmount, formatUsd)}
         </p>
         {item.type !== 'DIVIDEND' && (
           <p className="text-[11px] text-tx-3 whitespace-nowrap">{orderTime(item.executedAt)}</p>
@@ -173,17 +166,17 @@ export const TradeHistoryList = ({ transactions, accounts, onRefresh }: TradeHis
   return (
     <div className="space-y-4">
       <div data-testid="history-summary" className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <SummaryCell label="매수" value={usd(summary.buy.total)} note={`${summary.buy.count}건`} />
-        <SummaryCell label="매도" value={usd(summary.sell.total)} note={`${summary.sell.count}건`} />
+        <SummaryCell label="매수" value={formatUsd(summary.buy.total)} note={`${summary.buy.count}건`} />
+        <SummaryCell label="매도" value={formatUsd(summary.sell.total)} note={`${summary.sell.count}건`} />
         <SummaryCell
           label="배당 (세후)"
-          value={`+${usd(summary.dividend.total)}`}
+          value={formatSigned(summary.dividend.total, formatUsd)}
           note={`${summary.dividend.count}건`}
           valueClass="text-gain"
         />
         <SummaryCell
           label="수수료"
-          value={usd(summary.fee)}
+          value={formatUsd(summary.fee)}
           note={excludedNote(summary.cancelled, summary.pending)}
         />
       </div>

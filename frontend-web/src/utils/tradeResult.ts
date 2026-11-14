@@ -1,4 +1,5 @@
 import type { TradeResult } from '../services/api';
+import { formatShares, formatUsd } from './format';
 
 // 체결 응답으로 만든 주문 완료 알림 문구
 export function formatTradeResult(trade: TradeResult): string {
@@ -11,10 +12,10 @@ export function formatTradeResult(trade: TradeResult): string {
     headline,
     '',
     `종목: ${trade.symbol}`,
-    `수량: ${trade.quantity}주`,
-    `체결가: $${trade.price.toFixed(2)}`,
-    `수수료: $${trade.fee.toFixed(2)}`,
-    `${isBuy ? '총액' : '받는 금액'}: $${trade.totalAmount.toFixed(2)}`,
+    `수량: ${formatShares(trade.quantity)}`,
+    `체결가: ${formatUsd(trade.price)}`,
+    `수수료: ${formatUsd(trade.fee)}`,
+    `${isBuy ? '총액' : '받는 금액'}: ${formatUsd(trade.totalAmount)}`,
     `거래일: ${trade.tradeDate}`,
   ].join('\n');
 }

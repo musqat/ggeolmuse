@@ -150,14 +150,14 @@ describe('PortfolioResult', () => {
     const { unmount } = render(<PortfolioResult result={{ ...result, metricsKrw: null, metricsUsd: null, dailyValues: [] }} />)
 
     expect(screen.queryByRole('group', { name: '지표 기준 통화' })).toBeNull()
-    expect(value('연평균 수익률')).toHaveTextContent('—')
+    expect(value('연평균 수익률')).toHaveTextContent(/^-$/)
     expect(card('연평균 수익률')).toHaveTextContent('지표 없음')
-    expect(value('최대 낙폭')).toHaveTextContent('—')
+    expect(value('최대 낙폭')).toHaveTextContent(/^-$/)
     expect(screen.getByText('자산 추이 KRW 0일 · 넣은 돈 10000000')).toBeInTheDocument()
     unmount()
 
     render(<PortfolioResult result={{ ...result, metricsKrw: { cagr: null, mdd: -3 }, metricsUsd: { cagr: null, mdd: -4 } }} />)
-    expect(value('연평균 수익률')).toHaveTextContent('—')
+    expect(value('연평균 수익률')).toHaveTextContent(/^-$/)
     expect(card('연평균 수익률')).toHaveTextContent('1년 미만이면 내지 않음')
   })
 

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { stockApi } from '../services/api';
 import type { OHLCData } from '../types/ohlc';
 import { getTodayString, subtractDays } from '../utils/dateUtils';
+import { formatPercent, formatUsd, NO_VALUE } from '../utils/format';
 
 const Home: React.FC = () => {
   // 시총 상위 5개
@@ -144,7 +145,7 @@ const Home: React.FC = () => {
                 {topSymbol && dataDate ? `${topSymbol} · ${dataDate} 종가` : topSymbol || '시총 1위'}
               </span>
               <span className={`text-[11.5px] font-semibold px-2 py-0.5 rounded-[5px] ${topUp ? 'text-gain bg-gain/10' : 'text-loss bg-loss/10'}`}>
-                {topChange !== null ? `${topUp ? '▲' : '▼'} ${Math.abs(topChange).toFixed(2)}%` : '—'}
+                {topChange !== null ? `${topUp ? '▲' : '▼'} ${formatPercent(Math.abs(topChange))}` : NO_VALUE}
               </span>
             </div>
 
@@ -190,10 +191,10 @@ const Home: React.FC = () => {
                     </div>
                     <div className="text-right">
                       <div className="text-[13px] font-semibold text-tx-1">
-                        {s.currentPrice > 0 ? `$${s.currentPrice.toFixed(2)}` : '—'}
+                        {s.currentPrice > 0 ? formatUsd(s.currentPrice) : NO_VALUE}
                       </div>
                       <div className={`text-[11.5px] font-semibold ${up ? 'text-gain' : 'text-loss'}`}>
-                        {cp !== null ? `${up ? '▲' : '▼'} ${Math.abs(cp).toFixed(2)}%` : `${up ? '▲' : '▼'} 변동`}
+                        {cp !== null ? `${up ? '▲' : '▼'} ${formatPercent(Math.abs(cp))}` : `${up ? '▲' : '▼'} 변동`}
                       </div>
                     </div>
                   </Link>

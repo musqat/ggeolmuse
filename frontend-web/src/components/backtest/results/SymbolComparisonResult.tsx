@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { gainLossClass, hasValue } from '../../../utils/gainLoss';
-import { formatFxRate, formatKrw, formatPercent, formatSigned, formatNumber } from '../../../utils/format';
+import { formatFxRate, formatKrw, formatPercent, formatShares, formatSigned, formatNumber, formatUsd, NO_VALUE } from '../../../utils/format';
 import type { ComparisonItem, ComparisonResponse } from '../../../services/api';
 import { CompareSymbolsChartMemoized } from './CompareSymbolsChartMemoized';
 import { daysBetween, getTodayString } from '../../../utils/dateUtils';
@@ -76,7 +76,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
       label: '연평균',
       cell: (row) => {
         const cagr = metricsOf(row, currency)?.cagr;
-        return hasValue(cagr) ? <span className={gainLossClass(cagr)}>{formatSigned(cagr, formatPercent)}</span> : '—';
+        return hasValue(cagr) ? <span className={gainLossClass(cagr)}>{formatSigned(cagr, formatPercent)}</span> : NO_VALUE;
       },
       best: bestKeys(rows, (row) => metricsOf(row, currency)?.cagr),
     },
@@ -88,7 +88,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
     },
     {
       label: '평가 가치',
-      cell: (row) => <>₩{formatNumber(row.valueKrw)}</>,
+      cell: (row) => <>{formatKrw(row.valueKrw)}</>,
       best: bestKeys(rows, (row) => row.valueKrw),
     },
   ];
@@ -104,11 +104,11 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
         <DetailSection title="투자 정보">
           <DetailRow label="매수일" value={purchaseDate ?? '-'} />
           <DetailRow label="보유일" value={daysHeld != null ? `${formatNumber(daysHeld)}일` : '-'} />
-          <DetailRow label="매수가 → 평가일 가격" value={`$${data.purchasePrice?.toFixed(2) ?? '-'} → $${data.currentPrice?.toFixed(2) ?? '-'}`} />
-          <DetailRow label="보유 주식" value={`${data.shares?.toFixed(2) ?? '-'}주`} />
+          <DetailRow label="매수가 → 평가일 가격" value={`${formatUsd(data.purchasePrice)} → ${formatUsd(data.currentPrice)}`} />
+          <DetailRow label="보유 주식" value={formatShares(data.shares)} />
           <DetailRow
             label="주식 · 현금"
-            value={`₩${formatNumber(item.currentValueKrw)} · ₩${formatNumber(cashKrw({ totalAssetKrw: row.valueKrw, currentValueKrw: item.currentValueKrw }))}`}
+            value={`${formatKrw(item.currentValueKrw)} · ${formatKrw(cashKrw({ totalAssetKrw: row.valueKrw, currentValueKrw: item.currentValueKrw }))}`}
           />
           <DetailRow
             label="총 수익"
@@ -129,8 +129,8 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
           />
         </DetailSection>
         <DetailSection title="최적 타이밍">
-          <DetailRow label="최적 매수" value={item.optimalBuyDate ? `${item.optimalBuyDate} · $${item.optimalBuyPrice?.toFixed(2) ?? '-'}` : '-'} />
-          <DetailRow label="최적 매도" value={item.optimalSellDate ? `${item.optimalSellDate} · $${item.optimalSellPrice?.toFixed(2) ?? '-'}` : '-'} />
+          <DetailRow label="최적 매수" value={item.optimalBuyDate ? `${item.optimalBuyDate} · ${formatUsd(item.optimalBuyPrice)}` : '-'} />
+          <DetailRow label="최적 매도" value={item.optimalSellDate ? `${item.optimalSellDate} · ${formatUsd(item.optimalSellPrice)}` : '-'} />
           <DetailRow
             label="최적 수익률"
             value={hasValue(data.optimalReturnPercent) ? formatSigned(data.optimalReturnPercent, formatPercent) : '-'}
@@ -150,7 +150,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-tx-1">
-          종목 {rows.length}개 · ₩{formatNumber(investment)}씩
+          종목 {rows.length}개 · {formatKrw(investment)}씩
           {result.bestPerformer && (
             <> · 최고 <span className="font-semibold">{result.bestPerformer.name}</span>{' '}
               <span className={gainLossClass(result.bestPerformer.totalReturnPercent)}>

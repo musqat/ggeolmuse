@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import type { HoldingResponse } from '../../services/api';
+import { formatPercent, formatShares, formatSigned, formatUsd } from '../../utils/format';
 
 const COLUMNS = ['종목', '보유량', '평균단가', '현재가', '평가금액', '손익'];
 
@@ -35,19 +36,19 @@ export const HoldingsTable: React.FC<{ holdings: HoldingResponse[] }> = ({ holdi
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-tx-1">{holding.totalQuantity}주</div>
+                  <div className="text-sm text-tx-1">{formatShares(holding.totalQuantity)}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-tx-1">${holding.avgPurchasePrice.toFixed(2)}</div>
+                  <div className="text-sm text-tx-1">{formatUsd(holding.avgPurchasePrice)}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-tx-1">
-                    {holding.currentPrice ? `$${holding.currentPrice.toFixed(2)}` : '-'}
+                    {holding.currentPrice ? formatUsd(holding.currentPrice) : '-'}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-tx-1">
-                    {holding.currentValue ? `$${holding.currentValue.toFixed(2)}` : '-'}
+                    {holding.currentValue ? formatUsd(holding.currentValue) : '-'}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -61,8 +62,8 @@ export const HoldingsTable: React.FC<{ holdings: HoldingResponse[] }> = ({ holdi
                       ) : (
                         <ArrowDownCircle className="w-4 h-4 mr-1" />
                       )}
-                      {holding.unrealizedPnL >= 0 ? '+' : ''}${holding.unrealizedPnL.toFixed(2)}
-                      <span className="ml-1">({holding.returnRate >= 0 ? '+' : ''}{holding.returnRate.toFixed(2)}%)</span>
+                      {formatSigned(holding.unrealizedPnL, formatUsd)}
+                      <span className="ml-1">({formatSigned(holding.returnRate, formatPercent)})</span>
                     </div>
                   ) : (
                     <div className="text-sm text-tx-3">-</div>

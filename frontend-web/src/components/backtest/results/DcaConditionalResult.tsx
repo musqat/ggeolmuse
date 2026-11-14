@@ -4,7 +4,7 @@ import { SignalChart } from '@components/charts/backtest/SignalChart';
 import { BandChart } from '@components/charts/backtest/BandChart';
 import type { StrategyResponse } from '../../../services/api';
 import { gainLossClass } from '../../../utils/gainLoss';
-import { formatBalanceAmount, formatKrw, formatPercent, formatSigned, formatNumber, formatUsd } from '../../../utils/format';
+import { formatKrw, formatPercent, formatShares, formatSigned, formatUsd } from '../../../utils/format';
 import { ResultOverview } from './ResultOverview';
 import { StatCard } from './StatCard';
 import { FxImpactSection } from './FxImpactSection';
@@ -143,8 +143,8 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
             <StatCard
               className="sm:col-span-2 lg:col-span-1"
               label="쓰지 않은 예산"
-              value={<>₩{formatNumber(unused)}</>}
-              sub={<p>예산 ₩{formatNumber(budget)} 가운데 · 수익률 · 평가 가치에 넣지 않음</p>}
+              value={<>{formatKrw(unused)}</>}
+              sub={<p>예산 {formatKrw(budget)} 가운데 · 수익률 · 평가 가치에 넣지 않음</p>}
             />
           )
         }
@@ -209,26 +209,26 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
             )}
             <DetailRow label="매수 횟수" value={<>{purchaseCount(transactions)}회</>} />
             {sold > 0 && <DetailRow label="매도 횟수" value={<>{sold}회</>} />}
-            <DetailRow label={investedLabel} value={<>₩{formatNumber(result.totalInvested)}</>} />
+            <DetailRow label={investedLabel} value={<>{formatKrw(result.totalInvested)}</>} />
             <div className="flex justify-between gap-3 py-2">
               <span className="text-tx-2">주식 평가액</span>
               <div className="text-right">
-                <div className="font-medium text-tx-1">₩{formatNumber(result.currentValueKrw)}</div>
+                <div className="font-medium text-tx-1">{formatKrw(result.currentValueKrw)}</div>
                 <div className="text-xs text-tx-2">
-                  {result.currentValue != null && formatBalanceAmount(result.currentValue, 'USD')}
+                  {result.currentValue != null && formatUsd(result.currentValue)}
                 </div>
               </div>
             </div>
           </DetailSection>
 
           <DetailSection title="주식 수익">
-            <DetailRow label="보유 주식수" value={<>{result.totalShares?.toFixed(2)} 주</>} />
+            <DetailRow label="보유 주식수" value={formatShares(result.totalShares)} />
             <DetailRow
               label="평균 매수가"
-              value={result.averagePrice != null ? formatUsd(result.averagePrice) : '-'}
+              value={formatUsd(result.averagePrice)}
             />
-            <DetailRow label="평가일 가격" value={<>${result.currentPrice?.toFixed(2)}</>} />
-            <DetailRow label="배당금 (USD)" value={<>${result.totalDividends?.toFixed(2) || '0.00'}</>} />
+            <DetailRow label="평가일 가격" value={formatUsd(result.currentPrice)} />
+            <DetailRow label="배당금 (USD)" value={formatUsd(result.totalDividends ?? 0)} />
             {sold > 0 && (
               <>
                 <DetailRow

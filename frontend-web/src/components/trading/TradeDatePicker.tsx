@@ -2,6 +2,7 @@ import React from 'react';
 import type { CandlestickChartData } from '@/types/ohlc';
 import { getTodayString, subtractDays, subtractMonths } from '@/utils/dateUtils';
 import { DateField } from '../common/DateField';
+import { formatUsd } from '@/utils/format';
 
 interface TradeDatePickerProps {
   tradeDate: string;
@@ -71,19 +72,19 @@ const TradeDatePicker: React.FC<TradeDatePickerProps> = ({
           <div className="grid grid-cols-4 gap-2 text-xs">
             <div>
               <span className="text-tx-2">시가</span>
-              <p className="font-semibold text-tx-1">${selectedDateOHLC.open.toFixed(2)}</p>
+              <p className="font-semibold text-tx-1">{formatUsd(selectedDateOHLC.open)}</p>
             </div>
             <div>
               <span className="text-tx-2">고가</span>
-              <p className="font-semibold text-gain">${selectedDateOHLC.high.toFixed(2)}</p>
+              <p className="font-semibold text-gain">{formatUsd(selectedDateOHLC.high)}</p>
             </div>
             <div>
               <span className="text-tx-2">저가</span>
-              <p className="font-semibold text-loss">${selectedDateOHLC.low.toFixed(2)}</p>
+              <p className="font-semibold text-loss">{formatUsd(selectedDateOHLC.low)}</p>
             </div>
             <div>
               <span className="text-tx-2">종가</span>
-              <p className="font-semibold text-tx-1">${selectedDateOHLC.close.toFixed(2)}</p>
+              <p className="font-semibold text-tx-1">{formatUsd(selectedDateOHLC.close)}</p>
             </div>
           </div>
         </div>

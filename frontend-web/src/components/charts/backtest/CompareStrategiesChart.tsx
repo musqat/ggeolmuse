@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Line, YAxis, Tooltip, ReferenceDot } from 'recharts';
 import type { ComparisonDetail } from '../../../services/api';
 import { closeOf, fetchSymbolPrices } from './shared/prices';
+import { formatUsd } from '../../../utils/format';
 import { AXIS_PROPS, dateAxis, formatTooltipDate, formatUsdTick, MARKER_PROPS, TOOLTIP_PROPS } from './shared/chartStyle';
 import { ChartCard, ChartMessage, ChartPanel } from './shared/ChartPanel';
 import type { OHLCData } from '../../../types/ohlc';
@@ -87,7 +88,7 @@ export const CompareStrategiesChart: React.FC<StockPriceWithStrategyChartProps> 
         <YAxis {...AXIS_PROPS} tickFormatter={formatUsdTick} />
         <Tooltip
           {...TOOLTIP_PROPS}
-          formatter={(value: number | string) => [`$${Number(value).toFixed(2)}`, '주가']}
+          formatter={(value: number | string) => [formatUsd(Number(value)), '주가']}
           labelFormatter={formatTooltipDate}
         />
         <Line

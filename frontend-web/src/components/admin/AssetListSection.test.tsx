@@ -60,6 +60,12 @@ describe('AssetListSection', () => {
     expect(props.onDelete).toHaveBeenCalledWith('AAPL')
   })
 
+  it('가격 · 시총 · 최신 데이터 날짜가 없으면 같은 빈 값 글자', () => {
+    renderList({ assets: [{ symbol: 'NEW', name: 'New Co', country: 'US', currency: 'USD', assetType: 'STOCK' }] as never })
+
+    expect(rowOf('NEW').getAllByText('-')).toHaveLength(3)
+  })
+
   it('상장폐지 목록은 삭제 대신 복구를 부른다', async () => {
     const user = userEvent.setup()
     const props = renderList({ listActive: false })

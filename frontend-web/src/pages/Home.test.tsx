@@ -96,7 +96,7 @@ describe('Home', () => {
     for (const symbol of ['AAPL', 'MSFT', 'GOOGL', 'AMZN']) {
       expect(screen.getByText(symbol)).toBeInTheDocument()
     }
-    expect(screen.getAllByText('—')).toHaveLength(5)
+    expect(screen.getAllByText('-')).toHaveLength(5)
   })
 
   it('목록 종목을 누르면 그 종목 차트로 간다', async () => {

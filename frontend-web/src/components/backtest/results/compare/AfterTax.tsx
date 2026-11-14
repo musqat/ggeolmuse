@@ -1,6 +1,6 @@
 import React from 'react';
 import { gainLossClass, hasValue } from '../../../../utils/gainLoss';
-import { formatKrw, formatPercent, formatSigned } from '../../../../utils/format';
+import { formatKrw, formatPercent, formatSigned, NO_VALUE } from '../../../../utils/format';
 import { DetailRow, DetailSection } from '../DetailSection';
 import { TaxYearTable } from '../CapitalGainsTaxFold';
 import { taxOf, type CompareRow } from './compareRows';
@@ -11,7 +11,7 @@ export const AfterTaxCell: React.FC<{ row: CompareRow }> = ({ row }) => {
   return hasValue(percent) ? (
     <span className={gainLossClass(percent)}>{formatSigned(percent, formatPercent)}</span>
   ) : (
-    <span className="text-tx-3">—</span>
+    <span className="text-tx-3">{NO_VALUE}</span>
   );
 };
 

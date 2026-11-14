@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { stockApi, type StockSort } from '../services/api';
-import { formatMarketCap } from '../utils/format';
+import { formatMarketCap, formatPercent, formatUsd } from '../utils/format';
 import { Spinner } from '../components/common/Spinner';
 import { StockLogo } from '../components/common/StockLogo';
 
@@ -211,14 +211,14 @@ const Stocks: React.FC = () => {
                   </td>
                   <td className="py-3 px-4 text-right">
                     <span className="text-tx-1">
-                      {stock.currentPrice ? `$${stock.currentPrice.toFixed(2)}` : 'N/A'}
+                      {stock.currentPrice ? formatUsd(stock.currentPrice) : '-'}
                     </span>
                   </td>
                   <td className="py-3 px-4 text-right text-tx-2">
                     {formatMarketCap(stock.marketCap, 1)}
                   </td>
                   <td className="py-3 px-4 text-right text-tx-2">
-                    {stock.dividendYieldPercent != null ? `${stock.dividendYieldPercent.toFixed(2)}%` : '-'}
+                    {stock.dividendYieldPercent != null ? formatPercent(stock.dividendYieldPercent) : '-'}
                   </td>
                 </tr>
               ))}

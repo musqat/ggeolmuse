@@ -96,7 +96,7 @@ describe('AccumulationChart', () => {
       { fill: '#8b5cf6', x: '2026-03-02', y: 100 },
       { fill: '#ef4444', x: '2026-03-04', y: 101 },
     ])
-    expect(screen.getByText('1회 매수 • 1회 매도 • 총 0.00주 보유')).toBeInTheDocument()
+    expect(screen.getByText('1회 매수 • 1회 매도 • 총 0주 보유')).toBeInTheDocument()
     expect(screen.getByText(/보라 점 = 매수/)).toHaveTextContent('파란 선 = 주가 | 보라 점 = 매수(1개) | 빨간 점 = 매도(1개)')
   })
 
@@ -113,7 +113,7 @@ describe('AccumulationChart', () => {
       { fill: '#8b5cf6', x: '2026-03-02', y: 100 },
       { fill: '#ef4444', x: '2026-03-04', y: 101 },
     ])
-    expect(screen.getByText('1회 매수 • 1회 매도 • 총 0.00주 보유')).toBeInTheDocument()
+    expect(screen.getByText('1회 매수 • 1회 매도 • 총 0주 보유')).toBeInTheDocument()
   })
 
   it('연말 정리 매도 · 재매수는 점을 찍지 않고 매수 · 매도 횟수에 세지 않는다', async () => {
@@ -129,7 +129,7 @@ describe('AccumulationChart', () => {
     expect(screen.getByText('1회 매수 • 총 0.99주 보유')).toBeInTheDocument()
   })
 
-  it('전량 매도로 끝나면 부동소수 합이 음수로 남아도 보유를 0.00주로 보인다', async () => {
+  it('전량 매도로 끝나면 부동소수 합이 음수로 남아도 보유를 0주로 보인다', async () => {
     const soldOut = [
       { date: '2026-03-02', price: 100, shares: 3.19845656, amount: 140000, fxRate: 1400 },
       { date: '2026-03-03', price: 100, shares: 3.17819174, amount: 140000, fxRate: 1400 },
@@ -137,7 +137,7 @@ describe('AccumulationChart', () => {
     ]
     renderWithQuery(<AccumulationChart {...props} transactions={soldOut} />)
 
-    expect(await screen.findByText('2회 매수 • 1회 매도 • 총 0.00주 보유')).toBeInTheDocument()
+    expect(await screen.findByText('2회 매수 • 1회 매도 • 총 0주 보유')).toBeInTheDocument()
   })
 
   it('평가일이 있으면 그 날짜까지 받는다', async () => {
@@ -163,10 +163,10 @@ describe('AccumulationChart', () => {
     ])
   })
 
-  it('제목 없이 배당 재투자를 뺀 매수 횟수와 보유 주식 합(소수 둘째 자리)을 보인다', async () => {
+  it('제목 없이 배당 재투자를 뺀 매수 횟수와 보유 주식 합(끝의 0 없이)을 보인다', async () => {
     renderWithQuery(<AccumulationChart {...props} />)
 
-    expect(await screen.findByText('2회 매수 • 총 2.10주 보유')).toBeInTheDocument()
+    expect(await screen.findByText('2회 매수 • 총 2.1주 보유')).toBeInTheDocument()
     expect(screen.queryByRole('heading')).toBeNull()
   })
 
@@ -187,7 +187,7 @@ describe('AccumulationChart', () => {
   it('매수가 없어도 시작일부터 주가를 받아 0회 매수로 그린다', async () => {
     renderWithQuery(<AccumulationChart {...props} transactions={[]} />)
 
-    expect(await screen.findByText('0회 매수 • 총 0.00주 보유')).toBeInTheDocument()
+    expect(await screen.findByText('0회 매수 • 총 0주 보유')).toBeInTheDocument()
     expect(getOHLCData).toHaveBeenCalledWith('AAPL', '2026-03-01', '2026-03-10')
     expect(readCharts()[0].dots).toEqual([])
   })

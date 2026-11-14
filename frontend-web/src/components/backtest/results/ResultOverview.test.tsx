@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { useState, type ComponentProps } from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ResultOverview as Overview } from './ResultOverview'
 import type { MetricCurrency } from './CurrencyToggle'
@@ -95,7 +95,7 @@ describe('ResultOverview', () => {
     render(<ResultOverview result={noMetrics} investedLabel="누적 매수액" invested={10000000} />)
 
     expect(screen.queryByRole('button', { name: '달러 기준' })).toBeNull()
-    expect(card('최대 낙폭')).toHaveTextContent('—')
+    expect(within(card('최대 낙폭')).getByText('-')).toBeInTheDocument()
     expect(card('최대 낙폭')).toHaveTextContent('지표 없음')
     expect(card('연평균 수익률')).toHaveTextContent('지표 없음')
     expect(card('연평균 수익률')).not.toHaveTextContent('1년 미만')
@@ -110,7 +110,7 @@ describe('ResultOverview', () => {
       />,
     )
 
-    expect(card('연평균 수익률')).toHaveTextContent('—')
+    expect(within(card('연평균 수익률')).getByText('-')).toBeInTheDocument()
     expect(card('연평균 수익률')).toHaveTextContent('1년 미만이면 내지 않음')
     expect(card('최대 낙폭')).toHaveTextContent('0.00%')
     expect(card('최대 낙폭')).toHaveTextContent('기간 중 하락 없음')
@@ -119,7 +119,7 @@ describe('ResultOverview', () => {
   it('일별 시세가 없어 지표가 비면 낙폭 이유도 그렇게 적는다', () => {
     render(<ResultOverview result={{ ...result, metricsKrw: { cagr: null, mdd: null, volatility: null, sharpe: null } }} investedLabel="초기 투자금" invested={10000000} />)
 
-    expect(card('최대 낙폭')).toHaveTextContent('—')
+    expect(within(card('최대 낙폭')).getByText('-')).toBeInTheDocument()
     expect(card('최대 낙폭')).toHaveTextContent('일별 시세가 없어 내지 않음')
   })
 

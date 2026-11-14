@@ -1,6 +1,7 @@
 import React from 'react';
 import { ExternalLink } from 'lucide-react';
 import StockSearchInput from '@/components/common/StockSearchInput';
+import { formatUsd } from '@/utils/format';
 
 interface OHLCData {
   open: number;
@@ -50,19 +51,19 @@ const StockSelectionPanel: React.FC<StockSelectionPanelProps> = ({
         <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-surface/50 rounded-lg">
           <div className="text-center">
             <p className="text-xs text-tx-2">시가</p>
-            <p className="font-semibold text-tx-1">${latestOHLC.open.toFixed(2)}</p>
+            <p className="font-semibold text-tx-1">{formatUsd(latestOHLC.open)}</p>
           </div>
           <div className="text-center">
             <p className="text-xs text-tx-2">고가</p>
-            <p className="font-semibold text-gain">${latestOHLC.high.toFixed(2)}</p>
+            <p className="font-semibold text-gain">{formatUsd(latestOHLC.high)}</p>
           </div>
           <div className="text-center">
             <p className="text-xs text-tx-2">저가</p>
-            <p className="font-semibold text-loss">${latestOHLC.low.toFixed(2)}</p>
+            <p className="font-semibold text-loss">{formatUsd(latestOHLC.low)}</p>
           </div>
           <div className="text-center">
             <p className="text-xs text-tx-2">종가</p>
-            <p className="font-semibold text-tx-1">${latestOHLC.close.toFixed(2)}</p>
+            <p className="font-semibold text-tx-1">{formatUsd(latestOHLC.close)}</p>
           </div>
         </div>
       )}

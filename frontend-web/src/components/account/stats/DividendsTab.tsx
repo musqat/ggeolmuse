@@ -1,14 +1,14 @@
 import React from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { portfolioApi, type DividendPayout, type ProfitFlowPeriod, type SymbolDividend } from '../../../services/api';
-import { formatFxRate, formatNumber, formatPercent } from '../../../utils/format';
+import { formatFxRate, formatNumber, formatPercent, formatQuantity, formatUsd } from '../../../utils/format';
 import { ChartCard } from '@components/charts/backtest/shared/ChartPanel';
 import { formatKrwTick, formatMonthTick } from '@components/charts/backtest/shared/chartStyle';
 import { SignedStat, StatsCards, StatsLoadError, StatsLoading, StatsNotice, ValueStat } from './StatsCards';
 import { StatsBarChart } from './StatsBarChart';
 import { StatsFold } from './StatsFold';
 import { StatsTable, type StatsColumn } from './StatsTable';
-import { formatQuantity, krw, NO_VALUE_CLASS, usd, usdPerShare, withAccountColumn } from './statsFormat';
+import { krw, NO_VALUE_CLASS, withAccountColumn } from './statsFormat';
 
 // 배당락일 환율이 하나도 없어 원화를 모르는 합(달러는 있는데 원화 0)
 const noKrw = (item: { netKrw: number; netUsd: number }) => item.netKrw === 0 && item.netUsd > 0;
@@ -18,7 +18,7 @@ const symbolTone = (item: SymbolDividend) => (noKrw(item) ? NO_VALUE_CLASS : 'te
 const SYMBOL_COLUMNS: StatsColumn<SymbolDividend>[] = [
   { header: '종목', cell: (item) => item.symbol },
   { header: '횟수', numeric: true, cell: (item) => formatNumber(item.payoutCount) },
-  { header: '세후 $', numeric: true, cell: (item) => usd(item.netUsd) },
+  { header: '세후 $', numeric: true, cell: (item) => formatUsd(item.netUsd) },
   { header: '세후 ₩', numeric: true, tone: symbolTone, cell: (item) => (noKrw(item) ? '-' : krw(item.netKrw)) },
   {
     header: '비율',
@@ -35,10 +35,10 @@ const PAYOUT_COLUMNS: StatsColumn<DividendPayout>[] = [
   { header: '배당락일', cell: (payout) => payout.exDate },
   { header: '종목', cell: (payout) => payout.symbol },
   { header: '수량', numeric: true, cell: (payout) => formatQuantity(payout.shares) },
-  { header: '주당 $', numeric: true, cell: (payout) => usdPerShare(payout.dividendPerShareUsd) },
-  { header: '세전 $', numeric: true, cell: (payout) => usd(payout.grossUsd) },
-  { header: '세금 $', numeric: true, cell: (payout) => usd(payout.taxUsd) },
-  { header: '세후 $', numeric: true, cell: (payout) => usd(payout.netUsd) },
+  { header: '주당 $', numeric: true, cell: (payout) => formatUsd(payout.dividendPerShareUsd, 6) },
+  { header: '세전 $', numeric: true, cell: (payout) => formatUsd(payout.grossUsd) },
+  { header: '세금 $', numeric: true, cell: (payout) => formatUsd(payout.taxUsd) },
+  { header: '세후 $', numeric: true, cell: (payout) => formatUsd(payout.netUsd) },
   {
     header: '환율',
     numeric: true,
@@ -93,7 +93,7 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({ accountId, period, a
               label="받은 배당"
               aside="세후"
               value={noKrw({ netKrw, netUsd }) ? '-' : krw(netKrw)}
-              detail={usd(netUsd)}
+              detail={formatUsd(netUsd)}
             />,
             <ValueStat label="지급 횟수" value={`${formatNumber(payoutCount)}회`} detail={symbolCount} />,
           ]}
@@ -105,7 +105,7 @@ export const DividendsTab: React.FC<DividendsTabProps> = ({ accountId, period, a
               percent={most?.sharePercent}
               unsigned
             />,
-            <ValueStat label="원천징수 세금" value={usd(taxUsd)} detail={`세전 ${usd(grossUsd)}`} />,
+            <ValueStat label="원천징수 세금" value={formatUsd(taxUsd)} detail={`세전 ${formatUsd(grossUsd)}`} />,
           ]}
         />
         {missing > 0 && (

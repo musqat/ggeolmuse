@@ -1,6 +1,8 @@
 // 백테스트 결과 차트가 같이 쓰는 recharts 설정
 // 색은 index.css 테마 변수(다크 · 라이트가 거기서 갈림)
 
+import { formatUsd } from '../../../../utils/format';
+
 export const CHART_HEIGHT = 300;
 export const CHART_MARGIN = { top: 5, right: 30, left: 20, bottom: 5 };
 export const GRID_PROPS = { strokeDasharray: '3 3', stroke: 'rgb(var(--line))' };
@@ -51,7 +53,7 @@ export const OPTIMAL_MARKER_PROPS = { r: 5, fill: MARKER_COLORS.optimal, stroke:
 export const MARKER_LABEL_STYLE = { fill: 'rgb(var(--text-1))', fontSize: 12, fontWeight: 'bold' };
 
 export const formatTooltipDate = (label: string) => `날짜: ${label}`;
-export const formatUsdTick = (value: number) => `$${Math.round(value)}`;
+export const formatUsdTick = (value: number) => formatUsd(value, 0);
 // 원화 축 눈금, 1억부터 억 단위(₩1.2억) · 그 아래 만 단위(₩140만) · 0 은 ₩0, 음수는 -₩25만
 export const formatKrwTick = (value: number): string => {
   if (value < 0) return `-${formatKrwTick(-value)}`;

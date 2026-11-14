@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { PortfolioBacktestResponse } from '../../../../services/api';
 import { gainLossClass, hasValue } from '../../../../utils/gainLoss';
-import { formatKrw, formatPercent, formatSigned } from '../../../../utils/format';
+import { formatKrw, formatPercent, formatSigned, NO_VALUE } from '../../../../utils/format';
 import { StatCard } from '../StatCard';
 import { AssetChart } from '../AssetChart';
 import { CurrencyToggle, type MetricCurrency } from '../CurrencyToggle';
@@ -56,7 +56,7 @@ export const PortfolioResult: React.FC<PortfolioResultProps> = ({ result }) => {
           <StatCard
             compact
             label="연평균 수익률"
-            value={hasValue(cagr) ? formatSigned(cagr, formatPercent) : '—'}
+            value={hasValue(cagr) ? formatSigned(cagr, formatPercent) : NO_VALUE}
             valueClassName={hasValue(cagr) ? gainLossClass(cagr) || 'text-tx-1' : 'text-tx-3'}
             sub={
               <p>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { ChevronDown } from 'lucide-react';
 import type { SkipReason, SkippedRound, StrategyTransaction } from '../../../services/api';
-import { formatKrw, formatNumber, formatSigned, formatUsd } from '../../../utils/format';
+import { formatKrw, formatShares, formatSigned, formatUsd } from '../../../utils/format';
 import { gainLossClass } from '../../../utils/gainLoss';
 import { DIVIDEND_REINVEST, TAX_PAYMENT, isPurchase, isSale, isYearEndHarvest } from './resultValues';
 
@@ -113,7 +113,7 @@ function RoundRow({ round, plannedLabel }: { round: Round; plannedLabel: string 
       <td className="py-1.5 pl-3 whitespace-nowrap">{tx.trigger ?? '매수'}</td>
       <td className={NUMBER_CELL}>{payment ? EMPTY : formatUsd(tx.price)}</td>
       <td className={NUMBER_CELL}>
-        {payment ? EMPTY : `${formatNumber(Math.abs(tx.shares), { minimumFractionDigits: 4, maximumFractionDigits: 4 })}주`}
+        {payment ? EMPTY : formatShares(Math.abs(tx.shares))}
       </td>
       <td className={NUMBER_CELL}>
         <AmountCell tx={tx} />
