@@ -5,6 +5,12 @@ import {
   formatToKoreanWon,
   formatReadableWon,
   formatMarketCap,
+  formatUsd,
+  formatKrw,
+  formatQuantity,
+  formatShares,
+  formatSigned,
+  formatPercent,
 } from './format'
 
 describe('formatNumberWithCommas', () => {
@@ -124,7 +130,86 @@ describe('formatMarketCap', () => {
     expect(formatMarketCap(3_120_000_000_000, 1)).toBe('$3.1T')
   })
 
-  it.each([undefined, null, 0])('%s 는 N/A', (value) => {
-    expect(formatMarketCap(value)).toBe('N/A')
+  it.each([undefined, null, 0])('%s 는 -', (value) => {
+    expect(formatMarketCap(value)).toBe('-')
+  })
+})
+
+describe('formatUsd', () => {
+  it('천 단위 쉼표를 넣고 소수 둘째 자리까지 보인다', () => {
+    expect(formatUsd(1234567.891)).toBe('$1,234,567.89')
+    expect(formatUsd(0)).toBe('$0.00')
+  })
+
+  it('음수는 부호를 통화 기호 앞에 둔다', () => {
+    expect(formatUsd(-12.3)).toBe('-$12.30')
+    expect(formatUsd(-1234.5)).toBe('-$1,234.50')
+  })
+
+  it('반올림해 0 이 되는 음수는 부호 없이 보인다', () => {
+    expect(formatUsd(-0.004)).toBe('$0.00')
+  })
+
+  it('소수 자리 상한을 바꿀 수 있다', () => {
+    expect(formatUsd(0.485, 6)).toBe('$0.485')
+    expect(formatUsd(1.2, 6)).toBe('$1.20')
+    expect(formatUsd(1234.6, 0)).toBe('$1,235')
+  })
+
+  it('값이 없으면 -', () => {
+    expect(formatUsd(undefined)).toBe('-')
+    expect(formatUsd(null)).toBe('-')
+  })
+})
+
+describe('formatKrw', () => {
+  it('천 단위 쉼표, 음수는 부호를 통화 기호 앞에 둔다', () => {
+    expect(formatKrw(1234567)).toBe('₩1,234,567')
+    expect(formatKrw(-1200)).toBe('-₩1,200')
+    expect(formatKrw(0)).toBe('₩0')
+  })
+
+  it('값이 없으면 -', () => {
+    expect(formatKrw(undefined)).toBe('-')
+  })
+})
+
+describe('formatQuantity', () => {
+  it('소수 여섯째 자리까지, 끝의 0 없이 보인다', () => {
+    expect(formatQuantity(237.89990234375)).toBe('237.899902')
+    expect(formatQuantity(237.9)).toBe('237.9')
+    expect(formatQuantity(10)).toBe('10')
+  })
+
+  it('천 단위 쉼표를 넣는다', () => {
+    expect(formatQuantity(12345.5)).toBe('12,345.5')
+  })
+
+  it('0 은 0, 값이 없으면 -', () => {
+    expect(formatQuantity(0)).toBe('0')
+    expect(formatQuantity(undefined)).toBe('-')
+  })
+})
+
+describe('formatShares', () => {
+  it('수량 뒤에 주를 띄우지 않고 둔다', () => {
+    expect(formatShares(237.9)).toBe('237.9주')
+    expect(formatShares(1500)).toBe('1,500주')
+  })
+
+  it('값이 없으면 -', () => {
+    expect(formatShares(null)).toBe('-')
+  })
+})
+
+describe('formatSigned', () => {
+  it('양수는 +, 음수는 - 를 통화 기호 앞에 둔다', () => {
+    expect(formatSigned(1234.5, formatUsd)).toBe('+$1,234.50')
+    expect(formatSigned(-1234.5, formatUsd)).toBe('-$1,234.50')
+  })
+
+  it('반올림해 0 이 되는 값은 부호 없이 보인다', () => {
+    expect(formatSigned(0.001, formatPercent)).toBe('0.00%')
+    expect(formatSigned(-0.004, formatUsd)).toBe('$0.00')
   })
 })

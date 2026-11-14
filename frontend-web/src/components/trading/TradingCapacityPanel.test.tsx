@@ -65,7 +65,7 @@ describe('TradingCapacityPanel', () => {
     renderBuyPanel('close', 8.97)
 
     expect(
-      await screen.findByText('기준가 $8.97 · 슬리피지·수수료 포함 최대 9.00주 매수 가능')
+      await screen.findByText('기준가 $8.97 · 슬리피지·수수료 포함 최대 9주 매수 가능')
     ).toBeInTheDocument()
   })
 
@@ -82,7 +82,7 @@ describe('TradingCapacityPanel', () => {
     renderBuyPanel('limit', 9)
 
     expect(
-      await screen.findByText('지정가 $9.00 · 수수료 포함 최대 9.00주 매수 가능')
+      await screen.findByText('지정가 $9.00 · 수수료 포함 최대 9주 매수 가능')
     ).toBeInTheDocument()
   })
 
@@ -105,7 +105,7 @@ describe('TradingCapacityPanel', () => {
   it('매도 가능 수량은 고른 거래일 기준이고 뒤 날짜 거래까지 반영했다고 알림', async () => {
     renderPanel('sell', 'close', 100)
 
-    expect(await screen.findByText('2026-10-05 매도 가능 10.00주(뒤 날짜 거래까지 반영)')).toBeInTheDocument()
+    expect(await screen.findByText('2026-10-05 매도 가능 10주(뒤 날짜 거래까지 반영)')).toBeInTheDocument()
     expect(screen.queryByText(/FIFO|이전에 매수한/)).toBeNull()
   })
 

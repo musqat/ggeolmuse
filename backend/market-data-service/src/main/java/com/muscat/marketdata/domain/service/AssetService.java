@@ -19,6 +19,9 @@ public interface AssetService {
   // 심볼 또는 회사명으로 찾기(최대 20개)
   List<Asset> searchSymbols(String keyword);
 
+  // 상장 종목만 심볼 또는 회사명으로 찾기(공개 검색)
+  List<Asset> searchListedSymbols(String keyword, int limit);
+
   // 이름 · 국가 · 통화 · 유형이 비면 공급원에서 채움
   Asset createAsset(String symbol, String name, String country,
     String currency, String assetType,

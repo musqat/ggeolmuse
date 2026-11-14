@@ -86,7 +86,7 @@ function App() {
 
                           {/* 로그인이 필요한 경로(안 했으면 그 자리 안내, 마이페이지는 홈으로) */}
                           <Route path="/portfolio" element={<RequireAuth loginPrompt="포트폴리오 기능을 이용하시려면 먼저 로그인해주세요"><Portfolio /></RequireAuth>} />
-                          <Route path="/trading" element={<RequireAuth loginPrompt="가상 거래 서비스를 이용하시려면 먼저 로그인해주세요"><Trading /></RequireAuth>} />
+                          <Route path="/trading" element={<RequireAuth loginPrompt="모의 매매 서비스를 이용하시려면 먼저 로그인해주세요"><Trading /></RequireAuth>} />
                           <Route path="/trade-history" element={<RequireAuth loginPrompt="거래내역을 확인하시려면 먼저 로그인해주세요"><TradeHistory /></RequireAuth>} />
                           <Route path="/account" element={<RequireAuth loginPrompt="계좌 관리 기능을 이용하시려면 먼저 로그인해주세요"><Account /></RequireAuth>} />
                           <Route path="/account/stats" element={<RequireAuth loginPrompt="계좌 통계를 보시려면 먼저 로그인해주세요"><AccountStats /></RequireAuth>} />

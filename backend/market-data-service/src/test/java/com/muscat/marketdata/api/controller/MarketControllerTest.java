@@ -17,6 +17,7 @@ import com.muscat.marketdata.common.exception.GlobalExceptionHandler;
 import com.muscat.marketdata.config.security.SecurityConfig;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
+import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.FxRate;
 import com.muscat.marketdata.domain.service.AssetService;
 import com.muscat.marketdata.domain.service.CandleService;
@@ -161,6 +162,31 @@ class MarketControllerTest {
     mockMvc.perform(get(BASE + "/symbols"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$[1].symbol").value("MSFT"));
+  }
+
+  @Test
+  @DisplayName("이름 검색은 토큰 없이 종목 코드와 회사 이름")
+  void searchSymbols() throws Exception {
+    given(assetService.searchListedSymbols("apple", 20))
+      .willReturn(List.of(Asset.builder().symbol("AAPL").name("Apple Inc").build()));
+
+    mockMvc.perform(get(BASE + "/symbols/search").param("q", "apple"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$[0].symbol").value("AAPL"))
+      .andExpect(jsonPath("$[0].name").value("Apple Inc"));
+  }
+
+  @Test
+  @DisplayName("이름 검색의 빈 검색어 · 20개 넘는 개수 · 50자 넘는 검색어는 400")
+  void searchSymbolsRejected() throws Exception {
+    mockMvc.perform(get(BASE + "/symbols/search").param("q", " "))
+      .andExpect(status().isBadRequest());
+    mockMvc.perform(get(BASE + "/symbols/search").param("q", "a").param("limit", "21"))
+      .andExpect(status().isBadRequest());
+    mockMvc.perform(get(BASE + "/symbols/search").param("q", "a".repeat(51)))
+      .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(assetService);
   }
 
   @Test

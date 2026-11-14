@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { PurchaseDayChart } from './PurchaseDayChart'
 import { MARKER_COLORS } from '@components/charts/backtest/shared/chartStyle'
@@ -74,12 +74,12 @@ describe('PurchaseDayChart', () => {
     expect(card('목표 이상인 날')).toHaveTextContent('2일전체의 50.00%')
   })
 
-  it('목표 칸이 비면 목표 이상인 날은 — 이고 0% 선만 둔다', async () => {
+  it('목표 칸이 비면 목표 이상인 날은 - 이고 0% 선만 둠', async () => {
     view()
 
     await userEvent.clear(screen.getByLabelText('목표 수익률'))
 
-    expect(card('목표 이상인 날')).toHaveTextContent('—')
+    expect(within(card('목표 이상인 날') as HTMLElement).getByText('-')).toBeInTheDocument()
     expect(readCharts()[0].refLines).toEqual([{ y: 0 }])
   })
 

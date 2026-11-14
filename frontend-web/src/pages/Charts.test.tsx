@@ -145,7 +145,7 @@ describe('Charts', () => {
     it('등락을 전일 종가 대비로 보이고 기준일을 함께 보인다', async () => {
       renderCharts()
 
-      expect(await screen.findByText('+2.00 (+2.00%)')).toBeInTheDocument()
+      expect(await screen.findByText('+$2.00 (+2.00%)')).toBeInTheDocument()
       expect(screen.getByText('전일 종가 대비 · 2026. 03. 31. 종가 기준')).toBeInTheDocument()
     })
 

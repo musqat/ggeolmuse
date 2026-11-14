@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useId, useMemo } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 import { X, Search, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { searchSymbols, type SymbolMatch } from '../../utils/symbolSearch';
+import { type SymbolMatch } from '../../utils/symbolSearch';
+import { useSymbolSearch } from '../../hooks/useSymbolSearch';
 import { Modal } from './Modal';
 
 interface SearchModalProps {
@@ -18,7 +19,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
   const listId = useId();
   const optionId = (index: number) => `${listId}-${index}`;
 
-  const filteredStocks = useMemo(() => searchSymbols(supportedSymbols, searchTerm, 10), [supportedSymbols, searchTerm]);
+  const { matches: filteredStocks, failed: searchFailed } = useSymbolSearch(searchTerm, supportedSymbols, 10);
 
   // 검색어가 바뀌면 첫 결과를 고름
   const changeSearchTerm = (term: string) => {
@@ -107,6 +108,8 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
           </button>
         )}
       </div>
+
+      {searchFailed && <p className="mt-2 text-xs text-tx-2">이름 검색을 못 해 티커로만 찾은 결과</p>}
 
       {/* 검색 결과 */}
       <div className="mt-4 -mx-6 max-h-96 overflow-y-auto">

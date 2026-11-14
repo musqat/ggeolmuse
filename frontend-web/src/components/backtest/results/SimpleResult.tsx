@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { SimpleChart } from '@components/charts/backtest/SimpleChart';
 import type { SimulationResponse } from '../../../services/api';
 import { gainLossClass } from '../../../utils/gainLoss';
-import { formatKrw, formatPercent, formatSigned, formatUsd, formatNumber } from '../../../utils/format';
+import { formatKrw, formatPercent, formatShares, formatSigned, formatUsd } from '../../../utils/format';
 import { ResultOverview } from './ResultOverview';
 import { FxImpactSection } from './FxImpactSection';
 import { DetailRow, DetailSection } from './DetailSection';
@@ -142,13 +142,13 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
             <DetailRow label="종목" value={result.symbol} />
             <DetailRow label="매수일" value={result.purchaseDate} />
             <DetailRow label="평가일" value={result.currentDate || getTodayString()} />
-            <DetailRow label="초기 투자금" value={<>₩{formatNumber(result.investmentAmount)}</>} />
+            <DetailRow label="초기 투자금" value={<>{formatKrw(result.investmentAmount)}</>} />
             <div className="flex justify-between gap-3 py-2 border-b border-line/50">
               <span className="text-tx-2">평가 가치</span>
               <div className="text-right">
-                <div className="font-medium text-tx-1">₩{formatNumber(result.totalAssetKrw)}</div>
+                <div className="font-medium text-tx-1">{formatKrw(result.totalAssetKrw)}</div>
                 <div className="text-xs text-tx-2">
-                  주식: ₩{formatNumber(result.currentValueKrw)}, 현금: ₩{formatNumber(cashKrw(result))}
+                  주식: {formatKrw(result.currentValueKrw)}, 현금: {formatKrw(cashKrw(result))}
                 </div>
               </div>
             </div>
@@ -161,9 +161,9 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
           </DetailSection>
 
           <DetailSection title="주식 수익">
-            <DetailRow label="보유 주식수" value={<>{result.shares?.toFixed(2)} 주</>} />
-            <DetailRow label="매수 가격" value={<>${result.purchasePrice?.toFixed(2)}</>} />
-            <DetailRow label="평가일 가격" value={<>${result.currentPrice?.toFixed(2)}</>} />
+            <DetailRow label="보유 주식수" value={formatShares(result.shares)} />
+            <DetailRow label="매수 가격" value={formatUsd(result.purchasePrice)} />
+            <DetailRow label="평가일 가격" value={formatUsd(result.currentPrice)} />
             <DetailRow
               label="주가 변동"
               value={formatSigned(result.stockReturn, formatUsd)}
@@ -174,7 +174,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
               value={formatSigned(result.stockReturnPercent, formatPercent)}
               valueClassName={`font-bold ${gainLossClass(result.stockReturnPercent)}`}
             />
-            <DetailRow label="배당금 (USD)" value={<>${result.totalDividends?.toFixed(2) || '0.00'}</>} last />
+            <DetailRow label="배당금 (USD)" value={formatUsd(result.totalDividends ?? 0)} last />
           </DetailSection>
 
           <FxImpactSection result={result} startLabel="시작일 환율" startRate={result.purchaseFxRate} />
@@ -182,15 +182,15 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
           <DetailSection title="최적 타이밍">
             <DetailRow label="최적 매수일" value={result.optimalBuyDate ?? dash('-')} />
             {result.optimalBuyDate && result.optimalBuyPrice != null && (
-              <DetailRow label="최적 매수가" value={<>${result.optimalBuyPrice.toFixed(2)}</>} valueClassName="font-medium text-gain" />
+              <DetailRow label="최적 매수가" value={formatUsd(result.optimalBuyPrice)} valueClassName="font-medium text-gain" />
             )}
             <DetailRow label="최적 매도일" value={result.optimalSellDate ?? dash('-')} />
             {result.optimalSellDate && result.optimalSellPrice != null && (
-              <DetailRow label="최적 매도가" value={<>${result.optimalSellPrice.toFixed(2)}</>} valueClassName="font-medium text-loss" />
+              <DetailRow label="최적 매도가" value={formatUsd(result.optimalSellPrice)} valueClassName="font-medium text-loss" />
             )}
             <DetailRow
               label="최적 수익률"
-              value={result.optimalReturnPercent ? <>+{result.optimalReturnPercent.toFixed(2)}%</> : dash('-')}
+              value={result.optimalReturnPercent ? formatSigned(result.optimalReturnPercent, formatPercent) : dash('-')}
               valueClassName={result.optimalReturnPercent ? 'font-bold text-brand' : 'font-medium'}
               last
             />

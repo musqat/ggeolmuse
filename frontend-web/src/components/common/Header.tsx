@@ -8,7 +8,7 @@ import { useAccountData } from '../../hooks/useAccountData';
 import { stockApi } from '../../services/api';
 import SearchModal from './SearchModal';
 import ThemeToggle from './ThemeToggle';
-import { formatNumber } from '../../utils/format';
+import { formatKrw } from '../../utils/format';
 
 const Header: React.FC = () => {
   const { isAuthenticated, user, logout } = useAuth();
@@ -22,7 +22,7 @@ const Header: React.FC = () => {
     { name: 'Home', href: '/' },
     { name: '종목', href: '/stocks' },
     { name: '차트', href: '/charts/AAPL' },
-    { name: '거래', href: '/trading' },
+    { name: '모의 매매', href: '/trading' },
     { name: '백테스트', href: '/backtest' },
     { name: '계좌', href: '/account' },
   ];
@@ -102,7 +102,7 @@ const Header: React.FC = () => {
                 <div className="hidden md:block text-right">
                   <p className="text-[13px] font-semibold text-tx-1 leading-tight">{user?.nickname || '사용자'}</p>
                   <p className="text-[11px] text-tx-3 leading-tight">
-                    {isLoadingAssets ? '...' : `현금 ₩${formatNumber(Math.floor(cashKrw))}`}
+                    {isLoadingAssets ? '...' : `현금 ${formatKrw(Math.floor(cashKrw))}`}
                   </p>
                 </div>
                 <Link
@@ -175,7 +175,7 @@ const Header: React.FC = () => {
                 <div className="px-3 py-2">
                   <p className="text-[13px] font-semibold text-tx-1">{user?.nickname || '사용자'}</p>
                   <p className="text-[11px] text-tx-3">
-                    {isLoadingAssets ? '...' : `현금 ₩${formatNumber(Math.floor(cashKrw))}`}
+                    {isLoadingAssets ? '...' : `현금 ${formatKrw(Math.floor(cashKrw))}`}
                   </p>
                 </div>
                 <Link to="/mypage" onClick={() => setIsMobileMenuOpen(false)}

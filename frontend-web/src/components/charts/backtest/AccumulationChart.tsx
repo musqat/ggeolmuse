@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Line, YAxis, Tooltip } from "recharts";
 import { closeOf, fetchSymbolPrices } from './shared/prices';
+import { formatShares, formatUsd } from '../../../utils/format';
 import {
   AXIS_PROPS,
   dateAxis,
@@ -127,7 +128,7 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
 
   return (
     <ChartCard
-      subtitle={`${bought}회 매수 • ${sold > 0 ? `${sold}회 매도 • ` : ''}총 ${totalShares.toFixed(2)}주 보유`}
+      subtitle={`${bought}회 매수 • ${sold > 0 ? `${sold}회 매도 • ` : ''}총 ${formatShares(totalShares)} 보유`}
       period={period}
       plain
     >
@@ -136,7 +137,7 @@ export const AccumulationChart: React.FC<StrategyBacktestChartProps> = ({
         <Tooltip
           {...TOOLTIP_PROPS}
           formatter={(value: number | string, name: string) =>
-            name === "주가" ? [`$${Number(value).toFixed(2)}`, name] : [value, name]
+            name === "주가" ? [formatUsd(Number(value)), name] : [value, name]
           }
           labelFormatter={formatTooltipDate}
         />

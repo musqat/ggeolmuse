@@ -11,6 +11,9 @@ public interface AssetRepositoryCustom {
   // 키워드로 심볼 또는 회사명 검색 (DB에서 필터링)
   List<Asset> searchByKeyword(String keyword, int limit);
 
+  // 상장 중인 종목(지수 뺌)에서 키워드 검색(같은 코드 → 코드 앞부분 → 코드순)
+  List<Asset> searchListedByKeyword(String keyword, int limit);
+
   // 상장 중인 종목(지수 뺌)을 시가총액 기준 정렬하여 페이징 조회
   // ascending: true면 오름차순, false면 내림차순 / assetType: null이면 전체
   Page<Asset> findActiveSortedByMarketCap(Pageable pageable, boolean ascending, String assetType);

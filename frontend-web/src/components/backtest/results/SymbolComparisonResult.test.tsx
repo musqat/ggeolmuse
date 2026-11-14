@@ -95,7 +95,7 @@ describe('SymbolComparisonResult', () => {
 
     await userEvent.click(row('AAPL'))
     expect(screen.getByText('보유일').nextElementSibling).toHaveTextContent('365일')
-    expect(screen.getByText('보유 주식').nextElementSibling).toHaveTextContent('10.00주')
+    expect(screen.getByText('보유 주식').nextElementSibling).toHaveTextContent('10주')
     expect(screen.getByText('주식 · 현금').nextElementSibling).toHaveTextContent('₩1,040,000 · ₩10,000')
     expect(screen.getByText('매수 환율').nextElementSibling).toHaveTextContent('₩1,300.00')
     expect(screen.getByText('최적 매수').nextElementSibling).toHaveTextContent('2023-03-01 · $95.00')

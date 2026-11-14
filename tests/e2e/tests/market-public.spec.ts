@@ -81,7 +81,7 @@ test.describe('공개 시장 데이터', () => {
 
     // 첫 행이 그려질 때까지 대기
     await expect(page.getByText('지원 종목', { exact: false })).toBeVisible();
-    await expect(page.getByText(/\$\d+\.\d{2}/).first(), '시세가 하나도 안 찍힌다').toBeVisible({
+    await expect(page.getByText(/\$[\d,]+\.\d{2}/).first(), '시세가 하나도 안 찍힌다').toBeVisible({
       timeout: 30_000,
     });
   });

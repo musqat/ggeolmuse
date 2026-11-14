@@ -1,13 +1,12 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { portfolioApi, type ProfitFlowPeriod, type SymbolTrades, type Weekday, type WeekdayTrades } from '../../../services/api';
-import { formatNumber, formatPercent } from '../../../utils/format';
+import { formatNumber, formatPercent, formatUsd } from '../../../utils/format';
 import { ChartCard } from '@components/charts/backtest/shared/ChartPanel';
 import { StatsCards, StatsLoadError, StatsLoading, StatsNotice, ValueStat } from './StatsCards';
 import { StatsBarChart } from './StatsBarChart';
 import { StatsFold } from './StatsFold';
 import { StatsTable, type StatsColumn } from './StatsTable';
-import { usd } from './statsFormat';
 
 const WEEKDAY_LABEL: Record<Weekday, string> = {
   MONDAY: '월',
@@ -30,7 +29,7 @@ const SYMBOL_COLUMNS: StatsColumn<SymbolTrades>[] = [
   { header: '체결 수', numeric: true, cell: (item) => formatNumber(item.tradeCount) },
   { header: '매수', numeric: true, cell: (item) => formatNumber(item.buyCount) },
   { header: '매도', numeric: true, cell: (item) => formatNumber(item.sellCount) },
-  { header: '체결 금액 $', numeric: true, cell: (item) => usd(item.amountUsd) },
+  { header: '체결 금액 $', numeric: true, cell: (item) => formatUsd(item.amountUsd) },
 ];
 
 // 계좌 통계 거래 패턴 탭(매수 · 매도 횟수 · 거래한 날 · 평균 보유 기간 · 승률 카드, 요일별 체결 막대, 많이 거래한 종목 표)

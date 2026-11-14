@@ -1,7 +1,7 @@
 import React from 'react';
 import type { PerformanceMetrics, StrategyResponse } from '../../../services/api';
 import { gainLossClass, hasValue } from '../../../utils/gainLoss';
-import { formatKrw, formatPercent, formatSigned, formatNumber } from '../../../utils/format';
+import { formatKrw, formatPercent, formatSigned, formatNumber, NO_VALUE } from '../../../utils/format';
 import { StatCard } from './StatCard';
 import { cashKrw } from '../shared/backtestDisplay';
 import { percentOrDash } from './resultValues';
@@ -72,7 +72,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
       valueClassName={gainLossClass(result.totalReturnPercent)}
       sub={
         <p>
-          {totalInKrw && '원화 기준 · '}{investedLabel} ₩{formatNumber(invested)} 대비{' '}
+          {totalInKrw && '원화 기준 · '}{investedLabel} {formatKrw(invested)} 대비{' '}
           <span className="whitespace-nowrap">{formatSigned(result.totalReturnKrw, formatKrw)}</span>
         </p>
       }
@@ -82,7 +82,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
     <StatCard
       label="연평균 수익률"
       note={timeWeighted ? '시간가중 기준' : undefined}
-      value={hasValue(metrics?.cagr) ? formatSigned(metrics?.cagr, formatPercent) : '—'}
+      value={hasValue(metrics?.cagr) ? formatSigned(metrics?.cagr, formatPercent) : NO_VALUE}
       valueClassName={hasValue(metrics?.cagr) ? gainLossClass(metrics?.cagr) : 'text-tx-3'}
       sub={
         <p>
@@ -113,10 +113,10 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
 
     <StatCard
       label="평가 가치"
-      value={<>₩{formatNumber(result.totalAssetKrw)}</>}
+      value={<>{formatKrw(result.totalAssetKrw)}</>}
       sub={
         <p>
-          주식: ₩{formatNumber(result.currentValueKrw)}, 현금: ₩
+          주식: {formatKrw(result.currentValueKrw)}, 현금: ₩
           {formatNumber(cashKrw(result))}
         </p>
       }

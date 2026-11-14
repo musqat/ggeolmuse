@@ -1,5 +1,6 @@
 import React from 'react';
 import type { PriceType } from '@/utils/priceUtils';
+import { formatUsd } from '@/utils/format';
 
 const PRICE_LABELS: Record<PriceType, string> = {
   open: '기준가 (시가)',
@@ -47,12 +48,12 @@ const OrderSummaryPanel: React.FC<OrderSummaryPanelProps> = ({
       </div>
       <div className="flex justify-between text-sm">
         <span className="text-tx-2">{PRICE_LABELS[priceType]}</span>
-        <span className="font-medium">${currentPrice.toFixed(2)}</span>
+        <span className="font-medium">{formatUsd(currentPrice)}</span>
       </div>
       <div className="border-t pt-2 mt-2">
         <div className="flex justify-between font-semibold">
           <span>주문 금액</span>
-          <span>${totalAmount.toFixed(2)}</span>
+          <span>{formatUsd(totalAmount)}</span>
         </div>
         <p className="mt-1 text-xs text-tx-3">{note}</p>
       </div>

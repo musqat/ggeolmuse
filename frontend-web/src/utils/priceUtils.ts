@@ -2,6 +2,8 @@
  * 가격 관련 유틸리티 함수
  */
 
+import { formatUsd } from './format';
+
 export type PriceType = 'open' | 'high' | 'low' | 'close' | 'limit';
 
 export interface OHLCData {
@@ -46,7 +48,7 @@ export function validatePriceRange(
   if (price < low || price > high) {
     return {
       isValid: false,
-      message: `가격이 범위를 벗어났습니다.\n선택 가능 범위: $${low.toFixed(2)} ~ $${high.toFixed(2)}\n입력한 가격: $${price.toFixed(2)}`,
+      message: `가격이 범위를 벗어났습니다.\n선택 가능 범위: ${formatUsd(low)} ~ ${formatUsd(high)}\n입력한 가격: ${formatUsd(price)}`,
     };
   }
 

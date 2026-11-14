@@ -68,7 +68,7 @@ describe('Header 메뉴', () => {
 
     expect(screen.getByRole('link', { name: '계좌' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: '계좌' })).toHaveAttribute('href', '/account')
-    expect(screen.getByRole('link', { name: '거래' })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('link', { name: '모의 매매' })).not.toHaveAttribute('aria-current')
     expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current')
     expect(screen.getByRole('link', { name: '마이페이지' })).toHaveAttribute('href', '/mypage')
     expect(await screen.findByText('현금 ₩1,135,000')).toBeInTheDocument()

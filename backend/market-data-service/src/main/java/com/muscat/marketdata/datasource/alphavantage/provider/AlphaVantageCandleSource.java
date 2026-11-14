@@ -37,9 +37,7 @@ public class AlphaVantageCandleSource implements MarketDataProvider.CandleSource
     public List<Candle> fetchDailyAdjusted(String symbol, LocalDate from, LocalDate to) {
         rateLimiter.waitIfNeeded();
 
-        // 기간 기반 outputsize 자동 선택
-        // - 100일 이상: full (20년치 전부, 초기 수집용)
-        // - 100일 미만: compact (최근 100개, 증분 수집용)
+        // 기간 100일 이상이면 full(20년치), 아니면 compact(최근 100개)
         long days = ChronoUnit.DAYS.between(from, to);
         String outputsize = days >= 100 ? "full" : "compact";
         boolean filterByDate = days < 100;  // compact만 날짜 필터링

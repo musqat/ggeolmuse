@@ -372,11 +372,11 @@ describe('DcaConditionalResult', () => {
     expect(screen.queryByText('현재 가격')).toBeNull()
   })
 
-  it('보유 주식수 · 달러 주식 평가액은 소수 둘째 자리까지 보여준다', async () => {
-    render(<DcaConditionalResult result={{ ...result, totalShares: 8.123456, currentValue: 1234.5678 }} {...props} />)
+  it('보유 주식수는 소수 여섯째 자리까지, 달러 주식 평가액은 소수 둘째 자리까지 보여준다', async () => {
+    render(<DcaConditionalResult result={{ ...result, totalShares: 8.1234567, currentValue: 1234.5678 }} {...props} />)
     await open('상세')
 
-    expect(screen.getByText('8.12 주')).toBeInTheDocument()
+    expect(screen.getByText('8.123457주')).toBeInTheDocument()
     expect(screen.getByText('$1,234.57')).toBeInTheDocument()
   })
 

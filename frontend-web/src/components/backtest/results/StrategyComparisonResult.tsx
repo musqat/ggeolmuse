@@ -4,7 +4,7 @@ import { CHART_COLORS } from '@components/charts/common/constants';
 import type { ComparisonItem, ComparisonResponse } from '../../../services/api';
 import { STRATEGY_NAMES } from '../shared/backtestDisplay';
 import { gainLossClass, hasValue } from '../../../utils/gainLoss';
-import { formatFxRate, formatKrw, formatPercent, formatSigned, formatNumber } from '../../../utils/format';
+import { formatFxRate, formatKrw, formatPercent, formatShares, formatSigned, formatUsd, NO_VALUE } from '../../../utils/format';
 import { CurrencyToggle, type MetricCurrency } from './CurrencyToggle';
 import { DetailRow, DetailSection } from './DetailSection';
 import { ResultFold } from './ResultFold';
@@ -60,7 +60,7 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
   const best = result.bestPerformer ? ranked[0]?.item : undefined;
 
   const columns: CompareColumn[] = [
-    { label: '투자금', cell: (row) => <>₩{formatNumber(row.item.totalInvested)}</> },
+    { label: '투자금', cell: (row) => <>{formatKrw(row.item.totalInvested)}</> },
     {
       label: '총 수익률',
       cell: (row) =>
@@ -77,7 +77,7 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
       ? [
           {
             label: '세후 수익률',
-            cell: (row: CompareRow) => (noPurchase(row) ? <span className="text-tx-3">—</span> : <AfterTaxCell row={row} />),
+            cell: (row: CompareRow) => (noPurchase(row) ? <span className="text-tx-3">{NO_VALUE}</span> : <AfterTaxCell row={row} />),
             best: bestKeys(ranked, (row) => taxOf(row)?.afterTaxReturnPercent),
           },
         ]
@@ -86,7 +86,7 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
       label: '연평균',
       cell: (row) => {
         const cagr = metricsOf(row, currency)?.cagr;
-        return hasValue(cagr) ? <span className={gainLossClass(cagr)}>{formatSigned(cagr, formatPercent)}</span> : '—';
+        return hasValue(cagr) ? <span className={gainLossClass(cagr)}>{formatSigned(cagr, formatPercent)}</span> : NO_VALUE;
       },
       best: bestKeys(ranked, (row) => metricsOf(row, currency)?.cagr),
     },
@@ -96,7 +96,7 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
       best: bestKeys(ranked, (row) => metricsOf(row, currency)?.mdd),
       bestLabel: '가장 적음',
     },
-    { label: '평가 가치', cell: (row) => <>₩{formatNumber(row.valueKrw)}</> },
+    { label: '평가 가치', cell: (row) => <>{formatKrw(row.valueKrw)}</> },
   ];
 
   const detail = (row: CompareRow) => {
@@ -115,9 +115,9 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
           <DetailRow label="매수 횟수" value={`${data.transactions ? purchaseCount(transactions) : 1}회`} />
           {sold > 0 && <DetailRow label="매도 횟수" value={`${sold}회`} />}
           {span && <DetailRow label="원금 부족 미매수" value={`${span.firstDate}부터 ${span.rounds}회`} />}
-          {unused > 0 && <DetailRow label="쓰지 않은 원금" value={`₩${formatNumber(unused)}`} />}
-          <DetailRow label={data.transactions ? '평균 매수가' : '매수가'} value={hasValue(price) ? `$${price.toFixed(2)}` : '-'} />
-          <DetailRow label="보유 주식" value={hasValue(shares) ? `${shares.toFixed(2)}주` : '-'} />
+          {unused > 0 && <DetailRow label="쓰지 않은 원금" value={`${formatKrw(unused)}`} />}
+          <DetailRow label={data.transactions ? '평균 매수가' : '매수가'} value={formatUsd(price)} />
+          <DetailRow label="보유 주식" value={formatShares(shares)} />
           <DetailRow
             label="총 수익"
             value={formatSigned(item.totalReturnKrw, formatKrw)}
@@ -164,7 +164,7 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-tx-1">
-          {symbol && <>{symbol} · </>}전략마다 원금 ₩{formatNumber(result.investmentAmount)} · 전략 {rows.length}개
+          {symbol && <>{symbol} · </>}전략마다 원금 {formatKrw(result.investmentAmount)} · 전략 {rows.length}개
           {best && (
             <> · 최고 <span className="font-semibold">{STRATEGY_NAMES[best.name] || best.name}</span>{' '}
               <span className={gainLossClass(best.totalReturnPercent)}>{formatSigned(best.totalReturnPercent, formatPercent)}</span>

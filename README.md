@@ -165,11 +165,11 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 ## 테스트
 
-백엔드 **2,671 개**, 프론트 **1,648 개**, E2E **70 개**.
+백엔드 **2,677 개**, 프론트 **1,689 개**, E2E **72 개**.
 
 | 서비스 | 테스트 |
 |---|---|
-| market-data-service | 572 |
+| market-data-service | 578 |
 | user-service | 452 |
 | backtest-service | 983 |
 | trade-service | 416 |
@@ -178,8 +178,8 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 | ggeolmuse-common | 39 |
 | messaging | 25 |
 | chat-service | 158 |
-| frontend-web | 1,648 |
-| E2E (Playwright) | 70 |
+| frontend-web | 1,689 |
+| E2E (Playwright) | 72 |
 
 E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마다 돈다.
 시세 · 환율은 market-data 의 고정 데이터라 외부가 흔들려도 결과가 같다.
@@ -200,7 +200,7 @@ CI 에서 그 아래면 빌드를 실패시킨다(자바 JaCoCo · chat `tools/c
 | backtest | 99.0% | 94.3% |
 | market-data | 97.9% | 88.3% |
 | chat | 98.4% | 89.6% |
-| frontend-web | 95.0% | 89.6% |
+| frontend-web | 95.0% | 90.1% |
 
 market-data 의 외부 API 호출은 응답을 흉내 낸 테스트라 실제 API 가 바뀌는 것은 못 잡는다.
 

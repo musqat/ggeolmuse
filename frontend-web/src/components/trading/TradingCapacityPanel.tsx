@@ -4,6 +4,7 @@ import { TrendingUp, TrendingDown, DollarSign, Package } from "lucide-react";
 import { tradeApi } from "../../services/api";
 import { toBackendPriceType, type PriceType } from "@/utils/priceUtils";
 import { Spinner } from "../common/Spinner";
+import { formatShares, formatUsd } from "@/utils/format";
 
 interface TradingCapacityPanelProps {
   accountId: number | null;
@@ -87,7 +88,7 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
               <p className="text-xs text-tx-2">최대 매수 가능</p>
             </div>
             <p className="text-lg font-bold text-gain">
-              {capacity.maxShares?.toFixed(2) || "0"} 주
+              {formatShares(capacity.maxShares ?? 0)}
             </p>
           </div>
 
@@ -97,15 +98,15 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
               <p className="text-xs text-tx-2">사용 가능 잔액</p>
             </div>
             <p className="text-lg font-bold text-gain">
-              ${capacity.availableBalance?.toFixed(2) || "0"}
+              {formatUsd(capacity.availableBalance ?? 0)}
             </p>
           </div>
         </div>
 
         <div className="mt-3 p-2 bg-gain/10 rounded text-xs text-gain">
-          {`${isLimit ? "지정가" : "기준가"} $${currentPrice.toFixed(2)} · ${
+          {`${isLimit ? "지정가" : "기준가"} ${formatUsd(currentPrice)} · ${
             isLimit ? "수수료" : "슬리피지·수수료"
-          } 포함 최대 ${capacity.maxShares?.toFixed(2) || "0"}주 매수 가능`}
+          } 포함 최대 ${formatShares(capacity.maxShares ?? 0)} 매수 가능`}
         </div>
       </div>
     );
@@ -141,7 +142,7 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
                   <p className="text-xs text-tx-2">보유 수량</p>
                 </div>
                 <p className="text-lg font-bold text-loss">
-                  {capacity.currentHoldings?.toFixed(2) || "0"} 주
+                  {formatShares(capacity.currentHoldings ?? 0)}
                 </p>
               </div>
 
@@ -151,7 +152,7 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
                   <p className="text-xs text-tx-2">매도 가능</p>
                 </div>
                 <p className="text-lg font-bold text-loss">
-                  {capacity.maxSellableShares?.toFixed(2) || "0"} 주
+                  {formatShares(capacity.maxSellableShares ?? 0)}
                 </p>
               </div>
             </div>
@@ -164,14 +165,14 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
                       {`받을 금액(${isLimit ? "수수료" : "슬리피지·수수료"} 뺌)`}
                     </p>
                     <p className="text-xl font-bold text-loss">
-                      ${capacity.totalValue.toFixed(2)}
+                      {formatUsd(capacity.totalValue)}
                     </p>
                   </div>
                 </div>
               )}
 
             <div className="mt-3 p-2 bg-loss/10 rounded text-xs text-loss">
-              {`${tradeDate} 매도 가능 ${capacity.maxSellableShares?.toFixed(2) || "0"}주(뒤 날짜 거래까지 반영)`}
+              {`${tradeDate} 매도 가능 ${formatShares(capacity.maxSellableShares ?? 0)}(뒤 날짜 거래까지 반영)`}
             </div>
           </>
         ) : (

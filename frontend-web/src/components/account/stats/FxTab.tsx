@@ -1,12 +1,12 @@
 import React from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { portfolioApi, type FxDirection, type FxExchange, type ProfitFlowPeriod } from '../../../services/api';
-import { formatFxRate, formatNumber } from '../../../utils/format';
+import { formatFxRate, formatNumber, formatUsd } from '../../../utils/format';
 import { gainLossClass } from '../../../utils/gainLoss';
 import { SignedStat, StatsCards, StatsLoadError, StatsLoading, StatsNotice, ValueStat } from './StatsCards';
 import { StatsFold } from './StatsFold';
 import { StatsTable, type StatsColumn } from './StatsTable';
-import { krw, NO_VALUE_CLASS, signedKrw, usd, withAccountColumn } from './statsFormat';
+import { krw, NO_VALUE_CLASS, signedKrw, withAccountColumn } from './statsFormat';
 
 const DIRECTION_LABEL: Record<FxDirection, string> = {
   KRW_TO_USD: '원화→달러',
@@ -31,7 +31,7 @@ const exchangeColumns = (hasRate: boolean): StatsColumn<ExchangeRow>[] => [
   { header: '날짜', cell: (row) => row.date },
   { header: '방향', cell: (row) => DIRECTION_LABEL[row.direction] },
   { header: '원화', numeric: true, cell: (row) => krw(row.krwAmount) },
-  { header: '달러', numeric: true, cell: (row) => usd(row.usdAmount) },
+  { header: '달러', numeric: true, cell: (row) => formatUsd(row.usdAmount) },
   { header: '환율', numeric: true, cell: (row) => formatFxRate(row.rate) },
   {
     header: '지금 기준 효과 ₩',
@@ -78,14 +78,14 @@ export const FxTab: React.FC<FxTabProps> = ({ accountId, period, accountNames })
             <ValueStat label="지금 환율" value={rate(currentRate)} detail={`평균 환전 환율 ${rate(averageRate)}`} />,
           ]}
           bottom={[
-            <ValueStat label="환전한 달러 원금" value={usd(heldUsd)} detail="받은 달러 − 판 달러" />,
+            <ValueStat label="환전한 달러 원금" value={formatUsd(heldUsd)} detail="받은 달러 − 판 달러" />,
             <ValueStat
               label="기간 안 환전"
               value={`${formatNumber(exchangeCount)}회`}
               detail={
                 <>
                   <span className="block">원화→달러 {krw(krwToUsdKrw)}</span>
-                  <span className="block">달러→원화 {usd(usdToKrwUsd)}</span>
+                  <span className="block">달러→원화 {formatUsd(usdToKrwUsd)}</span>
                 </>
               }
             />,
