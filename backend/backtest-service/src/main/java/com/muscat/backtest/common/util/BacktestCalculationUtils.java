@@ -65,9 +65,7 @@ public final class BacktestCalculationUtils {
       .divide(totalShares, 8, HALF_UP);
   }
 
-  // 평균 환율을 계산합니다 (투자금액 가중평균)
-  // totalFxRateSum = Σ(투자금액 × 환율), totalInvested = Σ투자금액
-  // 가중평균 환율 = Σ(투자금액 × 환율) / Σ투자금액
+  // 투자금액 가중평균 환율(Σ(투자금액 × 환율) ÷ Σ투자금액)
   public static BigDecimal calculateAverageFxRate(BigDecimal totalFxRateSum, BigDecimal totalInvested) {
     if (totalFxRateSum == null) {
       throw new IllegalArgumentException("환율 합계는 null이 될 수 없습니다");

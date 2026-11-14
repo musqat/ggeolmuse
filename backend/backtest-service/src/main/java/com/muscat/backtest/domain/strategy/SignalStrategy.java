@@ -31,8 +31,7 @@ import java.util.Map;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 
-// 신호 전략 공통 매매: 시작일부터 매매 종목 일봉마다 일봉 날짜까지의 신호로 들고 있을지 정하고, 양도세를 낸 뒤 당일 종가에(고르면 다음 거래일 시가 매도 →
-// 양도세 납부 → 시가 매수 차례로) 가진 돈 전부로 사거나 전량 팜(트레일링 스탑 · 부분 익절은 정한 몫, 처음 매수는 원금, 이후 매수는 판 돈, 신호 종목은 시작일 전 일봉을 더 받아 시작일부터 신호를 봄)
+// 신호 전략 공통 매매: 매매 종목 일봉마다 신호대로 가진 돈 전부로 사거나 전량 팜(처음 매수는 원금, 이후 매수는 판 돈, 트레일링 스탑 · 부분 익절은 정한 몫)
 @Slf4j
 abstract class SignalStrategy<R extends SignalStrategyRequest> implements InvestmentStrategy {
 
