@@ -107,6 +107,7 @@ class TradeLedgerTest {
     assertThat(sale.getAmount()).isEqualByComparingTo("0");
     assertThat(sale.getFxRate()).isEqualByComparingTo("1350");
     assertThat(sale.getDefaultFxDate()).isNull();
+    assertThat(ledger.saleDefaultFxDate(DEFAULTED)).isNull();
     assertThat(sale.getSymbol()).isNull();
     assertThat(ledger.cash()).isEqualByComparingTo("479.52");
     assertThat(holding.shares()).isEqualByComparingTo("6");
@@ -124,6 +125,7 @@ class TradeLedgerTest {
       new BigDecimal("1000"), "10.0%익절", TradeReason.TAKE_PROFIT);
 
     assertThat(sale.getDefaultFxDate()).isEqualTo(DEFAULTED);
+    assertThat(ledger.saleDefaultFxDate(DEFAULTED)).isEqualTo(DEFAULTED);
     assertThat(sale.getSymbol()).isEqualTo("SPY");
     assertThat(sale.getReason()).isEqualTo(TradeReason.TAKE_PROFIT);
     assertThat(holding.held()).isFalse();
@@ -181,7 +183,7 @@ class TradeLedgerTest {
     assertThat(ledger.payTax(payer, due.plusDays(1), TradeReason.TAX_PAYMENT)).isNull();
   }
 
-  // 403만원 이익을 낸 뒤 40주 · 현금 100달러가 남은 원장(2025-05-02 납부일에 양도세 258.92달러)
+  // 403만원 이익을 낸 뒤 40주 · 현금 100달러가 남은 모의 계좌(2025-05-02 납부일에 양도세 258.92달러)
   private static TradeLedger taxDue(TradeLedger.Holding holding) {
     TradeLedger ledger = new TradeLedger(null, new BigDecimal("1300"), FxRates.EMPTY, true);
     ledger.buy(holding, deposit(LocalDate.of(2024, 1, 15), 10, "100"));
@@ -217,7 +219,7 @@ class TradeLedgerTest {
   }
 
   @Test
-  @DisplayName("단일 종목 연말 정리는 원장 수수료율 · 환율로 정한 정리 매도 · 다시 산 거래를 남기고 보유가 없으면 그대로")
+  @DisplayName("단일 종목 연말 정리는 모의 계좌 수수료율 · 환율로 정한 정리 매도 · 다시 산 거래를 남기고 보유가 없으면 그대로")
   void harvestSingle() {
     TradeLedger ledger = new TradeLedger(FEE_RATE, null, FX_RATES, true);
     TradeLedger.Holding holding = new TradeLedger.Holding();
@@ -231,6 +233,17 @@ class TradeLedgerTest {
     ledger.harvestSingle(holding, DEFAULTED, new BigDecimal("150"));
 
     assertThat(ledger.transactions()).hasSize(3).endsWith(expected.sale(), expected.rebuy());
+  }
+
+  @Test
+  @DisplayName("받은 배당은 현금에 넣고 보유 · 거래 기록은 그대로")
+  void receiveDividend() {
+    TradeLedger ledger = new TradeLedger(null, null, FX_RATES, false);
+
+    ledger.receiveDividend(new BigDecimal("12.34"));
+
+    assertThat(ledger.cash()).isEqualByComparingTo("12.34");
+    assertThat(ledger.transactions()).isEmpty();
   }
 
   @Test

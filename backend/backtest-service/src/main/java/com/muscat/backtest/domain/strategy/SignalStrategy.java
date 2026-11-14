@@ -36,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 abstract class SignalStrategy<R extends SignalStrategyRequest> implements InvestmentStrategy {
 
-  // 원장 · 보유와 첫 매수를 했는지
+  // 모의 계좌 · 보유와 첫 매수를 했는지
   private static final class Book {
     private final TradeLedger ledger;
     private final TradeLedger.Holding holding = new TradeLedger.Holding();

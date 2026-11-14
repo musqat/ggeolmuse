@@ -15,7 +15,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-// 거래 원장: 현금(USD) · 거래 기록과 종목마다 보유 주식 · 원가(USD, 수수료 포함)를 두고 수수료 · 환율을 적용해 사고팔고 양도세를 냄
+// 모의 계좌: 현금(USD) · 거래 기록과 종목마다 보유 주식 · 원가(USD, 수수료 포함)를 두고 수수료 · 환율을 적용해 사고팔고 양도세를 냄
 public final class TradeLedger {
 
   // 종목 하나의 보유 주식 · 원가(USD, 수수료 포함)와 거래에 싣는 종목
@@ -81,6 +81,11 @@ public final class TradeLedger {
     return fxRates.isDefault(date) ? date : null;
   }
 
+  // 판 날의 기본 환율 날(양도세를 켰을 때만)
+  public LocalDate saleDefaultFxDate(LocalDate date) {
+    return capitalGainsTax ? defaultFxDate(date) : null;
+  }
+
   // 거래 달러 × 수수료율(USD 두 자리, 수수료율이 없으면 0)
   public BigDecimal fee(BigDecimal usd) {
     return BacktestCalculationUtils.calculateTradingFee(usd, feeRate);
@@ -121,7 +126,6 @@ public final class TradeLedger {
   }
 
   // 받은 날짜 · 가격으로 정한 주식을 팔아 매도 수수료를 뺀 판 돈을 현금에 넣고 판 몫 원가 대비 실현 손익을 남긴 거래
-  // 양도세를 켰으면 기본 환율 날을 남김
   public StrategyTransaction sell(Holding holding, LocalDate planned, LocalDate date, BigDecimal price,
     BigDecimal shares, BigDecimal soldCost, String trigger, TradeReason reason) {
     BigDecimal gross = shares.multiply(price).setScale(8, RoundingMode.HALF_UP);
@@ -139,7 +143,7 @@ public final class TradeLedger {
       .proceeds(proceeds)
       .realizedProfit(proceeds.subtract(soldCost))
       .fxRate(fxOn(date))
-      .defaultFxDate(capitalGainsTax ? defaultFxDate(date) : null)
+      .defaultFxDate(saleDefaultFxDate(date))
       .trigger(trigger)
       .build();
     transactions.add(sale);
@@ -147,6 +151,11 @@ public final class TradeLedger {
     holding.shares = holding.shares.subtract(shares);
     holding.cost = holding.cost.subtract(soldCost);
     return sale;
+  }
+
+  // 받은 배당(USD)을 현금에 넣음
+  public void receiveDividend(BigDecimal usd) {
+    cash = cash.add(usd);
   }
 
   // 받은 날짜까지 납부일이 온 양도세를 현금에서 낸 거래(낼 것이 없으면 null), 같은 날 또 내면 같은 날 납부 줄에 더함
@@ -203,7 +212,7 @@ public final class TradeLedger {
     holding.cost = holding.cost.add(trade.costChange());
   }
 
-  // 단일 종목 연말 정리(원장 수수료율 · 받은 날짜 환율로 정한 정리 매도 · 다시 산 거래, 보유가 없거나 정리할 것이 없으면 그대로)
+  // 단일 종목 연말 정리(모의 계좌 수수료율 · 받은 날짜 환율로 정한 정리 매도 · 다시 산 거래, 보유가 없거나 정리할 것이 없으면 그대로)
   public void harvestSingle(Holding holding, LocalDate date, BigDecimal price) {
     YearEndHarvest.Trade trade = holding.held()
       ? YearEndHarvest.single(date, transactions, price, holding.shares, holding.cost, feeRate, fxOn(date),
