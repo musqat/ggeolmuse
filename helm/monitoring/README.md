@@ -171,12 +171,16 @@ user-service 가 처리한 체결을 `trade_settlements` 에 남겨 다시 넣�
 디플로이먼트 Ready, 공개 주소의 시세 한 번(`/api/market/price/AAPL`), Alertmanager 의 Watchdog 을 보고 같은 웹훅으로
 슬랙에 보낸다. 다 괜찮으면 `:white_check_mark: up` 한 줄, 아니면 해당하는 것만 적는다(`down: <디플로이먼트>` ·
 `시세 <코드>` · `Prometheus 응답 없음` · `Alertmanager 에 Watchdog 없음`). 아침에 이 한 줄이 없으면 예약 기동 · 앱 ·
-바깥 경로 · 슬랙 중 어딘가가 멈춘 것이다. 수동 실행과 정리:
+공개 경로 · 슬랙 중 어딘가가 멈춘 것이다. 수동 실행과 정리:
 
 ```bash
 kubectl create job --from=cronjob/morning-check morning-check-manual
 kubectl delete job morning-check-manual
 ```
+
+**낮 동안 사이트 확인** — 그 뒤로는 terraform 의 [`uptime-check.tf`](../../terraform/uptime-check.tf) 가 AWS 에서 5분마다
+프론트 · 시세 API · /auth 를 GET 으로 확인하고, 실패하면 terraform 의 슬랙 웹훅(`slack_webhook_url`)과 SNS 이메일(`alarm_email`)로 알린다.
+노드 · 클러스터 · Prometheus 가 함께 멈춘 때도 알림이 온다.
 
 <details>
 <summary><b>Slack 라우팅</b></summary>

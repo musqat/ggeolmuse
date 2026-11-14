@@ -171,7 +171,7 @@ variable "db_backup_retention_days" {
 # EC2 종료 알림 (ec2-stop-alert.tf)
 
 variable "slack_webhook_url" {
-  description = "EC2 종료 알림을 받을 슬랙 웹훅. 값이 없으면 알림을 만들지 않는다"
+  description = "EC2 종료 알림 · 사이트 확인 알림을 받을 슬랙 웹훅. 값이 없으면 둘 다 만들지 않는다"
   type        = string
   default     = ""
   sensitive   = true
@@ -179,5 +179,22 @@ variable "slack_webhook_url" {
   validation {
     condition     = var.slack_webhook_url == "" || startswith(var.slack_webhook_url, "https://hooks.slack.com/")
     error_message = "slack_webhook_url은 비어 있거나 https://hooks.slack.com/ 으로 시작해야 합니다."
+  }
+}
+
+# 가동 시간 사이트 확인 (uptime-check.tf)
+
+variable "uptime_check_urls" {
+  description = "가동 시간에 5분마다 AWS 에서 GET 으로 확인할 주소(이름 → https 주소). 비거나 slack_webhook_url 이 없으면 만들지 않는다"
+  type        = map(string)
+  default = {
+    frontend = "https://ggeolmuse.com/"
+    price    = "https://ggeolmuse.com/api/market/price/AAPL"
+    auth     = "https://ggeolmuse.com/auth/realms/muscathan"
+  }
+
+  validation {
+    condition     = alltrue([for name, url in var.uptime_check_urls : can(regex("^[a-z0-9-]+$", name)) && startswith(url, "https://")])
+    error_message = "uptime_check_urls 의 이름은 소문자 · 숫자 · - 만, 주소는 https:// 로 시작하는 값만 받습니다."
   }
 }

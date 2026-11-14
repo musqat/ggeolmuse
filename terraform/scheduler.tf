@@ -1,6 +1,4 @@
-# EC2 자동 시작/중지 스케줄러 (EventBridge Scheduler)
-# 한국 시간(Asia/Seoul) 기준 월~금 07:00 시작 / 19:00 중지
-# Lambda 없이 universal target 으로 EC2 API 직접 호출
+# EC2 평일 07:00 시작 · 19:00 중지(KST, EventBridge Scheduler 가 Lambda 없이 EC2 API 호출)
 
 locals {
   ec2_instance_arn = "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/${var.ec2_instance_id}"
