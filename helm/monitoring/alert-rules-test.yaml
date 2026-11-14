@@ -1,0 +1,195 @@
+# ggeolmuse 알림 규칙 단위 테스트(promtool test rules, 규칙 파일은 렌더한 PrometheusRule 의 spec)
+rule_files:
+  - ../../alert-rules.yaml
+
+evaluation_interval: 30s
+
+tests:
+  # CPU 한도 대비 사용률
+  - interval: 1m
+    input_series:
+      # backtest 한도 0.6코어 중 0.54코어(90%)
+      - series: 'container_cpu_usage_seconds_total{job="kubelet", namespace="default", pod="backtest-service-0", container="backtest-service"}'
+        values: '0+32.4x20'
+      - series: 'kube_pod_container_resource_limits{job="kube-state-metrics", namespace="default", pod="backtest-service-0", container="backtest-service", resource="cpu", unit="core"}'
+        values: '0.6x20'
+      # user 한도 0.6코어 중 0.3코어(50%)
+      - series: 'container_cpu_usage_seconds_total{job="kubelet", namespace="default", pod="user-service-0", container="user-service"}'
+        values: '0+18x20'
+      - series: 'kube_pod_container_resource_limits{job="kube-state-metrics", namespace="default", pod="user-service-0", container="user-service", resource="cpu", unit="core"}'
+        values: '0.6x20'
+      # 한도 없는 컨테이너 1코어
+      - series: 'container_cpu_usage_seconds_total{job="kubelet", namespace="default", pod="chat-service-0", container="chat-service"}'
+        values: '0+60x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HighCpuUsage
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: resource
+              namespace: default
+              pod: backtest-service-0
+              container: backtest-service
+            exp_annotations:
+              summary: "높은 CPU 사용률: backtest-service"
+              description: "backtest-service-0 CPU 한도의 80% 초과 · 5분 지속 · 현재 90.0%"
+
+  # GC 뒤 남는 힙 사용률
+  - interval: 1m
+    input_series:
+      # user 힙 최대 400MB 중 GC 뒤 360MB(90%)
+      - series: 'jvm_gc_live_data_size_bytes{job="user-service", instance="10.42.0.15:9090", application="user-service", namespace="default", pod="user-service-0"}'
+        values: '360000000x15'
+      - series: 'jvm_gc_max_data_size_bytes{job="user-service", instance="10.42.0.15:9090", application="user-service", namespace="default", pod="user-service-0"}'
+        values: '400000000x15'
+      # trade 힙 최대 400MB 중 GC 뒤 388MB(97%)
+      - series: 'jvm_gc_live_data_size_bytes{job="trade-service", instance="10.42.0.16:9090", application="trade-service", namespace="default", pod="trade-service-0"}'
+        values: '388000000x15'
+      - series: 'jvm_gc_max_data_size_bytes{job="trade-service", instance="10.42.0.16:9090", application="trade-service", namespace="default", pod="trade-service-0"}'
+        values: '400000000x15'
+      # backtest 힙 최대 400MB 중 GC 뒤 200MB(50%)
+      - series: 'jvm_gc_live_data_size_bytes{job="backtest-service", instance="10.42.0.17:9090", application="backtest-service", namespace="default", pod="backtest-service-0"}'
+        values: '200000000x15'
+      - series: 'jvm_gc_max_data_size_bytes{job="backtest-service", instance="10.42.0.17:9090", application="backtest-service", namespace="default", pod="backtest-service-0"}'
+        values: '400000000x15'
+      # 메모리 영역별 최대(G1 의 Eden · Survivor 는 -1)
+      - series: 'jvm_memory_max_bytes{job="user-service", instance="10.42.0.15:9090", application="user-service", namespace="default", pod="user-service-0", area="heap", id="G1 Old Gen"}'
+        values: '400000000x15'
+      - series: 'jvm_memory_max_bytes{job="user-service", instance="10.42.0.15:9090", application="user-service", namespace="default", pod="user-service-0", area="heap", id="G1 Eden Space"}'
+        values: '-1x15'
+      - series: 'jvm_memory_max_bytes{job="user-service", instance="10.42.0.15:9090", application="user-service", namespace="default", pod="user-service-0", area="heap", id="G1 Survivor Space"}'
+        values: '-1x15'
+      - series: 'jvm_memory_max_bytes{job="trade-service", instance="10.42.0.16:9090", application="trade-service", namespace="default", pod="trade-service-0", area="heap", id="G1 Old Gen"}'
+        values: '400000000x15'
+      - series: 'jvm_memory_max_bytes{job="trade-service", instance="10.42.0.16:9090", application="trade-service", namespace="default", pod="trade-service-0", area="heap", id="G1 Eden Space"}'
+        values: '-1x15'
+      - series: 'jvm_memory_max_bytes{job="trade-service", instance="10.42.0.16:9090", application="trade-service", namespace="default", pod="trade-service-0", area="heap", id="G1 Survivor Space"}'
+        values: '-1x15'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: HighMemoryUsage
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: resource
+              job: user-service
+              instance: 10.42.0.15:9090
+              application: user-service
+              namespace: default
+              pod: user-service-0
+            exp_annotations:
+              summary: "높은 메모리 사용률: user-service"
+              description: "user-service 힙 사용률 85% 초과 · 5분 지속 · 현재 90.0%"
+              instance: "10.42.0.15:9090"
+          - exp_labels:
+              severity: warning
+              category: resource
+              job: trade-service
+              instance: 10.42.0.16:9090
+              application: trade-service
+              namespace: default
+              pod: trade-service-0
+            exp_annotations:
+              summary: "높은 메모리 사용률: trade-service"
+              description: "trade-service 힙 사용률 85% 초과 · 5분 지속 · 현재 97.0%"
+              instance: "10.42.0.16:9090"
+      - eval_time: 10m
+        alertname: CriticalMemoryUsage
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              category: resource
+              job: trade-service
+              instance: 10.42.0.16:9090
+              application: trade-service
+              namespace: default
+              pod: trade-service-0
+            exp_annotations:
+              summary: "심각한 메모리 부족: trade-service"
+              description: "trade-service 힙 사용률 95% 초과 · 2분 지속 · 현재 97.0% · OOM 임박"
+              instance: "10.42.0.16:9090"
+
+  # 백테스트 종류별 평균 실행 시간
+  - interval: 1m
+    input_series:
+      # portfolio 1분에 한 번 15초
+      - series: 'backtest_run_seconds_count{job="backtest-service", kind="portfolio", outcome="success"}'
+        values: '0+1x30'
+      - series: 'backtest_run_seconds_sum{job="backtest-service", kind="portfolio", outcome="success"}'
+        values: '0+15x30'
+      # dca 1분에 한 번 1.5초
+      - series: 'backtest_run_seconds_count{job="backtest-service", kind="dca", outcome="success"}'
+        values: '0+1x30'
+      - series: 'backtest_run_seconds_sum{job="backtest-service", kind="dca", outcome="success"}'
+        values: '0+1.5x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: BacktestSlow
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: backtest
+              kind: portfolio
+            exp_annotations:
+              summary: "느린 백테스트: portfolio"
+              description: "portfolio 백테스트 평균 15.0초 · 10분 창 · 5분 지속 · 게이트웨이 응답 제한 30초"
+
+  # 실행이 없는 시간
+  - interval: 1m
+    input_series:
+      - series: 'backtest_run_seconds_count{job="backtest-service", kind="portfolio", outcome="success"}'
+        values: '3x30'
+      - series: 'backtest_run_seconds_sum{job="backtest-service", kind="portfolio", outcome="success"}'
+        values: '60x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: BacktestSlow
+        exp_alerts: []
+
+  # config-server 응답 시간(가장 큰 구간 5초)
+  - interval: 1m
+    input_series:
+      # 1분에 20건 중 2건(10%)이 5초 넘음
+      - series: 'http_server_requests_seconds_bucket{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}", le="0.1"}'
+        values: '0+5x20'
+      - series: 'http_server_requests_seconds_bucket{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}", le="0.3"}'
+        values: '0+10x20'
+      - series: 'http_server_requests_seconds_bucket{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}", le="1.0"}'
+        values: '0+15x20'
+      - series: 'http_server_requests_seconds_bucket{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}", le="2.0"}'
+        values: '0+15x20'
+      - series: 'http_server_requests_seconds_bucket{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}", le="5.0"}'
+        values: '0+18x20'
+      - series: 'http_server_requests_seconds_bucket{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}", le="+Inf"}'
+        values: '0+20x20'
+      - series: 'http_server_requests_seconds_count{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}"}'
+        values: '0+20x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: ConfigServerHighLatency
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: config
+            exp_annotations:
+              summary: "Config Server 응답 지연"
+              description: "config-server P95 응답 5초 초과 · 5분 지속 · 서비스 기동 지연"
+
+  # config-server 1분에 100건 중 1건(1%)만 5초 넘음
+  - interval: 1m
+    input_series:
+      - series: 'http_server_requests_seconds_bucket{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}", le="1.0"}'
+        values: '0+90x20'
+      - series: 'http_server_requests_seconds_bucket{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}", le="2.0"}'
+        values: '0+95x20'
+      - series: 'http_server_requests_seconds_bucket{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}", le="5.0"}'
+        values: '0+99x20'
+      - series: 'http_server_requests_seconds_bucket{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}", le="+Inf"}'
+        values: '0+100x20'
+      - series: 'http_server_requests_seconds_count{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}"}'
+        values: '0+100x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: ConfigServerHighLatency
+        exp_alerts: []

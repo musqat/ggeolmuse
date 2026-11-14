@@ -290,6 +290,26 @@ jobs:
       - name: values.yaml 만으로 렌더 확인
         run: helm template ggeolmuse helm/ggeolmuse > /dev/null
 
+      # 익명 받기 횟수 제한(429) 회피용 읽기 전용 토큰
+      - name: Docker Hub 로그인
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # 두 차트(운영 · k8s/helm)의 PrometheusRule spec 을 규칙 파일로 꺼내 문법 검사 · 단위 테스트
+      - name: promtool 알림 규칙 검사
+        run: |
+          promtool() { docker run --rm --network none -v "$PWD:/w" -w /w --entrypoint promtool prom/prometheus:v3.1.0 "$@"; }
+          rules() {
+            helm template ggeolmuse "$@" --show-only templates/monitoring/prometheusrule.yaml \
+              | awk 'spec { sub(/^  /, ""); print } /^spec:$/ { spec = 1 }' > alert-rules.yaml
+            promtool check rules alert-rules.yaml
+            promtool test rules helm/monitoring/alert-rules-test.yaml
+          }
+          rules helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml
+          rules k8s/helm/ggeolmuse -f k8s/helm/ggeolmuse/values-prod.yaml -f k8s/helm/ggeolmuse/values-k8s.yaml
+
       # NetworkPolicy 허용 목록에 없는 새 서비스 포트 검사(tools/cmd/netpol-check)
       - name: NetworkPolicy 서비스 포트 대조
         working-directory: tools
