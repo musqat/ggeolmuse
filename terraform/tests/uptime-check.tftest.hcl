@@ -23,9 +23,51 @@ override_resource {
   values = { arn = "arn:aws:events:ap-northeast-2:123456789012:api-destination/ggeolmuse-slack/x" }
 }
 
+# imports.tf 의 자원마다 override_resource(가짜 프로바이더는 import 를 못 함)
+override_resource {
+  target = aws_instance.app
+}
+override_resource {
+  target = aws_security_group.app
+}
+override_resource {
+  target = aws_db_instance.postgres
+}
+override_resource {
+  target = aws_iam_role.node
+}
+override_resource {
+  target = aws_iam_instance_profile.node
+}
+override_resource {
+  target = aws_iam_role_policy_attachments_exclusive.node
+}
+override_resource {
+  target = aws_s3_bucket.tfstate
+}
+override_resource {
+  target = aws_s3_bucket_versioning.tfstate
+}
+override_resource {
+  target = aws_s3_bucket_server_side_encryption_configuration.tfstate
+}
+override_resource {
+  target = aws_s3_bucket_public_access_block.tfstate
+}
+
 variables {
-  ec2_instance_id   = "i-0123456789abcdef0"
-  slack_webhook_url = "https://hooks.slack.com/services/T000/B000/XXXX"
+  ec2_instance_id                = "i-0123456789abcdef0"
+  slack_webhook_url              = "https://hooks.slack.com/services/T000/B000/XXXX"
+  ec2_ami_id                     = "ami-0123456789abcdef0"
+  ec2_subnet_id                  = "subnet-0123456789abcdef0"
+  ec2_key_name                   = null
+  ec2_root_volume_size           = 30
+  ec2_root_volume_type           = "gp3"
+  vpc_id                         = "vpc-0123456789abcdef0"
+  ec2_security_group_id          = "sg-0123456789abcdef0"
+  ec2_security_group_description = "ggeolmuse k3s node"
+  ec2_extra_ingress              = []
+  node_role_policy_arns          = []
 }
 
 run "operating_hours_every_five_minutes" {
@@ -127,6 +169,14 @@ run "failed_check_alarms_only_checked_periods" {
 run "schedule_failures_alarm" {
   command = apply
 
+  # 지우기 금지 운영 자원은 만들지 않음(정리 단계에서 막힘)
+  plan_options {
+    target = [
+      aws_scheduler_schedule.uptime,
+      aws_cloudwatch_metric_alarm.uptime_schedule,
+    ]
+  }
+
   assert {
     condition     = aws_scheduler_schedule_group.uptime[0].name == "ggeolmuse-uptime"
     error_message = "확인 일정 전용 그룹"
@@ -159,6 +209,16 @@ run "schedule_failures_alarm" {
 
 run "alarm_changes_go_to_slack" {
   command = apply
+
+  # 지우기 금지 운영 자원은 만들지 않음(정리 단계에서 막힘)
+  plan_options {
+    target = [
+      aws_cloudwatch_event_target.uptime_notice,
+      aws_cloudwatch_event_target.uptime,
+      aws_iam_role_policy.uptime_check,
+      aws_cloudwatch_metric_alarm.uptime,
+    ]
+  }
 
   assert {
     condition = alltrue([

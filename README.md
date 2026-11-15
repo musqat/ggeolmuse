@@ -132,7 +132,7 @@ ggeolmuse/
 ├── tests/
 │   ├── e2e/              Playwright
 │   └── k6/               부하 테스트 스크립트
-└── terraform/            EC2 · RDS 스케줄러 · 알람
+└── terraform/            운영 EC2 · RDS · 스케줄러 · 알람
 ```
 
 서비스 안 패키지는 두 가지다. 독립된 기능이 둘인 user-service 는 기능별(`domain/account` · `domain/user` 아래 controller · dto · entity ·

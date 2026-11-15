@@ -1,26 +1,26 @@
 output "iam_role_arn" {
-  description = "EC2 가 시크릿을 읽을 때 쓰는 IAM 역할 ARN"
-  value       = aws_iam_role.ggeolmuse_ec2_secrets_role.arn
+  description = "EC2 에 연결된 노드 역할 ARN"
+  value       = aws_iam_role.node.arn
 }
 
 output "iam_role_name" {
-  description = "EC2 가 시크릿을 읽을 때 쓰는 IAM 역할 이름"
-  value       = aws_iam_role.ggeolmuse_ec2_secrets_role.name
+  description = "EC2 에 연결된 노드 역할 이름"
+  value       = aws_iam_role.node.name
 }
 
 output "instance_profile_arn" {
-  description = "IAM 역할을 EC2 에 연결하는 인스턴스 프로파일 ARN"
-  value       = aws_iam_instance_profile.ggeolmuse_ec2_profile.arn
+  description = "EC2 에 연결된 인스턴스 프로파일 ARN"
+  value       = aws_iam_instance_profile.node.arn
 }
 
 output "instance_profile_name" {
-  description = "IAM 역할을 EC2 에 연결하는 인스턴스 프로파일 이름"
-  value       = aws_iam_instance_profile.ggeolmuse_ec2_profile.name
+  description = "EC2 에 연결된 인스턴스 프로파일 이름"
+  value       = aws_iam_instance_profile.node.name
 }
 
 output "ec2_instance_id" {
-  description = "IAM 역할을 붙인 EC2 인스턴스 ID"
-  value       = var.ec2_instance_id
+  description = "가져온 운영 EC2 인스턴스 ID"
+  value       = aws_instance.app.id
 }
 
 output "scheduler_role_arn" {
@@ -64,6 +64,6 @@ output "db_backup_bucket" {
 }
 
 output "db_backup_role_name" {
-  description = "S3 쓰기 정책이 연결된 EC2 역할. 인스턴스에 실제로 연결된 프로파일에서 따라간 값"
-  value       = data.aws_iam_instance_profile.ggeolmuse.role_name
+  description = "S3 쓰기 정책이 있는 EC2 노드 역할"
+  value       = aws_iam_role.node.name
 }

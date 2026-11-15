@@ -1,11 +1,38 @@
 # terraform.tfvars 로 복사해 채울 템플릿(tfvars 는 gitignore 대상)
+# 값 찾는 명령과 순서는 README 의 "운영 자원 가져오기"
 
-# 필수 —— IAM 역할과 스케줄을 붙일 EC2
-ec2_instance_id = "i-xxxxxxxxxxxxxxxxx"
+# 필수 —— 운영 EC2 와 보안 그룹
+ec2_instance_id                = "i-xxxxxxxxxxxxxxxxx"
+ec2_ami_id                     = "ami-xxxxxxxxxxxxxxxxx"
+ec2_subnet_id                  = "subnet-xxxxxxxxxxxxxxxxx"
+ec2_key_name                   = null
+ec2_root_volume_size           = 30
+ec2_root_volume_type           = "gp3"
+vpc_id                         = "vpc-xxxxxxxxxxxxxxxxx"
+ec2_security_group_id          = "sg-xxxxxxxxxxxxxxxxx"
+ec2_security_group_description = "..."
 
-# 선택 —— RDS 도 껐다 켤 때(엔드포인트가 아닌 DB 식별자)
-#   aws rds describe-db-instances --query "DBInstances[].DBInstanceIdentifier" --output text
-# rds_instance_id = "ggeolmuse-db"
+# 443(Cloudflare 대역) 말고 있는 인바운드를 그대로 옮김(없으면 [])
+ec2_extra_ingress = [
+  # { description = "", protocol = "tcp", from_port = 22, to_port = 22, cidr_blocks = ["x.x.x.x/32"] },
+]
+
+# ggeolmuse-sg 말고 EC2 에 달린 보안 그룹 전부(목록에서 빼면 EC2 에서도 빠짐, 없으면 [])
+ec2_extra_security_group_ids = []
+
+# 노드 역할에 지금 있는 관리 정책 ARN 전부(목록에서 빼면 역할에서도 빠짐)
+node_role_policy_arns = [
+  # "arn:aws:iam::aws:policy/...",
+]
+
+# 선택 —— RDS 도 가져오고 껐다 켤 때(엔드포인트가 아닌 DB 식별자)
+# rds_instance_id         = "ggeolmuse-postgres"
+# rds_allocated_storage   = 20
+# rds_storage_type        = "gp2"
+# rds_storage_encrypted   = true
+# rds_publicly_accessible = false
+# rds_subnet_group_name   = "..."
+# rds_security_group_ids  = ["sg-xxxxxxxxxxxxxxxxx"]
 
 # 선택 —— 알람 수신 이메일(수신함의 확인 링크를 누른 뒤부터 받음)
 # alarm_email = "you@example.com"
