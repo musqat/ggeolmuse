@@ -1693,6 +1693,33 @@ describe('Backtest 페이지 직전 설정 · 설정 초기화', () => {
     expect(screen.getByRole('button', { name: '설정 초기화' })).toHaveFocus()
   })
 
+  it('전략 비교 칩은 10개까지 더하고 직전 설정에 10개 넘게 있어도 10개만 되살림', async () => {
+    renderPage()
+    await selectMode('전략 비교')
+    for (let i = 0; i < 8; i += 1) {
+      await userEvent.click(strategyChips().getByRole('button', { name: '＋ 적립식' }))
+    }
+
+    expect(strategyChips().queryAllByRole('button', { name: /^＋/ })).toHaveLength(0)
+    expect(strategyChips().getByText('최대 10개')).toBeInTheDocument()
+    await runBacktest()
+    // 칩 11개로 저장된 직전 설정
+    const saved = JSON.parse(localStorage.getItem('backtest-last-settings') ?? '{}')
+    const withChips = (node: unknown): { chips: { id: string; name: string }[] } | undefined => {
+      if (!node || typeof node !== 'object') return undefined
+      if (Array.isArray((node as { chips?: unknown }).chips)) return node as { chips: { id: string; name: string }[] }
+      return Object.values(node).map(withChips).find(Boolean)
+    }
+    const holder = withChips(saved)!
+    holder.chips.push({ ...holder.chips[1], id: 's99', name: '적립식 99' })
+    localStorage.setItem('backtest-last-settings', JSON.stringify(saved))
+
+    await userEvent.click(screen.getByRole('button', { name: '설정 초기화' }))
+    await userEvent.click(screen.getByRole('button', { name: '직전 설정' }))
+    expect(strategyChips().queryByRole('button', { name: '적립식 99' })).toBeNull()
+    expect(strategyChips().getAllByRole('button', { name: / 빼기$/ })).toHaveLength(10)
+  })
+
   it('다시 연 페이지에서도 전략 비교 칩을 되살리고, 새 칩은 되살린 칩과 다른 칩으로 만든다', async () => {
     const first = renderPage()
     await selectMode('전략 비교')

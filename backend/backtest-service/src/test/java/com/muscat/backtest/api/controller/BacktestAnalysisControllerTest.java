@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -44,7 +45,10 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -591,6 +595,44 @@ class BacktestAnalysisControllerTest {
       .andExpect(jsonPath("$.bestPerformer.name").value("MSFT"));
 
     verify(backtestAnalysisService).compareSymbols(argThat(r -> r.getSymbols().equals(List.of("AAPL", "MSFT"))));
+  }
+
+  @Test
+  @DisplayName("종목 비교는 종목 10개까지 통과, 11개면 400 · 서비스 호출 없음")
+  void compareSymbols_UpToTen() throws Exception {
+    given(backtestAnalysisService.compareSymbols(any())).willReturn(comparison("S1"));
+
+    postJson("/compare/symbols", symbolsBody(10)).andExpect(status().isOk());
+    postJson("/compare/symbols", symbolsBody(11))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.validationErrors.symbols").value("비교할 종목은 10개까지입니다"));
+
+    verify(backtestAnalysisService, times(1)).compareSymbols(any());
+  }
+
+  @Test
+  @DisplayName("전략 비교는 전략 10개까지 통과, 11개면 400 · 서비스 호출 없음")
+  void compareStrategies_UpToTen() throws Exception {
+    given(backtestAnalysisService.compareStrategies(any())).willReturn(comparison("SIMPLE"));
+
+    postJson("/compare/strategies", strategiesBody(10)).andExpect(status().isOk());
+    postJson("/compare/strategies", strategiesBody(11))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.validationErrors.strategies").value("비교할 전략은 10개까지입니다"));
+
+    verify(backtestAnalysisService, times(1)).compareStrategies(any());
+  }
+
+  // 종목 S1 ~ Sn 비교 본문
+  private static String symbolsBody(int count) {
+    String symbols = IntStream.rangeClosed(1, count).mapToObj(i -> "\"S" + i + "\"").collect(Collectors.joining(","));
+    return "{\"symbols\":[" + symbols + "]," + PERIOD + ",\"investmentAmount\":1000000}";
+  }
+
+  // 단순 전략 n개 비교 본문
+  private static String strategiesBody(int count) {
+    String strategies = String.join(",", Collections.nCopies(count, "{\"strategyType\":\"SIMPLE\"}"));
+    return "{\"symbol\":\"AAPL\"," + PERIOD + ",\"investmentAmount\":1000000,\"strategies\":[" + strategies + "]}";
   }
 
   @Test

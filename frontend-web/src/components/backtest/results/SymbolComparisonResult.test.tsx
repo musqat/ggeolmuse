@@ -63,6 +63,8 @@ const renderResult = (value: object = result, purchaseDate = '2023-01-03') =>
   render(<SymbolComparisonResult result={value as never} comparePurchaseDate={purchaseDate} compareSaleDate="" />)
 
 const row = (symbol: string) => screen.getByText(symbol, { selector: 'td span span' }).closest('tr') as HTMLElement
+// 표 줄 종목 앞 색 점의 색
+const dotColor = (symbol: string) => (row(symbol).querySelector('span[aria-hidden]') as HTMLElement).style.background
 
 describe('SymbolComparisonResult', () => {
   it('요약 한 줄에 종목 수 · 투자금 · 최고 · 평균 · 중앙값을 보인다', () => {
@@ -172,5 +174,14 @@ describe('SymbolComparisonResult', () => {
     renderResult(bare)
 
     expect(screen.getByText('이 결과에는 일별 값이 없습니다')).toBeInTheDocument()
+  })
+
+  it('종목 10개면 9 · 10번째 색도 1 · 2번째와 다름', () => {
+    const symbols = Array.from({ length: 10 }, (_, i) => `SYM${i + 1}`)
+    renderResult({ ...result, bestPerformer: undefined, items: symbols.map((symbol, i) => item(symbol, i, i, -10, 1000000 + i)) })
+
+    const colors = symbols.map(dotColor)
+    expect(colors.slice(8).filter((color) => colors.slice(0, 2).includes(color))).toEqual([])
+    expect(new Set(colors).size).toBe(10)
   })
 })

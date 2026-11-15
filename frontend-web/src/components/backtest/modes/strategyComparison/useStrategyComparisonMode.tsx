@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { backtestApi } from '@services/api';
 import { StrategyComparisonForm } from '../../forms/StrategyComparisonForm';
 import { StrategyComparisonResult } from '../../results/StrategyComparisonResult';
-import { COMPARISON_STRATEGIES, strategyByType } from '../../comparison/catalog';
+import { COMPARISON_STRATEGIES, MAX_COMPARISON_STRATEGIES, strategyByType } from '../../comparison/catalog';
 import type { ComparisonStrategyType } from '../../comparison/types';
 import type { ModeController, SharedModeProps } from '../types';
 import { commonFields } from '../commonFields';
@@ -101,6 +101,7 @@ export const useStrategyComparisonMode = (shared: SharedModeProps): ModeControll
 
   // 설정할 칸이 있는 칩만 더하면서 엶
   const addChip = (type: ComparisonStrategyType) => {
+    if (chips.length >= MAX_COMPARISON_STRATEGIES) return;
     const id = `s${nextId.current++}`;
     setChips([...chips, newChip(id, type, nextName(chips, type))]);
     if (strategyByType(type).Fields) setOpenId(id);
@@ -160,7 +161,7 @@ export const useStrategyComparisonMode = (shared: SharedModeProps): ModeControll
     load: (saved) => {
       const next = pickValues(DEFAULTS, saved);
       // 저장한 칩 목록이 없으면 기본 칩
-      const restored = next.chips === DEFAULTS.chips ? defaultChips() : savedChips(next.chips);
+      const restored = next.chips === DEFAULTS.chips ? defaultChips() : savedChips(next.chips).slice(0, MAX_COMPARISON_STRATEGIES);
       setInvestment(next.investment);
       setChips(restored);
       setOpenId(restored.some((chip) => chip.id === next.openId) ? next.openId : null);

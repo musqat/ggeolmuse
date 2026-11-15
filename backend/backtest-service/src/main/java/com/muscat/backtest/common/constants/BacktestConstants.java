@@ -120,6 +120,9 @@ public final class BacktestConstants {
 
     /** 단순 · 회당 주식 수 상한 */
     public static final int MAX_SHARES = 1_000_000;
+
+    /** 비교 요청의 종목 · 전략 수 상한 */
+    public static final int MAX_COMPARISON_ITEMS = 10;
   }
 
   /**
