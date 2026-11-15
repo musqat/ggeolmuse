@@ -1,8 +1,8 @@
 package com.muscat.backtest.domain.model;
 
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
-import com.muscat.backtest.infra.client.dto.DividendHistoryDto;
-import com.muscat.backtest.infra.client.dto.FxRateDto;
+import com.muscat.backtest.domain.dto.market.DividendHistoryDto;
+import com.muscat.backtest.domain.dto.market.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;

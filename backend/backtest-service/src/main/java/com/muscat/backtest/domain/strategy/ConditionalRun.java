@@ -1,7 +1,7 @@
 package com.muscat.backtest.domain.strategy;
 
-import com.muscat.backtest.common.engine.CapitalGainsTaxPayer;
-import com.muscat.backtest.common.engine.TradeLedger;
+import com.muscat.backtest.domain.engine.CapitalGainsTaxPayer;
+import com.muscat.backtest.domain.engine.TradeLedger;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.common.util.FxRates;
 import com.muscat.backtest.common.util.PriceLookup;

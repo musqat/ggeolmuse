@@ -12,7 +12,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import com.muscat.backtest.common.calculation.StrategyCalculationResult;
+import com.muscat.backtest.domain.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.ExecutionTiming;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
@@ -30,8 +30,8 @@ import com.muscat.backtest.domain.dto.response.TradeStats;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.StrategyTransaction;
-import com.muscat.backtest.infra.client.MarketDataClientWrapper;
-import com.muscat.backtest.infra.client.dto.FxRateDto;
+import com.muscat.backtest.domain.port.MarketDataPort;
+import com.muscat.backtest.domain.dto.market.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
 import java.math.BigDecimal;
@@ -67,7 +67,7 @@ class MaCrossStrategyTest {
   private static final LocalDate START = LocalDate.of(2024, 3, 4);
 
   @Mock
-  private MarketDataClientWrapper marketDataClient;
+  private MarketDataPort marketDataClient;
 
   @Mock
   private ResponseMapper responseMapper;
@@ -129,7 +129,7 @@ class MaCrossStrategyTest {
       .willReturn(StrategyResponse.builder().build());
   }
 
-  // 시작일 ~ 시작일 + days 날마다 1300원, 고른 날은 그 값
+  // 시작일 ~ 시작일 + days 날마다 1300원, 고른 날은 overrides 환율
   private void stubDailyFx(int days, Map<Integer, String> overrides) {
     Map<String, BigDecimal> rates = new HashMap<>();
     for (int offset = 0; offset <= days; offset++) {
@@ -234,7 +234,7 @@ class MaCrossStrategyTest {
     }
 
     @Test
-    @DisplayName("이동평균은 수정 종가로 내고 사는 값은 그 날짜 종가다")
+    @DisplayName("이동평균은 수정 종가로 내고 사는 값은 산 날 종가다")
     void signalUsesAdjustedClose() {
       // 종가는 늘 10, 수정 종가만 8 → 10 으로 올라 1일째 교차
       stubMarket(List.of(adjusted(-2, "10", "8"), adjusted(-1, "10", "8"), adjusted(0, "10", "8"),
@@ -259,7 +259,7 @@ class MaCrossStrategyTest {
     @Test
     @DisplayName("짧은 · 긴 기간을 비우면 20 · 60 거래일 선으로 보고, 시작일 전 긴 기간 거래일이 들어가게 더 받아 시작일부터 교차를 본다")
     void defaultWindowsAndLookback() {
-      // 시작일 앞 40일 10, 그 뒤 20일 9, 시작일 30 → 20일 선 10.05 · 60일 선 10 으로 시작일에 교차
+      // 시작일 앞 40일 10, 다음 20일 9, 시작일 30 → 20일 선 10.05 · 60일 선 10 으로 시작일에 교차
       List<OHLCPriceDto> prices = new ArrayList<>();
       for (int offset = -60; offset < 0; offset++) {
         prices.add(day(offset, offset < -20 ? "10" : "9"));
@@ -386,7 +386,7 @@ class MaCrossStrategyTest {
     }
 
     @Test
-    @DisplayName("양도세를 켜면 결제된 해의 세금을 다음 해 5월 1일 이후 첫 거래일에 그 날짜 매매보다 먼저 판 돈에서 내고 남은 돈으로 산다")
+    @DisplayName("양도세를 켜면 결제된 해의 세금을 다음 해 5월 1일 이후 첫 거래일에 같은 날 매매보다 먼저 판 돈에서 내고 남은 돈으로 산다")
     void paysCapitalGainsTaxBeforeTrading() {
       stubMarket(taxedCrossing(day(422, "30"), day(423, "60"), day(424, "61")));
 
@@ -448,7 +448,7 @@ class MaCrossStrategyTest {
     }
 
     @Test
-    @DisplayName("판매 설정이 SELL 이면 납부일에 현금이 없을 때 모자란 만큼 그 날짜 종가에 팔아 양도세를 다 내고 남은 주식은 신호대로 들고 있는다")
+    @DisplayName("판매 설정이 SELL 이면 납부일에 현금이 없을 때 모자란 만큼 납부일 종가에 팔아 양도세를 다 내고 남은 주식은 신호대로 들고 있는다")
     void sellsSharesForTax() {
       // 6일째 골든 크로스(80)에 판 돈 전부로 다시 사 납부일(423일째)에 현금 0
       stubMarket(taxedCrossing(day(6, "80"), day(423, "81"), day(424, "82")));
@@ -492,7 +492,7 @@ class MaCrossStrategyTest {
     }
 
     @Test
-    @DisplayName("판매 설정이 SELL 이고 납부용 매도로 다 팔면 판 돈이 조금 남아도 그 날짜와 신호가 이어지는 날에는 사지 않고 다음 골든 크로스에 산다")
+    @DisplayName("판매 설정이 SELL 이고 납부용 매도로 다 팔면 판 돈이 조금 남아도 납부일과 신호가 이어지는 날에는 사지 않고 다음 골든 크로스에 산다")
     void waitsForNextCrossAfterSellingAllForTax() {
       // 수수료 0.25%, 납부일 종가 7.0836 에 60.79175주를 다 판 429.5444403달러로 양도세 429.54달러를 냄
       // 424 · 425일째는 짧은 선이 위, 426일째 데드 크로스 · 427일째 골든 크로스(100)
@@ -643,7 +643,7 @@ class MaCrossStrategyTest {
   class SignalSymbol {
 
     @Test
-    @DisplayName("신호 종목을 주면 그 종목의 교차로 사고팔 날을 정하고 매매 종목의 그 날짜 종가에 사고판다")
+    @DisplayName("신호 종목을 주면 신호 종목의 교차로 사고팔 날을 정하고 매매 종목의 같은 날 종가에 사고판다")
     void tradesOnSignalSymbolCrosses() {
       stubSignalMarket(List.of(day(0, "50"), day(1, "40"), day(2, "45"), day(3, "47"), day(4, "64"), day(5, "55"),
         day(6, "80"), day(7, "81")), signalCrossing());
@@ -717,7 +717,7 @@ class MaCrossStrategyTest {
     @ParameterizedTest(name = "신호 종목 [{0}]")
     @NullSource
     @ValueSource(strings = {" ", "MAX", "max"})
-    @DisplayName("신호 종목을 비우거나 매매 종목과 같게 주면 매매 종목 시세만 한 번 받아 그 종목의 교차로 사고판다")
+    @DisplayName("신호 종목을 비우거나 매매 종목과 같게 주면 매매 종목 시세만 한 번 받아 매매 종목의 교차로 사고판다")
     void sameAsTradedSymbol(String signalSymbol) {
       stubMarket(crossing());
 
@@ -779,7 +779,7 @@ class MaCrossStrategyTest {
     }
 
     @Test
-    @DisplayName("팔 비율을 주면 보유의 그만큼만 팔고, 그 뒤 데드 크로스가 나면 데드 크로스로 남은 주식을 팔며 판 돈을 모아 다음 골든 크로스에 산다")
+    @DisplayName("팔 비율을 주면 보유의 팔 비율만큼만 팔고, 부분 매도 뒤 데드 크로스가 나면 데드 크로스로 남은 주식을 팔며 판 돈을 모아 다음 골든 크로스에 산다")
     void partialSaleThenDeadCross() {
       stubMarket(trailing());
 
@@ -1101,7 +1101,7 @@ class MaCrossStrategyTest {
     }
 
     @Test
-    @DisplayName("신호 난 날 종가를 고르면 비운 것과 같이 그 날짜 종가에 사고판다")
+    @DisplayName("신호 난 날 종가를 고르면 비운 것과 같이 신호 난 날 종가에 사고판다")
     void sameDayCloseKeepsResult() {
       stubMarket(crossing());
 
@@ -1135,7 +1135,7 @@ class MaCrossStrategyTest {
     }
 
     @Test
-    @DisplayName("시가에 산 날도 그 날짜 종가로 트레일링 스탑을 본다")
+    @DisplayName("시가에 산 날도 같은 날 종가로 트레일링 스탑을 본다")
     void trailingStopAfterOpenBuy() {
       // 2일째 시가 25 에 사서 종가 20, 기준가 25 의 10% 아래
       stubMarket(List.of(day(-2, "8"), day(-1, "8"), day(0, "8"), day(1, "10"), bar(2, "25", "20"), day(3, "22")));
@@ -1148,7 +1148,7 @@ class MaCrossStrategyTest {
     }
 
     @Test
-    @DisplayName("납부일 시가 매도는 양도세 납부보다 먼저라 그 판 돈에서 그날 양도세를 낸다")
+    @DisplayName("납부일 시가 매도는 양도세 납부보다 먼저라 시가에 판 돈에서 같은 날 양도세를 낸다")
     void sellsAtOpenBeforeTax() {
       // 2일째 시가 10 에 100주, 5일째 시가 49 에 팔아 507만원 이익, 7일째 시가 80 에 61.25주, 422일째 데드 크로스
       stubMarket(List.of(day(-2, "8"), day(-1, "8"), day(0, "8"), day(1, "10"), bar(2, "10", "60"), day(3, "70"),

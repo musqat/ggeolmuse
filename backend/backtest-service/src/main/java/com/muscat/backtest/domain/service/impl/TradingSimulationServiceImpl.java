@@ -1,22 +1,22 @@
 package com.muscat.backtest.domain.service.impl;
 
-import com.muscat.backtest.common.calculation.CapitalGainsTaxCalculator;
-import com.muscat.backtest.common.engine.PeriodEndSale;
-import com.muscat.backtest.common.engine.PurchaseDayReturns;
-import com.muscat.backtest.common.engine.SimulationCalculator;
-import com.muscat.backtest.common.engine.SimulationPerformance;
-import com.muscat.backtest.common.engine.StrategyPerformance;
-import com.muscat.backtest.common.engine.YearEndHarvest;
+import com.muscat.backtest.domain.calculation.CapitalGainsTaxCalculator;
+import com.muscat.backtest.domain.engine.PeriodEndSale;
+import com.muscat.backtest.domain.engine.PurchaseDayReturns;
+import com.muscat.backtest.domain.engine.SimulationCalculator;
+import com.muscat.backtest.domain.engine.SimulationPerformance;
+import com.muscat.backtest.domain.engine.StrategyPerformance;
+import com.muscat.backtest.domain.engine.YearEndHarvest;
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.logging.BacktestLogger;
-import com.muscat.backtest.common.util.BacktestCalculationUtils;
-import com.muscat.backtest.common.util.BacktestDataUtils;
-import com.muscat.backtest.common.util.BacktestHistoryUtils;
+import com.muscat.backtest.domain.calculation.BacktestCalculationUtils;
+import com.muscat.backtest.domain.service.BacktestDataUtils;
+import com.muscat.backtest.domain.service.BacktestHistoryUtils;
 import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.FxPath;
 import com.muscat.backtest.common.util.PriceLookup;
-import com.muscat.backtest.common.validation.BacktestRequestValidator;
+import com.muscat.backtest.domain.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.dto.response.PurchaseDayReturn;
@@ -26,10 +26,10 @@ import com.muscat.backtest.domain.model.OptimalTiming;
 import com.muscat.backtest.domain.model.SimulationCalculationResult;
 import com.muscat.backtest.domain.model.SimulationContext;
 import com.muscat.backtest.domain.service.TradingSimulationService;
-import com.muscat.backtest.infra.client.MarketDataClientWrapper;
-import com.muscat.backtest.infra.client.dto.FxRateDto;
-import com.muscat.backtest.infra.client.dto.DividendDto;
-import com.muscat.backtest.infra.client.dto.DividendHistoryDto;
+import com.muscat.backtest.domain.port.MarketDataPort;
+import com.muscat.backtest.domain.dto.market.FxRateDto;
+import com.muscat.backtest.domain.dto.market.DividendDto;
+import com.muscat.backtest.domain.dto.market.DividendHistoryDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -48,7 +48,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class TradingSimulationServiceImpl implements TradingSimulationService {
 
-  private final MarketDataClientWrapper marketDataClientWrapper;
+  private final MarketDataPort marketDataPort;
   private final ResponseMapper responseMapper;
   private final BacktestHistoryUtils backtestHistoryUtils;
 
@@ -126,28 +126,28 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     if (request.getPurchaseFxRate() != null) {
       purchaseFxRate = new FxRateDto(tradeDate, request.getPurchaseFxRate());
     } else {
-      purchaseFxRate = marketDataClientWrapper.getFxRate(tradeDate.toString());
+      purchaseFxRate = marketDataPort.getFxRate(tradeDate.toString());
     }
 
     // 평가일 시세(오늘이면 현재가, 과거면 평가일 조정 종가)
     BigDecimal valuationPrice = valuedToday
-      ? marketDataClientWrapper.getCurrentPrice(request.getSymbol()).currentPrice()
+      ? marketDataPort.getCurrentPrice(request.getSymbol()).currentPrice()
       : PriceLookup.effectiveClose(getHistoricalPrice(request.getSymbol(), valuationDate, priceMap));
 
     FxRateDto currentFxRate;
     if (request.getCurrentFxRate() != null) {
       currentFxRate = new FxRateDto(valuationDate, request.getCurrentFxRate());
     } else if (valuedToday) {
-      currentFxRate = marketDataClientWrapper.getLatestFxRate();
+      currentFxRate = marketDataPort.getLatestFxRate();
     } else {
-      currentFxRate = marketDataClientWrapper.getFxRate(valuationDate.toString());
+      currentFxRate = marketDataPort.getFxRate(valuationDate.toString());
     }
 
     // 배당 이력 조회 (실제 매수일 ~ 평가일, 기간 끝에 팔면 판 날까지)
     LocalDate dividendsUntil = PeriodEnd.sells(request.getPeriodEnd())
       ? PeriodEndSale.saleDate(priceMap, valuationDate)
       : valuationDate;
-    List<DividendDto> dividendList = marketDataClientWrapper.getDividendHistory(
+    List<DividendDto> dividendList = marketDataPort.getDividendHistory(
       request.getSymbol(), tradeDate.toString(), dividendsUntil.toString());
     DividendHistoryDto dividendHistory = DividendHistoryDto.of(request.getSymbol(), dividendList);
 
@@ -232,7 +232,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     SimulationCalculationResult calculation, Map<String, BigDecimal> fxRates) {
     LocalDate tradeDate = context.purchaseData().date();
     BigDecimal manual = context.request().getPurchaseFxRate();
-    Function<LocalDate, BigDecimal> market = FxPath.marketFromBulk(fxRates, marketDataClientWrapper.defaultFxRate());
+    Function<LocalDate, BigDecimal> market = FxPath.marketFromBulk(fxRates, marketDataPort.defaultFxRate());
     return date -> date.equals(tradeDate) ? calculation.purchaseFxRate() : manual != null ? manual : market.apply(date);
   }
 
@@ -270,7 +270,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       return Map.of();
     }
     try {
-      return marketDataClientWrapper.getBulkFxRates(
+      return marketDataPort.getBulkFxRates(
         candles.stream().map(candle -> candle.date().toString()).toList());
     } catch (Exception e) {
       log.warn("기간 환율 조회 실패: {}", e.getMessage());
@@ -306,7 +306,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       return OptimalTiming.empty();
     }
     try {
-      return OptimalTiming.best(ordered, FxPath.marketFromBulk(fxRates, marketDataClientWrapper.defaultFxRate()));
+      return OptimalTiming.best(ordered, FxPath.marketFromBulk(fxRates, marketDataPort.defaultFxRate()));
     } catch (Exception e) {
       log.warn("최적 타이밍 계산 실패: {}", e.getMessage());
       return OptimalTiming.empty();
@@ -326,7 +326,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
   private Map<LocalDate, OHLCPriceDto> loadPriceMap(String symbol, LocalDate purchaseDate,
     LocalDate valuationDate) {
     try {
-      return BacktestDataUtils.buildPriceMap(marketDataClientWrapper, symbol, purchaseDate.minusDays(5),
+      return BacktestDataUtils.buildPriceMap(marketDataPort, symbol, purchaseDate.minusDays(5),
         valuationDate);
     } catch (RuntimeException e) {
       log.warn("기간 시세 조회 실패, 날짜별 조회로: symbol={}, error={}", symbol, e.getMessage());
@@ -345,7 +345,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       return fromRange;
     }
     OHLCPriceDto next = PriceLookup.nextAvailable(
-      marketDataClientWrapper::getOHLCPrice, symbol, purchaseDate, valuationDate, 7);
+      marketDataPort::getOHLCPrice, symbol, purchaseDate, valuationDate, 7);
     return next != null ? next : getHistoricalPriceWithRetry(symbol, purchaseDate);
   }
 
@@ -363,6 +363,6 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
   // 주가 데이터 조회 with retry (시장 휴일 대응)
   private OHLCPriceDto getHistoricalPriceWithRetry(String symbol, LocalDate date) {
     log.info("주가 데이터 요청: symbol={}, date={}", symbol, date);
-    return PriceLookup.withFallback(marketDataClientWrapper::getOHLCPrice, symbol, date, 5);
+    return PriceLookup.withFallback(marketDataPort::getOHLCPrice, symbol, date, 5);
   }
 }

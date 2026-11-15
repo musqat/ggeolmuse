@@ -1,18 +1,18 @@
 package com.muscat.backtest.domain.service.impl;
 
-import com.muscat.backtest.common.calculation.ComparisonCalculationResult;
-import com.muscat.backtest.common.calculation.ComparisonCalculator;
-import com.muscat.backtest.common.calculation.PortfolioCalculator;
-import com.muscat.backtest.common.engine.PortfolioEngine;
-import com.muscat.backtest.common.engine.YearEndHarvest;
+import com.muscat.backtest.domain.calculation.ComparisonCalculationResult;
+import com.muscat.backtest.domain.calculation.ComparisonCalculator;
+import com.muscat.backtest.domain.calculation.PortfolioCalculator;
+import com.muscat.backtest.domain.engine.PortfolioEngine;
+import com.muscat.backtest.domain.engine.YearEndHarvest;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
-import com.muscat.backtest.common.util.BacktestHistoryUtils;
-import com.muscat.backtest.common.validation.BacktestRequestValidator;
-import com.muscat.backtest.common.validation.PortfolioRequestValidator;
+import com.muscat.backtest.domain.service.BacktestHistoryUtils;
+import com.muscat.backtest.domain.validation.BacktestRequestValidator;
+import com.muscat.backtest.domain.validation.PortfolioRequestValidator;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;

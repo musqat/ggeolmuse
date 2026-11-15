@@ -1,17 +1,17 @@
 package com.muscat.backtest.domain.strategy;
 
-import com.muscat.backtest.common.calculation.TradeStatsCalculator;
-import com.muscat.backtest.common.engine.CapitalGainsTaxPayer;
-import com.muscat.backtest.common.engine.StrategyFinalizer;
-import com.muscat.backtest.common.engine.YearEndHarvest;
+import com.muscat.backtest.domain.calculation.TradeStatsCalculator;
+import com.muscat.backtest.domain.engine.CapitalGainsTaxPayer;
+import com.muscat.backtest.domain.engine.StrategyFinalizer;
+import com.muscat.backtest.domain.engine.YearEndHarvest;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.SkipReason;
-import com.muscat.backtest.common.validation.BacktestRequestValidator;
+import com.muscat.backtest.domain.validation.BacktestRequestValidator;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.logging.BacktestLogger;
-import com.muscat.backtest.common.util.BacktestDataUtils;
+import com.muscat.backtest.domain.service.BacktestDataUtils;
 import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.FxRates;
 import com.muscat.backtest.common.util.PriceLookup;
@@ -21,7 +21,7 @@ import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.StrategyTransaction;
-import com.muscat.backtest.infra.client.MarketDataClientWrapper;
+import com.muscat.backtest.domain.port.MarketDataPort;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -38,7 +38,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
-  private final MarketDataClientWrapper marketData;
+  private final MarketDataPort marketData;
   private final ResponseMapper responseMapper;
 
   @Override

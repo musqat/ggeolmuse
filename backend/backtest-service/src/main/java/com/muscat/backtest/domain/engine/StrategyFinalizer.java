@@ -1,0 +1,221 @@
+package com.muscat.backtest.domain.engine;
+
+import com.muscat.backtest.domain.calculation.CapitalGainsTaxCalculator;
+import com.muscat.backtest.domain.calculation.StrategyCalculationResult;
+import com.muscat.backtest.domain.calculation.StrategyCalculator;
+import com.muscat.backtest.common.enums.type.PeriodEnd;
+import com.muscat.backtest.domain.calculation.BacktestCalculationUtils;
+import com.muscat.backtest.common.util.Decimals;
+import com.muscat.backtest.domain.service.BacktestDataUtils;
+import com.muscat.backtest.common.util.FxPath;
+import com.muscat.backtest.common.util.FxRates;
+import com.muscat.backtest.common.util.PriceLookup;
+import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
+import com.muscat.backtest.domain.dto.response.StrategyResponse;
+import com.muscat.backtest.domain.model.StrategyTransaction;
+import com.muscat.backtest.domain.port.MarketDataPort;
+import com.muscat.backtest.domain.dto.market.DividendHistoryDto;
+import com.muscat.backtest.domain.dto.market.FxRateDto;
+import com.muscat.commonlib.dto.OHLCPriceDto;
+import com.muscat.commonlib.dto.StockPriceDto;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.NavigableSet;
+import java.util.TreeSet;
+import java.util.function.Consumer;
+import java.util.function.Function;
+
+// 전략 공통 마무리: 평가일 시세 · 환율 → 총투자 · 환율 합 → 배당 재투자 · 연말 정리 → 기간 끝 매도 → 계산
+public final class StrategyFinalizer {
+
+  /** 마무리 결과(거래내역 + 계산결과 + 평가일 시세 + 일별 가치 · 지표) */
+  public record Result(List<StrategyTransaction> transactions,
+                       StrategyCalculationResult calculation,
+                       StockPriceDto currentPrice,
+                       StrategyPerformance.Result performance) {
+
+    // 응답에 일별 평가 가치 · 통화별 지표를 채움
+    public StrategyResponse fill(StrategyResponse response) {
+      response.setDailyValues(performance.dailyValues());
+      response.setMetricsKrw(performance.metricsKrw());
+      response.setMetricsUsd(performance.metricsUsd());
+      return response;
+    }
+
+    // 판 거래의 연도별 양도세 · 기간 안 납부와 총 자산 · 주식 평가 · 투자금 기준 세후 평가
+    public CapitalGainsTax capitalGainsTax(CapitalGainsTaxCalculator.Payments payments) {
+      return CapitalGainsTaxCalculator.of(CapitalGainsTaxCalculator.realizedGains(transactions), payments,
+        calculation.getTotalAssetKrw(), calculation.getCurrentValueKrw(), calculation.getTotalInvested());
+    }
+
+    // 기간 안 납부가 없는 전략의 양도세
+    public CapitalGainsTax capitalGainsTax() {
+      return capitalGainsTax(CapitalGainsTaxCalculator.Payments.NONE);
+    }
+  }
+
+  private StrategyFinalizer() {}
+
+  public static Result run(
+      MarketDataPort marketData,
+      String symbol,
+      LocalDate requestStart,
+      LocalDate valuationDate,
+      BigDecimal manualCurrentFxRate,
+      BigDecimal manualPurchaseFxRate,
+      boolean reinvestEnabled,
+      BigDecimal dividendTaxRate,
+      List<StrategyTransaction> transactions,
+      Map<LocalDate, OHLCPriceDto> priceMap,
+      FxRates dailyFx,
+      PeriodEnd periodEnd,
+      BigDecimal tradingFeeRate,
+      boolean yearEndHarvest) {
+
+    StockPriceDto currentPrice = BacktestDataUtils.getPriceAt(
+        marketData, symbol, valuationDate);
+
+    FxRateDto currentFxRate = manualCurrentFxRate != null
+        ? new FxRateDto(valuationDate, manualCurrentFxRate)
+        : BacktestDataUtils.getFxRateAt(marketData, valuationDate);
+    if (transactions.isEmpty()) {
+      return empty(transactions, currentPrice, currentFxRate);
+    }
+
+    LocalDate firstPurchaseDate = transactions.getFirst().getDate();
+    // 기간 끝에 팔면 판 날까지의 배당
+    LocalDate dividendsUntil = PeriodEnd.sells(periodEnd) ? PeriodEndSale.saleDate(priceMap, valuationDate) : valuationDate;
+    DividendHistoryDto dividendHistory = BacktestDataUtils.getDividendHistory(
+        marketData, symbol, firstPurchaseDate, dividendsUntil);
+
+    BigDecimal totalInvested = transactions.stream()
+        .map(StrategyTransaction::getAmount)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    // 가중평균 환율 합계 = Σ(투자금액 × 환율)
+    BigDecimal totalFxRateSum = transactions.stream()
+        .map(t -> t.getFxRate().multiply(t.getAmount()))
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    NavigableSet<LocalDate> harvestDates = yearEndHarvest
+        ? YearEndHarvest.dates(priceMap, requestStart, valuationDate)
+        : new TreeSet<>();
+    Consumer<LocalDate> harvestBefore = exDate -> {
+      while (!harvestDates.isEmpty() && harvestDates.first().isBefore(exDate)) {
+        harvest(transactions, harvestDates.pollFirst(), priceMap, manualPurchaseFxRate, dailyFx, tradingFeeRate);
+      }
+    };
+    BigDecimal dividendsReinvested = DividendReinvestor.reinvest(
+        marketData, dividendHistory, transactions, symbol,
+        firstPurchaseDate, reinvestEnabled, dividendTaxRate, manualPurchaseFxRate, currentFxRate.rate(), harvestBefore);
+    if (yearEndHarvest) {
+      harvestBefore.accept(valuationDate.plusDays(1));
+      transactions.sort(Comparator.comparing(StrategyTransaction::tradedOn));
+    }
+
+    if (PeriodEnd.sells(periodEnd)) {
+      sellAtEnd(transactions, priceMap, valuationDate, currentPrice, currentFxRate.rate(), tradingFeeRate);
+    }
+
+    // 배당 재투자 · 기간 끝 매도 후 총 보유 주식수
+    BigDecimal totalShares = transactions.stream()
+        .map(StrategyTransaction::getShares)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    BigDecimal totalDividends = BacktestCalculationUtils.calculateTotalDividends(
+        dividendHistory, transactions, firstPurchaseDate, valuationDate);
+
+    StrategyCalculationResult calculation = StrategyCalculator.calculate(
+        transactions, totalInvested, totalShares, totalFxRateSum, currentPrice, currentFxRate,
+        totalDividends, dividendsReinvested, dividendTaxRate);
+
+    Function<LocalDate, BigDecimal> fxOn = fxPath(transactions, valuationDate, manualPurchaseFxRate,
+        manualCurrentFxRate, currentFxRate.rate(), dailyFx);
+    StrategyPerformance.Result performance = StrategyPerformance.of(transactions, priceMap, fxOn,
+        dividendHistory, Decimals.isPositive(dividendsReinvested), dividendTaxRate, requestStart, valuationDate,
+        calculation.getTotalAssetKrw(), currentFxRate.rate());
+
+    return new Result(transactions, calculation, currentPrice, performance);
+  }
+
+  // 그 날짜까지 거래로 연말 정리한 판 거래 · 다시 산 거래를 더함(그 날짜에 주식이 없거나 팔 것이 없으면 그대로)
+  private static void harvest(List<StrategyTransaction> transactions, LocalDate date,
+      Map<LocalDate, OHLCPriceDto> priceMap, BigDecimal manualFxRate, FxRates dailyFx, BigDecimal feeRate) {
+    List<StrategyTransaction> held = transactions.stream()
+        .filter(tx -> !tx.tradedOn().isAfter(date))
+        .sorted(Comparator.comparing(StrategyTransaction::tradedOn))
+        .toList();
+    BigDecimal shares = held.stream().map(StrategyTransaction::getShares).reduce(BigDecimal.ZERO, BigDecimal::add);
+    if (!Decimals.isPositive(shares)) {
+      return;
+    }
+    YearEndHarvest.Trade trade = YearEndHarvest.single(date, held, PriceLookup.effectiveClose(priceMap.get(date)),
+        shares, StrategyCalculator.holdingCost(held), feeRate,
+        manualFxRate != null ? manualFxRate : dailyFx.get(date), manualFxRate == null && dailyFx.isDefault(date));
+    if (trade != null) {
+      transactions.add(trade.sale());
+      transactions.add(trade.rebuy());
+    }
+  }
+
+  // 남은 주식 전량의 기간 끝 매도를 거래에 더함(환율은 평가일 환율, 실현 손익은 보유분 원가 대비, 남은 주식이 없으면 그대로)
+  private static void sellAtEnd(List<StrategyTransaction> transactions, Map<LocalDate, OHLCPriceDto> priceMap,
+      LocalDate valuationDate, StockPriceDto currentPrice, BigDecimal fxRate, BigDecimal feeRate) {
+    BigDecimal shares = transactions.stream()
+        .map(StrategyTransaction::getShares)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+    StrategyTransaction sale = PeriodEndSale.of(shares, StrategyCalculator.holdingCost(transactions), priceMap,
+        valuationDate, currentPrice.currentPrice(), feeRate, fxRate);
+    if (sale != null) {
+      transactions.add(sale);
+    }
+  }
+
+  // 매수 0회 결과(투자 · 평가 · 수익 0, 일별 가치 · 지표 없음)
+  private static Result empty(List<StrategyTransaction> transactions, StockPriceDto currentPrice,
+      FxRateDto currentFxRate) {
+    StrategyCalculationResult calculation = StrategyCalculationResult.builder()
+        .totalInvested(BigDecimal.ZERO)
+        .totalShares(BigDecimal.ZERO)
+        .currentValue(BigDecimal.ZERO)
+        .currentValueKrw(BigDecimal.ZERO)
+        .totalDividends(BigDecimal.ZERO)
+        .dividendsReinvested(BigDecimal.ZERO)
+        .totalAssetKrw(BigDecimal.ZERO)
+        .cashBalance(BigDecimal.ZERO)
+        .realizedProfit(BigDecimal.ZERO)
+        .totalReturnPercent(BigDecimal.ZERO)
+        .totalReturnKrw(BigDecimal.ZERO)
+        .fxReturn(BigDecimal.ZERO)
+        .fxReturnPercent(BigDecimal.ZERO)
+        .currentFxRate(currentFxRate.rate())
+        .defaultFxValuationDate(currentFxRate.defaulted() ? currentFxRate.date() : null)
+        .build();
+    return new Result(transactions, calculation, currentPrice,
+        new StrategyPerformance.Result(List.of(), null, null));
+  }
+
+  // 날마다 원화 환율: 수동 환율이거나 시장 기록이 없으면 첫 매수 · 평가일 환율을 날짜 비례로, 아니면 기본 환율 날을 뺀 시장 환율
+  static Function<LocalDate, BigDecimal> fxPath(List<StrategyTransaction> transactions,
+      LocalDate valuationDate, BigDecimal manualPurchaseFxRate, BigDecimal manualCurrentFxRate,
+      BigDecimal currentFxRate, FxRates dailyFx) {
+    Map<LocalDate, BigDecimal> records = new HashMap<>();
+    dailyFx.rates().forEach((date, rate) -> {
+      if (!dailyFx.isDefault(date)) {
+        records.put(date, rate);
+      }
+    });
+    if (manualPurchaseFxRate != null || manualCurrentFxRate != null || records.isEmpty()) {
+      return transactions.stream()
+          .filter(tx -> Decimals.isPositive(tx.getAmount()))
+          .min(Comparator.comparing(StrategyTransaction::tradedOn))
+          .map(first -> FxPath.interpolated(first.tradedOn(), first.getFxRate(), valuationDate, currentFxRate))
+          .orElse(date -> currentFxRate);
+    }
+    return FxPath.market(records, currentFxRate);
+  }
+}

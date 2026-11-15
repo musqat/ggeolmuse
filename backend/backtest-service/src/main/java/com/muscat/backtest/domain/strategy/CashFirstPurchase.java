@@ -1,8 +1,8 @@
 package com.muscat.backtest.domain.strategy;
 
-import com.muscat.backtest.common.util.BacktestCalculationUtils;
+import com.muscat.backtest.domain.calculation.BacktestCalculationUtils;
 import com.muscat.backtest.common.util.Decimals;
-import com.muscat.backtest.common.util.RoundPurchase;
+import com.muscat.backtest.domain.calculation.RoundPurchase;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.commonlib.util.MoneyUtils;
 import java.math.BigDecimal;

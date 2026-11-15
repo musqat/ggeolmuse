@@ -17,15 +17,15 @@ import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.exception.BacktestException;
-import com.muscat.backtest.common.util.BacktestHistoryUtils;
+import com.muscat.backtest.domain.service.BacktestHistoryUtils;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
 import com.muscat.backtest.domain.dto.response.DailyValue;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
-import com.muscat.backtest.infra.client.MarketDataClientWrapper;
-import com.muscat.backtest.infra.client.dto.DividendDto;
-import com.muscat.backtest.infra.client.dto.FxRateDto;
+import com.muscat.backtest.domain.port.MarketDataPort;
+import com.muscat.backtest.domain.dto.market.DividendDto;
+import com.muscat.backtest.domain.dto.market.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
 
@@ -56,7 +56,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class TradingSimulationServiceImplTest {
 
   @Mock
-  private MarketDataClientWrapper marketDataClientWrapper;
+  private MarketDataPort marketDataPort;
 
   @Mock
   private ResponseMapper responseMapper;
@@ -83,9 +83,9 @@ class TradingSimulationServiceImplTest {
       .reinvestDividends(false)
       .dividendTaxRate(BigDecimal.ZERO)
       .build();
-    lenient().when(marketDataClientWrapper.defaultFxRate()).thenReturn(new BigDecimal("1350"));
+    lenient().when(marketDataPort.defaultFxRate()).thenReturn(new BigDecimal("1350"));
     // 기간 환율은 요청한 날마다 1350
-    lenient().when(marketDataClientWrapper.getBulkFxRates(anyList())).thenAnswer(invocation -> {
+    lenient().when(marketDataPort.getBulkFxRates(anyList())).thenAnswer(invocation -> {
       List<String> dates = invocation.getArgument(0);
       return dates.stream().distinct().collect(Collectors.toMap(date -> date, date -> new BigDecimal("1350")));
     });
@@ -100,15 +100,15 @@ class TradingSimulationServiceImplTest {
     void runSimulation_DefaultPurchaseFx_ListsDate() {
       OHLCPriceDto purchasePrice = createOHLCPrice(TEST_SYMBOL,
         testSimulationRequest.getPurchaseDate(), new BigDecimal("180.00"), true);
-      given(marketDataClientWrapper.getFxRate(anyString()))
+      given(marketDataPort.getFxRate(anyString()))
         .willReturn(new FxRateDto(testSimulationRequest.getPurchaseDate(), new BigDecimal("1350"), true));
-      given(marketDataClientWrapper.getCurrentPrice(TEST_SYMBOL))
+      given(marketDataPort.getCurrentPrice(TEST_SYMBOL))
         .willReturn(createCurrentPrice(TEST_SYMBOL, new BigDecimal("230.00")));
-      given(marketDataClientWrapper.getLatestFxRate())
+      given(marketDataPort.getLatestFxRate())
         .willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1320.00")));
-      given(marketDataClientWrapper.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(Collections.emptyList());
-      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(purchasePrice));
       given(responseMapper.toSimulationResponse(
         any(SimulationRequest.class),
@@ -135,7 +135,7 @@ class TradingSimulationServiceImplTest {
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.INDEX_NOT_TRADABLE);
-      verify(marketDataClientWrapper, never()).getOHLCPriceRange(anyString(), anyString(), anyString());
+      verify(marketDataPort, never()).getOHLCPriceRange(anyString(), anyString(), anyString());
       verify(backtestHistoryUtils, never()).saveBacktestHistory(any(), any(), any());
     }
 
@@ -154,15 +154,15 @@ class TradingSimulationServiceImplTest {
 
       SimulationResponse expectedResponse = createSimulationResponse();
 
-      given(marketDataClientWrapper.getFxRate(anyString()))
+      given(marketDataPort.getFxRate(anyString()))
         .willReturn(purchaseFxRate);
-      given(marketDataClientWrapper.getCurrentPrice(TEST_SYMBOL))
+      given(marketDataPort.getCurrentPrice(TEST_SYMBOL))
         .willReturn(currentPrice);
-      given(marketDataClientWrapper.getLatestFxRate())
+      given(marketDataPort.getLatestFxRate())
         .willReturn(currentFxRate);
-      given(marketDataClientWrapper.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(Collections.emptyList());
-      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(purchasePrice));
       given(responseMapper.toSimulationResponse(
         any(SimulationRequest.class),
@@ -199,15 +199,15 @@ class TradingSimulationServiceImplTest {
 
       SimulationResponse expectedResponse = createSimulationResponse();
 
-      given(marketDataClientWrapper.getFxRate(anyString()))
+      given(marketDataPort.getFxRate(anyString()))
         .willReturn(purchaseFxRate);
-      given(marketDataClientWrapper.getCurrentPrice(TEST_SYMBOL))
+      given(marketDataPort.getCurrentPrice(TEST_SYMBOL))
         .willReturn(currentPrice);
-      given(marketDataClientWrapper.getLatestFxRate())
+      given(marketDataPort.getLatestFxRate())
         .willReturn(currentFxRate);
-      given(marketDataClientWrapper.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(Collections.emptyList());
-      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(purchasePrice));
       given(responseMapper.toSimulationResponse(
         any(SimulationRequest.class),
@@ -228,8 +228,8 @@ class TradingSimulationServiceImplTest {
       assertThat(result).isEqualTo(expectedResponse);
       verify(backtestHistoryUtils).saveBacktestHistory(TEST_USER_ID, BacktestType.COMPARISON,
         testSimulationRequest);
-      verify(marketDataClientWrapper, never()).getOHLCPrice(any(), any());
-      verify(marketDataClientWrapper).getCurrentPrice(TEST_SYMBOL);
+      verify(marketDataPort, never()).getOHLCPrice(any(), any());
+      verify(marketDataPort).getCurrentPrice(TEST_SYMBOL);
     }
 
     @Test
@@ -253,20 +253,20 @@ class TradingSimulationServiceImplTest {
       OHLCPriceDto divDay2 = createOHLCPrice(TEST_SYMBOL, LocalDate.of(2024, 6, 15),
         new BigDecimal("210.00"), true);
 
-      given(marketDataClientWrapper.getFxRate(anyString()))
+      given(marketDataPort.getFxRate(anyString()))
         .willReturn(new FxRateDto(reinvestRequest.getPurchaseDate(), new BigDecimal("1300.00")));
-      given(marketDataClientWrapper.getCurrentPrice(TEST_SYMBOL))
+      given(marketDataPort.getCurrentPrice(TEST_SYMBOL))
         .willReturn(createCurrentPrice(TEST_SYMBOL, new BigDecimal("230.00")));
-      given(marketDataClientWrapper.getLatestFxRate())
+      given(marketDataPort.getLatestFxRate())
         .willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1320.00")));
-      given(marketDataClientWrapper.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(
           new DividendDto(TEST_SYMBOL, LocalDate.of(2024, 3, 15), LocalDate.of(2024, 3, 20),
             null, new BigDecimal("0.50"), "USD", "test"),
           new DividendDto(TEST_SYMBOL, LocalDate.of(2024, 6, 15), LocalDate.of(2024, 6, 20),
             null, new BigDecimal("0.50"), "USD", "test")));
       // BULK: 배당일 주가 + 최적타이밍 모두 이 stub으로 (배당일 2건 포함)
-      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(purchasePrice, divDay1, divDay2));
       given(responseMapper.toSimulationResponse(
         any(SimulationRequest.class),
@@ -284,8 +284,8 @@ class TradingSimulationServiceImplTest {
 
       // then: 매수가 · 배당일 주가 모두 기간 일봉에서 찾아 날짜별 시세 조회 없음
       assertThat(result).isNotNull();
-      verify(marketDataClientWrapper, never()).getOHLCPrice(any(), any());
-      verify(marketDataClientWrapper, atLeastOnce())
+      verify(marketDataPort, never()).getOHLCPrice(any(), any());
+      verify(marketDataPort, atLeastOnce())
         .getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString());
     }
 
@@ -304,15 +304,15 @@ class TradingSimulationServiceImplTest {
 
       SimulationResponse expectedResponse = createSimulationResponse();
 
-      given(marketDataClientWrapper.getFxRate(anyString()))
+      given(marketDataPort.getFxRate(anyString()))
         .willReturn(purchaseFxRate);
-      given(marketDataClientWrapper.getCurrentPrice(TEST_SYMBOL))
+      given(marketDataPort.getCurrentPrice(TEST_SYMBOL))
         .willReturn(currentPrice);
-      given(marketDataClientWrapper.getLatestFxRate())
+      given(marketDataPort.getLatestFxRate())
         .willReturn(currentFxRate);
-      given(marketDataClientWrapper.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(Collections.emptyList());
-      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(purchasePrice));
       given(responseMapper.toSimulationResponse(
         any(SimulationRequest.class),
@@ -356,11 +356,11 @@ class TradingSimulationServiceImplTest {
       StockPriceDto currentPrice = createCurrentPrice(TEST_SYMBOL, new BigDecimal("230.00"));
       SimulationResponse expectedResponse = createSimulationResponse();
 
-      given(marketDataClientWrapper.getCurrentPrice(TEST_SYMBOL))
+      given(marketDataPort.getCurrentPrice(TEST_SYMBOL))
         .willReturn(currentPrice);
-      given(marketDataClientWrapper.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(Collections.emptyList());
-      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(purchasePrice));
       given(responseMapper.toSimulationResponse(
         any(SimulationRequest.class),
@@ -379,8 +379,8 @@ class TradingSimulationServiceImplTest {
       // then
       assertThat(result).isNotNull();
       // 수동 환율 설정 시 자동 환율 조회를 호출하지 않음
-      verify(marketDataClientWrapper, never()).getFxRate(anyString());
-      verify(marketDataClientWrapper, never()).getLatestFxRate();
+      verify(marketDataPort, never()).getFxRate(anyString());
+      verify(marketDataPort, never()).getLatestFxRate();
     }
 
     @Test
@@ -405,15 +405,15 @@ class TradingSimulationServiceImplTest {
 
       SimulationResponse expectedResponse = createSimulationResponse();
 
-      given(marketDataClientWrapper.getFxRate(anyString()))
+      given(marketDataPort.getFxRate(anyString()))
         .willReturn(purchaseFxRate);
-      given(marketDataClientWrapper.getCurrentPrice(TEST_SYMBOL))
+      given(marketDataPort.getCurrentPrice(TEST_SYMBOL))
         .willReturn(currentPrice);
-      given(marketDataClientWrapper.getLatestFxRate())
+      given(marketDataPort.getLatestFxRate())
         .willReturn(currentFxRate);
-      given(marketDataClientWrapper.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(Collections.emptyList());
-      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(purchasePrice));
       given(responseMapper.toSimulationResponse(
         any(SimulationRequest.class),
@@ -450,21 +450,21 @@ class TradingSimulationServiceImplTest {
       // 매수는 가장 이른 날(응답 순서와 무관)
       OHLCPriceDto purchasePrice = range.stream().min(Comparator.comparing(OHLCPriceDto::date)).orElseThrow();
       if (!fxRates.isEmpty()) {
-        given(marketDataClientWrapper.getBulkFxRates(anyList())).willReturn(fxRates);
+        given(marketDataPort.getBulkFxRates(anyList())).willReturn(fxRates);
       }
 
-      given(marketDataClientWrapper.getOHLCPrice(eq(TEST_SYMBOL), anyString()))
+      given(marketDataPort.getOHLCPrice(eq(TEST_SYMBOL), anyString()))
         .willReturn(purchasePrice);
-      given(marketDataClientWrapper.getFxRate(anyString()))
+      given(marketDataPort.getFxRate(anyString()))
         .willReturn(new FxRateDto(testSimulationRequest.getPurchaseDate(),
           new BigDecimal("1300.00")));
-      given(marketDataClientWrapper.getCurrentPrice(TEST_SYMBOL))
+      given(marketDataPort.getCurrentPrice(TEST_SYMBOL))
         .willReturn(createCurrentPrice(TEST_SYMBOL, new BigDecimal("230.00")));
-      given(marketDataClientWrapper.getLatestFxRate())
+      given(marketDataPort.getLatestFxRate())
         .willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1320.00")));
-      given(marketDataClientWrapper.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(Collections.emptyList());
-      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(range);
       given(responseMapper.toSimulationResponse(
         any(SimulationRequest.class),
@@ -675,7 +675,7 @@ class TradingSimulationServiceImplTest {
     @BeforeEach
     void setUpService() {
       service = new TradingSimulationServiceImpl(
-        marketDataClientWrapper, new ResponseMapper(), backtestHistoryUtils);
+        marketDataPort, new ResponseMapper(), backtestHistoryUtils);
     }
 
     private SimulationRequest request(LocalDate sale, boolean reinvest) {
@@ -689,16 +689,16 @@ class TradingSimulationServiceImplTest {
     }
 
     private void stubPurchase() {
-      given(marketDataClientWrapper.getOHLCPrice(TEST_SYMBOL, "2024-01-15"))
+      given(marketDataPort.getOHLCPrice(TEST_SYMBOL, "2024-01-15"))
         .willReturn(createOHLCPrice(TEST_SYMBOL, purchaseDate, new BigDecimal("100.00"), true));
-      given(marketDataClientWrapper.getFxRate("2024-01-15"))
+      given(marketDataPort.getFxRate("2024-01-15"))
         .willReturn(new FxRateDto(purchaseDate, new BigDecimal("1300")));
     }
 
     private void stubSale() {
-      given(marketDataClientWrapper.getOHLCPrice(TEST_SYMBOL, "2024-06-14"))
+      given(marketDataPort.getOHLCPrice(TEST_SYMBOL, "2024-06-14"))
         .willReturn(createOHLCPrice(TEST_SYMBOL, saleDate, new BigDecimal("150.00"), true));
-      given(marketDataClientWrapper.getFxRate("2024-06-14"))
+      given(marketDataPort.getFxRate("2024-06-14"))
         .willReturn(new FxRateDto(saleDate, new BigDecimal("1350")));
     }
 
@@ -712,9 +712,9 @@ class TradingSimulationServiceImplTest {
     void pastSaleDate_ValuesAtSaleDate() {
       stubPurchase();
       stubSale();
-      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
+      given(marketDataPort.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
         .willReturn(Collections.emptyList());
-      given(marketDataClientWrapper.getOHLCPriceRange(TEST_SYMBOL, "2024-01-10", "2024-06-14"))
+      given(marketDataPort.getOHLCPriceRange(TEST_SYMBOL, "2024-01-10", "2024-06-14"))
         .willReturn(List.of());
 
       SimulationResponse response = service.runSimulation(request(saleDate, false), false);
@@ -722,8 +722,8 @@ class TradingSimulationServiceImplTest {
       assertThat(response.getCurrentDate()).isEqualTo(saleDate);
       assertThat(response.getCurrentPrice()).isEqualByComparingTo("150.00");
       assertThat(response.getCurrentFxRate()).isEqualByComparingTo("1350");
-      verify(marketDataClientWrapper, never()).getCurrentPrice(any());
-      verify(marketDataClientWrapper, never()).getLatestFxRate();
+      verify(marketDataPort, never()).getCurrentPrice(any());
+      verify(marketDataPort, never()).getLatestFxRate();
     }
 
     @Test
@@ -731,13 +731,13 @@ class TradingSimulationServiceImplTest {
     void noSaleDate_ValuesToday() {
       String today = LocalDate.now().toString();
       stubPurchase();
-      given(marketDataClientWrapper.getCurrentPrice(TEST_SYMBOL))
+      given(marketDataPort.getCurrentPrice(TEST_SYMBOL))
         .willReturn(createCurrentPrice(TEST_SYMBOL, new BigDecimal("230.00")));
-      given(marketDataClientWrapper.getLatestFxRate())
+      given(marketDataPort.getLatestFxRate())
         .willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1320")));
-      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", today))
+      given(marketDataPort.getDividendHistory(TEST_SYMBOL, "2024-01-15", today))
         .willReturn(Collections.emptyList());
-      given(marketDataClientWrapper.getOHLCPriceRange(TEST_SYMBOL, "2024-01-10", today))
+      given(marketDataPort.getOHLCPriceRange(TEST_SYMBOL, "2024-01-10", today))
         .willReturn(List.of());
 
       SimulationResponse response = service.runSimulation(request(null, false), false);
@@ -755,7 +755,7 @@ class TradingSimulationServiceImplTest {
         .isInstanceOf(BacktestException.class)
         .extracting("code")
         .isEqualTo(BacktestResponse.STRATEGY_DATE_RANGE_INVALID);
-      verify(marketDataClientWrapper, never()).getOHLCPrice(any(), any());
+      verify(marketDataPort, never()).getOHLCPrice(any(), any());
     }
 
     @Test
@@ -763,9 +763,9 @@ class TradingSimulationServiceImplTest {
     void reinvest_OnlyUntilSaleDate() {
       stubPurchase();
       stubSale();
-      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
+      given(marketDataPort.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
         .willReturn(List.of(dividend(LocalDate.of(2024, 5, 10)), dividend(LocalDate.of(2024, 8, 9))));
-      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(createOHLCPrice(TEST_SYMBOL, LocalDate.of(2024, 5, 10),
           new BigDecimal("120.00"), true)));
 
@@ -777,38 +777,38 @@ class TradingSimulationServiceImplTest {
     @Test
     @DisplayName("매수가 · 평가가는 매수일 5일 전부터 받은 기간 일봉에서 찾고 날짜별 시세를 부르지 않는다")
     void purchaseAndSale_FromOneRange() {
-      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(
           createOHLCPrice(TEST_SYMBOL, purchaseDate, new BigDecimal("100.00"), true),
           createOHLCPrice(TEST_SYMBOL, saleDate, new BigDecimal("150.00"), true)));
-      given(marketDataClientWrapper.getFxRate("2024-01-15"))
+      given(marketDataPort.getFxRate("2024-01-15"))
         .willReturn(new FxRateDto(purchaseDate, new BigDecimal("1300")));
-      given(marketDataClientWrapper.getFxRate("2024-06-14"))
+      given(marketDataPort.getFxRate("2024-06-14"))
         .willReturn(new FxRateDto(saleDate, new BigDecimal("1350")));
-      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
+      given(marketDataPort.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
         .willReturn(Collections.emptyList());
 
       SimulationResponse response = service.runSimulation(request(saleDate, false), false);
 
       assertThat(response.getPurchasePrice()).isEqualByComparingTo("100.00");
       assertThat(response.getCurrentPrice()).isEqualByComparingTo("150.00");
-      verify(marketDataClientWrapper).getOHLCPriceRange(TEST_SYMBOL, "2024-01-10", "2024-06-14");
-      verify(marketDataClientWrapper, never()).getOHLCPrice(any(), any());
+      verify(marketDataPort).getOHLCPriceRange(TEST_SYMBOL, "2024-01-10", "2024-06-14");
+      verify(marketDataPort, never()).getOHLCPrice(any(), any());
     }
 
     @Test
     @DisplayName("배당일 주가 · 최적 타이밍도 같은 기간 일봉을 써서 기간 시세 조회는 한 번이다")
     void dividendAndOptimalTiming_ReuseRange() {
-      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(
           createOHLCPrice(TEST_SYMBOL, purchaseDate, new BigDecimal("100.00"), true),
           createOHLCPrice(TEST_SYMBOL, LocalDate.of(2024, 5, 10), new BigDecimal("120.00"), true),
           createOHLCPrice(TEST_SYMBOL, saleDate, new BigDecimal("150.00"), true)));
-      given(marketDataClientWrapper.getFxRate("2024-01-15"))
+      given(marketDataPort.getFxRate("2024-01-15"))
         .willReturn(new FxRateDto(purchaseDate, new BigDecimal("1300")));
-      given(marketDataClientWrapper.getFxRate("2024-06-14"))
+      given(marketDataPort.getFxRate("2024-06-14"))
         .willReturn(new FxRateDto(saleDate, new BigDecimal("1350")));
-      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
+      given(marketDataPort.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
         .willReturn(List.of(dividend(LocalDate.of(2024, 5, 10))));
 
       SimulationResponse response = service.runSimulation(request(saleDate, true), false);
@@ -816,8 +816,8 @@ class TradingSimulationServiceImplTest {
       assertThat(response.getDividendReinvestDates()).containsExactly(LocalDate.of(2024, 5, 10));
       assertThat(response.getOptimalBuyDate()).isEqualTo(purchaseDate);
       assertThat(response.getOptimalSellDate()).isEqualTo(saleDate);
-      verify(marketDataClientWrapper, times(1)).getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString());
-      verify(marketDataClientWrapper, never()).getOHLCPrice(any(), any());
+      verify(marketDataPort, times(1)).getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString());
+      verify(marketDataPort, never()).getOHLCPrice(any(), any());
     }
   }
 
@@ -899,21 +899,21 @@ class TradingSimulationServiceImplTest {
 
     @BeforeEach
     void setUpService() {
-      service = new TradingSimulationServiceImpl(marketDataClientWrapper, new ResponseMapper(), backtestHistoryUtils);
+      service = new TradingSimulationServiceImpl(marketDataPort, new ResponseMapper(), backtestHistoryUtils);
     }
 
     private void stubPrice(String date, String close) {
-      given(marketDataClientWrapper.getOHLCPrice(TEST_SYMBOL, date))
+      given(marketDataPort.getOHLCPrice(TEST_SYMBOL, date))
         .willReturn(createOHLCPrice(TEST_SYMBOL, LocalDate.parse(date), new BigDecimal(close), true));
     }
 
     private void stubClosed(String date) {
-      given(marketDataClientWrapper.getOHLCPrice(TEST_SYMBOL, date))
+      given(marketDataPort.getOHLCPrice(TEST_SYMBOL, date))
         .willReturn(createOHLCPrice(TEST_SYMBOL, LocalDate.parse(date), BigDecimal.TEN, false));
     }
 
     private void stubFx(String date, String rate) {
-      given(marketDataClientWrapper.getFxRate(date)).willReturn(new FxRateDto(LocalDate.parse(date), new BigDecimal(rate)));
+      given(marketDataPort.getFxRate(date)).willReturn(new FxRateDto(LocalDate.parse(date), new BigDecimal(rate)));
     }
 
     private SimulationResponse run(String purchaseDate, String saleDate, String amount) {
@@ -930,9 +930,9 @@ class TradingSimulationServiceImplTest {
       stubClosed("2023-01-02");
       stubPrice("2023-01-03", "125.00");
       stubFx("2023-01-03", "1250");
-      lenient().when(marketDataClientWrapper.getOHLCPrice(TEST_SYMBOL, "2022-12-30"))
+      lenient().when(marketDataPort.getOHLCPrice(TEST_SYMBOL, "2022-12-30"))
         .thenReturn(createOHLCPrice(TEST_SYMBOL, LocalDate.of(2022, 12, 30), new BigDecimal("129.93"), true));
-      lenient().when(marketDataClientWrapper.getFxRate("2023-01-01"))
+      lenient().when(marketDataPort.getFxRate("2023-01-01"))
         .thenReturn(new FxRateDto(LocalDate.of(2023, 1, 1), new BigDecimal("1261.87")));
       stubPrice("2023-06-30", "190.00");
       stubFx("2023-06-30", "1300");
@@ -955,7 +955,7 @@ class TradingSimulationServiceImplTest {
       stubPrice("2023-06-02", "180.00");
       stubFx("2023-06-02", "1300");
       stubFx("2023-06-04", "1300");
-      lenient().when(marketDataClientWrapper.getFxRate("2023-06-03"))
+      lenient().when(marketDataPort.getFxRate("2023-06-03"))
         .thenReturn(new FxRateDto(LocalDate.of(2023, 6, 3), new BigDecimal("1300")));
 
       SimulationResponse response = run("2023-06-03", "2023-06-04", "1300000");
@@ -976,7 +976,7 @@ class TradingSimulationServiceImplTest {
 
     @BeforeEach
     void setUpService() {
-      service = new TradingSimulationServiceImpl(marketDataClientWrapper, new ResponseMapper(), backtestHistoryUtils);
+      service = new TradingSimulationServiceImpl(marketDataPort, new ResponseMapper(), backtestHistoryUtils);
     }
 
     // 130만원 · 환율 1300 · 매수가 100 → 10주, 매도일 평가가 150
@@ -987,16 +987,16 @@ class TradingSimulationServiceImplTest {
     }
 
     private void stubPurchaseAndSale() {
-      given(marketDataClientWrapper.getOHLCPrice(TEST_SYMBOL, "2024-01-15"))
+      given(marketDataPort.getOHLCPrice(TEST_SYMBOL, "2024-01-15"))
         .willReturn(createOHLCPrice(TEST_SYMBOL, purchaseDate, new BigDecimal("100.00"), true));
-      given(marketDataClientWrapper.getFxRate("2024-01-15")).willReturn(new FxRateDto(purchaseDate, new BigDecimal("1300")));
-      given(marketDataClientWrapper.getOHLCPrice(TEST_SYMBOL, "2024-06-14"))
+      given(marketDataPort.getFxRate("2024-01-15")).willReturn(new FxRateDto(purchaseDate, new BigDecimal("1300")));
+      given(marketDataPort.getOHLCPrice(TEST_SYMBOL, "2024-06-14"))
         .willReturn(createOHLCPrice(TEST_SYMBOL, saleDate, new BigDecimal("150.00"), true));
-      given(marketDataClientWrapper.getFxRate("2024-06-14")).willReturn(new FxRateDto(saleDate, new BigDecimal("1300")));
+      given(marketDataPort.getFxRate("2024-06-14")).willReturn(new FxRateDto(saleDate, new BigDecimal("1300")));
     }
 
     private void stubDividend(String perShare) {
-      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
+      given(marketDataPort.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
         .willReturn(List.of(new DividendDto(TEST_SYMBOL, exDate, exDate.plusDays(5), null, new BigDecimal(perShare), "USD", "test")));
     }
 
@@ -1005,7 +1005,7 @@ class TradingSimulationServiceImplTest {
     void reinvestsAfterTax() {
       stubPurchaseAndSale();
       stubDividend("1.00");
-      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(createOHLCPrice(TEST_SYMBOL, exDate, new BigDecimal("100.00"), true)));
 
       SimulationResponse response = service.runSimulation(request(true, "0.15"), false);
@@ -1024,10 +1024,10 @@ class TradingSimulationServiceImplTest {
     void totalDividendsUseSharesAtEachExDate() {
       LocalDate firstExDate = LocalDate.of(2024, 3, 8);
       stubPurchaseAndSale();
-      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14")).willReturn(List.of(
+      given(marketDataPort.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14")).willReturn(List.of(
         new DividendDto(TEST_SYMBOL, firstExDate, firstExDate.plusDays(5), null, new BigDecimal("1.00"), "USD", "test"),
         new DividendDto(TEST_SYMBOL, exDate, exDate.plusDays(5), null, new BigDecimal("1.00"), "USD", "test")));
-      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString())).willReturn(List.of(
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString())).willReturn(List.of(
         createOHLCPrice(TEST_SYMBOL, firstExDate, new BigDecimal("100.00"), true),
         createOHLCPrice(TEST_SYMBOL, exDate, new BigDecimal("100.00"), true)));
 
@@ -1043,7 +1043,7 @@ class TradingSimulationServiceImplTest {
     void cashDividendAddedToTotalAsset() {
       stubPurchaseAndSale();
       stubDividend("1.00");
-      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString())).willReturn(List.of());
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString())).willReturn(List.of());
 
       SimulationResponse noTax = service.runSimulation(request(false, "0"), false);
       SimulationResponse taxed = service.runSimulation(request(false, "0.15"), false);
@@ -1059,8 +1059,8 @@ class TradingSimulationServiceImplTest {
     void fetchesMissingDividendDayPrice() {
       stubPurchaseAndSale();
       stubDividend("1.00");
-      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString())).willReturn(List.of());
-      given(marketDataClientWrapper.getOHLCPrice(TEST_SYMBOL, "2024-05-10"))
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString())).willReturn(List.of());
+      given(marketDataPort.getOHLCPrice(TEST_SYMBOL, "2024-05-10"))
         .willReturn(createOHLCPrice(TEST_SYMBOL, exDate, new BigDecimal("125.00"), true));
 
       SimulationResponse response = service.runSimulation(request(true, "0"), false);
@@ -1075,7 +1075,7 @@ class TradingSimulationServiceImplTest {
     void skipsZeroDividend() {
       stubPurchaseAndSale();
       stubDividend("0");
-      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString())).willReturn(List.of());
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString())).willReturn(List.of());
 
       SimulationResponse response = service.runSimulation(request(true, "0"), false);
 
@@ -1087,8 +1087,8 @@ class TradingSimulationServiceImplTest {
     @DisplayName("최적 시점 계산이 실패해도 시뮬레이션 결과는 나오고 최적 시점만 빈다")
     void optimalTimingFailureLeavesItEmpty() {
       stubPurchaseAndSale();
-      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14")).willReturn(List.of());
-      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14")).willReturn(List.of());
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willThrow(new RuntimeException("range down"));
 
       SimulationResponse response = service.runSimulation(request(false, "0"), false);
@@ -1102,10 +1102,10 @@ class TradingSimulationServiceImplTest {
     @DisplayName("재투자를 켜도 배당이 없거나 권리락일 없는 배당뿐이면 주식 수가 그대로다")
     void reinvestWithoutUsableDividends() {
       stubPurchaseAndSale();
-      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
+      given(marketDataPort.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
         .willReturn(List.of())
         .willReturn(List.of(new DividendDto(TEST_SYMBOL, null, null, null, BigDecimal.ONE, "USD", "test")));
-      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString())).willReturn(List.of());
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString())).willReturn(List.of());
 
       SimulationResponse noDividends = service.runSimulation(request(true, "0"), false);
       SimulationResponse noExDate = service.runSimulation(request(true, "0"), false);
@@ -1129,10 +1129,10 @@ class TradingSimulationServiceImplTest {
 
     @BeforeEach
     void setUpService() {
-      service = new TradingSimulationServiceImpl(marketDataClientWrapper, new ResponseMapper(), backtestHistoryUtils);
+      service = new TradingSimulationServiceImpl(marketDataPort, new ResponseMapper(), backtestHistoryUtils);
       // 수동 환율 테스트는 시장 환율을 부르지 않음
-      lenient().when(marketDataClientWrapper.getFxRate("2024-01-15")).thenReturn(new FxRateDto(purchaseDate, new BigDecimal("1300")));
-      lenient().when(marketDataClientWrapper.getFxRate("2024-06-14")).thenReturn(new FxRateDto(saleDate, new BigDecimal("1300")));
+      lenient().when(marketDataPort.getFxRate("2024-01-15")).thenReturn(new FxRateDto(purchaseDate, new BigDecimal("1300")));
+      lenient().when(marketDataPort.getFxRate("2024-06-14")).thenReturn(new FxRateDto(saleDate, new BigDecimal("1300")));
     }
 
     // 130만원 · 환율 1300 · 매수가 100 → 10주(수수료 없음), 매도일 평가가 150
@@ -1147,7 +1147,7 @@ class TradingSimulationServiceImplTest {
     }
 
     private void stubRange(OHLCPriceDto... candles) {
-      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(candles));
     }
 
@@ -1155,13 +1155,13 @@ class TradingSimulationServiceImplTest {
     private void stubSwing() {
       stubRange(candle(purchaseDate, "100.00"), candle(march, "120.00"), candle(april, "60.00"),
         candle(saleDate, "150.00"));
-      given(marketDataClientWrapper.getBulkFxRates(anyList())).willReturn(Map.of(
+      given(marketDataPort.getBulkFxRates(anyList())).willReturn(Map.of(
         "2024-01-15", new BigDecimal("1300"), "2024-03-01", new BigDecimal("1300"),
         "2024-04-01", new BigDecimal("1400"), "2024-06-14", new BigDecimal("1300")));
     }
 
     private void stubDividend() {
-      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
+      given(marketDataPort.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
         .willReturn(List.of(new DividendDto(TEST_SYMBOL, exDate, exDate.plusDays(5), null, new BigDecimal("1.00"),
           "USD", "test")));
       stubRange(candle(purchaseDate, "100.00"), candle(exDate, "100.00"), candle(saleDate, "150.00"));
@@ -1214,7 +1214,7 @@ class TradingSimulationServiceImplTest {
     void sellAtEnd() {
       // 일요일 평가라 마지막 거래일은 6월 14일
       LocalDate sunday = LocalDate.of(2024, 6, 16);
-      given(marketDataClientWrapper.getFxRate("2024-06-16")).willReturn(new FxRateDto(sunday, new BigDecimal("1300")));
+      given(marketDataPort.getFxRate("2024-06-16")).willReturn(new FxRateDto(sunday, new BigDecimal("1300")));
       stubSwing();
 
       SimulationResponse response = service.runSimulation(SimulationRequest.builder().symbol(TEST_SYMBOL)
@@ -1239,16 +1239,16 @@ class TradingSimulationServiceImplTest {
       assertThat(response.getCapitalGainsTax().stockKrw()).isEqualByComparingTo("0");
       assertThat(response.getCapitalGainsTax().afterTaxValueKrw()).isEqualByComparingTo("18317321");
       // 판 날 뒤 배당은 받지 않음
-      verify(marketDataClientWrapper).getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14");
+      verify(marketDataPort).getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14");
     }
 
     @Test
     @DisplayName("양도세를 켜고 12월 31일 기간 끝에 팔면 그 이익은 결제된 다음 해 몫이다")
     void sellAtEndOnDecember31() {
       LocalDate december31 = LocalDate.of(2024, 12, 31);
-      given(marketDataClientWrapper.getFxRate("2024-12-31")).willReturn(new FxRateDto(december31, new BigDecimal("1300")));
+      given(marketDataPort.getFxRate("2024-12-31")).willReturn(new FxRateDto(december31, new BigDecimal("1300")));
       stubRange(candle(purchaseDate, "100.00"), candle(december31, "150.00"));
-      given(marketDataClientWrapper.getBulkFxRates(anyList())).willReturn(Map.of(
+      given(marketDataPort.getBulkFxRates(anyList())).willReturn(Map.of(
         "2024-01-15", new BigDecimal("1300"), "2024-12-31", new BigDecimal("1300")));
 
       SimulationResponse response = service.runSimulation(SimulationRequest.builder().symbol(TEST_SYMBOL)
@@ -1263,8 +1263,8 @@ class TradingSimulationServiceImplTest {
     void yearEndHarvestTransactions() {
       LocalDate bought = LocalDate.of(2021, 1, 15);
       LocalDate end = LocalDate.of(2024, 1, 31);
-      given(marketDataClientWrapper.getFxRate(anyString())).willReturn(new FxRateDto(bought, new BigDecimal("1300")));
-      given(marketDataClientWrapper.getBulkFxRates(anyList())).willAnswer(invocation -> {
+      given(marketDataPort.getFxRate(anyString())).willReturn(new FxRateDto(bought, new BigDecimal("1300")));
+      given(marketDataPort.getBulkFxRates(anyList())).willAnswer(invocation -> {
         List<String> dates = invocation.getArgument(0);
         return dates.stream().distinct().collect(Collectors.toMap(date -> date, date -> new BigDecimal("1300")));
       });
@@ -1311,8 +1311,8 @@ class TradingSimulationServiceImplTest {
     void yearEndHarvestComparison() {
       LocalDate bought = LocalDate.of(2021, 1, 15);
       LocalDate end = LocalDate.of(2024, 1, 31);
-      given(marketDataClientWrapper.getFxRate(anyString())).willReturn(new FxRateDto(bought, new BigDecimal("1300")));
-      given(marketDataClientWrapper.getBulkFxRates(anyList())).willAnswer(invocation -> {
+      given(marketDataPort.getFxRate(anyString())).willReturn(new FxRateDto(bought, new BigDecimal("1300")));
+      given(marketDataPort.getBulkFxRates(anyList())).willAnswer(invocation -> {
         List<String> dates = invocation.getArgument(0);
         return dates.stream().distinct().collect(Collectors.toMap(date -> date, date -> new BigDecimal("1300")));
       });
@@ -1344,12 +1344,12 @@ class TradingSimulationServiceImplTest {
       LocalDate june = LocalDate.of(2021, 6, 1);
       LocalDate march = LocalDate.of(2022, 3, 1);
       LocalDate end = LocalDate.of(2023, 1, 31);
-      given(marketDataClientWrapper.getFxRate(anyString())).willReturn(new FxRateDto(bought, new BigDecimal("1300")));
+      given(marketDataPort.getFxRate(anyString())).willReturn(new FxRateDto(bought, new BigDecimal("1300")));
       stubRange(candle(bought, "100.00"), candle(june, "120.00"), candle(LocalDate.of(2021, 12, 29), "150.00"),
         candle(LocalDate.of(2021, 12, 30), "150.00"), candle(LocalDate.of(2021, 12, 31), "150.00"),
         candle(march, "140.00"), candle(LocalDate.of(2022, 12, 28), "90.00"), candle(LocalDate.of(2022, 12, 29), "90.00"),
         candle(LocalDate.of(2022, 12, 30), "90.00"), candle(end, "95.00"));
-      given(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2021-01-15", "2023-01-31")).willReturn(List.of(
+      given(marketDataPort.getDividendHistory(TEST_SYMBOL, "2021-01-15", "2023-01-31")).willReturn(List.of(
         new DividendDto(TEST_SYMBOL, june, june.plusDays(5), null, BigDecimal.ONE, "USD", "test"),
         new DividendDto(TEST_SYMBOL, march, march.plusDays(5), null, BigDecimal.ONE, "USD", "test")));
 
@@ -1371,7 +1371,7 @@ class TradingSimulationServiceImplTest {
     void tradingFeeWithHarvest() {
       LocalDate bought = LocalDate.of(2021, 1, 15);
       LocalDate end = LocalDate.of(2022, 1, 31);
-      given(marketDataClientWrapper.getFxRate(anyString())).willReturn(new FxRateDto(bought, new BigDecimal("1300")));
+      given(marketDataPort.getFxRate(anyString())).willReturn(new FxRateDto(bought, new BigDecimal("1300")));
       stubRange(candle(bought, "100.00"), candle(LocalDate.of(2021, 12, 29), "150.00"),
         candle(LocalDate.of(2021, 12, 30), "150.00"), candle(LocalDate.of(2021, 12, 31), "150.00"), candle(end, "160.00"));
       SimulationRequest.SimulationRequestBuilder<?, ?> request = SimulationRequest.builder().symbol(TEST_SYMBOL)
@@ -1453,8 +1453,8 @@ class TradingSimulationServiceImplTest {
     @DisplayName("기간 환율 기록이 없으면 최적 시점은 기본 환율로 내고 일별 원화 값은 매수 · 평가일 환율을 날짜 비례로 잇는다")
     void bulkFxEmpty() {
       stubRange(candle(purchaseDate, "100.00"), candle(march, "120.00"), candle(saleDate, "150.00"));
-      given(marketDataClientWrapper.getFxRate("2024-06-14")).willReturn(new FxRateDto(saleDate, new BigDecimal("1400")));
-      given(marketDataClientWrapper.getBulkFxRates(anyList())).willReturn(Map.of());
+      given(marketDataPort.getFxRate("2024-06-14")).willReturn(new FxRateDto(saleDate, new BigDecimal("1400")));
+      given(marketDataPort.getBulkFxRates(anyList())).willReturn(Map.of());
 
       SimulationResponse response = service.runSimulation(request(false, "0"), false);
 
@@ -1469,8 +1469,8 @@ class TradingSimulationServiceImplTest {
     @DisplayName("기간 환율 조회가 예외를 내도 일별 원화 값은 매수 · 평가일 환율을 날짜 비례로 잇는다")
     void bulkFxException() {
       stubRange(candle(purchaseDate, "100.00"), candle(march, "120.00"), candle(saleDate, "150.00"));
-      given(marketDataClientWrapper.getFxRate("2024-06-14")).willReturn(new FxRateDto(saleDate, new BigDecimal("1400")));
-      given(marketDataClientWrapper.getBulkFxRates(anyList())).willThrow(new RuntimeException("market-data down"));
+      given(marketDataPort.getFxRate("2024-06-14")).willReturn(new FxRateDto(saleDate, new BigDecimal("1400")));
+      given(marketDataPort.getBulkFxRates(anyList())).willThrow(new RuntimeException("market-data down"));
 
       SimulationResponse response = service.runSimulation(request(false, "0"), false);
 
@@ -1484,10 +1484,10 @@ class TradingSimulationServiceImplTest {
       // 130만원을 기본 1350 으로 962.96달러, 주가는 내내 100달러, 환율 기록은 3월 1일(1100)부터
       LocalDate laterSale = LocalDate.of(2025, 6, 16);
       stubRange(candle(purchaseDate, "100.00"), candle(march, "100.00"), candle(laterSale, "100.00"));
-      given(marketDataClientWrapper.getFxRate("2024-01-15"))
+      given(marketDataPort.getFxRate("2024-01-15"))
         .willReturn(new FxRateDto(purchaseDate, new BigDecimal("1350"), true));
-      given(marketDataClientWrapper.getFxRate("2025-06-16")).willReturn(new FxRateDto(laterSale, new BigDecimal("1100")));
-      given(marketDataClientWrapper.getBulkFxRates(anyList())).willReturn(Map.of(
+      given(marketDataPort.getFxRate("2025-06-16")).willReturn(new FxRateDto(laterSale, new BigDecimal("1100")));
+      given(marketDataPort.getBulkFxRates(anyList())).willReturn(Map.of(
         "2024-03-01", new BigDecimal("1100"), "2025-06-16", new BigDecimal("1100")));
       SimulationRequest longer = SimulationRequest.builder().symbol(TEST_SYMBOL).purchaseDate(purchaseDate)
         .saleDate(laterSale).investmentAmount(new BigDecimal("1300000")).reinvestDividends(false)
@@ -1505,7 +1505,7 @@ class TradingSimulationServiceImplTest {
     void manualFxInterpolated() {
       // 주가는 내내 100달러, 시장 환율 1450 은 쓰지 않음
       stubRange(candle(purchaseDate, "100.00"), candle(march, "100.00"), candle(saleDate, "100.00"));
-      given(marketDataClientWrapper.getBulkFxRates(anyList())).willReturn(Map.of(
+      given(marketDataPort.getBulkFxRates(anyList())).willReturn(Map.of(
         "2024-01-15", new BigDecimal("1450"), "2024-03-01", new BigDecimal("1450"), "2024-06-14", new BigDecimal("1450")));
       SimulationRequest manual = SimulationRequest.builder().symbol(TEST_SYMBOL).purchaseDate(purchaseDate)
         .saleDate(saleDate).investmentAmount(new BigDecimal("1300000")).purchaseFxRate(new BigDecimal("1300"))
@@ -1525,10 +1525,10 @@ class TradingSimulationServiceImplTest {
     void fxBeforeFirstRecord() {
       // 주가는 내내 100달러, 환율 기록은 3월 1일(1100)부터라 매수 환율은 기본 1350
       stubRange(candle(purchaseDate, "100.00"), candle(march, "100.00"), candle(saleDate, "100.00"));
-      given(marketDataClientWrapper.getFxRate("2024-01-15"))
+      given(marketDataPort.getFxRate("2024-01-15"))
         .willReturn(new FxRateDto(purchaseDate, new BigDecimal("1350"), true));
-      given(marketDataClientWrapper.getFxRate("2024-06-14")).willReturn(new FxRateDto(saleDate, new BigDecimal("1100")));
-      given(marketDataClientWrapper.getBulkFxRates(anyList())).willReturn(Map.of(
+      given(marketDataPort.getFxRate("2024-06-14")).willReturn(new FxRateDto(saleDate, new BigDecimal("1100")));
+      given(marketDataPort.getBulkFxRates(anyList())).willReturn(Map.of(
         "2024-03-01", new BigDecimal("1100"), "2024-06-14", new BigDecimal("1100")));
 
       SimulationResponse response = service.runSimulation(request(false, "0"), false);
@@ -1542,9 +1542,9 @@ class TradingSimulationServiceImplTest {
     @DisplayName("기간 일봉을 못 받으면 지표를 내지 않는다")
     void noCandlesNoMetrics() {
       stubRange();
-      given(marketDataClientWrapper.getOHLCPrice(TEST_SYMBOL, "2024-01-15"))
+      given(marketDataPort.getOHLCPrice(TEST_SYMBOL, "2024-01-15"))
         .willReturn(candle(purchaseDate, "100.00"));
-      given(marketDataClientWrapper.getOHLCPrice(TEST_SYMBOL, "2024-06-14"))
+      given(marketDataPort.getOHLCPrice(TEST_SYMBOL, "2024-06-14"))
         .willReturn(candle(saleDate, "150.00"));
 
       SimulationResponse response = service.runSimulation(request(false, "0"), false);
@@ -1578,18 +1578,18 @@ class TradingSimulationServiceImplTest {
 
     @BeforeEach
     void setUpService() {
-      service = new TradingSimulationServiceImpl(marketDataClientWrapper, new ResponseMapper(), backtestHistoryUtils);
+      service = new TradingSimulationServiceImpl(marketDataPort, new ResponseMapper(), backtestHistoryUtils);
       // 산 날 1300 · 평가일 1350, 그 사이 날은 기간 환율 1350(setUp), 테스트마다 바꿔 쓰는 준비라 lenient
-      lenient().when(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+      lenient().when(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .thenReturn(List.of(
           createOHLCPrice(TEST_SYMBOL, purchaseDate, new BigDecimal("100.00"), true),
           createOHLCPrice(TEST_SYMBOL, march, new BigDecimal("80.00"), true),
           createOHLCPrice(TEST_SYMBOL, exDate, new BigDecimal("110.00"), true),
           createOHLCPrice(TEST_SYMBOL, may, new BigDecimal("120.00"), true),
           createOHLCPrice(TEST_SYMBOL, saleDate, new BigDecimal("150.00"), true)));
-      lenient().when(marketDataClientWrapper.getFxRate("2024-01-15")).thenReturn(new FxRateDto(purchaseDate, new BigDecimal("1300")));
-      lenient().when(marketDataClientWrapper.getFxRate("2024-06-14")).thenReturn(new FxRateDto(saleDate, new BigDecimal("1350")));
-      lenient().when(marketDataClientWrapper.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
+      lenient().when(marketDataPort.getFxRate("2024-01-15")).thenReturn(new FxRateDto(purchaseDate, new BigDecimal("1300")));
+      lenient().when(marketDataPort.getFxRate("2024-06-14")).thenReturn(new FxRateDto(saleDate, new BigDecimal("1350")));
+      lenient().when(marketDataPort.getDividendHistory(TEST_SYMBOL, "2024-01-15", "2024-06-14"))
         .thenReturn(List.of(new DividendDto(TEST_SYMBOL, exDate, exDate.plusDays(5), null, new BigDecimal("1.00"), "USD", "test")));
     }
 
@@ -1673,7 +1673,7 @@ class TradingSimulationServiceImplTest {
 
     // 5월 10일만 기간 환율을 바꾼 기록(나머지 날은 1350)
     private void stubMayFx(String rate) {
-      given(marketDataClientWrapper.getBulkFxRates(anyList())).willAnswer(invocation -> {
+      given(marketDataPort.getBulkFxRates(anyList())).willAnswer(invocation -> {
         List<String> dates = invocation.getArgument(0);
         return dates.stream().distinct().collect(Collectors.toMap(date -> date,
           date -> date.equals(may.toString()) ? new BigDecimal(rate) : new BigDecimal("1350")));
@@ -1720,7 +1720,7 @@ class TradingSimulationServiceImplTest {
     @Test
     @DisplayName("기간 환율을 못 받으면 매수일별 수익률만 비고 결과는 그대로 낸다")
     void bulkFxFailureLeavesPurchaseDaysEmpty() {
-      given(marketDataClientWrapper.getBulkFxRates(anyList())).willThrow(new IllegalStateException("fx down"));
+      given(marketDataPort.getBulkFxRates(anyList())).willThrow(new IllegalStateException("fx down"));
 
       SimulationResponse response = runWithFx(null, null);
 
@@ -1754,7 +1754,7 @@ class TradingSimulationServiceImplTest {
     @DisplayName("쓸 수 없는 일봉의 날짜는 매수일별 수익률에서 뺀다")
     void skipsUnusableCandle() {
       LocalDate february = LocalDate.of(2024, 2, 15);
-      given(marketDataClientWrapper.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(
           createOHLCPrice(TEST_SYMBOL, purchaseDate, new BigDecimal("100.00"), true),
           createOHLCPrice(TEST_SYMBOL, february, new BigDecimal("90.00"), false),
