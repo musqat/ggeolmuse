@@ -103,6 +103,38 @@ terraform init -backend=false && terraform validate && terraform test
 - 인라인 정책 가운데 `ggeolmuse-ec2-secrets-read` · `ggeolmuse-db-backup-write` 를 뺀 나머지는 코드에 없다. `aws iam list-role-policies` 로 보고 필요하면 코드로 옮긴다
 - RDS 마스터 비밀번호는 코드 밖이다. 새로 만들 일은 스냅숏 복원이라 비밀번호를 코드에 두지 않는다
 
+## 제공자 잠금 파일
+
+`.terraform.lock.hcl` 이 AWS 제공자 버전(5.100.0)과 해시를 고정한다. CI 는 `-lockfile=readonly` 로 이 버전 그대로 받는다.
+지금 파일에는 linux_amd64 해시만 있다. Windows · macOS 에서 처음 init 하기 전에 한 번 아래를 돌려 해시를 더하고 커밋한다.
+
+```bash
+terraform providers lock -platform=linux_amd64 -platform=windows_amd64 -platform=darwin_arm64
+```
+
+제공자를 올릴 때는 `terraform init -upgrade` 뒤 같은 명령을 다시 돌린다.
+
+## PR 의 읽기 전용 plan
+
+`terraform/` 을 바꾸는 PR 에서 `.github/workflows/terraform-plan.yml` 이 실제 상태로 plan 을 돌리고, 가져오기 · 만들기 · 바꾸기 ·
+지우기 대상 주소만 잡 요약에 남긴다. 값은 공개 로그에 남지 않게 빼고, 상태 잠금은 쓰지 않는다(`-lock=false`).
+
+역할은 `ci-plan-role.tf` 에 있다. GitHub OIDC 로 이 저장소의 `pull_request` 실행만 맡을 수 있고, 권한은 이 루트가 쓰는 서비스의
+Describe · Get · List(계정 전체 자원 대상)와 상태 파일 하나의 읽기다. 시크릿 · 파라미터 · 덤프 버킷 객체는 읽지 못하지만 상태 파일(슬랙 웹훅 평문 포함)은
+읽는다. PR 실행은 PR 브랜치의 워크플로 파일로 돌아, 브랜치를 올릴 수 있는 사람은 워크플로를 고쳐 상태 파일과 `TERRAFORM_TFVARS` 를
+출력할 수 있다. 브랜치 쓰기 권한이 소유자뿐인 저장소를 전제로 한다.
+
+켜는 순서
+
+1. `terraform.tfvars` 에 `ci_plan_role_enabled = true` 를 넣고 apply 한다. 계정에 GitHub OIDC 공급자가 이미 있으면
+   `github_oidc_provider_arn` 에 공급자 ARN 을 넣는다(계정마다 하나)
+2. 저장소 시크릿 둘을 넣는다. `TERRAFORM_PLAN_ROLE_ARN` 은 출력 `ci_plan_role_arn`, `TERRAFORM_TFVARS` 는 `terraform.tfvars` 내용 전체에
+   `TF_VAR_` 로 넣던 값(`slack_webhook_url = "..."`)을 더한 것. 웹훅이 빠지면 잡 요약에 종료 알림(`ec2-stop-alert.tf`) · 사이트 확인(`uptime-check.tf`)
+   자원이 지우기로 나온다
+3. `terraform/` 을 고친 PR 에서 `terraform plan` 잡 요약을 본다
+
+시크릿이 없으면(포크 PR 포함) 잡은 안내 한 줄만 남기고 끝난다.
+
 ## 주의사항
 
 - `terraform.tfvars` 파일은 Git에 커밋하지 마세요 (민감한 정보 포함)

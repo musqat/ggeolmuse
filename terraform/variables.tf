@@ -176,6 +176,26 @@ variable "rds_security_group_ids" {
   default     = null
 }
 
+# --- PR 의 읽기 전용 plan (ci-plan-role.tf) ---
+
+variable "ci_plan_role_enabled" {
+  description = "GitHub Actions 가 맡는 읽기 전용 plan 역할과 OIDC 공급자를 만들지 여부"
+  type        = bool
+  default     = false
+}
+
+variable "github_oidc_provider_arn" {
+  description = "계정에 이미 있는 GitHub OIDC 공급자 ARN. 비우면 새로 만든다"
+  type        = string
+  default     = ""
+}
+
+variable "github_repository" {
+  description = "plan 역할을 맡을 수 있는 GitHub 저장소 (소유자/이름)"
+  type        = string
+  default     = "musqat/ggeolmuse"
+}
+
 # --- EC2 스케줄러 ---
 
 variable "scheduler_enabled" {

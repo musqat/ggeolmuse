@@ -67,3 +67,8 @@ output "db_backup_role_name" {
   description = "S3 쓰기 정책이 있는 EC2 노드 역할"
   value       = aws_iam_role.node.name
 }
+
+output "ci_plan_role_arn" {
+  description = "PR 의 읽기 전용 plan 이 맡는 역할 ARN(저장소 시크릿 TERRAFORM_PLAN_ROLE_ARN 에 넣음). 꺼져 있으면 빈 값"
+  value       = var.ci_plan_role_enabled ? aws_iam_role.ci_plan[0].arn : ""
+}
