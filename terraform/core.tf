@@ -8,7 +8,7 @@ locals {
     ManagedBy   = "terraform"
   }
 
-  # 노드 역할의 시크릿 읽기(이름 뒤 ?????? 는 Secrets Manager 가 더하는 6자)
+  # 노드 역할의 시크릿 읽기(External Secrets 가 씀, 이름 뒤 ?????? 는 Secrets Manager 가 더하는 6자)
   node_secrets_read_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -29,12 +29,13 @@ locals {
   })
 
   rds_required = {
-    rds_allocated_storage   = var.rds_allocated_storage
-    rds_storage_type        = var.rds_storage_type
-    rds_storage_encrypted   = var.rds_storage_encrypted
-    rds_publicly_accessible = var.rds_publicly_accessible
-    rds_subnet_group_name   = var.rds_subnet_group_name
-    rds_security_group_ids  = var.rds_security_group_ids
+    rds_allocated_storage    = var.rds_allocated_storage
+    rds_storage_type         = var.rds_storage_type
+    rds_storage_encrypted    = var.rds_storage_encrypted
+    rds_publicly_accessible  = var.rds_publicly_accessible
+    rds_subnet_group_name    = var.rds_subnet_group_name
+    rds_security_group_ids   = var.rds_security_group_ids
+    rds_parameter_group_name = var.rds_parameter_group_name
   }
 }
 
@@ -48,7 +49,7 @@ resource "aws_instance" "app" {
   vpc_security_group_ids = concat([aws_security_group.app.id], var.ec2_extra_security_group_ids)
   iam_instance_profile   = aws_iam_instance_profile.node.name
 
-  # IMDSv2 만(파드에서 노드 역할을 쓰게 hop 2)
+  # IMDSv2 만(파드의 External Secrets · db-backup 이 노드 역할을 쓰게 hop 2)
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
@@ -115,7 +116,7 @@ resource "aws_security_group" "app" {
   }
 }
 
-# --- 노드 역할 · 인스턴스 프로파일(EC2 에 연결된 것) ---
+# --- 노드 역할 · 인스턴스 프로파일(콘솔에서 만들어 EC2 에 연결된 것) ---
 
 resource "aws_iam_role" "node" {
   name = var.node_role_name
@@ -179,13 +180,24 @@ resource "aws_db_instance" "postgres" {
   publicly_accessible    = var.rds_publicly_accessible
   db_subnet_group_name   = var.rds_subnet_group_name
   vpc_security_group_ids = var.rds_security_group_ids
+  parameter_group_name   = var.rds_parameter_group_name
+
+  # 시점 복원용 자동 백업
+  backup_retention_period = var.rds_backup_retention_days
+  backup_window           = var.rds_backup_window
+
+  # 지우려면 삭제 보호부터 끄고, 지울 때도 최종 스냅숏 · 자동 백업을 남김
+  deletion_protection       = true
+  skip_final_snapshot       = false
+  final_snapshot_identifier = "${var.rds_instance_id}-final"
+  delete_automated_backups  = false
 
   tags = merge(local.core_tags, { Name = var.rds_instance_id })
 
-  # 마스터 비밀번호는 코드 밖, 삭제 보호는 운영 값 그대로
+  # 마스터 비밀번호는 코드 밖
   lifecycle {
     prevent_destroy = true
-    ignore_changes  = [password, deletion_protection]
+    ignore_changes  = [password]
 
     precondition {
       condition     = alltrue([for v in values(local.rds_required) : v != null])

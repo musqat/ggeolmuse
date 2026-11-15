@@ -1,4 +1,4 @@
-// db-check 는 운영 DB 를 읽기 전용 백업 계정으로 쿼리하는 임시 파드를 만들고 숫자 결과만 출력한다
+// db-check 는 운영 DB 를 읽기 전용 백업 계정으로 쿼리하는 임시 파드를 만들어 숫자 결과만 출력하고, -restore 면 덤프를 로컬 임시 DB 에 복원해 테이블마다 행 수를 대조한다
 package main
 
 import (
@@ -56,7 +56,12 @@ func main() {
 	namespace := flag.String("namespace", "default", "네임스페이스")
 	timeout := flag.Duration("timeout", 3*time.Minute, "파드가 끝날 때까지 기다리는 시간")
 	renderOnly := flag.Bool("render", false, "클러스터에 만들지 않고 매니페스트만 출력")
+	restore := flag.Bool("restore", false, "명령 뒤에 적은 덤프 파일을 로컬 임시 DB 에 복원해 테이블마다 행 수 대조")
+	image := flag.String("image", "postgres:15-alpine", "-restore 의 임시 DB 이미지(덤프를 만든 pg_dump 이상)")
 	flag.Parse()
+	if *restore {
+		os.Exit(restoreMain(*image, flag.Args()))
+	}
 	checks, err := parseArgs(flag.Args())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -85,6 +90,34 @@ func main() {
 	cancel()
 	stop()
 	os.Exit(code)
+}
+
+// restoreMain 은 덤프 확인 → 임시 DB 띄우기 → 복원 · 대조 → 컨테이너 지우기
+func restoreMain(image string, dumps []string) int {
+	if len(dumps) == 0 {
+		fmt.Fprintln(os.Stderr, "사용: db-check -restore [-image postgres:15-alpine] <덤프>...  (<DB>-<시각>.dump)")
+		return 2
+	}
+	if _, err := planRestore(dumps); err != nil {
+		fmt.Println("FAIL ", err)
+		return 2
+	}
+	for _, d := range dumps {
+		if _, err := os.Stat(d); err != nil {
+			fmt.Println("FAIL ", err)
+			return 2
+		}
+	}
+	// Ctrl+C 도 복원을 멈추고 컨테이너를 지움
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	s, err := startScratch(ctx, fmt.Sprintf("db-check-restore-%d", time.Now().Unix()), image, runDocker)
+	if err != nil {
+		fmt.Println("FAIL ", err)
+		return 1
+	}
+	defer s.close()
+	return runRestore(ctx, s, dumps, os.Stdout)
 }
 
 // parseArgs 는 <DB> <쿼리> 쌍

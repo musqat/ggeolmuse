@@ -30,7 +30,16 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "db_backup" {
   }
 }
 
-# 보존 400일(월 1회 덤프라 13개쯤), 실패한 멀티파트 조각은 하루 뒤 정리
+# 같은 키로 덮어써도 옛 덤프가 옛 버전으로 남음
+resource "aws_s3_bucket_versioning" "db_backup" {
+  bucket = aws_s3_bucket.db_backup.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+# 보존 400일(월 1회 덤프라 13개쯤), 덮어쓰이거나 만료된 옛 버전은 30일 뒤, 실패한 멀티파트 조각은 하루 뒤 정리
 resource "aws_s3_bucket_lifecycle_configuration" "db_backup" {
   bucket = aws_s3_bucket.db_backup.id
 
@@ -44,13 +53,31 @@ resource "aws_s3_bucket_lifecycle_configuration" "db_backup" {
       days = var.db_backup_retention_days
     }
 
+    noncurrent_version_expiration {
+      noncurrent_days = var.db_backup_noncurrent_days
+    }
+
     abort_incomplete_multipart_upload {
       days_after_initiation = 1
     }
   }
+
+  # 옛 버전이 다 지워진 뒤 남는 삭제 표시
+  rule {
+    id     = "remove-delete-markers"
+    status = "Enabled"
+
+    filter {}
+
+    expiration {
+      expired_object_delete_marker = true
+    }
+  }
+
+  depends_on = [aws_s3_bucket_versioning.db_backup]
 }
 
-# 쓰기만(읽기 · 삭제는 노트북 자격증명, 파드 권한을 뺏겨도 기존 덤프는 못 읽고 못 지움)
+# 쓰기만(읽기 · 삭제는 노트북 자격증명, 파드 권한을 뺏겨도 기존 덤프는 못 읽고 덮어써도 옛 버전이 남음)
 resource "aws_iam_role_policy" "db_backup_write" {
   name = "${var.project_name}-db-backup-write"
   role = aws_iam_role.node.name
