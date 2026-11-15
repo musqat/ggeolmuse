@@ -1,14 +1,6 @@
 # DB 논리 백업(k8s CronJob 이 매달 pg_dump)을 받는 S3 버킷과 EC2 쪽 쓰기 권한
 # CronJob 은 helm/ggeolmuse 의 dbBackup 으로 켜고, 파드는 IMDSv2 로 인스턴스 역할 자격증명을 받아 올림
 
-data "aws_instance" "ggeolmuse" {
-  instance_id = var.ec2_instance_id
-}
-
-data "aws_iam_instance_profile" "ggeolmuse" {
-  name = data.aws_instance.ggeolmuse.iam_instance_profile
-}
-
 resource "aws_s3_bucket" "db_backup" {
   bucket = var.db_backup_bucket_name
 
@@ -61,7 +53,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "db_backup" {
 # 쓰기만(읽기 · 삭제는 노트북 자격증명, 파드 권한을 뺏겨도 기존 덤프는 못 읽고 못 지움)
 resource "aws_iam_role_policy" "db_backup_write" {
   name = "${var.project_name}-db-backup-write"
-  role = data.aws_iam_instance_profile.ggeolmuse.role_name
+  role = aws_iam_role.node.name
 
   policy = jsonencode({
     Version = "2012-10-17"

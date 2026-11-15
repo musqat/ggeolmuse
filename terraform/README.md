@@ -20,7 +20,7 @@ aws ec2 describe-instances --filters "Name=tag:Name,Values=ggeolmuse" --query 'R
 
 ```bash
 cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your EC2 instance ID
+# 값은 아래 "운영 자원 가져오기" 의 표
 ```
 
 ### 3. Terraform 초기화
@@ -43,9 +43,12 @@ terraform apply
 
 ## 관리되는 리소스
 
-- IAM Role: `ggeolmuse-ec2-secrets-role` — 시크릿 두 개(`node_secret_names`) 읽기만
-- IAM Instance Profile: `ggeolmuse-ec2-profile`
-- Instance Profile Association: EC2 인스턴스에 IAM Role 부착
+- 운영 핵심 자원 (`core.tf`, 가져오는 블록은 `imports.tf`)
+  - EC2 `ggeolmuse`(t3a.xlarge, IMDSv2 만 · hop 2)와 보안 그룹 `ggeolmuse-sg`(443 은 접두사 목록 `cloudflare-ipv4` 만)
+  - 노드 역할 · 인스턴스 프로파일 `ggeolmuse-ec2-role`(콘솔에서 만들어 EC2 에 연결된 것), 관리 정책 목록 전체와 시크릿 두 개 읽기
+  - RDS `rds_instance_id`(PostgreSQL 15 · db.t3.micro · Single-AZ)
+  - 상태 버킷 `ggeolmuse-tfstate-apne2`(버전 관리 · SSE-S3 · 퍼블릭 차단)
+  - 모두 `prevent_destroy` 라 plan 이 교체 · 삭제를 잡으면 오류로 멈춘다
 - EventBridge 스케줄러: EC2 / RDS 평일 시작·중지 (`scheduler.tf`, `rds-scheduler.tf`)
 - CloudWatch 알람 + SNS 이메일: 스케줄 실패 감지 (`monitoring.tf`)
 - EventBridge 규칙 + API Destination: EC2 가 멈추면 슬랙에 `down` 한 줄 (`ec2-stop-alert.tf`). `slack_webhook_url` 이 비면
@@ -67,10 +70,75 @@ terraform apply
 terraform init -backend=false && terraform validate && terraform test
 ```
 
+## 운영 자원 가져오기
+
+콘솔에서 만든 EC2 · 보안 그룹 · 노드 역할 · RDS · 상태 버킷을 `imports.tf` 의 import 블록으로 상태에 넣는다. 한 번 가져온
+자원의 import 블록은 아무 일도 하지 않는다.
+
+1. 아래 표의 값을 `terraform.tfvars` 에 채운다. 교체가 걸린 값은 plan 전에 명령으로 확인한다
+2. `terraform plan` 을 본다. 교체가 잡히면 `prevent_destroy` 오류로 멈추므로 표에서 "다르면 교체" 인 값을 다시 본다
+3. 바꾸겠다고 나온 값은 실제 값을 tfvars(변수가 없으면 코드)로 옮긴다. 남는 것이 import 와 태그 더하기 · 노드 역할의 시크릿 읽기
+   정책 하나 · 연결 안 된 옛 역할 `ggeolmuse-ec2-secrets-role` · 프로파일 `ggeolmuse-ec2-profile` · 옛 역할의 정책 지우기 셋일 때 `terraform apply`
+4. 다시 `terraform plan` 이 `No changes.` 인지 본다
+
+| 변수 | 다르면 | 확인 명령 |
+|---|---|---|
+| `ec2_ami_id` · `ec2_subnet_id` · `ec2_key_name` | 서브넷만 교체(AMI · 키는 무시) | `aws ec2 describe-instances --instance-ids <ID> --query 'Reservations[0].Instances[0].[ImageId,SubnetId,KeyName,VpcId,InstanceType,SecurityGroups[].GroupId]' --output text` |
+| `ec2_instance_type` | apply 가 노드를 멈췄다 다시 켬 | 위 명령의 `InstanceType` |
+| `ec2_extra_security_group_ids` | 목록에 없는 그룹을 EC2 에서 뺌 | 위 명령의 보안 그룹 가운데 `ggeolmuse-sg` 를 뺀 나머지 |
+| `ec2_root_volume_size` · `ec2_root_volume_type` | 교체 없이 바뀜(크기는 줄일 수 없음) | `aws ec2 describe-volumes --filters Name=attachment.instance-id,Values=<ID> --query 'Volumes[].[Size,VolumeType]' --output text` |
+| `ec2_security_group_id` · `ec2_security_group_description` · `vpc_id` | 설명 · VPC 는 교체 | `aws ec2 describe-security-groups --filters Name=group-name,Values=ggeolmuse-sg --query 'SecurityGroups[0].[GroupId,Description,VpcId]' --output text` |
+| `ec2_extra_ingress` · `cloudflare_rule_description` | 규칙을 지우고 다시 만듦 | 위 명령의 `--query 'SecurityGroups[0].IpPermissions'` |
+| `node_role_policy_arns` | 목록에 없는 관리 정책을 역할에서 뺌 | `aws iam list-attached-role-policies --role-name ggeolmuse-ec2-role --query 'AttachedPolicies[].PolicyArn'` |
+| `node_role_name` · `node_instance_profile_name` | EC2 에 연결되지 않은 역할을 가져옴 | `aws iam get-instance-profile --instance-profile-name ggeolmuse-ec2-role --query 'InstanceProfile.Roles[].RoleName'` |
+| `rds_*` | 암호화 · 사용자 이름은 교체, 나머지는 교체 없이 바뀜 | `aws rds describe-db-instances --db-instance-identifier ggeolmuse-postgres --query 'DBInstances[0].[AllocatedStorage,StorageType,StorageEncrypted,PubliclyAccessible,DBSubnetGroup.DBSubnetGroupName,VpcSecurityGroups[].VpcSecurityGroupId]'` |
+
+- `node_role_policy_arns` 는 처음에는 지금 목록 그대로 둔다. 시크릿 읽기는 인라인 정책으로 따로 들어가므로, 넓은 관리 정책
+  (`SecretsManagerReadWrite` 등)은 apply 뒤 ExternalSecret 이 `SecretSynced` 인 것을 보고 목록에서 뺀다
+- RDS 보안 그룹의 인바운드가 출발지로 가리키는 그룹은 `aws ec2 describe-security-groups --group-ids <rds_security_group_ids>
+  --query 'SecurityGroups[].IpPermissions[].UserIdGroupPairs[].GroupId' --output text` 로 본다. 출발지 그룹이 EC2 에 달려 있는데
+  `ec2_extra_security_group_ids` 에 없으면 apply 가 EC2 에서 빼 노드에서 RDS 5432 로 가는 연결이 거부된다
+- 옛 역할 · 프로파일을 지우기 전에 `aws ec2 describe-iam-instance-profile-associations --query
+  'IamInstanceProfileAssociations[].IamInstanceProfile.Arn' --output text` 에 `ggeolmuse-ec2-profile` 이 없는지 본다
+- 인라인 정책 가운데 `ggeolmuse-ec2-secrets-read` · `ggeolmuse-db-backup-write` 를 뺀 나머지는 코드에 없다. `aws iam list-role-policies` 로 보고 필요하면 코드로 옮긴다
+- RDS 마스터 비밀번호는 코드 밖이다. 새로 만들 일은 스냅숏 복원이라 비밀번호를 코드에 두지 않는다
+
+## 제공자 잠금 파일
+
+`.terraform.lock.hcl` 이 AWS 제공자 버전(5.100.0)과 해시를 고정한다. CI 는 `-lockfile=readonly` 로 이 버전 그대로 받는다.
+지금 파일에는 linux_amd64 해시만 있다. Windows · macOS 에서 처음 init 하기 전에 한 번 아래를 돌려 해시를 더하고 커밋한다.
+
+```bash
+terraform providers lock -platform=linux_amd64 -platform=windows_amd64 -platform=darwin_arm64
+```
+
+제공자를 올릴 때는 `terraform init -upgrade` 뒤 같은 명령을 다시 돌린다.
+
+## PR 의 읽기 전용 plan
+
+`terraform/` 을 바꾸는 PR 에서 `.github/workflows/terraform-plan.yml` 이 실제 상태로 plan 을 돌리고, 가져오기 · 만들기 · 바꾸기 ·
+지우기 대상 주소만 잡 요약에 남긴다. 값은 공개 로그에 남지 않게 빼고, 상태 잠금은 쓰지 않는다(`-lock=false`).
+
+역할은 `ci-plan-role.tf` 에 있다. GitHub OIDC 로 이 저장소의 `pull_request` 실행만 맡을 수 있고, 권한은 이 루트가 쓰는 서비스의
+Describe · Get · List(계정 전체 자원 대상)와 상태 파일 하나의 읽기다. 시크릿 · 파라미터 · 덤프 버킷 객체는 읽지 못하지만 상태 파일(슬랙 웹훅 평문 포함)은
+읽는다. PR 실행은 PR 브랜치의 워크플로 파일로 돌아, 브랜치를 올릴 수 있는 사람은 워크플로를 고쳐 상태 파일과 `TERRAFORM_TFVARS` 를
+출력할 수 있다. 브랜치 쓰기 권한이 소유자뿐인 저장소를 전제로 한다.
+
+켜는 순서
+
+1. `terraform.tfvars` 에 `ci_plan_role_enabled = true` 를 넣고 apply 한다. 계정에 GitHub OIDC 공급자가 이미 있으면
+   `github_oidc_provider_arn` 에 공급자 ARN 을 넣는다(계정마다 하나)
+2. 저장소 시크릿 둘을 넣는다. `TERRAFORM_PLAN_ROLE_ARN` 은 출력 `ci_plan_role_arn`, `TERRAFORM_TFVARS` 는 `terraform.tfvars` 내용 전체에
+   `TF_VAR_` 로 넣던 값(`slack_webhook_url = "..."`)을 더한 것. 웹훅이 빠지면 잡 요약에 종료 알림(`ec2-stop-alert.tf`) · 사이트 확인(`uptime-check.tf`)
+   자원이 지우기로 나온다
+3. `terraform/` 을 고친 PR 에서 `terraform plan` 잡 요약을 본다
+
+시크릿이 없으면(포크 PR 포함) 잡은 안내 한 줄만 남기고 끝난다.
+
 ## 주의사항
 
 - `terraform.tfvars` 파일은 Git에 커밋하지 마세요 (민감한 정보 포함)
 - Production 환경에서는 반드시 `terraform plan`으로 변경사항을 확인한 후 apply하세요
 - Terraform state 는 S3 `ggeolmuse-tfstate-apne2` 에 있다 (2026-09-08). 어느 기계에서든 `terraform init` 후 바로 쓴다
 - `slack_webhook_url` 은 state 에 평문으로 남는다(버킷은 암호화)
-- EC2 에 실제로 연결된 인스턴스 프로파일은 콘솔에서 만든 `ggeolmuse-ec2-role` 이다. 이 저장소의 `ggeolmuse-ec2-profile` 은 만들어져 있지만 연결돼 있지 않다. `db-backup.tf` 는 그래서 인스턴스에서 역할을 따라간다
+- EC2 에 실제로 연결된 인스턴스 프로파일은 콘솔에서 만든 `ggeolmuse-ec2-role` 이다. 이 프로파일과 역할을 가져와 덤프 쓰기 · 시크릿 읽기 정책을 둔다

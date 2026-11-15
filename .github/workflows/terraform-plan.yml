@@ -1,0 +1,78 @@
+name: terraform plan
+# 운영 terraform 을 바꾸는 PR 에 실제 상태 대상 읽기 전용 plan(역할은 terraform/ci-plan-role.tf)
+on:
+  pull_request:
+    paths:
+      - terraform/**
+      - .github/workflows/terraform-plan.yml
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: terraform-plan-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: terraform
+    env:
+      ROLE_ARN: ${{ secrets.TERRAFORM_PLAN_ROLE_ARN }}
+      TFVARS: ${{ secrets.TERRAFORM_TFVARS }}
+    steps:
+      # 역할 · 변수 시크릿이 없으면(포크 PR 포함) 나머지 단계를 건너뜀
+      - name: 시크릿 확인
+        id: secrets
+        working-directory: .
+        run: |
+          if [ -n "$ROLE_ARN" ] && [ -n "$TFVARS" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::TERRAFORM_PLAN_ROLE_ARN · TERRAFORM_TFVARS 시크릿이 없어 plan 을 건너뜀"
+          fi
+
+      - uses: actions/checkout@v7
+        if: steps.secrets.outputs.ready == 'true'
+
+      - uses: aws-actions/configure-aws-credentials@v5
+        if: steps.secrets.outputs.ready == 'true'
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          role-session-name: terraform-plan-${{ github.run_id }}
+          aws-region: ap-northeast-2
+
+      - uses: hashicorp/setup-terraform@v4
+        if: steps.secrets.outputs.ready == 'true'
+        with:
+          terraform_version: 1.10.5
+          terraform_wrapper: false
+
+      # 잠금 파일에 적힌 제공자 버전 그대로, 상태 잠금은 쓰지 않음(역할에 쓰기 권한 없음)
+      - name: plan
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          printf '%s\n' "$TFVARS" > terraform.tfvars
+          terraform init -input=false -lockfile=readonly
+          terraform plan -input=false -lock=false -no-color -out=tfplan > /dev/null
+
+      # 공개 로그라 값은 빼고 동작 · 주소만 잡 요약에
+      - name: 요약
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          terraform show -json tfplan > plan.json
+          {
+            echo "### terraform plan"
+            echo
+            jq -r '
+              [.resource_changes[]
+                | select(.change.actions != ["no-op"] or .change.importing != null)
+                | ((if .change.importing != null then "import " else "" end) + (.change.actions | join("+"))) as $a
+                | "- `\($a)` \(.address)"]
+              | if length == 0 then "바뀌는 것 없음" else .[] end' plan.json
+          } >> "$GITHUB_STEP_SUMMARY"
+          rm -f plan.json tfplan terraform.tfvars
