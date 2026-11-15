@@ -11,7 +11,7 @@ CI · 릴리스 · 운영 확인에 쓰는 Go 명령이다.
 | `cmd/chat-coverage` | chat 테스트의 줄 · 분기 커버리지를 최소치와 비교하고 표를 잡 요약에 남긴다 |
 | `cmd/image-check` | 렌더한 이미지 태그가 Docker Hub 에 있는지 본다 |
 | `cmd/rollout-check` | Deployment 마다 이미지 태그 · 준비 · 재시작 수를 보고 운영 값 파일의 태그와 대조한다. `-argocd` 를 주면 클러스터 대신 ArgoCD API 로 반영 · 상태를 기다린 뒤 공개 주소에 스모크 요청 한 번(운영 시간 밖 안내면 건너뜀, 뒤 릴리스가 태그를 바꿨으면 그 태그로 통과, 릴리스 끝에서 씀) |
-| `cmd/db-check` | 읽기 전용 계정으로 임시 파드를 띄워 운영 DB 쿼리 결과(숫자)만 받는다 |
+| `cmd/db-check` | 읽기 전용 계정으로 임시 파드를 띄워 운영 DB 쿼리 결과(숫자)만 받는다. `-restore` 를 주면 S3 에서 받은 덤프를 로컬 임시 Postgres 컨테이너(네트워크 없음)에 복원해 테이블마다 덤프 · 복원 행 수를 대조하고 복원 시간을 낸다 |
 | `internal/release` | 봇 커밋 제목 만들기 · 읽기 |
 | `internal/values` | 값 파일 읽기 · 쓰기 |
 | `internal/kube` | kubeconfig 로 클러스터 클라이언트 만들기 |
@@ -30,4 +30,5 @@ go run ./cmd/rollout-check -values ../helm/ggeolmuse/values-prod.yaml
 ARGOCD_TOKEN=... CF_ACCESS_CLIENT_ID=... CF_ACCESS_CLIENT_SECRET=... go run ./cmd/rollout-check -values ../helm/ggeolmuse/values-prod.yaml -only backtest-service -argocd https://argocd.ggeolmuse.com -site https://ggeolmuse.com -wait 20m
 go run ./cmd/db-check trade 'SELECT count(*) FROM trades'
 go run ./cmd/db-check -render trade 'SELECT count(*) FROM trades' > /tmp/db-check.yaml
+go run ./cmd/db-check -restore ~/ggeolmuse-dumps/*.dump
 ```
