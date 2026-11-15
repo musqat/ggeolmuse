@@ -21,4 +21,6 @@ export const CHART_COLORS = [
   '#ec4899', // pink
   '#14b8a6', // teal
   '#f97316', // orange
+  '#0891b2', // cyan
+  '#9a7b4f', // brown
 ];

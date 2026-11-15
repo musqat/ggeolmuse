@@ -1,6 +1,6 @@
 import React, { useId, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
-import { COMPARISON_STRATEGIES, strategyByType } from '../comparison/catalog';
+import { COMPARISON_STRATEGIES, MAX_COMPARISON_STRATEGIES, strategyByType } from '../comparison/catalog';
 import type { ComparisonStrategyType } from '../comparison/types';
 import { SymbolField, type SymbolFieldProps } from '../settings/SymbolFields';
 import { PeriodField, type PeriodFieldProps } from '../settings/PeriodField';
@@ -57,6 +57,7 @@ export const StrategyComparisonForm: React.FC<StrategyComparisonFormProps> = ({
   const hasSimple = chips.some((chip) => chip.type === 'SIMPLE');
   // 둘 미만이면 첫 더하기 단추가 고칠 칸
   const tooFew = chips.length < 2;
+  const full = chips.length >= MAX_COMPARISON_STRATEGIES;
   const groupRef = useRef<HTMLDivElement>(null);
 
   // 그린 뒤 그 칩의 첫 단추(없으면 첫 더하기 단추)로 포커스
@@ -139,7 +140,8 @@ export const StrategyComparisonForm: React.FC<StrategyComparisonFormProps> = ({
               </span>
             );
           })}
-          {COMPARISON_STRATEGIES.filter(({ type }) => type !== 'SIMPLE' || !hasSimple).map(({ type, name }, index) => (
+          {full && <span className="px-1.5 text-[13px] text-tx-3">{`최대 ${MAX_COMPARISON_STRATEGIES}개`}</span>}
+          {!full && COMPARISON_STRATEGIES.filter(({ type }) => type !== 'SIMPLE' || !hasSimple).map(({ type, name }, index) => (
             <button
               key={type}
               type="button"

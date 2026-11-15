@@ -82,11 +82,10 @@ public class PortfolioController {
     @Parameter(description = "JWT 토큰에서 추출되는 사용자 ID", hidden = true)
     @AuthenticationPrincipal Jwt jwt,
     @Parameter(description = "계좌 ID", required = true, example = "1")
-    @PathVariable("accountId") String accountId) {
+    @PathVariable("accountId") Long accountId) {
 
     String userId = jwt.getSubject();
-    List<HoldingResponseDto> holdings = holdingsService.getPortfolio(userId,
-      Long.valueOf(accountId));
+    List<HoldingResponseDto> holdings = holdingsService.getPortfolio(userId, accountId);
     log.debug("포트폴리오 응답: accountId={}, holdings={}, firstHolding={}",
       accountId, holdings.size(),
       holdings.isEmpty() ? "none" : String.format("symbol=%s,currentPrice=%s",
@@ -134,13 +133,13 @@ public class PortfolioController {
     @Parameter(description = "JWT 토큰에서 추출되는 사용자 ID", hidden = true)
     @AuthenticationPrincipal Jwt jwt,
     @Parameter(description = "계좌 ID", required = true, example = "1")
-    @PathVariable("accountId") String accountId,
+    @PathVariable("accountId") Long accountId,
     @Parameter(description = "종목 코드", required = true, example = "AAPL")
     @PathVariable("symbol") String symbol) {
 
     String userId = jwt.getSubject();
 
-    HoldingResponseDto holding = holdingsService.getHoldingBySymbol(userId, Long.valueOf(accountId),
+    HoldingResponseDto holding = holdingsService.getHoldingBySymbol(userId, accountId,
       symbol);
 
     if (holding == null) {

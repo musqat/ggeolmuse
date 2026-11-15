@@ -44,6 +44,7 @@ public enum BacktestResponse implements ErrorCode {
   INVALID_PORTFOLIO("종목은 1 ~ 10개, 같은 종목은 한 번만 넣어 주세요.", HttpStatus.BAD_REQUEST),
   INVALID_PORTFOLIO_AMOUNT("금액 방식은 줄마다 0보다 큰 원 단위 금액을, 비율 방식은 원 단위 총액과 줄마다 0보다 크고 합이 100% 인 비율을 넣어 주세요.", HttpStatus.BAD_REQUEST),
   INVALID_TAX_SALE("직접 순서는 종목마다 1 ~ 종목 수의 서로 다른 순서를 넣어 주세요.", HttpStatus.BAD_REQUEST),
+  TOO_MANY_ROUNDS("적립 · 매수 회차가 너무 많습니다. 기간을 줄이거나 주기를 늘려 주세요.", HttpStatus.BAD_REQUEST),
 
 
 
@@ -63,6 +64,9 @@ public enum BacktestResponse implements ErrorCode {
   INVALID_PRICE_DATA("유효하지 않은 가격 데이터입니다.", HttpStatus.UNPROCESSABLE_ENTITY),
   MISSING_DIVIDEND_DATA("배당 데이터가 누락되었습니다.", HttpStatus.UNPROCESSABLE_ENTITY),
   INVALID_FX_RATE_DATA("유효하지 않은 환율 데이터입니다.", HttpStatus.UNPROCESSABLE_ENTITY),
+
+  // === 요청 과다 (429) ===
+  TOO_MANY_BACKTESTS("동시에 실행 중인 백테스트가 많습니다. 잠시 뒤 다시 실행해 주세요.", HttpStatus.TOO_MANY_REQUESTS),
 
   // === 외부 서비스 오류 (502, 503) ===
   MARKET_DATA_SERVICE_ERROR("시장 데이터 서비스에 오류가 발생했습니다.", HttpStatus.BAD_GATEWAY),

@@ -1,5 +1,6 @@
 package com.muscat.marketdata.api.controller;
 
+import com.muscat.commonlib.constants.CommonConstants;
 import com.muscat.marketdata.datasource.yf.collector.SymbolCollector;
 import com.muscat.marketdata.domain.dto.AssetSummaryDto;
 import com.muscat.marketdata.domain.dto.admin.AssetResponse;
@@ -20,6 +21,8 @@ import com.muscat.marketdata.domain.service.AssetService;
 import com.muscat.marketdata.domain.service.CandleRefreshService;
 import com.muscat.marketdata.domain.service.FxCollectionService;
 import com.muscat.marketdata.domain.service.UnadjustedScanService;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -29,6 +32,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -40,6 +44,7 @@ import java.util.Locale;
 @RestController
 @RequestMapping("/api/admin/market")
 @RequiredArgsConstructor
+@Validated
 public class AdminMarketController {
 
     private final AssetService assetService;
@@ -69,8 +74,8 @@ public class AdminMarketController {
 
     @GetMapping("/assets/summary")
     public ResponseEntity<PageResponse<AssetSummaryDto>> getAllAssetSummaries(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(CommonConstants.MAX_PAGE_SIZE) int size,
             @RequestParam(defaultValue = "symbol") String sortBy,
             @RequestParam(defaultValue = "asc") String direction,
             @RequestParam(defaultValue = "true") boolean active) {

@@ -14,6 +14,8 @@ export const COMPARISON_STRATEGIES: ComparisonStrategyDef[] = [
   maBandStrategy,
 ];
 
+export const MAX_COMPARISON_STRATEGIES = 10;
+
 export const strategyByType = (type: ComparisonStrategyType): ComparisonStrategyDef => {
   const def = COMPARISON_STRATEGIES.find((s) => s.type === type);
   if (!def) throw new Error(`알 수 없는 전략: ${type}`);

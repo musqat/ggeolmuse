@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.muscat.backtest.common.enums.response.BacktestResponse;
+import com.muscat.backtest.common.enums.type.DcaFrequency;
 import com.muscat.backtest.common.enums.type.PortfolioAllocation;
 import com.muscat.backtest.common.enums.type.PortfolioMethod;
 import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
@@ -234,6 +235,16 @@ class PortfolioRequestValidatorTest {
     @DisplayName("적립식 첫 매수일이 기간 밖이면 INVALID_FIRST_PURCHASE_DATE")
     void firstPurchaseDate() {
       assertCode(dca().firstPurchaseDate(END.plusDays(1)).build(), BacktestResponse.INVALID_FIRST_PURCHASE_DATE);
+    }
+
+    @Test
+    @DisplayName("적립식 회차가 상한을 넘으면 TOO_MANY_ROUNDS, 한 번에 사기는 기간이 길어도 통과")
+    void tooManyRounds() {
+      LocalDate from = LocalDate.of(1990, 1, 1);
+
+      assertCode(dca().startDate(from).frequency(DcaFrequency.DAILY).build(), BacktestResponse.TOO_MANY_ROUNDS);
+      assertThatCode(() -> PortfolioRequestValidator.validate(request(amount("SPY", "100000")).startDate(from)
+        .frequency(DcaFrequency.DAILY).build())).doesNotThrowAnyException();
     }
 
     @Test

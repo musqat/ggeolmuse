@@ -27,6 +27,18 @@ export function getTodayString(): string {
   return toLocalDateString(new Date());
 }
 
+/** 한국 시각 기준 오늘 YYYY-MM-DD */
+export function getSeoulTodayString(): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value;
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
 export function getDateRangeForTimeframe(
   timeframe: Timeframe,
   customStartDate?: string,

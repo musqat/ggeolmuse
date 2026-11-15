@@ -37,6 +37,8 @@ export interface ComparisonStrategyDef {
   toRequest: (params: StrategyParams, common: ComparisonCommon) => StrategyParameter;
   // 검사를 통과한 값의 요약
   summary: (params: StrategyParams, common: ComparisonCommon) => StrategySummary;
+  // 칩 합에 쓸 회차 × 기간 평일 수(회차 일정이 없는 전략은 없음)
+  load?: (params: StrategyParams, common: ComparisonCommon) => number;
   // 설정할 칸이 없는 전략은 없음
   Fields?: FC<StrategyFieldsProps>;
 }

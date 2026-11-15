@@ -81,6 +81,13 @@ describe('StrategyComparisonForm', () => {
     rest.forEach((button) => expect(button).not.toHaveAttribute('data-bad'))
   })
 
+  it('칩이 10개면 ＋ 단추 없이 최대 10개 표시', () => {
+    renderForm({ chips: Array.from({ length: 10 }, (_, i) => chip(`s${i + 1}`, 'DCA', `적립식 ${i + 1}`)) })
+
+    expect(chips().queryAllByRole('button', { name: /^＋/ })).toHaveLength(0)
+    expect(chips().getByText('최대 10개')).toBeInTheDocument()
+  })
+
   it('칩이 둘 이상이면 ＋ 단추는 고칠 칸이 아니다', () => {
     renderForm()
 

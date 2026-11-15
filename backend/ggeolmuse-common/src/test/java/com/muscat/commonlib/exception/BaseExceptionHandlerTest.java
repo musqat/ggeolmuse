@@ -3,6 +3,12 @@ package com.muscat.commonlib.exception;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validation;
+import jakarta.validation.ValidatorFactory;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.Objects;
 import org.junit.jupiter.api.DisplayName;
@@ -159,6 +165,39 @@ class BaseExceptionHandlerTest {
       assertThat(Objects.requireNonNull(resolver.resolveMethod(exception)).getName())
         .as(exception.getClass().getSimpleName())
         .isEqualTo(method));
+  }
+
+  // 컨트롤러 @Validated 와 같은 모양의 쿼리 파라미터 검사
+  @SuppressWarnings("unused")
+  static class SampleController {
+    void list(@Min(0) int page, @Min(1) @Max(100) int size) {
+    }
+  }
+
+  private static ConstraintViolationException violations(int page, int size) throws NoSuchMethodException {
+    Method method = SampleController.class.getDeclaredMethod("list", int.class, int.class);
+    try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
+      return new ConstraintViolationException(factory.getValidator().forExecutables()
+        .validateParameters(new SampleController(), method, new Object[] {page, size}));
+    }
+  }
+
+  @Test
+  @DisplayName("경로 변수 · 쿼리 파라미터 검증 실패는 서비스의 500 처리기가 있어도 400 이고 걸린 파라미터 수만큼 이름을 싣는다")
+  void constraintViolation_BadRequest() throws Exception {
+    ConstraintViolationException violation = violations(-1, 10_000);
+    Method method = Objects.requireNonNull(new ExceptionHandlerMethodResolver(CatchAllHandler.class).resolveMethod(violation));
+
+    @SuppressWarnings("unchecked")
+    ResponseEntity<ProblemDetail> response = (ResponseEntity<ProblemDetail>) method.invoke(catchAll("prod"), violation, request);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    ProblemDetail body = Objects.requireNonNull(response.getBody());
+    assertThat(body.getDetail()).startsWith("요청 값이 올바르지 않습니다: ");
+    assertThat(body.getProperties())
+      .containsEntry("errorCode", "INVALID_PARAMETER")
+      .containsEntry("errorType", "VALIDATION");
+    assertThat(String.valueOf(body.getProperties().get("parameterName")).split(", ")).hasSize(2);
   }
 
   @Test

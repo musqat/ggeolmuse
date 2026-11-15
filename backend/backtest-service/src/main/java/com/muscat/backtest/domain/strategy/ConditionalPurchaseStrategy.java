@@ -7,6 +7,7 @@ import com.muscat.backtest.domain.engine.YearEndHarvest;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.domain.validation.BacktestRequestValidator;
+import com.muscat.backtest.domain.validation.RoundLimit;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
@@ -85,7 +86,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
         marketData, request.getSymbol(), request.getStartDate(), actualEndDate, request.getCurrentFxRate(),
         request.getPurchaseFxRate(), Boolean.TRUE.equals(request.getReinvestDividends()),
         request.getDividendTaxRate(), transactions, purchases.priceMap(), purchases.dailyFx(), request.getPeriodEnd(),
-        request.getTradingFeeRate(), !sells(request) && harvests(request));
+        request.getTradingFeeRate(), !request.sells() && harvests(request));
 
       log.info("조건부 매수 전략 실행 완료: {} - {}회 투자, 수익률 {}%",
         request.getSymbol(), finalized.transactions().size(),
@@ -112,6 +113,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     BacktestRequestValidator.requireDateRange(request.getStartDate(), request.getEndDate());
     validateLimits(request);
     validateConditionalSpecificFields(request);
+    RoundLimit.requireConditional(request, LocalDate.now());
   }
 
   // 회당 금액 · 주식 수 가운데 하나만, 예산 · 최대 횟수는 비우거나 0 보다 큼
@@ -132,16 +134,9 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     BacktestRequestValidator.requireTrailingStop(request.getTrailingStopRate(), request.getTrailingSellRate());
     BacktestRequestValidator.requirePartialTakeProfits(request.getPartialTakeProfits());
     // 재투자 주식은 루프 뒤에 더해져 매도와 순서가 맞지 않음
-    if (sells(request) && Boolean.TRUE.equals(request.getReinvestDividends())) {
+    if (request.sells() && Boolean.TRUE.equals(request.getReinvestDividends())) {
       throw new BacktestException(BacktestResponse.SELL_WITH_REINVEST);
     }
-  }
-
-  // 익절 · 손절 · 트레일링 스탑 · 부분 익절 가운데 하나라도 켰는지
-  private static boolean sells(ConditionalStrategyRequest request) {
-    return request.getTakeProfitRate() != null || request.getStopLossRate() != null
-      || request.getTrailingStopRate() != null
-      || (request.getPartialTakeProfits() != null && !request.getPartialTakeProfits().isEmpty());
   }
 
   // 양도세와 연말 정리를 둘 다 켰는지
@@ -155,10 +150,10 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     java.util.Map<LocalDate, OHLCPriceDto> priceMap = loadPrices(request, actualEndDate);
     FxRates fxRateMap = loadFxRates(request, priceMap, actualEndDate);
     // 매도 규칙을 켠 요청의 연말 정리 날
-    Set<LocalDate> harvestDates = sells(request) && harvests(request)
+    Set<LocalDate> harvestDates = request.sells() && harvests(request)
       ? YearEndHarvest.dates(priceMap, request.getStartDate(), actualEndDate)
       : Set.of();
-    ConditionalRun run = new ConditionalRun(request, taxPayer, fxRateMap, harvestDates, sells(request));
+    ConditionalRun run = new ConditionalRun(request, taxPayer, fxRateMap, harvestDates, request.sells());
     List<SkippedRound> skippedRounds = new ArrayList<>();
     BigDecimal previousClose = null;
     LocalDate currentDate = request.getStartDate();

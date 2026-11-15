@@ -362,6 +362,14 @@ class ConditionalPurchaseStrategyTest {
     void validateRequest_ZeroMaxPurchases_ThrowsException() {
       assertRejected(valid().maxPurchases(0).build(), BacktestResponse.INVALID_MAX_PURCHASES);
     }
+
+    @Test
+    @DisplayName("예산 · 최대 횟수 없이 기간이 길어 매수 회차가 상한을 넘으면 시세를 받기 전에 TOO_MANY_ROUNDS")
+    void validateRequest_TooManyRounds_ThrowsException() {
+      assertRejected(valid().startDate(LocalDate.of(1990, 1, 1)).endDate(LocalDate.of(2025, 12, 31)).build(),
+        BacktestResponse.TOO_MANY_ROUNDS);
+      verifyNoInteractions(marketDataClient);
+    }
   }
 
   @Nested
@@ -439,7 +447,7 @@ class ConditionalPurchaseStrategyTest {
     }
 
     @Test
-    @DisplayName("장중 저가가 전날 종가 × (1 - 하락률) 에 닿으면 그 값에 산다")
+    @DisplayName("장중 저가가 전날 종가 × (1 - 하락률) 에 닿으면 기준가에 산다")
     void buysAtTriggerWhenLowTouches() {
       ConditionalStrategyRequest request = perPurchase(2, 10).build();
       // 전날 종가 100, 기준가 90, 시가 99 · 저가 89 · 종가 97
@@ -452,7 +460,7 @@ class ConditionalPurchaseStrategyTest {
     }
 
     @Test
-    @DisplayName("상승이면 장중 고가가 전날 종가 × (1 + 상승률) 에 닿을 때 그 값에 산다")
+    @DisplayName("상승이면 장중 고가가 전날 종가 × (1 + 상승률) 에 닿을 때 기준가에 산다")
     void risingBuysAtTrigger() {
       ConditionalStrategyRequest request = perPurchase(3, 10).direction(PriceDirection.RISE).build();
       // 2일째 전날 100 → 기준가 110 · 고가 111, 3일째 전날 105 → 기준가 115.5 · 고가 115 안 삼
@@ -564,7 +572,7 @@ class ConditionalPurchaseStrategyTest {
     }
 
     @Test
-    @DisplayName("저가가 기준가보다 훨씬 내려가도 그 날짜에는 한 번만 산다")
+    @DisplayName("저가가 기준가보다 훨씬 내려가도 하루에 한 번만 산다")
     void buysOncePerDay() {
       ConditionalStrategyRequest request = perPurchase(2, 10).build();
       // 기준가 90, 저가 70(하락률 두 배보다 깊음)
@@ -684,7 +692,7 @@ class ConditionalPurchaseStrategyTest {
     }
 
     @Test
-    @DisplayName("예산 안에서 회당 금액만큼 사고, 다음 회차가 예산을 넘으면 그 날짜부터 끝까지 예산 부족 구간 한 줄로 남긴다")
+    @DisplayName("예산 안에서 회당 금액만큼 사고, 다음 회차가 예산을 넘으면 다음 회차 날짜부터 끝까지 예산 부족 구간 한 줄로 남긴다")
     void budgetShortfallSpan() {
       ConditionalStrategyRequest request = perPurchase(6, 10).maxPurchases(null)
         .totalInvestment(new BigDecimal("3900000")).build();
@@ -748,7 +756,7 @@ class ConditionalPurchaseStrategyTest {
     }
 
     @Test
-    @DisplayName("주식 수로 사면 그 주식 수를 사고 매수가 × 주식 수 + 수수료를 그 날짜 환율로 바꾼 돈을 넣는다")
+    @DisplayName("주식 수로 사면 정한 주식 수를 사고 매수가 × 주식 수 + 수수료를 산 날 환율로 바꾼 돈을 넣는다")
     void buysSharesPerPurchase() {
       ConditionalStrategyRequest request = perPurchase(2, 10).amountPerPurchase(null).sharesPerPurchase(3)
         .tradingFeeRate(new BigDecimal("0.01")).build();
@@ -780,7 +788,7 @@ class ConditionalPurchaseStrategyTest {
     }
 
     @Test
-    @DisplayName("매수 환율을 직접 주면 일별 환율을 조회하지 않고 그 값으로 산다")
+    @DisplayName("매수 환율을 직접 주면 일별 환율을 조회하지 않고 준 환율로 산다")
     void manualPurchaseFxRate() {
       ConditionalStrategyRequest request = perPurchase(2, 10).purchaseFxRate(new BigDecimal("1200")).build();
       stubMarket(request, List.of(day(0, "100"), day(1, "80")), false);
@@ -919,7 +927,7 @@ class ConditionalPurchaseStrategyTest {
       }
 
       @Test
-      @DisplayName("고가가 평균 단가 × (1 + 익절 비율) 에 닿으면 그 값에 전량 팔고 실현 손익을 남긴다")
+      @DisplayName("고가가 평균 단가 × (1 + 익절 비율) 에 닿으면 익절 기준가에 전량 팔고 실현 손익을 남긴다")
       void sellsAtTakeProfitTrigger() {
         ConditionalStrategyRequest request = selling(3, 10).takeProfitRate(new BigDecimal("0.1")).build();
         stubMarket(request, afterEntry(candle(2, "101", "111", "100", "105")), false);
@@ -946,7 +954,7 @@ class ConditionalPurchaseStrategyTest {
       }
 
       @Test
-      @DisplayName("저가가 손절 기준가에 닿으면 그 값에 팔고, 그 날짜에는 하락 매수 조건이 맞아도 사지 않는다")
+      @DisplayName("저가가 손절 기준가에 닿으면 손절 기준가에 팔고, 손절한 날에는 하락 매수 조건이 맞아도 사지 않는다")
       void stopLossBlocksSameDayBuy() {
         ConditionalStrategyRequest request = selling(3, 10).stopLossRate(new BigDecimal("0.1")).build();
         // 전날 종가 100 이라 하락 기준가도 90
@@ -1238,7 +1246,7 @@ class ConditionalPurchaseStrategyTest {
       }
 
       @Test
-      @DisplayName("판매 설정이 SELL 이면 납부일에 모자란 만큼 그 날짜 종가에 팔고 바로 뒤에 양도세를 다 낸다")
+      @DisplayName("판매 설정이 SELL 이면 납부일에 모자란 만큼 납부일 종가에 팔고 바로 뒤에 양도세를 다 낸다")
       void sellsSharesForTax() {
         StrategyResponse response = strategy.execute(cashSpentBeforeDue(TaxSale.SELL));
 
@@ -1272,7 +1280,7 @@ class ConditionalPurchaseStrategyTest {
       }
 
       @Test
-      @DisplayName("연말 정리를 켜면 그해 실현 이익이 공제보다 많을 때 결제가 그해 안에 끝나는 마지막 거래일에 손실 난 보유를 공제까지 내려가도록 팔고 같은 값에 다시 산다")
+      @DisplayName("연말 정리를 켜면 한 해 실현 이익이 공제보다 많을 때 결제가 같은 해 안에 끝나는 마지막 거래일에 손실 난 보유를 공제까지 내려가도록 팔고 같은 값에 다시 산다")
       void offsetsLossAtYearEnd() {
         // 10주씩, 410 에 익절(403만원 이익) · 다음 날 390 에 판 돈으로 10주, 12월 30일(시작일 + 301일) 250
         ConditionalStrategyRequest request = selling(303, 10).amountPerPurchase(null).sharesPerPurchase(10)
@@ -1298,7 +1306,7 @@ class ConditionalPurchaseStrategyTest {
       }
 
       @Test
-      @DisplayName("매도 규칙을 끄고 연말 정리를 켜면 마무리에서 결제가 그해 안에 끝나는 마지막 거래일에 공제를 채우도록 팔고 다시 산다")
+      @DisplayName("매도 규칙을 끄고 연말 정리를 켜면 마무리에서 결제가 같은 해 안에 끝나는 마지막 거래일에 공제를 채우도록 팔고 다시 산다")
       void fillsDeductionWithoutSellRules() {
         // 10주가 12월 30일 200, 130만원 이익은 공제 안이라 전부
         ConditionalStrategyRequest request = selling(303, 10).capitalGainsTax(true).yearEndHarvest(true).build();
@@ -1352,7 +1360,7 @@ class ConditionalPurchaseStrategyTest {
       void tradeStatsWithPeriodEndSale() {
         ConditionalStrategyRequest request = selling(4, 10).stopLossRate(new BigDecimal("0.1"))
           .periodEnd(PeriodEnd.SELL_AT_END).build();
-        // 3일째 90 에 손절(-10%), 4일째 82.8 에 1000달러어치 사서 그 날짜 종가 85 에 기간 끝 매도(+2.66%)
+        // 3일째 90 에 손절(-10%), 4일째 82.8 에 1000달러어치 사서 같은 날 종가 85 에 기간 끝 매도(+2.66%)
         stubMarket(request, afterEntry(candle(2, "95", "96", "89", "92"), bar(3, "83", "82", "85")), false);
 
         TradeStats stats = strategy.execute(request).getTradeStats();
@@ -1455,11 +1463,11 @@ class ConditionalPurchaseStrategyTest {
         private static final String TEN = "고점 대비 하락 매도 10.0%";
 
         @Test
-        @DisplayName("기준가는 첫 매수가에서 종가 고점으로 오르고, 종가가 기준가 × (1 - 하락 비율) 이하면 그 날짜 종가에 보유의 팔 비율만큼 팔며 판 값을 새 기준가로 다시 본다")
+        @DisplayName("기준가는 첫 매수가에서 종가 고점으로 오르고, 종가가 기준가 × (1 - 하락 비율) 이하면 당일 종가에 보유의 팔 비율만큼 팔며 판 값을 새 기준가로 다시 본다")
         void sellsShareOfHoldingRepeatedly() {
           ConditionalStrategyRequest request = selling(9, 10).trailingStopRate(new BigDecimal("0.1"))
             .trailingSellRate(new BigDecimal("0.5")).build();
-          // 고점 120 에서 108, 판 값 108 에서 97.2, 새 고점 110 에서 99(그 날짜는 하락 매수 조건도 맞음)
+          // 고점 120 에서 108, 판 값 108 에서 97.2, 새 고점 110 에서 99(99 인 날은 하락 매수 조건도 맞음)
           stubMarket(request, afterEntry(day(2, "120"), day(3, "115"), day(4, "108"), day(5, "100"), day(6, "97.2"),
             day(7, "110"), day(8, "99")), false);
 

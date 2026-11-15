@@ -1,5 +1,6 @@
 package com.muscat.user.api.controller;
 
+import com.muscat.commonlib.constants.CommonConstants;
 import com.muscat.user.common.enums.type.UserRole;
 import com.muscat.user.common.validation.ValidNickname;
 import com.muscat.user.common.validation.ValidPassword;
@@ -12,6 +13,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -27,6 +30,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -41,7 +45,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/admin/users")
 @RequiredArgsConstructor
+@Validated
 public class AdminUserController {
+
+  // 배당 정산 페이지 크기 상한
+  private static final int MAX_SETTLEMENT_PAGE_SIZE = 500;
 
   private final UserService userService;
   private final AccountService accountService;
@@ -51,8 +59,8 @@ public class AdminUserController {
    */
   @GetMapping
   public ResponseEntity<Page<UserSummary>> getAllUsers(
-    @RequestParam(defaultValue = "0") int page,
-    @RequestParam(defaultValue = "20") int size,
+    @RequestParam(defaultValue = "0") @Min(0) int page,
+    @RequestParam(defaultValue = "20") @Min(1) @Max(CommonConstants.MAX_PAGE_SIZE) int size,
     @RequestParam(defaultValue = "createdAt,desc") String[] sort) {
 
     log.info("전체 사용자 목록 조회: page={}, size={}", page, size);
@@ -139,8 +147,8 @@ public class AdminUserController {
   // 계좌 · 종목 · 배당락일마다 지금까지 넣은 배당
   @GetMapping("/dividend-settlements")
   public ResponseEntity<DividendSettlementPage> getDividendSettlements(
-    @RequestParam(defaultValue = "0") int page,
-    @RequestParam(defaultValue = "500") int size) {
+    @RequestParam(defaultValue = "0") @Min(0) int page,
+    @RequestParam(defaultValue = "500") @Min(1) @Max(MAX_SETTLEMENT_PAGE_SIZE) int size) {
     Page<DividendSettlement> settlements = accountService.getDividendSettlements(page, size);
     return ResponseEntity.ok(new DividendSettlementPage(
       settlements.map(DividendSettlementResponse::from).getContent(), settlements.isLast()));

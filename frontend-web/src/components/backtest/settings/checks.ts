@@ -78,6 +78,9 @@ export const budgetIssue = ({ budget, perRound, byShares }: BudgetCheck): FieldM
   return null;
 };
 
+// 회차 상한 안내를 칸 오류로
+export const roundsIssue = (text: string | null): FieldMessage | null => (text ? error(text) : null);
+
 export const monthsIssue = (cadence: DcaCadence, months: string): FieldMessage | null =>
   cadence === 'MONTHS' && parseMonths(months) === undefined ? error('개월은 1 ~ 12') : null;
 
@@ -207,7 +210,7 @@ const rowSellIssues = (row: PortfolioRow, n: string) => {
   };
 };
 
-// 포트폴리오 줄 이동평균 · 밴드 칸 오류(그 전략 줄만, 기간은 2 ~ 250 정수, 짧은 기간은 긴 기간보다 짧게, 비율은 0 이상 100 미만)
+// 포트폴리오 줄 이동평균 · 밴드 칸 오류(이동평균 교차 · 밴드 전략 줄만, 기간은 2 ~ 250 정수, 짧은 기간은 긴 기간보다 짧게, 비율은 0 이상 100 미만)
 const rowSignalIssues = (row: PortfolioRow, n: string) => {
   const none = { shortWindow: null, longWindow: null, bandWindow: null, upper: null, lower: null };
   const prefixed = (name: string, message: FieldMessage | null) => message && error(`${n} ${name} ${message.text}`);
@@ -228,7 +231,7 @@ const rowSignalIssues = (row: PortfolioRow, n: string) => {
   };
 };
 
-// 포트폴리오 줄마다 칸 오류(종목은 비었거나 목록에 없거나 앞 줄과 대문자로 같으면, 금액 방식은 0 초과 원 단위 금액 · 비율 방식은 0 초과 100 이하 비율, 익절 · 손절은 적은 때만, 이동평균 · 밴드 칸은 그 전략 줄만)
+// 포트폴리오 줄마다 칸 오류(종목은 비었거나 목록에 없거나 앞 줄과 대문자로 같으면, 금액 방식은 0 초과 원 단위 금액 · 비율 방식은 0 초과 100 이하 비율, 익절 · 손절은 적은 때만, 이동평균 · 밴드 칸은 이동평균 교차 · 밴드 전략 줄만)
 export const portfolioRowIssues = (
   rows: PortfolioRow[],
   allocation: PortfolioAllocation,
@@ -311,7 +314,7 @@ export const feeIssue = (fee: string): FieldMessage | null => {
   return value >= 100 ? error('100 아래') : null;
 };
 
-// 비면 그 날짜 시장 환율
+// 비면 매수일 · 끝 날짜 시장 환율
 export const fxRateIssue = (rate: string): FieldMessage | null =>
   rate.trim() && !(parseFloat(rate) > 0) ? error('0 보다 크게') : null;
 
@@ -330,7 +333,7 @@ export const detailIssues = (
 // 환율 기록이 있는 첫날
 export const FX_RECORD_FROM = '2014-01-01';
 
-// 그 날짜가 환율 기록 전이고 매수 환율을 적지 않았으면 기본 환율 안내
+// 받은 날짜가 환율 기록 전이고 매수 환율을 적지 않았으면 기본 환율 안내
 export const fxGapNotice = (
   from: string,
   options: Pick<BacktestOptions, 'fxMode' | 'manualPurchaseFxRate'>,

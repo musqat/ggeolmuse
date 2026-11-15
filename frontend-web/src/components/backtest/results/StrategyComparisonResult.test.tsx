@@ -70,6 +70,8 @@ const result = {
 
 const renderResult = (value: object = result) => render(<StrategyComparisonResult result={value as never} />)
 const row = (name: string) => screen.getByText(name, { selector: 'td span span' }).closest('tr') as HTMLElement
+// 표 줄 이름 앞 색 점의 색
+const dotColor = (name: string) => (row(name).querySelector('span[aria-hidden]') as HTMLElement).style.background
 const noTax = { years: [], totalTaxKrw: 0, paidTaxKrw: 0, unpaidTaxKrw: 0, cashKrw: 0, stockKrw: 0 }
 
 describe('StrategyComparisonResult', () => {
@@ -311,5 +313,14 @@ describe('StrategyComparisonResult', () => {
     renderResult({ ...result, items: [{ ...result.items[0], totalReturnPercent: undefined }] })
 
     expect(row('단순 매수')).toHaveTextContent('-')
+  })
+
+  it('전략 10개면 9 · 10번째 색도 1 · 2번째와 다름', () => {
+    const names = Array.from({ length: 10 }, (_, i) => `전략${i + 1}`)
+    renderResult({ ...result, bestPerformer: undefined, items: names.map((name) => ({ ...result.items[0], name })) })
+
+    const colors = names.map(dotColor)
+    expect(colors.slice(8).filter((color) => colors.slice(0, 2).includes(color))).toEqual([])
+    expect(new Set(colors).size).toBe(10)
   })
 })

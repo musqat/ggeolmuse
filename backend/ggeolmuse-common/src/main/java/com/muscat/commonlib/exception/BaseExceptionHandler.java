@@ -3,10 +3,15 @@ package com.muscat.commonlib.exception;
 import com.muscat.commonlib.enums.ErrorType;
 import com.muscat.commonlib.util.ProblemDetailUtils;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.ElementKind;
+import jakarta.validation.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.core.env.Environment;
@@ -112,6 +117,43 @@ public class BaseExceptionHandler implements EnvironmentAware {
     );
 
     return ResponseEntity.badRequest().body(problem);
+  }
+
+  // 컨트롤러 @Validated 의 경로 변수 · 쿼리 파라미터 검사 실패(걸린 파라미터 이름만, 입력값은 안 실음)
+  @ExceptionHandler(ConstraintViolationException.class)
+  public ResponseEntity<ProblemDetail> handleConstraintViolation(
+    ConstraintViolationException ex, HttpServletRequest request) {
+    String parameters = ex.getConstraintViolations().stream()
+      .map(BaseExceptionHandler::parameterName)
+      .distinct()
+      .sorted()
+      .collect(Collectors.joining(", "));
+    log.warn("[INVALID PARAMETER] {}", parameters);
+
+    ProblemDetail problem = ProblemDetailUtils.createProblem(
+      HttpStatus.BAD_REQUEST,
+      String.format("요청 값이 올바르지 않습니다: %s", parameters),
+      "INVALID_PARAMETER",
+      request.getRequestURI(),
+      "Invalid Parameter Error",
+      Map.of(
+        "parameterName", parameters,
+        "errorType", ErrorType.VALIDATION.name()
+      )
+    );
+
+    return ResponseEntity.badRequest().body(problem);
+  }
+
+  // 위반 경로(메서드.파라미터[.요소])에서 꺼낸 파라미터 이름
+  private static String parameterName(ConstraintViolation<?> violation) {
+    String name = violation.getPropertyPath().toString();
+    for (Path.Node node : violation.getPropertyPath()) {
+      if (node.getKind() == ElementKind.PARAMETER) {
+        name = node.getName();
+      }
+    }
+    return name;
   }
 
   // 경로 변수 · 쿼리 파라미터 타입 변환 실패(입력값은 detail 에 안 실음)

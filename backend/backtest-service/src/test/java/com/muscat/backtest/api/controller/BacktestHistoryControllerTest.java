@@ -19,6 +19,8 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.data.domain.PageImpl;
@@ -81,6 +83,28 @@ class BacktestHistoryControllerTest {
       .andExpect(jsonPath("$.content[0].backtestType").value("COMPARISON"));
 
     verify(backtestHistoryService).getUserBacktestHistory(USER, EMAIL, PageRequest.of(2, 5));
+  }
+
+  @ParameterizedTest(name = "page={0} size={1}")
+  @CsvSource({"0, 10000", "0, 101", "0, 0", "-1, 20"})
+  @DisplayName("크기가 1 ~ 100 밖이거나 페이지가 음수면 400 이고 서비스까지 가지 않는다")
+  void outOfRange(String page, String size) throws Exception {
+    mockMvc.perform(get(BASE).header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN).param("page", page).param("size", size))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.errorCode").value("INVALID_PARAMETER"));
+
+    verify(backtestHistoryService, never()).getUserBacktestHistory(any(), any(), any());
+  }
+
+  @Test
+  @DisplayName("크기 100 은 그대로 넘긴다")
+  void maxSize() throws Exception {
+    given(backtestHistoryService.getUserBacktestHistory(eq(USER), eq(EMAIL), any())).willReturn(new PageImpl<>(List.of()));
+
+    mockMvc.perform(get(BASE).header(HttpHeaders.AUTHORIZATION, "Bearer " + TOKEN).param("size", "100"))
+      .andExpect(status().isOk());
+
+    verify(backtestHistoryService).getUserBacktestHistory(USER, EMAIL, PageRequest.of(0, 100));
   }
 
   @Test
