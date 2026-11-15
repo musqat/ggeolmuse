@@ -10,6 +10,7 @@ import {
   toCadence,
 } from '../shared/dcaSchedule';
 import { formatReadableWon } from '../../../utils/format';
+import { affordableRounds, dcaLoad, dcaRoundIssue } from '../shared/roundLimit';
 
 const name = '적립식';
 
@@ -30,6 +31,19 @@ const read = (params: StrategyParams, common: ComparisonCommon) => {
   };
 };
 
+// 회차 상한에 쓸 일정(원금으로 살 수 있는 회차까지)
+const plan = (params: StrategyParams, common: ComparisonCommon) => {
+  const { cadence, amount, months, first, monthDay } = read(params, common);
+  return {
+    cadence,
+    months: months ?? 1,
+    first: first || common.startDate,
+    end: common.endDate,
+    monthDay,
+    affordable: affordableRounds(common.investment, amount),
+  };
+};
+
 export const dcaStrategy: ComparisonStrategyDef = {
   type: 'DCA',
   name,
@@ -40,8 +54,9 @@ export const dcaStrategy: ComparisonStrategyDef = {
     if (amount > parseFloat(common.investment)) return '회당 금액이 원금보다 큽니다.';
     if (months === undefined) return '개월 수는 1~12 사이의 정수로 입력해주세요.';
     if (first > common.endDate) return '첫 매수일은 시작일과 종료일 사이로 골라주세요.';
-    return null;
+    return dcaRoundIssue(plan(params, common));
   },
+  load: (params, common) => dcaLoad(plan(params, common)),
   toRequest: (params, common) => {
     const { cadence, amount, months, first, monthDay } = read(params, common);
     return {

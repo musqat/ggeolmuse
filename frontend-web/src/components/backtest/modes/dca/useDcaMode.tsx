@@ -16,7 +16,8 @@ import {
   type FirstPick,
 } from '../../shared/dcaSchedule';
 import { AMOUNT_UNITS, useAmountUnit, useRoundCost } from '../../shared/amountUnit';
-import { amountIssue, budgetIssue, countErrors, firstIssue, monthsIssue } from '../../settings/checks';
+import { amountIssue, budgetIssue, countErrors, firstIssue, monthsIssue, roundsIssue } from '../../settings/checks';
+import { dcaRoundIssue } from '../../shared/roundLimit';
 import { dcaHow } from '../../settings/summary';
 import { oneOf, pickValues } from '../../settings/snapshot';
 
@@ -60,7 +61,10 @@ export const useDcaMode = (shared: SharedModeProps): ModeController => {
 
   const amountMessage = amountIssue({ byShares, amount: amountPerPurchase, shares: amountUnit.shares, label: LABEL });
   const budgetMessage = byShares ? budgetIssue({ budget, perRound, byShares }) : null;
-  const monthsMessage = monthsIssue(cadence, months);
+  // 개월 수가 맞으면 회차 상한
+  const cadenceMessage =
+    monthsIssue(cadence, months) ??
+    roundsIssue(dcaRoundIssue({ cadence, months: parseMonths(months) ?? 1, first, end, monthDay }));
   const firstMessage = firstIssue({ first, end, cadence, monthDay: monthDay ?? dayOfMonth(first) });
 
   return {
@@ -83,7 +87,7 @@ export const useDcaMode = (shared: SharedModeProps): ModeController => {
           message: amountMessage,
         }}
         budget={byShares ? { budget, onChange: setBudget, message: budgetMessage } : undefined}
-        cadence={{ cadence, onCadenceChange: setCadence, months, onMonthsChange: setMonths, message: monthsMessage }}
+        cadence={{ cadence, onCadenceChange: setCadence, months, onMonthsChange: setMonths, message: cadenceMessage }}
         first={{
           value: first,
           picked: !!firstPick.date,
@@ -105,7 +109,7 @@ export const useDcaMode = (shared: SharedModeProps): ModeController => {
         budget: byShares ? budget : '',
       }),
     },
-    errorCount: countErrors([symbolMessage, periodMessage, amountMessage, budgetMessage, monthsMessage, firstMessage]),
+    errorCount: countErrors([symbolMessage, periodMessage, amountMessage, budgetMessage, cadenceMessage, firstMessage]),
     harvest: true,
     saved: { amount: amountPerPurchase, unit: amountUnit.unit, shares: amountUnit.shares, budget, cadence, months, firstPick },
     load: (saved) => {

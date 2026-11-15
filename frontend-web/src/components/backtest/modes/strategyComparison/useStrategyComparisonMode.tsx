@@ -12,6 +12,7 @@ import { amountIssue, countErrors, type FieldMessage } from '../../settings/chec
 import { oneOf, pickValues } from '../../settings/snapshot';
 import type { SummaryLine } from '../../settings/SettingsSummary';
 import { formatReadableWon } from '../../../../utils/format';
+import { comparisonRoundIssue } from '../../shared/roundLimit';
 
 const LABEL = '전략마다 원금';
 
@@ -75,12 +76,19 @@ export const useStrategyComparisonMode = (shared: SharedModeProps): ModeControll
     return { chip, def, params, error, short: !!summary?.short, line };
   });
   const badCount = views.filter((view) => view.error).length;
+  // 칩 회차 합 상한(고칠 칩이 없을 때만)
+  const roundIssue =
+    chips.length >= 2 && badCount === 0
+      ? comparisonRoundIssue(views.reduce((sum, view) => sum + (view.def.load?.(view.params, common) ?? 0), 0))
+      : null;
   const chipsMessage: FieldMessage | null =
     chips.length < 2
       ? { kind: 'error', text: '전략을 둘 이상' }
       : badCount > 0
         ? { kind: 'error', text: `고칠 칩 ${badCount}개(! 표시)는 눌러서 고치기` }
-        : views.some((view) => view.short)
+        : roundIssue
+          ? { kind: 'error', text: roundIssue }
+          : views.some((view) => view.short)
           ? { kind: 'warning', text: '점선 칩은 원금이 회차보다 모자라 뒤 회차를 못 삼' }
           : null;
   const amountMessage = amountIssue({ byShares: false, amount: investment, shares: '', label: LABEL });
@@ -155,7 +163,8 @@ export const useStrategyComparisonMode = (shared: SharedModeProps): ModeControll
       how: `전략마다 원금 ${formatReadableWon(parseFloat(investment))}`,
       lines: views.map((view) => view.line),
     },
-    errorCount: countErrors([symbolMessage, periodMessage, amountMessage]) + (chips.length < 2 ? 1 : 0) + badCount,
+    errorCount:
+      countErrors([symbolMessage, periodMessage, amountMessage]) + (chips.length < 2 ? 1 : 0) + badCount + (roundIssue ? 1 : 0),
     reinvestNote,
     saved: { investment, chips, openId },
     load: (saved) => {

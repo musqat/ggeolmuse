@@ -13,6 +13,7 @@ import com.muscat.backtest.domain.service.BacktestDataUtils;
 import com.muscat.backtest.common.util.FxRates;
 import com.muscat.backtest.common.util.PriceLookup;
 import com.muscat.backtest.domain.validation.BacktestRequestValidator;
+import com.muscat.backtest.domain.validation.RoundLimit;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.request.StrategyRequest;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
@@ -115,6 +116,7 @@ public class DCAStrategy implements InvestmentStrategy {
     BacktestRequestValidator.requireFirstPurchaseInPeriod(request.getFirstPurchaseDate(), request.getStartDate(),
       request.getEndDate());
     BacktestRequestValidator.requireBudget(request.getTotalInvestmentLimit());
+    RoundLimit.requireDca(request, LocalDate.now());
   }
 
   // 정기 적립식 투자 실행(쓸 시세가 없거나 계산이 실패한 회차는 사지 않고 이유를 남김)

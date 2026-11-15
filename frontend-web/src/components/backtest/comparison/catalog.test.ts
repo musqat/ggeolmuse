@@ -197,6 +197,35 @@ describe('비교 전략 카탈로그', () => {
     )
   })
 
+  it('적립식 · 조건부 검사: 회차가 상한을 넘으면 칩 안내, 칩 합에 쓸 회차 셈은 원금으로 살 수 있는 회차까지', () => {
+    const long = { startDate: '1990-01-01', endDate: '2025-12-31', investment: '1000000000000' }
+    // 원금 1억 ÷ 회당 10만원 = 1,000회
+    const affordable = { ...long, investment: '100000000' }
+
+    expect(strategyByType('DCA').check({ cadence: 'DAILY' }, long)).toBe(
+      '매일 적립은 최대 약 15년 — 기간 줄이기 · 주기 늘리기'
+    )
+    expect(strategyByType('DCA').check({ cadence: 'DAILY' }, affordable)).toBeNull()
+    expect(strategyByType('CONDITIONAL_PURCHASE').check({ takeProfit: '10' }, long)).toBe(
+      '매도 규칙이 있는 조건부 매수는 최대 약 15년 — 기간 줄이기'
+    )
+    expect(strategyByType('CONDITIONAL_PURCHASE').check({}, affordable)).toBeNull()
+    // 2023년 평일 260일, 원금 100만원 ÷ 회당 10만원 = 10회
+    expect(strategyByType('DCA').load?.({ cadence: 'DAILY' }, year2023)).toBe(10 * 260)
+    expect(strategyByType('CONDITIONAL_PURCHASE').load?.({}, year2023)).toBe(10 * 260)
+    expect(strategyByType('SIMPLE').load).toBeUndefined()
+  })
+
+  it.each(['', 'abc'])('원금 칸이 "%s" 면 적립식 · 조건부 칩 회차 안내 없음, 칩 합 회차는 기간 회차까지', (investment) => {
+    const blank = { ...year2023, investment }
+
+    expect(strategyByType('DCA').check({}, blank)).toBeNull()
+    expect(strategyByType('CONDITIONAL_PURCHASE').check({}, blank)).toBeNull()
+    // 2023년 평일 260일
+    expect(strategyByType('DCA').load?.({ cadence: 'DAILY' }, blank)).toBe(260 * 260)
+    expect(strategyByType('CONDITIONAL_PURCHASE').load?.({}, blank)).toBe(260 * 260)
+  })
+
   it('적립식 검사: 회당 금액이 원금보다 크거나 개월 수가 범위 밖이거나 첫 매수일이 종료일 뒤면 막는다', () => {
     expect(strategyByType('DCA').check({ amountPerPurchase: '-1' }, common)).toBe('올바른 회당 금액을 입력해주세요.')
     expect(strategyByType('DCA').check({ amountPerPurchase: '1000001' }, common)).toBe('회당 금액이 원금보다 큽니다.')

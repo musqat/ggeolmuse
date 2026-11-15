@@ -36,7 +36,7 @@ describe('며칠 규칙', () => {
 })
 
 describe('cadenceText', () => {
-  it('29일 이후도 그 날짜가 없는 달 규칙 없이 주기와 날짜만 보인다', () => {
+  it('29일 이후도 고른 며칠이 없는 달 규칙 없이 주기와 날짜만 보인다', () => {
     expect(cadenceText('MONTHLY', '3', '2023-01-31')).toBe('매달 31일')
     expect(cadenceText('MONTHS', '6', '2023-01-30')).toBe('6개월마다 30일')
     expect(cadenceText('WEEKLY', '3', '2023-01-04')).toBe('매주 수요일')
@@ -111,6 +111,7 @@ describe('countRounds', () => {
   describe('끝 날짜가 오늘', () => {
     afterEach(() => {
       vi.useRealTimers()
+      vi.unstubAllEnvs()
     })
 
     it.each([
@@ -123,6 +124,18 @@ describe('countRounds', () => {
 
       expect(countRounds(cadence, 1, first, '2026-10-08')).toBe(expected)
       expect(countRounds(cadence, 1, first, '2026-10-07')).toBe(expected)
+    })
+
+    // 한국은 10월 8일, 로스앤젤레스는 7일 · 오클랜드는 9일인 시각
+    it.each([
+      ['America/Los_Angeles', '2026-10-08T01:00:00+09:00'],
+      ['Pacific/Auckland', '2026-10-08T22:00:00+09:00'],
+    ])('브라우저 시간대가 %s 여도 오늘은 한국 날짜(%s)', (zone, now) => {
+      vi.stubEnv('TZ', zone)
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date(now))
+
+      expect(countRounds('DAILY', 1, '2026-10-05', '2026-10-31')).toBe(3)
     })
   })
 })

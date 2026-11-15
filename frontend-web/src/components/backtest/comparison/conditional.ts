@@ -1,9 +1,10 @@
 import { ConditionalFields } from './fields/ConditionalFields';
-import type { ComparisonStrategyDef, StrategyParams } from './types';
+import type { ComparisonCommon, ComparisonStrategyDef, StrategyParams } from './types';
 import { DIRECTIONS, toDirection } from '../shared/priceDirection';
-import { toSellRates } from '../shared/sellRates';
+import { hasSellRates, toSellRates } from '../shared/sellRates';
 import { formatReadableWon } from '../../../utils/format';
 import { sellText } from '../settings/summary';
+import { affordableRounds, conditionalLoad, conditionalRoundIssue } from '../shared/roundLimit';
 
 const name = '조건부 매수';
 
@@ -28,6 +29,18 @@ const sellRatesOf = (params: StrategyParams) => {
   return 'rates' in sell ? sell.rates : {};
 };
 
+// 회차 상한에 쓸 기간 · 최대 횟수 · 원금으로 살 수 있는 회차 · 매도 규칙
+const plan = (params: StrategyParams, common: ComparisonCommon) => {
+  const { p, amount, max } = read(params);
+  return {
+    start: common.startDate,
+    end: common.endDate,
+    max,
+    affordable: affordableRounds(common.investment, amount),
+    sells: hasSellRates(p.takeProfit, p.stopLoss),
+  };
+};
+
 export const conditionalStrategy: ComparisonStrategyDef = {
   type: 'CONDITIONAL_PURCHASE',
   name,
@@ -41,8 +54,9 @@ export const conditionalStrategy: ComparisonStrategyDef = {
     }
     if (!(drop > 0 && drop <= 100)) return `${DIRECTIONS[direction].rate}은 0~100 사이여야 합니다.`;
     const sell = toSellRates(p.takeProfit, p.stopLoss);
-    return 'error' in sell ? sell.error : null;
+    return 'error' in sell ? sell.error : conditionalRoundIssue(plan(params, common));
   },
+  load: (params, common) => conditionalLoad(plan(params, common)),
   toRequest: (params) => {
     const { p, direction, amount, max, drop } = read(params);
     return {

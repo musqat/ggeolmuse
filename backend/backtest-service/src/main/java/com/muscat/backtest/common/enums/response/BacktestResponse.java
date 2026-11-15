@@ -44,6 +44,7 @@ public enum BacktestResponse implements ErrorCode {
   INVALID_PORTFOLIO("종목은 1 ~ 10개, 같은 종목은 한 번만 넣어 주세요.", HttpStatus.BAD_REQUEST),
   INVALID_PORTFOLIO_AMOUNT("금액 방식은 줄마다 0보다 큰 원 단위 금액을, 비율 방식은 원 단위 총액과 줄마다 0보다 크고 합이 100% 인 비율을 넣어 주세요.", HttpStatus.BAD_REQUEST),
   INVALID_TAX_SALE("직접 순서는 종목마다 1 ~ 종목 수의 서로 다른 순서를 넣어 주세요.", HttpStatus.BAD_REQUEST),
+  TOO_MANY_ROUNDS("적립 · 매수 회차가 너무 많습니다. 기간을 줄이거나 주기를 늘려 주세요.", HttpStatus.BAD_REQUEST),
 
 
 

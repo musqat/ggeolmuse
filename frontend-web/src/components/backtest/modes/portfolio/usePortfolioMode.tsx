@@ -42,8 +42,10 @@ import {
   monthsIssue,
   portfolioRowIssues,
   portfolioRowMessageList,
+  roundsIssue,
   wonIssue,
 } from '../../settings/checks';
+import { dcaRoundIssue } from '../../shared/roundLimit';
 import { portfolioHow } from '../../settings/summary';
 import { oneOf, pickValues } from '../../settings/snapshot';
 import { PORTFOLIO_TAX_SALES, portfolioTaxSale } from '../../shared/taxSale';
@@ -93,7 +95,11 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
   const totalLabel = perRoundOnly ? '회당 총액' : '총액';
   const totalMessage =
     allocation === 'WEIGHT' ? wonIssue(total, totalLabel) : null;
-  const monthsMessage = dca ? monthsIssue(cadence, months) : null;
+  // 개월 수가 맞으면 적립식 줄 회차 상한
+  const cadenceMessage = dca
+    ? (monthsIssue(cadence, months) ??
+      roundsIssue(dcaRoundIssue({ cadence, months: parseMonths(months) ?? 1, first, end, monthDay })))
+    : null;
   const firstMessage = dca ? firstIssue({ first, end, cadence, monthDay: monthDay ?? dayOfMonth(first) }) : null;
 
   return {
@@ -120,7 +126,7 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
         method={method}
         onMethodChange={setMethod}
         cadence={
-          dca ? { cadence, onCadenceChange: setCadence, months, onMonthsChange: setMonths, message: monthsMessage } : undefined
+          dca ? { cadence, onCadenceChange: setCadence, months, onMonthsChange: setMonths, message: cadenceMessage } : undefined
         }
         first={
           dca
@@ -155,7 +161,7 @@ export const usePortfolioMode = (shared: SharedModeProps): ModeController => {
       }),
     },
     errorCount:
-      countErrors([periodMessage, totalMessage, ...rowMessages.flatMap(portfolioRowMessageList), monthsMessage, firstMessage]) +
+      countErrors([periodMessage, totalMessage, ...rowMessages.flatMap(portfolioRowMessageList), cadenceMessage, firstMessage]) +
       (isWeightSumBad(rows, allocation, rowMessages) ? 1 : 0),
     // 판매 방식과 정한 순서의 먼저 팔 종목부터 목록(빈 종목은 줄 번호)
     taxSale: portfolioTaxSale(taxSale, setTaxSale, {

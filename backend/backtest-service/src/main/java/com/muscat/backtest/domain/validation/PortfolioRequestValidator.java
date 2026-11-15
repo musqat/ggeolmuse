@@ -10,6 +10,7 @@ import com.muscat.backtest.domain.dto.request.PortfolioAsset;
 import com.muscat.backtest.domain.dto.request.PortfolioRequest;
 import com.muscat.backtest.domain.dto.request.PortfolioStrategy;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -96,7 +97,7 @@ public final class PortfolioRequestValidator {
     }
   }
 
-  /** 투자일 1 ~ 31 · 투자 주기 1 ~ 12 · 첫 매수일 기간 안(비우면 통과) */
+  /** 투자일 1 ~ 31 · 투자 주기 1 ~ 12 · 첫 매수일 기간 안(비우면 통과) · 회차 상한 */
   private static void requireSchedule(PortfolioRequest request) {
     Integer day = request.getPurchaseDay();
     if (day != null && (day < 1 || day > 31)) {
@@ -108,6 +109,7 @@ public final class PortfolioRequestValidator {
     }
     BacktestRequestValidator.requireFirstPurchaseInPeriod(request.getFirstPurchaseDate(), request.getStartDate(),
       request.getEndDate());
+    RoundLimit.requirePortfolio(request, LocalDate.now());
   }
 
   private static boolean positive(BigDecimal value) {

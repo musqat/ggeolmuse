@@ -70,7 +70,7 @@ public final class BacktestConstants {
     /** 결제된 해의 양도세를 다음 해 5월 판 돈에서 냄 */
     public static final String CAPITAL_GAINS_TAX_PAYMENT = "양도세 납부";
 
-    /** 양도세 낼 현금이 모자라 그 날짜 종가에 모자란 만큼 팖 */
+    /** 양도세 낼 현금이 모자라 납부일 종가에 모자란 만큼 팖 */
     public static final String TAX_SALE = "양도세 납부용 매도";
 
     /** 종가가 기준가보다 정한 비율 이상 내린 날 보유의 정한 몫을 팖 (뒤에 기준가 대비 하락 %) */
@@ -85,13 +85,13 @@ public final class BacktestConstants {
     /** 포트폴리오 종목이 목표 비중보다 작아져 모자란 몫을 공용 현금으로 삼 */
     public static final String REBALANCE_BUY = "리밸런싱 매수";
 
-    /** 결제가 그해 안에 끝나는 마지막 거래일에 그해 실현 이익이 연 공제까지 차도록 이익 난 보유분을 팖 */
+    /** 결제가 같은 해 안에 끝나는 마지막 거래일에 같은 해 실현 이익이 연 공제까지 차도록 이익 난 보유분을 팖 */
     public static final String HARVEST_GAIN_SELL = "공제 채우기 매도";
 
     /** 공제 채우기로 판 돈 전부로 같은 날 같은 값에 다시 삼 */
     public static final String HARVEST_GAIN_BUY = "공제 채우기 재매수";
 
-    /** 결제가 그해 안에 끝나는 마지막 거래일에 그해 실현 이익이 연 공제까지 내려가도록 손실 난 보유분을 팖 */
+    /** 결제가 같은 해 안에 끝나는 마지막 거래일에 같은 해 실현 이익이 연 공제까지 내려가도록 손실 난 보유분을 팖 */
     public static final String HARVEST_LOSS_SELL = "손실 상계 매도";
 
     /** 손실 상계로 판 돈 전부로 같은 날 같은 값에 다시 삼 */
@@ -123,6 +123,12 @@ public final class BacktestConstants {
 
     /** 비교 요청의 종목 · 전략 수 상한 */
     public static final int MAX_COMPARISON_ITEMS = 10;
+
+    /** 적립 · 매수 회차 × 기간 평일 수 상한(매일 적립 4,000회 · 약 15년) */
+    public static final long MAX_ROUND_LOAD = 4_000L * 4_000L;
+
+    /** 전략 비교 칩 회차 × 기간 평일 수 합 상한(칩 하나 상한의 3배) */
+    public static final long MAX_COMPARISON_ROUND_LOAD = 3 * MAX_ROUND_LOAD;
   }
 
   /**

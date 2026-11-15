@@ -23,9 +23,13 @@ public enum DcaFrequency {
     return trigger;
   }
 
+  // 주기 이름("매일" · "매주" · "매달", 매달에서 투자 주기가 2개월 이상이면 "3개월마다")
+  public String every(int interval) {
+    return this == MONTHLY && interval > 1 ? interval + "개월마다" : every;
+  }
+
   // 주식 수로 살 때의 매수 이유("매달 2주", 매달에서 투자 주기가 2개월 이상이면 "3개월마다 2주")
   public String trigger(int shares, int interval) {
-    String period = this == MONTHLY && interval > 1 ? interval + "개월마다" : every;
-    return period + " " + shares + "주";
+    return every(interval) + " " + shares + "주";
   }
 }

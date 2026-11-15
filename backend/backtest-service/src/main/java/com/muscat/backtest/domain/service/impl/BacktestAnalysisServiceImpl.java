@@ -13,6 +13,7 @@ import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.service.BacktestHistoryUtils;
 import com.muscat.backtest.domain.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.validation.PortfolioRequestValidator;
+import com.muscat.backtest.domain.validation.RoundLimit;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
@@ -184,6 +185,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
       request.getStrategies() != null ? request.getStrategies().size() : 0);
     BacktestRequestValidator.requireTradable(request.getSymbol());
     requireFirstPurchasesInPeriod(request);
+    RoundLimit.requireComparison(roundChips(request), LocalDate.now());
 
     List<ComparisonItem> items = collectComparisonItems(
       request.getStrategies(),
@@ -206,6 +208,15 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
       .filter(strategy -> strategy.getStrategyType() == StrategyType.DCA)
       .forEach(strategy -> BacktestRequestValidator.requireFirstPurchaseInPeriod(strategy.getFirstPurchaseDate(),
         request.getStartDate(), request.getEndDate()));
+  }
+
+  // 회차 일정이 있는 칩(적립식 · 조건부)의 전략 요청
+  private static List<StrategyRequest> roundChips(StrategyComparisonRequest request) {
+    return request.getStrategies().stream()
+      .filter(strategy -> strategy.getStrategyType() == StrategyType.DCA
+        || strategy.getStrategyType() == StrategyType.CONDITIONAL_PURCHASE)
+      .map(strategy -> ComparisonRequestMapper.strategyRequest(request, strategy))
+      .toList();
   }
 
   // 요청의 전략 타입에 맞는 전략으로 실행

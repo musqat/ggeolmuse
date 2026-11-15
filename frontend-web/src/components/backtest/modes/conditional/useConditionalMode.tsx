@@ -12,7 +12,8 @@ import { useTrailingStop } from '../useTrailingStop';
 import { usePartialTakeProfit } from '../usePartialTakeProfit';
 import { DIRECTION_ORDER } from '../../shared/priceDirection';
 import { countRounds } from '../../shared/dcaSchedule';
-import { amountIssue, budgetIssue, countErrors, maxIssue, percentIssue, sellIssue } from '../../settings/checks';
+import { amountIssue, budgetIssue, countErrors, maxIssue, percentIssue, roundsIssue, sellIssue } from '../../settings/checks';
+import { conditionalRoundIssue } from '../../shared/roundLimit';
 import { conditionalHow } from '../../settings/summary';
 import { oneOf, pickValues } from '../../settings/snapshot';
 import { singleTaxSale } from '../../shared/taxSale';
@@ -60,7 +61,20 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
   const budgetMessage = budgetIssue({ budget: totalInvestment, perRound, byShares });
   const percentMessage = percentIssue(dropPercentage);
   const sellMessage = sellIssue(takeProfit, stopLoss);
-  const maxMessage = maxIssue(maxPurchases);
+  const budgetValue = parseFloat(totalInvestment);
+  const amountValue = parseFloat(amountPerPurchase);
+  // 최대 횟수 칸이 맞으면 매수 회차 상한(예산은 회당 금액일 때만 셈)
+  const maxMessage =
+    maxIssue(maxPurchases) ??
+    roundsIssue(
+      conditionalRoundIssue({
+        start: period.start,
+        end,
+        max: maxPurchases.trim() ? Number(maxPurchases) : undefined,
+        affordable: !byShares && budgetValue > 0 && amountValue > 0 ? Math.floor(budgetValue / amountValue) : undefined,
+        sells,
+      }),
+    );
 
   return {
     id: 'conditional',

@@ -1,5 +1,5 @@
 import type { DcaFrequency, DcaStrategyRequest } from '@services/api';
-import { daysBetween, getTodayString, parseLocalDate, toLocalDateString } from '../../../utils/dateUtils';
+import { daysBetween, getSeoulTodayString, parseLocalDate, toLocalDateString } from '../../../utils/dateUtils';
 
 // 화면의 투자 주기(N개월마다는 요청에서 매달 + 개월 수)
 export type DcaCadence = DcaFrequency | 'MONTHS';
@@ -104,8 +104,9 @@ export const scheduleFields = ({ cadence, months, firstPurchaseDate, monthDay, s
   return fields;
 };
 
+// 한국 시각 기준 어제
 const yesterday = () => {
-  const day = parseLocalDate(getTodayString());
+  const day = parseLocalDate(getSeoulTodayString());
   day.setDate(day.getDate() - 1);
   return toLocalDateString(day);
 };

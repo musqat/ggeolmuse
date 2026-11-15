@@ -790,6 +790,24 @@ class BacktestAnalysisServiceImplTest {
     }
 
     @Test
+    @DisplayName("칩마다는 상한 안이어도 칩 회차 합이 상한을 넘으면 어느 칩도 돌리기 전에 TOO_MANY_ROUNDS")
+    void compareStrategies_TooManyRoundsInTotal() {
+      StrategyParameter daily = strategy(StrategyType.DCA);
+      daily.setAmountPerPurchase(BigDecimal.valueOf(10_000));
+      daily.setFrequency(DcaFrequency.DAILY);
+      StrategyComparisonRequest request = strategyRequest(daily, daily, daily, daily);
+      request.setStartDate(LocalDate.of(2011, 1, 1));
+      request.setEndDate(LocalDate.of(2025, 12, 31));
+      request.setInvestmentAmount(BigDecimal.valueOf(1_000_000_000_000L));
+
+      assertThatThrownBy(() -> backtestAnalysisService.compareStrategies(request))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.TOO_MANY_ROUNDS);
+      verify(dcaStrategy, never()).execute(any());
+    }
+
+    @Test
     @DisplayName("전략 비교의 이동평균 칩은 비교 원금 · 칩의 짧은 · 긴 기간과 공통 옵션을 넘기고 배당 재투자는 끈다")
     void compareStrategies_MaCrossPassesWindows() {
       StrategyParameter maCross = strategy(StrategyType.MA_CROSS);

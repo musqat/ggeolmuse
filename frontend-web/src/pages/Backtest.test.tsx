@@ -117,6 +117,12 @@ const selectMode = async (name: string) => {
 }
 const runBacktest = () => userEvent.click(screen.getByTestId('backtest-run'))
 const summary = () => screen.getByTestId('backtest-summary')
+// 기간을 오늘부터 몇 년 전으로
+const setYearsAgo = async (years: string) => {
+  const ago = screen.getByRole('textbox', { name: '오늘부터 몇' })
+  await userEvent.clear(ago)
+  await userEvent.type(ago, years)
+}
 const strategyChips = () => within(screen.getByRole('group', { name: '견줄 전략' }))
 
 beforeEach(() => {
@@ -371,6 +377,38 @@ describe('Backtest 페이지 실행', () => {
     })
     expect(await screen.findByText('결과: conditional')).toBeInTheDocument()
     expect(screen.getByText('예산: 1000000')).toBeInTheDocument()
+  })
+
+  it('적립식: 매일 적립 회차가 상한을 넘으면 주기 칸 오류로 막고 요청 없음', async () => {
+    renderPage()
+    await selectMode('적립식')
+    await setYearsAgo('20')
+    await userEvent.click(screen.getByRole('radio', { name: '매일' }))
+
+    expect(screen.getByText('매일 적립은 최대 약 15년 — 기간 줄이기 · 주기 늘리기')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('고칠 칸 1개')
+    await runBacktest()
+    expect(backtestApi.runDcaStrategy).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('radio', { name: '매주' }))
+    expect(screen.queryByText(/적립은 최대 약/)).toBeNull()
+  })
+
+  it('조건부: 예산 · 최대 횟수 없이 기간이 길어 매수 회차가 상한을 넘으면 최대 횟수 칸 오류로 막음', async () => {
+    renderPage()
+    await selectMode('조건부')
+    await setYearsAgo('20')
+    const max = screen.getByRole('textbox', { name: '최대 횟수(회)' })
+
+    expect(summary()).not.toHaveTextContent('고칠 칸')
+    await userEvent.click(screen.getByRole('button', { name: '예산 비우기' }))
+    expect(max).toHaveAccessibleDescription(
+      '이 기간이면 최대 매수 3,066회까지 — 최대 매수 횟수 정하기 · 기간 줄이기'
+    )
+    await runBacktest()
+    expect(backtestApi.runConditionalStrategy).not.toHaveBeenCalled()
+    fireEvent.change(max, { target: { value: '3000' } })
+    await runBacktest()
+    expect(vi.mocked(backtestApi.runConditionalStrategy).mock.calls[0][0]).toMatchObject({ maxPurchases: 3000 })
   })
 
   it('조건부: 상승을 고르면 상승 방향으로 요청한다', async () => {
@@ -1113,6 +1151,18 @@ describe('Backtest 페이지 포트폴리오', () => {
     })
   })
 
+  it('적립식 매일 회차가 상한을 넘으면 주기 칸 오류로 막고 요청 없음', async () => {
+    renderPage()
+    await selectMode('포트폴리오')
+    await userEvent.click(method('적립식'))
+    await userEvent.click(screen.getByRole('radio', { name: '매일' }))
+    await setYearsAgo('20')
+
+    expect(screen.getByText('매일 적립은 최대 약 15년 — 기간 줄이기 · 주기 늘리기')).toBeInTheDocument()
+    await runBacktest()
+    expect(backtestApi.runPortfolio).not.toHaveBeenCalled()
+  })
+
   it('리밸런싱은 처음에 없음, 주기를 고르면 요약에 적고 그 주기로 요청한다', async () => {
     renderPage()
     await selectMode('포트폴리오')
@@ -1132,7 +1182,7 @@ describe('Backtest 페이지 포트폴리오', () => {
     expect(backtestApi.runPortfolio).toHaveBeenCalledWith(expect.objectContaining({ method: 'LUMP_SUM', rebalance: 'QUARTERLY' }))
   })
 
-  it('줄마다 익절 · 손절을 적으면 요약에 적고 그 줄에만 비율로 싣고, 범위 밖이면 고칠 칸으로 세며, 배당 재투자를 잠그지 않고 직전 설정으로 되살린다', async () => {
+  it('줄마다 익절 · 손절을 적으면 요약에 적고 적은 줄에만 비율로 싣고, 범위 밖이면 고칠 칸으로 세며, 배당 재투자를 잠그지 않고 직전 설정으로 되살린다', async () => {
     renderPage()
     await selectMode('포트폴리오')
     await addRow()
@@ -1177,7 +1227,7 @@ describe('Backtest 페이지 포트폴리오', () => {
     expect(rowTakeProfit(2)).toHaveValue('')
   })
 
-  it('줄마다 전략을 고르면 그 줄에 이동평균 · 밴드 칸을 보이고 그 줄에만 전략을 싣고, 적립식 줄이 있으면 한 번에 사기라도 주기 칸을 보이며(합계는 회당이 아님) 직전 설정으로 되살린다', async () => {
+  it('줄마다 전략을 고르면 고른 줄에 이동평균 · 밴드 칸을 보이고 고른 줄에만 전략을 싣고, 적립식 줄이 있으면 한 번에 사기라도 주기 칸을 보이며(합계는 회당이 아님) 직전 설정으로 되살린다', async () => {
     renderPage()
     await selectMode('포트폴리오')
     await addRow()
@@ -1248,7 +1298,7 @@ describe('Backtest 페이지 포트폴리오', () => {
     expect(summary()).toHaveTextContent('· 이동평균 교차 1개 첫 매수 신호에 300만원 · 매년 처음 비중으로 리밸런싱(이동평균 교차 · 밴드 빼고)')
   })
 
-  it('빈 줄이 있으면 그 줄 종목 칸으로 가며 요청하지 않고, 비율 합이 100 이 아니면 고칠 칸으로 세어 첫 비율 칸으로 간다', async () => {
+  it('빈 줄이 있으면 빈 줄 종목 칸으로 가며 요청하지 않고, 비율 합이 100 이 아니면 고칠 칸으로 세어 첫 비율 칸으로 간다', async () => {
     renderPage()
     await selectMode('포트폴리오')
     await addRow()
@@ -1491,6 +1541,28 @@ describe('Backtest 페이지 전략 비교 칩', () => {
     expect(backtestApi.compareStrategies).not.toHaveBeenCalled()
   })
 
+  it('칩마다는 상한 안이어도 칩 회차를 합치면 상한을 넘을 때 칩 칸 오류로 막고 요청 없음', async () => {
+    renderPage()
+    await selectMode('전략 비교')
+    await setYearsAgo('15')
+    fireEvent.change(screen.getByRole('textbox', { name: '전략마다 원금(원)' }), { target: { value: '1000000000' } })
+    const daily = () =>
+      userEvent.click(within(screen.getByRole('radiogroup', { name: /^적립식( \d+)? 주기$/ })).getByRole('radio', { name: '매일' }))
+    await daily()
+    for (let i = 0; i < 2; i += 1) {
+      await userEvent.click(strategyChips().getByRole('button', { name: '＋ 적립식' }))
+      await daily()
+    }
+
+    expect(screen.queryByText(/칩 회차 합이/)).toBeNull()
+    await userEvent.click(strategyChips().getByRole('button', { name: '＋ 적립식' }))
+    await daily()
+    expect(screen.getByText('칩 회차 합이 너무 많음 — 칩 빼기 · 기간 줄이기 · 주기 늘리기')).toBeInTheDocument()
+    expect(summary()).toHaveTextContent('고칠 칸 1개')
+    await runBacktest()
+    expect(backtestApi.compareStrategies).not.toHaveBeenCalled()
+  })
+
   it('칩이 하나뿐이면 실행을 눌렀을 때 첫 ＋ 단추로 간다', async () => {
     renderPage()
     await selectMode('전략 비교')
@@ -1641,7 +1713,7 @@ describe('Backtest 페이지 세부 설정', () => {
 })
 
 describe('Backtest 페이지 직전 설정 · 설정 초기화', () => {
-  it('실행한 설정을 저장하고 직전 설정으로 모드 · 값을 되살리며, 되돌리기로 그 전 값으로 간다', async () => {
+  it('실행한 설정을 저장하고 직전 설정으로 모드 · 값을 되살리며, 되돌리기로 직전 설정을 불러오기 전 값으로 간다', async () => {
     renderPage()
     await selectMode('적립식')
     await userEvent.click(screen.getByRole('radio', { name: '매주' }))

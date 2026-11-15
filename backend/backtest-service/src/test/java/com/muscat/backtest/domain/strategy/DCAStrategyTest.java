@@ -205,7 +205,7 @@ class DCAStrategyTest {
     @Test
     @DisplayName("투자일이 휴장일이면 다음 거래일 종가 · 환율로 산다")
     void execute_HolidayInvestmentDay_BuysOnNextTradingDay() {
-      // given: 6/1 은 토요일, 그 전 금요일(5/31) 시세도 오지만 다음 거래일 6/3 에 삼
+      // given: 6/1 은 토요일, 직전 금요일(5/31) 시세도 오지만 다음 거래일 6/3 에 삼
       DcaStrategyRequest request = DcaStrategyRequest.builder()
         .userId(userId)
         .symbol(symbol)
@@ -494,7 +494,7 @@ class DCAStrategyTest {
 
     @ParameterizedTest(name = "회당 30만 · 예산 {0} → {1}회")
     @CsvSource({"1000000, 3", "900000, 3"})
-    @DisplayName("예산을 넘는 회차부터 사지 않고 그 날짜부터 끝까지 예산 부족 구간 한 줄로 남긴다")
+    @DisplayName("예산을 넘는 회차부터 사지 않고 예산을 넘는 첫 회차 날짜부터 끝까지 예산 부족 구간 한 줄로 남긴다")
     void execute_WithInvestmentLimit_StopsBeforeExceeding(String limit, int rounds) {
       DcaStrategyRequest request = limited(limit);
       stubSixMonths(request);
@@ -642,7 +642,7 @@ class DCAStrategyTest {
     }
 
     @Test
-    @DisplayName("회차마다 그 주식 수를 사고 넣은 돈은 종가 × 주식 수 + 수수료를 그 날짜 환율로 바꾼 값이다")
+    @DisplayName("회차마다 정한 주식 수를 사고 넣은 돈은 종가 × 주식 수 + 수수료를 산 날 환율로 바꾼 값이다")
     void buysSharesPerRound() {
       DcaStrategyRequest request = monthly(LocalDate.of(2024, 2, 29), 2).tradingFeeRate(new BigDecimal("0.01")).build();
       stubMarket(request, List.of(createOHLC(LocalDate.of(2024, 1, 15), new BigDecimal("100.00")),
@@ -1021,6 +1021,19 @@ class DCAStrategyTest {
       verifyNoInteractions(marketDataClient);
     }
 
+    @Test
+    @DisplayName("매일 적립 회차가 상한을 넘으면 시세를 받기 전에 TOO_MANY_ROUNDS")
+    void tooManyRounds() {
+      DcaStrategyRequest request = base().startDate(LocalDate.of(1990, 1, 1)).endDate(LocalDate.of(2025, 12, 31))
+        .frequency(DcaFrequency.DAILY).build();
+
+      assertThatThrownBy(() -> dcaStrategy.execute(request))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.TOO_MANY_ROUNDS);
+      verifyNoInteractions(marketDataClient);
+    }
+
     @ParameterizedTest(name = "투자일 {0}")
     @ValueSource(ints = {0, 32})
     @DisplayName("투자일이 1 ~ 31 밖이면 INVALID_PURCHASE_DAY")
@@ -1034,7 +1047,7 @@ class DCAStrategyTest {
     }
 
     @Test
-    @DisplayName("투자일을 비우면 시작일의 날짜에 사고, 그 날짜가 휴장이면 다음 거래일에 산다")
+    @DisplayName("투자일을 비우면 시작일의 날짜에 사고, 휴장이면 다음 거래일에 산다")
     void missingPurchaseDayFollowsStartDate() {
       // 2월 10일은 토요일 · 3월 10일은 일요일
       given(marketDataClient.getOHLCPriceRange(symbol, "2024-01-10", "2024-03-31")).willReturn(List.of(
@@ -1416,7 +1429,7 @@ class DCAStrategyTest {
     }
 
     @Test
-    @DisplayName("켜면 해마다 결제가 그해 안에 끝나는 마지막 거래일(T+2)에 공제를 채울 만큼 팔고 같은 값에 다시 사서 그해 세금이 0 이고 기간 끝 매도 세금이 끌 때보다 적다")
+    @DisplayName("켜면 해마다 결제가 같은 해 안에 끝나는 마지막 거래일(T+2)에 공제를 채울 만큼 팔고 같은 값에 다시 사서 연말 정리한 해 세금이 0 이고 기간 끝 매도 세금이 끌 때보다 적다")
     void fillsDeductionEveryYear() {
       stubRisingMarket();
 
@@ -1460,7 +1473,7 @@ class DCAStrategyTest {
       BigDecimal held = before.stream().map(StrategyTransaction::getShares).reduce(BigDecimal.ZERO, BigDecimal::add);
       BigDecimal withoutHarvest = before.stream().filter(tx -> !tx.isYearEndHarvest())
         .map(StrategyTransaction::getShares).reduce(BigDecimal.ZERO, BigDecimal::add);
-      // 연말 정리 수수료만큼 줄어든 주식 수 × 0.5달러로 그 날짜 종가에 삼
+      // 연말 정리 수수료만큼 줄어든 주식 수 × 0.5달러로 재투자한 날 종가에 삼
       assertThat(held).isLessThan(withoutHarvest);
       assertThat(march.getShares()).isEqualByComparingTo(new BigDecimal("0.5").multiply(held)
         .setScale(2, java.math.RoundingMode.HALF_UP).divide(march.getPrice(), 8, java.math.RoundingMode.HALF_UP));

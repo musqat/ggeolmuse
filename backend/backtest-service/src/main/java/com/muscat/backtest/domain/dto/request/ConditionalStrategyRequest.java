@@ -50,7 +50,7 @@ public class ConditionalStrategyRequest extends RequestOptions implements Strate
   @Positive(message = "회당 금액은 0보다 커야 합니다")
   private BigDecimal amountPerPurchase;
 
-  @Schema(description = "조건이 맞는 날마다 사는 주식 수 (정수 1 ~ 1,000,000, 회당 금액과 둘 중 하나, 매수가 × 주식 수 + 수수료를 그 날짜 환율로 원화)", example = "1")
+  @Schema(description = "조건이 맞는 날마다 사는 주식 수 (정수 1 ~ 1,000,000, 회당 금액과 둘 중 하나, 매수가 × 주식 수 + 수수료를 매수일 환율로 원화)", example = "1")
   @Min(value = 1, message = "주식 수는 1 ~ 1,000,000 사이여야 합니다")
   @Max(value = RequestLimit.MAX_SHARES, message = "주식 수는 1 ~ 1,000,000 사이여야 합니다")
   private Integer sharesPerPurchase;
@@ -77,7 +77,7 @@ public class ConditionalStrategyRequest extends RequestOptions implements Strate
   @Schema(description = "트레일링 스탑 하락 비율: 종가가 기준가(사이클 첫 매수가에서 시작한 종가 고점, 판 뒤에는 판 값)보다 이만큼 내리면 팜 (10% = 0.1, 0 초과 1 미만, 비우면 안 함)", example = "0.1")
   private BigDecimal trailingStopRate;
 
-  @Schema(description = "트레일링 스탑 팔 비율: 그때마다 보유의 이만큼 팜 (50% = 0.5, 0 초과 1 이하, 비우면 전량, 하락 비율과 함께)", example = "0.5")
+  @Schema(description = "트레일링 스탑 팔 비율: 종가가 기준가보다 하락 비율만큼 내릴 때마다 보유의 이만큼 팜 (50% = 0.5, 0 초과 1 이하, 비우면 전량, 하락 비율과 함께)", example = "0.5")
   private BigDecimal trailingSellRate;
 
   @Schema(description = "부분 익절 단계: 수익률이 낮은 단계부터 사이클에 한 번씩, 하루에 한 단계 보유의 팔 비율만큼 팜 (5단계까지, 비우면 안 함)")
@@ -87,7 +87,7 @@ public class ConditionalStrategyRequest extends RequestOptions implements Strate
   @Positive(message = "최대 매수 횟수는 0보다 커야 합니다")
   private Integer maxPurchases;
 
-  @Schema(description = "양도세 낼 현금이 모자랄 때 (NONE 현금이 생길 때 냄, SELL 그 날짜 종가에 모자란 만큼 팔아 냄, 비우면 NONE)", example = "SELL")
+  @Schema(description = "양도세 낼 현금이 모자랄 때 (NONE 현금이 생길 때 냄, SELL 납부일 종가에 모자란 만큼 팔아 냄, 비우면 NONE)", example = "SELL")
   private TaxSale taxSale;
 
   // 이력 저장 JSON 에는 넣지 않음
@@ -103,6 +103,12 @@ public class ConditionalStrategyRequest extends RequestOptions implements Strate
   @AssertTrue(message = "회당 금액과 주식 수 가운데 하나만 넣어 주세요")
   public boolean isAmountOrShares() {
     return (amountPerPurchase == null) != (sharesPerPurchase == null);
+  }
+
+  // 익절 · 손절 · 트레일링 스탑 · 부분 익절 가운데 하나라도 켰는지
+  public boolean sells() {
+    return takeProfitRate != null || stopLossRate != null || trailingStopRate != null
+      || (partialTakeProfits != null && !partialTakeProfits.isEmpty());
   }
 
   // 회당 금액 · 주식 수 표시("100000원" · "2주")
