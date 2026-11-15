@@ -116,6 +116,17 @@ class ResponseMapperTest {
     }
 
     @Test
+    @DisplayName("배당 이력을 못 받은 계산이면 배당 못 받은 종목에 요청 종목, 아니면 빈 목록")
+    void dividendUnavailableSymbols() {
+      StrategyCalculationResult missing = calculation().toBuilder().dividendsUnavailable(true).build();
+
+      assertThat(mapper.toStrategyResponse(dcaRequest(), transactions(2), missing, price("120.5"), NONE)
+        .getDividendUnavailableSymbols()).containsExactly(SYMBOL);
+      assertThat(mapper.toStrategyResponse(dcaRequest(), transactions(2), calculation(), price("120.5"), NONE)
+        .getDividendUnavailableSymbols()).isEmpty();
+    }
+
+    @Test
     @DisplayName("기본 환율을 쓴 날이 없으면 빈 목록이다")
     void noDefaultFxDates() {
       StrategyResponse result = mapper.toStrategyResponse(dcaRequest(), transactions(2), calculation(), price("120.5"), NONE);

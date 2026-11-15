@@ -125,11 +125,12 @@ public class MarketDataClientWrapper implements MarketDataPort {
     }
   }
 
+  // 못 받은 배당 이력은 null(배당 없음은 빈 목록)
   private List<DividendDto> getDividendHistoryFallback(String symbol, String startDate,
     String endDate, Exception ex) {
     log.error("Fallback triggered for getDividendHistory. Symbol: {}, Error: {}",
       symbol, ex.getMessage());
-    return Collections.emptyList();
+    return null;
   }
 
   private FxRateDto getFxRateFallback(String date, Exception ex) {

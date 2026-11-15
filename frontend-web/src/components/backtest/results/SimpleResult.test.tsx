@@ -157,6 +157,12 @@ describe('SimpleResult', () => {
     expect(empty).toBeEmptyDOMElement()
   })
 
+  it('배당 기록을 받지 못했으면 배당 없이 계산한 종목 알림', () => {
+    render(<SimpleResult result={{ ...result, dividendUnavailableSymbols: ['AAPL'] }} symbol="AAPL" purchaseDate="2023-01-03" />)
+
+    expect(screen.getByRole('note')).toHaveTextContent('배당 없이 계산한 종목: AAPL')
+  })
+
   it('기본 환율로 계산한 날이 있으면 그 알림을 보인다', () => {
     render(<SimpleResult result={{ ...result, defaultFxDates: ['2013-06-03'] }} symbol="AAPL" purchaseDate="2013-06-03" />)
 

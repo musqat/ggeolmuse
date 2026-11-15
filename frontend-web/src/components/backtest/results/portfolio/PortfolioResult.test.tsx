@@ -236,7 +236,7 @@ describe('PortfolioResult', () => {
     expect(within(rows()[0]).getByText('-40.00%')).toHaveClass('text-loss')
   })
 
-  it('종목 밖 이익이 0 이면 그 줄이 없고, 원금 · 총 수익이 0 인 줄은 수익률 · 기여를 - 로 둔다', () => {
+  it('종목 밖 이익이 0 이면 종목 밖 이익 줄이 없고, 원금 · 총 수익이 0 인 줄은 수익률 · 기여를 - 로 둔다', () => {
     render(
       <PortfolioResult
         result={{
@@ -373,6 +373,12 @@ describe('PortfolioResult', () => {
     expect(screen.getByText('배당 재투자 1번 · 연말 정리 1번')).toBeInTheDocument()
     expect(screen.getByText('매매 내역')).toBeInTheDocument()
     expect(screen.getByText('예상 양도세')).toBeInTheDocument()
+  })
+
+  it('배당 기록을 받지 못한 종목이 있으면 맨 위에 알림', () => {
+    render(<PortfolioResult result={{ ...result, dividendUnavailableSymbols: ['QQQ'] }} />)
+
+    expect(screen.getByRole('note')).toHaveTextContent('배당 없이 계산한 종목: QQQ')
   })
 
   it('기본 환율로 계산한 날이 있으면 맨 위에 알린다', () => {

@@ -18,6 +18,7 @@ import com.muscat.backtest.domain.strategy.DcaSchedule;
 import com.muscat.backtest.domain.strategy.SignalHolding;
 import com.muscat.backtest.domain.strategy.TakeProfitStopLoss;
 import com.muscat.backtest.domain.port.MarketDataPort;
+import com.muscat.backtest.domain.dto.market.DividendHistoryDto;
 import com.muscat.backtest.domain.dto.market.DividendHistoryDto.DividendPayment;
 import com.muscat.backtest.domain.dto.market.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
@@ -49,12 +50,13 @@ public class PortfolioEngine {
   public record Position(String symbol, PortfolioStrategyType strategyType, ExecutionTiming executionTiming,
                          BigDecimal plannedKrw, BigDecimal shares, BigDecimal closeUsd, BigDecimal valueKrw) {}
 
-  /** 기간 첫 거래일 · 평가일 · 거래 · 배당 · 줄마다 보유 · 합계 · 일별 가치와 지표 · 양도세 납부 · 기본 환율 날 */
+  /** 기간 첫 거래일 · 평가일 · 거래 · 배당 · 줄마다 보유 · 합계 · 일별 가치와 지표 · 양도세 납부 · 기본 환율 날 · 배당 못 받은 종목 */
   public record Result(LocalDate startDate, LocalDate valuationDate, List<StrategyTransaction> transactions,
                        List<Dividend> dividends, List<Position> positions, BigDecimal totalInvestedKrw,
                        BigDecimal cashUsd, BigDecimal cashKrw, BigDecimal stockValueKrw, BigDecimal totalAssetKrw,
                        BigDecimal currentFxRate, StrategyPerformance.Result performance,
-                       CapitalGainsTaxCalculator.Payments taxPayments, List<LocalDate> defaultFxDates) {}
+                       CapitalGainsTaxCalculator.Payments taxPayments, List<LocalDate> defaultFxDates,
+                       List<String> dividendUnavailableSymbols) {}
 
   // 줄마다 일봉 · 회차 · 배당을 받아 줄들의 쓸 수 있는 일봉 날짜를 합친 날마다 돌리고 평가일 환율로 평가
   public Result run(PortfolioRequest request) {
@@ -101,15 +103,16 @@ public class PortfolioEngine {
     if (candles.isEmpty()) {
       throw new BacktestException(BacktestResponse.DATA_NOT_FOUND, symbol + " 의 기간 안 시세가 없습니다");
     }
-    List<DividendPayment> dividends = BacktestDataUtils.getDividendHistory(marketData, symbol, request.getStartDate(),
-        valuationDate).getDividends().stream()
+    DividendHistoryDto history = BacktestDataUtils.getDividendHistory(marketData, symbol, request.getStartDate(),
+      valuationDate);
+    List<DividendPayment> dividends = history.getDividends().stream()
       .filter(dividend -> dividend.getExDate() != null)
       .sorted(Comparator.comparing(DividendPayment::getExDate))
       .toList();
     SignalHolding signal = signal(type, asset.strategy(), priceMap, start);
     boolean nextOpen = signal != null && ExecutionTiming.nextDayOpen(asset.strategy().executionTiming());
     return new PortfolioRun.Line(symbol, type, request.amountOf(asset), candles,
-      signal == null ? rounds(request, type, candles, valuationDate) : Map.of(), dividends,
+      signal == null ? rounds(request, type, candles, valuationDate) : Map.of(), dividends, history.isUnavailable(),
       TakeProfitStopLoss.of(asset.takeProfitRate(), asset.stopLossRate()), signal, nextOpen, asset.taxSaleOrder());
   }
 

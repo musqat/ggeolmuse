@@ -23,7 +23,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-// 서킷 브레이커 대체 메서드(private)의 동작 — 단건 시세는 예외, 목록은 빈 값, 환율은 설정한 기본 환율
+// 서킷 브레이커 대체 메서드(private)의 동작 — 단건 시세는 예외, 배당 목록은 null, 여러 날짜 환율은 빈 값, 환율은 설정한 기본 환율
 @DisplayName("시세 서비스 호출과 대체 동작")
 class MarketDataClientWrapperTest {
 
@@ -96,12 +96,13 @@ class MarketDataClientWrapperTest {
   }
 
   @Test
-  @DisplayName("배당 목록 · 여러 날짜 환율을 못 받으면 빈 값으로 넘어간다")
-  void listFallbacks_Empty() {
-    List<DividendDto> dividends = fallback("getDividendHistoryFallback", "AAPL", "2024-01-01", "2024-12-31", down);
+  @DisplayName("배당 목록을 못 받으면 null, 여러 날짜 환율은 빈 값")
+  void listFallbacks_DividendsNullFxEmpty() {
+    List<DividendDto> dividends = ReflectionTestUtils.invokeMethod(wrapper, "getDividendHistoryFallback", "AAPL",
+      "2024-01-01", "2024-12-31", down);
     Map<String, java.math.BigDecimal> fxRates = fallback("getBulkFxRatesFallback", List.of("2024-03-04"), down);
 
-    assertThat(dividends).isEmpty();
+    assertThat(dividends).isNull();
     assertThat(fxRates).isEmpty();
   }
 

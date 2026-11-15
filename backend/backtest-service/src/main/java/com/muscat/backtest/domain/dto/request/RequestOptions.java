@@ -36,6 +36,8 @@ public abstract class RequestOptions {
   private BigDecimal tradingFeeRate = BigDecimal.ZERO;
 
   @Schema(description = "배당 원천징수세율 (미국 원천징수 15% = 0.15, 미적용 시 0)", example = "0.15")
+  @DecimalMin(value = "0", message = "배당 세율은 0 이상 1 미만이어야 합니다")
+  @DecimalMax(value = "1", inclusive = false, message = "배당 세율은 0 이상 1 미만이어야 합니다")
   @Builder.Default
   private BigDecimal dividendTaxRate = BigDecimal.ZERO;
 

@@ -131,7 +131,9 @@ public final class StrategyFinalizer {
 
     StrategyCalculationResult calculation = StrategyCalculator.calculate(
         transactions, totalInvested, totalShares, totalFxRateSum, currentPrice, currentFxRate,
-        totalDividends, dividendsReinvested, dividendTaxRate);
+        totalDividends, dividendsReinvested, dividendTaxRate).toBuilder()
+        .dividendsUnavailable(dividendHistory.isUnavailable())
+        .build();
 
     Function<LocalDate, BigDecimal> fxOn = fxPath(transactions, valuationDate, manualPurchaseFxRate,
         manualCurrentFxRate, currentFxRate.rate(), dailyFx);
@@ -142,7 +144,7 @@ public final class StrategyFinalizer {
     return new Result(transactions, calculation, currentPrice, performance);
   }
 
-  // 그 날짜까지 거래로 연말 정리한 판 거래 · 다시 산 거래를 더함(그 날짜에 주식이 없거나 팔 것이 없으면 그대로)
+  // 받은 날짜까지 거래로 연말 정리한 판 거래 · 다시 산 거래를 더함(받은 날짜에 주식이 없거나 팔 것이 없으면 그대로)
   private static void harvest(List<StrategyTransaction> transactions, LocalDate date,
       Map<LocalDate, OHLCPriceDto> priceMap, BigDecimal manualFxRate, FxRates dailyFx, BigDecimal feeRate) {
     List<StrategyTransaction> held = transactions.stream()

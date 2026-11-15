@@ -96,6 +96,9 @@ public class StrategyResponse {
   @Schema(description = "환율이 없어 기본 환율로 계산한 날(산 날 · 배당 재투자일 · 평가일, 양도세를 켜면 판 날 · 낸 날)", example = "[\"2013-06-03\"]")
   @Builder.Default
   private List<LocalDate> defaultFxDates = List.of();
+  @Schema(description = "배당 이력을 못 받아 배당 없이 계산한 종목", example = "[]")
+  @Builder.Default
+  private List<String> dividendUnavailableSymbols = List.of();
 
   // ===== 수익 · 위험 지표 =====
   @Schema(description = "원화 기준 수익 · 위험 지표(입금을 뺀 시간가중 수익률)")

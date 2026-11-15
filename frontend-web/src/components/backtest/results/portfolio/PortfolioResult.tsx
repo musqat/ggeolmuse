@@ -6,6 +6,7 @@ import { StatCard } from '../StatCard';
 import { AssetChart } from '../AssetChart';
 import { CurrencyToggle, type MetricCurrency } from '../CurrencyToggle';
 import { DefaultFxNotice } from '../DefaultFxNotice';
+import { DividendUnavailableNotice } from '../DividendUnavailableNotice';
 import { strategyDeposits } from '../assetSeries';
 import { percentOrDash, pickMetrics } from '../resultValues';
 import { ResultFold } from '../ResultFold';
@@ -31,6 +32,7 @@ export const PortfolioResult: React.FC<PortfolioResultProps> = ({ result }) => {
   return (
     <div className="space-y-6">
       <DefaultFxNotice dates={result.defaultFxDates} />
+      <DividendUnavailableNotice symbols={result.dividendUnavailableSymbols} />
       <div className="space-y-4">
         {hasMetrics && (
           <div className="flex items-center justify-end gap-2">

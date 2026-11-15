@@ -5,7 +5,7 @@ import { apiClient } from './client';
 // 기간이 끝날 때 남은 주식(끝까지 보유 · 마지막 거래일 종가에 전량 매도)
 export type PeriodEnd = 'HOLD' | 'SELL_AT_END';
 
-// 양도세 낼 현금이 모자랄 때(현금이 생길 때 냄 · 그 날짜 종가에 모자란 만큼 팔아 냄)
+// 양도세 낼 현금이 모자랄 때(현금이 생길 때 냄 · 납부일 종가에 모자란 만큼 팔아 냄)
 export type TaxSale = 'NONE' | 'SELL';
 
 // 백테스트 요청 공통 칸(환율은 fxMode 가 manual 일 때만)
@@ -19,7 +19,7 @@ type BacktestCommonRequest = {
   currentFxRate?: number;               // 수동 환율 - 현재
 };
 
-// 양도세를 켰을 때 연말 정리(결제가 그해 안에 끝나는 마지막 거래일에 공제를 채우거나 손실로 상계하도록 팔고 같은 값에 다시 삼)
+// 양도세를 켰을 때 연말 정리(결제가 같은 해 안에 끝나는 마지막 거래일에 공제를 채우거나 손실로 상계하도록 팔고 같은 값에 다시 삼)
 export type YearEndHarvestRequest = {
   yearEndHarvest?: boolean;             // 비우면 끔
 };
@@ -39,14 +39,14 @@ export type HarvestComparison = {
   savedKrw: number;                     // 앞 둘의 차 (음수면 더 냄)
 };
 
-// 한 해 양도세(KRW, 손실은 그 해 이익과 상계)
+// 한 해 양도세(KRW, 손실은 같은 해 이익과 상계)
 export type CapitalGainsTaxYear = {
   year: number;
-  realizedGainKrw: number;              // 그해 결제된 원화 실현 이익 합
+  realizedGainKrw: number;              // 한 해 동안 결제된 원화 실현 이익 합
   deductionKrw: number;                 // 기본 공제 (연 250만원까지)
   taxKrw: number;                       // (실현 이익 - 공제) × 22%
   dueDate: string | null;               // 납부일 (다음 해 5월 1일 이후 첫 거래일, 기간 안에 오지 않았으면 null)
-  paidKrw: number;                      // 그 해 세금 가운데 기간 안에 낸 원화
+  paidKrw: number;                      // 같은 해 세금 가운데 기간 안에 낸 원화
 };
 
 // 양도세 · 납부와 세후 평가(요청하지 않았으면 응답에 null)
@@ -82,7 +82,7 @@ export type PerformanceMetrics = {
   sharpe?: number | null;               // 샤프 비율(무위험 연 3%)
 };
 
-// 하루 평가 가치와 그 날짜까지 고점 대비 낙폭(%)
+// 하루 평가 가치와 같은 날짜까지 고점 대비 낙폭(%)
 export type DailyValue = {
   date: string;
   valueUsd: number;
@@ -91,7 +91,7 @@ export type DailyValue = {
   drawdownKrw?: number | null;
 };
 
-// 그 날짜에 샀다면 평가일까지 총 수익률(%, 결과와 같은 수수료 · 배당 · 환율 기준)
+// 거래일 하나에 샀다면 평가일까지 총 수익률(%, 결과와 같은 수수료 · 배당 · 환율 기준)
 export type PurchaseDayReturn = {
   date: string;
   returnPercent: number | null;
@@ -131,6 +131,7 @@ export type SimulationResponse = {
   dividendsReinvested?: number | null;
   dividendReinvestDates?: string[] | null;
   defaultFxDates?: string[];                // 환율 기록이 없어 기본 환율로 계산한 날
+  dividendUnavailableSymbols?: string[];    // 배당 기록을 받지 못해 배당 없이 계산한 종목
   metricsKrw?: PerformanceMetrics | null;   // 원화 기준 지표
   metricsUsd?: PerformanceMetrics | null;   // 달러 기준 지표
   dailyValues?: DailyValue[];               // 매수일 ~ 평가일(마지막 날은 총자산)
@@ -366,6 +367,7 @@ export type StrategyResponse = {
   totalDividends?: number | null;
   dividendYield?: number | null;
   defaultFxDates?: string[];                // 환율 기록이 없어 기본 환율로 계산한 날
+  dividendUnavailableSymbols?: string[];    // 배당 기록을 받지 못해 배당 없이 계산한 종목
   metricsKrw?: PerformanceMetrics | null;   // 원화 기준 지표(입금을 뺀 시간가중)
   metricsUsd?: PerformanceMetrics | null;   // 달러 기준 지표
   dailyValues?: DailyValue[];               // 첫 매수일 ~ 평가일(마지막 날은 총자산)
@@ -406,8 +408,8 @@ export type PortfolioAssetRequest = {
   symbol: string;
   amount?: number;                      // 금액 (KRW, 적립식 줄은 회당, 이동평균 · 밴드 줄은 첫 매수 신호에)
   weightPercent?: number;               // 비율 (%, 줄 합 100)
-  takeProfitRate?: number;              // 그 종목 평균 단가 대비 익절 비율 (0.3 = 30%, 비우면 안 함)
-  stopLossRate?: number;                // 그 종목 평균 단가 대비 손절 비율 (0.1 = 10%, 1 미만, 비우면 안 함)
+  takeProfitRate?: number;              // 줄 종목 평균 단가 대비 익절 비율 (0.3 = 30%, 비우면 안 함)
+  stopLossRate?: number;                // 줄 종목 평균 단가 대비 손절 비율 (0.1 = 10%, 1 미만, 비우면 안 함)
   strategy?: PortfolioAssetStrategy;    // 비우면 요청의 매수 방식
   taxSaleOrder?: number;                // 판매 순서 (CUSTOM_ORDER 에서만, 1 ~ 종목 수, 서로 다르게)
 };
@@ -460,7 +462,7 @@ export type PortfolioAssetResult = {
   strategyType: PortfolioStrategyType;  // 줄 전략 (줄에 없으면 요청의 매수 방식)
   executionTiming?: ExecutionTiming | null; // 이동평균 · 밴드 줄 체결 시점 (다른 줄은 null)
   investedKrw: number;                  // 원금 (새로 넣은 원화 합)
-  boughtKrw: number;                    // 매수 원가 합 (새 돈 + 쓴 현금 × 그 날짜 환율)
+  boughtKrw: number;                    // 매수 원가 합 (새 돈 + 쓴 현금 × 매수일 환율)
   valueKrw: number;                     // 평가일 보유 × 종가 × 평가일 환율
   soldKrw: number;                      // 판 돈 × 판 날 환율 합
   dividendKrw: number;                  // 세후 배당 × 배당락일 환율 합 (재투자 포함)
@@ -502,6 +504,7 @@ export type PortfolioBacktestResponse = {
   tradeStats?: TradeStats | null;           // 판 거래가 없으면 null
   capitalGainsTax?: CapitalGainsTax | null; // 포트폴리오 전체, 끄면 null
   defaultFxDates?: string[];
+  dividendUnavailableSymbols?: string[];    // 배당 기록을 받지 못해 배당 없이 계산한 종목
 };
 
 // 비교 항목의 원래 응답(SimulationResponse 또는 StrategyResponse 라 두 쪽 칸 모두 선택)

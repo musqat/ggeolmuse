@@ -10,6 +10,7 @@ import { getTodayString } from '../../../utils/dateUtils';
 import { cashKrw } from '../shared/backtestDisplay';
 import { HolidayNotice } from './HolidayNotice';
 import { DefaultFxNotice } from './DefaultFxNotice';
+import { DividendUnavailableNotice } from './DividendUnavailableNotice';
 import type { MetricCurrency } from './CurrencyToggle';
 import { ResultFold } from './ResultFold';
 import { RiskDetail } from './RiskDetail';
@@ -70,6 +71,7 @@ export const SimpleResult: React.FC<SimpleResultProps> = ({ result, symbol, purc
     <div className="space-y-6">
       <HolidayNotice label="매수일" chosen={purchaseDate} traded={result.purchaseDate} />
       <DefaultFxNotice dates={result.defaultFxDates} />
+      <DividendUnavailableNotice symbols={result.dividendUnavailableSymbols} />
       <ResultOverview
         result={result}
         investedLabel="초기 투자금"

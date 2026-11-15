@@ -21,6 +21,7 @@ public interface MarketDataPort {
 
   StockPriceDto getCurrentPrice(String symbol);
 
+  // 기간 배당 이력(못 받으면 null)
   List<DividendDto> getDividendHistory(String symbol, String startDate, String endDate);
 
   // 받은 날짜 환율(없으면 null)

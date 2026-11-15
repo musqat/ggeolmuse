@@ -14,7 +14,8 @@ import { RiskDetail } from './RiskDetail';
 import { simpleDeposits } from './assetSeries';
 import { CompareTable, type CompareColumn } from './compare/CompareTable';
 import { ReturnLinesChart } from './compare/ReturnLinesChart';
-import { bestKeys, byTotalReturn, metricsOf, returnPoints, taxOf, type CompareRow } from './compare/compareRows';
+import { bestKeys, byTotalReturn, dividendUnavailableOf, metricsOf, returnPoints, taxOf, type CompareRow } from './compare/compareRows';
+import { DividendUnavailableNotice } from './DividendUnavailableNotice';
 import { DrawdownCell } from './compare/DrawdownCell';
 import { AfterTaxCell, TaxDetail } from './compare/AfterTax';
 
@@ -146,6 +147,7 @@ export const SymbolComparisonResult: React.FC<SymbolComparisonResultProps> = ({
 
   return (
     <div className="space-y-6">
+      <DividendUnavailableNotice symbols={dividendUnavailableOf(result.items)} />
       <HolidayNotice label="시작일" chosen={comparePurchaseDate} traded={firstDetail?.purchaseDate || result.items?.[0]?.purchaseDate} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">

@@ -11,6 +11,7 @@ import { FxImpactSection } from './FxImpactSection';
 import { DetailRow, DetailSection } from './DetailSection';
 import { PurchaseHistory } from './PurchaseHistory';
 import { DefaultFxNotice } from './DefaultFxNotice';
+import { DividendUnavailableNotice } from './DividendUnavailableNotice';
 import type { MetricCurrency } from './CurrencyToggle';
 import { ResultFold } from './ResultFold';
 import { RiskDetail } from './RiskDetail';
@@ -129,6 +130,7 @@ export const DcaConditionalResult: React.FC<DcaConditionalResultProps> = ({
         </p>
       )}
       <DefaultFxNotice dates={result.defaultFxDates} />
+      <DividendUnavailableNotice symbols={result.dividendUnavailableSymbols} />
       <ResultOverview
         result={result}
         investedLabel={investedLabel}

@@ -139,7 +139,7 @@ class BacktestAnalysisServiceImplTest {
         List.of(), List.of(new PortfolioEngine.Position("SPY", PortfolioStrategyType.LUMP_SUM, null, BigDecimal.valueOf(1000000),
           BigDecimal.ZERO, BigDecimal.TEN, BigDecimal.ZERO)), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
         BigDecimal.ZERO, BigDecimal.valueOf(1300), new StrategyPerformance.Result(List.of(), null, null),
-        CapitalGainsTaxCalculator.Payments.NONE, List.of()));
+        CapitalGainsTaxCalculator.Payments.NONE, List.of(), List.of()));
 
       PortfolioResponse response = backtestAnalysisService.runPortfolio(request);
 
@@ -1288,7 +1288,7 @@ class BacktestAnalysisServiceImplTest {
         List.of(new PortfolioEngine.Position("SPY", PortfolioStrategyType.LUMP_SUM, null, new BigDecimal("10000000"),
           BigDecimal.ZERO, BigDecimal.TEN, BigDecimal.ZERO)), new BigDecimal("10000000"), BigDecimal.ZERO,
         BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("1000"),
-        new StrategyPerformance.Result(List.of(), null, null), CapitalGainsTaxCalculator.Payments.NONE, List.of());
+        new StrategyPerformance.Result(List.of(), null, null), CapitalGainsTaxCalculator.Payments.NONE, List.of(), List.of());
     }
 
     @Test

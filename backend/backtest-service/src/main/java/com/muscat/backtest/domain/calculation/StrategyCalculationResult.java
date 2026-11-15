@@ -27,4 +27,5 @@ public class StrategyCalculationResult {
     private final BigDecimal fxReturnPercent;
     private final BigDecimal currentFxRate;
     private final LocalDate defaultFxValuationDate; // 평가일 환율이 기본값이면 그 날
+    private final boolean dividendsUnavailable;     // 배당 이력을 못 받아 배당 없이 계산했으면 true
 }

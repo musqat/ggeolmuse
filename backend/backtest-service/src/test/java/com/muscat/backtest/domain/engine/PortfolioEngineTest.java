@@ -68,13 +68,13 @@ class PortfolioEngineTest {
     lenient().when(marketData.getDividendHistory(anyString(), anyString(), anyString())).thenReturn(List.of());
   }
 
-  // 그 날짜 일봉(시가 · 고가 · 저가 · 종가 · 수정 종가 같음)
+  // 받은 날짜 일봉(시가 · 고가 · 저가 · 종가 · 수정 종가 같음)
   private static OHLCPriceDto candle(String symbol, LocalDate date, String close) {
     BigDecimal price = new BigDecimal(close);
     return new OHLCPriceDto(symbol, date, price, price, price, price, price, 1_000L, "USD", true);
   }
 
-  // 그 날짜 시가 · 고가 · 저가 · 종가(수정 종가는 종가) 일봉
+  // 받은 날짜 시가 · 고가 · 저가 · 종가(수정 종가는 종가) 일봉
   private static OHLCPriceDto bar(String symbol, LocalDate date, String open, String high, String low, String close) {
     return new OHLCPriceDto(symbol, date, new BigDecimal(open), new BigDecimal(high), new BigDecimal(low),
       new BigDecimal(close), new BigDecimal(close), 1_000L, "USD", true);
@@ -88,7 +88,7 @@ class PortfolioEngineTest {
     given(marketData.getOHLCPriceRange(eq(symbol), anyString(), anyString())).willReturn(List.of(candles));
   }
 
-  // 그 종목 배당(배당락일 · 주당 USD)
+  // 종목 하나의 배당(배당락일 · 주당 USD)
   private void dividends(String symbol, DividendDto... dividends) {
     given(marketData.getDividendHistory(eq(symbol), anyString(), anyString())).willReturn(List.of(dividends));
   }
@@ -184,7 +184,7 @@ class PortfolioEngineTest {
   class LumpSum {
 
     @Test
-    @DisplayName("줄마다 기간 안 그 종목 첫 거래일에 금액 전부로 사고 날마다 일봉이 없는 종목은 앞 가장 늦은 종가로 합쳐 평가한다")
+    @DisplayName("줄마다 기간 안 줄의 종목 첫 거래일에 금액 전부로 사고 날마다 일봉이 없는 종목은 앞 가장 늦은 종가로 합쳐 평가한다")
     void buysEachOnItsFirstTradingDay() {
       // AAA 는 이틀째 일봉 없음, BBB 는 이틀째 상장
       prices("AAA", candle("AAA", day(0), "10"), candle("AAA", day(2), "12"));
@@ -224,6 +224,22 @@ class PortfolioEngineTest {
       assertThat(result.positions()).extracting(position -> plain(position.plannedKrw()))
         .containsExactly("333300", "666701");
       assertThat(plain(result.totalInvestedKrw())).isEqualTo("1000001");
+    }
+
+    @Test
+    @DisplayName("배당 이력을 못 받은 줄은 배당 없이 계산하고 줄의 종목을 요청 순서로 배당 못 받은 종목에 남김")
+    void dividendsUnavailable() {
+      prices("AAA", candle("AAA", day(0), "10"));
+      prices("BBB", candle("BBB", day(0), "20"));
+      prices("CCC", candle("CCC", day(0), "30"));
+      given(marketData.getDividendHistory(eq("CCC"), anyString(), anyString())).willReturn(null);
+      given(marketData.getDividendHistory(eq("AAA"), anyString(), anyString())).willReturn(null);
+
+      PortfolioEngine.Result result = engine.run(request(day(0), asset("CCC", "1300000"), asset("AAA", "1300000"),
+        asset("BBB", "1300000")).build());
+
+      assertThat(result.dividendUnavailableSymbols()).containsExactly("CCC", "AAA");
+      assertThat(result.dividends()).isEmpty();
     }
 
     @Test
@@ -364,7 +380,7 @@ class PortfolioEngineTest {
     }
 
     @Test
-    @DisplayName("적립식 요청에서 한 번에 사기 줄은 첫 매수일과 상관없이 그 종목 첫 거래일에 금액 전부로 한 번만 산다")
+    @DisplayName("적립식 요청에서 한 번에 사기 줄은 첫 매수일과 상관없이 줄의 종목 첫 거래일에 금액 전부로 한 번만 산다")
     void lumpSumLineInDcaRequest() {
       monthly("AAA", "10", "20", "25");
       monthly("BBB", "50", "40", "100");
@@ -418,7 +434,7 @@ class PortfolioEngineTest {
     }
 
     @Test
-    @DisplayName("납부일 시가에 판 돈으로 그 날짜 양도세를 낸다")
+    @DisplayName("납부일 시가에 판 돈으로 같은 날 양도세를 낸다")
     void openSaleOnDueDatePaysTax() {
       LocalDate apr30 = LocalDate.of(2025, 4, 30);
       LocalDate due = LocalDate.of(2025, 5, 1);
@@ -459,7 +475,7 @@ class PortfolioEngineTest {
     }
 
     @Test
-    @DisplayName("다음 거래일 시가 주문은 다음 날짜에 그 줄 일봉이 없으면 그 줄의 다음 일봉 시가에 체결한다")
+    @DisplayName("다음 거래일 시가 주문은 다음 날짜에 신호 줄 일봉이 없으면 신호 줄의 다음 일봉 시가에 체결한다")
     void openOrderWaitsForLineCandle() {
       // AAA 는 3월 7일 데드 크로스 뒤 3월 11일 시가 8, BBB 는 3월 8일에도 일봉
       prices("AAA", List.of(candle("AAA", day(-3), "10"), candle("AAA", day(-2), "10"), candle("AAA", day(-1), "10"),
@@ -569,7 +585,7 @@ class PortfolioEngineTest {
     }
 
     @Test
-    @DisplayName("리밸런싱은 신호 줄과 그 줄 몫 현금을 빼고 나머지 줄을 그 줄들의 처음 비중으로 나누며 신호 줄 일봉이 없는 날에도 한다")
+    @DisplayName("리밸런싱은 신호 줄과 신호 줄 몫 현금을 빼고 나머지 줄을 나머지 줄끼리의 처음 비중으로 나누며 신호 줄 일봉이 없는 날에도 한다")
     void rebalanceSkipsSignalLine() {
       prices("AAA", crossing("AAA"));
       prices("BBB", candle("BBB", day(0), "10"), candle("BBB", APR1, "20"));
@@ -626,7 +642,7 @@ class PortfolioEngineTest {
     }
 
     @Test
-    @DisplayName("양도세를 공용 현금으로 다 못 내면 신호 줄 몫에서 마저 내고 그 줄은 남은 몫 전부로 다음 매수 신호에 산다")
+    @DisplayName("양도세를 공용 현금으로 다 못 내면 신호 줄 몫에서 마저 내고 신호 줄은 남은 몫 전부로 다음 매수 신호에 산다")
     void taxFromSignalLineCash() {
       LocalDate due = LocalDate.of(2025, 5, 1);
       LocalDate next = LocalDate.of(2025, 5, 2);
@@ -652,7 +668,7 @@ class PortfolioEngineTest {
     }
 
     @Test
-    @DisplayName("양도세가 신호 줄 몫을 다 쓰면 그 줄은 다음 매수 신호에 사지 않는다")
+    @DisplayName("양도세가 신호 줄 몫을 다 쓰면 신호 줄은 다음 매수 신호에 사지 않는다")
     void taxTakesWholeSignalLineCash() {
       LocalDate due = LocalDate.of(2025, 5, 1);
       LocalDate next = LocalDate.of(2025, 5, 2);
@@ -696,7 +712,7 @@ class PortfolioEngineTest {
   class Dividends {
 
     @Test
-    @DisplayName("재투자하면 배당락일 전날까지 든 주식의 배당으로 그 종목을 그 날짜 종가에 산다")
+    @DisplayName("재투자하면 배당락일 전날까지 든 주식의 배당으로 같은 종목을 배당락일 종가에 산다")
     void reinvestsAtExDateClose() {
       prices("AAA", candle("AAA", day(0), "10"), candle("AAA", day(1), "11"), candle("AAA", day(2), "12.5"),
         candle("AAA", day(3), "12.5"));
@@ -716,7 +732,7 @@ class PortfolioEngineTest {
     }
 
     @Test
-    @DisplayName("배당락일이 거래일이 아니면 다음 거래일 종가에 그 날짜 환율로 재투자하고 받은 배당은 배당락일 환율로 남긴다")
+    @DisplayName("배당락일이 거래일이 아니면 다음 거래일 종가에 같은 날 환율로 재투자하고 받은 배당은 배당락일 환율로 남긴다")
     void reinvestsAtNextTradingDayFx() {
       LocalDate saturday = day(5);
       LocalDate monday = day(7);
@@ -738,7 +754,7 @@ class PortfolioEngineTest {
     }
 
     @Test
-    @DisplayName("재투자를 켜도 그 종목 일봉이 없는 날 받은 배당은 현금으로 둔다")
+    @DisplayName("재투자를 켜도 배당을 준 종목 일봉이 없는 날 받은 배당은 현금으로 둔다")
     void keepsCashWithoutCandle() {
       prices("AAA", candle("AAA", day(0), "10"), candle("AAA", day(2), "10"));
       prices("BBB", candle("BBB", day(0), "20"), candle("BBB", day(1), "20"), candle("BBB", day(2), "20"));
@@ -773,7 +789,7 @@ class PortfolioEngineTest {
   class PeriodEndAndTax {
 
     @Test
-    @DisplayName("기간 끝에 팔면 종목마다 그 종목 마지막 거래일 종가에 전량 팔고 판 돈은 현금으로 남긴다")
+    @DisplayName("기간 끝에 팔면 종목마다 일봉이 있는 마지막 거래일 종가에 전량 팔고 판 돈은 현금으로 남긴다")
     void sellsEachAtItsLastTradingDay() {
       prices("AAA", candle("AAA", day(0), "10"), candle("AAA", day(1), "11"), candle("AAA", day(2), "12"));
       prices("BBB", candle("BBB", day(0), "20"), candle("BBB", day(1), "30"));
@@ -798,7 +814,7 @@ class PortfolioEngineTest {
     }
 
     @Test
-    @DisplayName("먼저 판 종목의 양도세는 그 종목 원가로 셈해 다음 해 5월 첫 거래일에 공용 현금에서 낸다")
+    @DisplayName("먼저 판 종목의 양도세는 판 종목 원가로 셈해 다음 해 5월 첫 거래일에 공용 현금에서 낸다")
     void paysTaxFromSharedCash() {
       LocalDate june = LocalDate.of(2024, 6, 3);
       LocalDate due = LocalDate.of(2025, 5, 1);
@@ -951,7 +967,7 @@ class PortfolioEngineTest {
     }
 
     @Test
-    @DisplayName("시장 환율이면 리밸런싱과 기간 끝 매도를 그 날짜 환율로 사고판다")
+    @DisplayName("시장 환율이면 리밸런싱과 기간 끝 매도를 거래일 환율로 사고판다")
     void marketFx() {
       LocalDate april3 = LocalDate.of(2024, 4, 3);
       prices("AAA", candle("AAA", START, "10"), candle("AAA", APR1, "20"), candle("AAA", APR2, "20"));
@@ -1002,7 +1018,7 @@ class PortfolioEngineTest {
     }
 
     @Test
-    @DisplayName("리밸런싱 날 현금으로 다 못 낸 양도세를 넘는 종목을 판 돈에서 마저 내도 그 날짜 납부 줄은 하나다")
+    @DisplayName("리밸런싱 날 현금으로 다 못 낸 양도세를 넘는 종목을 판 돈에서 마저 내도 리밸런싱 날 납부 줄은 하나다")
     void mergesRebalanceDayTaxPayments() {
       LocalDate june = LocalDate.of(2025, 6, 2);
       LocalDate due = LocalDate.of(2026, 5, 1);
@@ -1128,7 +1144,7 @@ class PortfolioEngineTest {
     }
 
     @Test
-    @DisplayName("납부일이 배당락일이면 양도세를 먼저 내고(모자라면 판매 방식대로 팔고) 그 날짜 배당은 그 뒤에 받는다")
+    @DisplayName("납부일이 배당락일이면 양도세를 먼저 내고(모자라면 판매 방식대로 팔고) 배당락일 배당은 납부 뒤에 받는다")
     void taxBeforeDividendOnDueDate() {
       dividends("AAA", dividend("AAA", DUE, "3"));
 
@@ -1148,7 +1164,7 @@ class PortfolioEngineTest {
     }
 
     @Test
-    @DisplayName("정한 순서 방식은 순서가 작은 줄부터 그 날짜 종가에 팔고 그 줄을 다 팔아도 모자라면 다음 줄을 팔아 낸다")
+    @DisplayName("정한 순서 방식은 순서가 작은 줄부터 납부일 종가에 팔고 앞 줄을 다 팔아도 모자라면 다음 줄을 팔아 낸다")
     void customOrder() {
       // BBB 100주 200 달러, 남은 36.92 달러 ÷ AAA 20 달러
       PortfolioEngine.Result result = run(PortfolioTaxSale.CUSTOM_ORDER, "20", "2", 2, 1, 3);
@@ -1163,7 +1179,7 @@ class PortfolioEngineTest {
     @Test
     @DisplayName("모든 줄을 다 팔아도 모자라면 판 만큼 내고 남은 양도세를 남긴다")
     void sellsEverythingWhenShort() {
-      // AAA 50 · BBB 50 · SIG 50 달러, SIG 는 그 날짜 데드 크로스지만 먼저 다 팔림
+      // AAA 50 · BBB 50 · SIG 50 달러, SIG 는 납부일 데드 크로스지만 먼저 다 팔림
       PortfolioEngine.Result result = engine.run(scenario(PortfolioTaxSale.CUSTOM_ORDER, "0.5", "0.5", "1", 1, 2, 3)
         .build());
 
@@ -1176,7 +1192,7 @@ class PortfolioEngineTest {
     }
 
     @Test
-    @DisplayName("그 날짜 일봉이 없는 줄은 팔지 않고 다음 줄을 판다")
+    @DisplayName("납부일 일봉이 없는 줄은 팔지 않고 다음 줄을 판다")
     void skipsLineWithoutCandle() {
       PortfolioEngine.Result result = run(PortfolioTaxSale.CUSTOM_ORDER, "20", null, 2, 1, 3);
 
@@ -1240,10 +1256,10 @@ class PortfolioEngineTest {
     }
 
     @Test
-    @DisplayName("목표 비중 방식에서 나눈 몫이 그 줄의 남은 판 돈보다 크면 그 줄은 다 팔고 나머지를 다른 줄에 다시 나눈다")
+    @DisplayName("목표 비중 방식에서 나눈 몫이 남은 판 돈보다 큰 줄은 다 팔고 남은 몫을 나머지 줄에 다시 나눈다")
     void targetWeightRefillsCappedLine() {
       // 평가 AAA 100 · BBB 50 · SIG 100 달러, 목표 83.33 달러씩, AAA · SIG 넘친 16.67 달러씩 뒤 남은 203.59 달러의 셋 몫 67.86 달러가 BBB 50 달러보다 큼
-      // BBB 는 다 팔고 남은 153.59 달러를 AAA · SIG 가 76.79 달러씩, SIG 는 그 날짜 데드 크로스로 남은 주식을 팖
+      // BBB 는 다 팔고 남은 153.59 달러를 AAA · SIG 가 76.79 달러씩, SIG 는 납부일 데드 크로스로 남은 주식을 팖
       PortfolioEngine.Result result = engine.run(scenario(PortfolioTaxSale.TARGET_WEIGHT, "1", "0.5", "2").build());
 
       assertThat(dueTrades(result)).containsExactly(tuple("AAA", TradeReason.TAX_SALE, "-93.46"),
@@ -1349,7 +1365,7 @@ class PortfolioEngineTest {
   class SellRules {
 
     @Test
-    @DisplayName("줄마다 평균 단가 대비 익절 · 손절 기준가에 닿은 날 그 값에 전량 팔고 판 돈은 공용 현금에 두며 산 날 · 일봉이 없는 날은 보지 않는다")
+    @DisplayName("줄마다 평균 단가 대비 익절 · 손절 기준가에 닿은 날 기준가에 전량 팔고 판 돈은 공용 현금에 두며 산 날 · 일봉이 없는 날은 보지 않는다")
     void sellsEachLineAtItsTrigger() {
       prices("AAA", bar("AAA", day(0), "10", "12", "10", "10"), bar("AAA", day(1), "10.5", "11.2", "10.4", "11"),
         candle("AAA", day(2), "12"));
@@ -1374,7 +1390,7 @@ class PortfolioEngineTest {
     }
 
     @Test
-    @DisplayName("판 돈은 공용 현금이라 그 날짜부터 회차 매수가 먼저 쓰고 판 종목도 회차에 다시 산다")
+    @DisplayName("판 돈은 공용 현금이라 판 날부터 회차 매수가 먼저 쓰고 판 종목도 회차에 다시 산다")
     void proceedsFundRounds() {
       prices("AAA", candle("AAA", START, "10"), bar("AAA", APR, "10.5", "11.5", "10", "10"), candle("AAA", MAY, "10"));
       monthly("BBB", "10", "10", "10");
@@ -1451,7 +1467,7 @@ class PortfolioEngineTest {
     }
 
     @Test
-    @DisplayName("공제를 채울 때는 결제가 그해 안에 끝나는 마지막 거래일에 평가 이익 큰 종목부터 팔고 같은 값에 다시 사며 그 날짜 일봉이 없는 종목은 건너뛴다")
+    @DisplayName("공제를 채울 때는 결제가 같은 해 안에 끝나는 마지막 거래일에 평가 이익 큰 종목부터 팔고 같은 값에 다시 사며 연말 정리 날 일봉이 없는 종목은 건너뛴다")
     void fillsFromBiggestGain() {
       // AAA 130만원 · BBB 195만원 이익, CCC 는 12월 31일 일봉뿐(520만원 이익)
       prices("AAA", candle("AAA", START, "10"), candle("AAA", december30, "20"), candle("AAA", december31, "20"));
@@ -1474,7 +1490,7 @@ class PortfolioEngineTest {
     @Test
     @DisplayName("기간 끝에 팔면 연말 정리 날에 기간 끝 매도하는 종목은 연말 정리하지 않는다")
     void skipsLinesSoldAtEnd() {
-      // AAA 는 12월 30일이 마지막 일봉이라 그 날짜에 기간 끝 매도
+      // AAA 는 12월 30일이 마지막 일봉이라 12월 30일에 기간 끝 매도
       prices("AAA", candle("AAA", START, "10"), candle("AAA", december30, "20"));
       prices("BBB", candle("BBB", START, "10"), candle("BBB", december30, "25"), candle("BBB", december31, "25"));
 

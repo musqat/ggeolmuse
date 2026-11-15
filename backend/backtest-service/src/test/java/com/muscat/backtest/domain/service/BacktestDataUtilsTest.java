@@ -176,16 +176,27 @@ class BacktestDataUtilsTest {
     }
 
     @Test
-    @DisplayName("배당이 없거나 비면 종목만 담은 빈 이력")
+    @DisplayName("배당이 없으면 종목만 담은 빈 이력, 못 받음 표시 없음")
     void emptyDividends() {
-      given(client.getDividendHistory(anyString(), anyString(), anyString()))
-        .willReturn(null).willReturn(List.of());
+      given(client.getDividendHistory(anyString(), anyString(), anyString())).willReturn(List.of());
 
-      for (int i = 0; i < 2; i++) {
-        DividendHistoryDto history = BacktestDataUtils.getDividendHistory(client, SYMBOL, PAST, PAST.plusDays(30));
-        assertThat(history.getSymbol()).isEqualTo(SYMBOL);
-        assertThat(history.getDividends()).isEmpty();
-      }
+      DividendHistoryDto history = BacktestDataUtils.getDividendHistory(client, SYMBOL, PAST, PAST.plusDays(30));
+
+      assertThat(history.getSymbol()).isEqualTo(SYMBOL);
+      assertThat(history.getDividends()).isEmpty();
+      assertThat(history.isUnavailable()).isFalse();
+    }
+
+    @Test
+    @DisplayName("배당 이력을 못 받으면 빈 이력에 못 받음 표시")
+    void unavailableDividends() {
+      given(client.getDividendHistory(anyString(), anyString(), anyString())).willReturn(null);
+
+      DividendHistoryDto history = BacktestDataUtils.getDividendHistory(client, SYMBOL, PAST, PAST.plusDays(30));
+
+      assertThat(history.getSymbol()).isEqualTo(SYMBOL);
+      assertThat(history.getDividends()).isEmpty();
+      assertThat(history.isUnavailable()).isTrue();
     }
 
     @Test

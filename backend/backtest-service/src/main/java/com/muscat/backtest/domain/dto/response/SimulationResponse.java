@@ -104,6 +104,9 @@ public class SimulationResponse {
   @Schema(description = "환율이 없어 기본 환율로 계산한 날(산 날 · 평가일)", example = "[\"2013-06-03\"]")
   @Builder.Default
   private List<LocalDate> defaultFxDates = List.of();
+  @Schema(description = "배당 이력을 못 받아 배당 없이 계산한 종목", example = "[]")
+  @Builder.Default
+  private List<String> dividendUnavailableSymbols = List.of();
 
   // ===== 수익 · 위험 지표 =====
   @Schema(description = "원화 기준 수익 · 위험 지표")
@@ -113,7 +116,7 @@ public class SimulationResponse {
   @Schema(description = "매수일 ~ 평가일 일별 평가 가치(마지막 날은 총자산, 일봉을 못 받으면 평가일 하나)")
   @Builder.Default
   private List<DailyValue> dailyValues = List.of();
-  @Schema(description = "매수일 ~ 평가일 전 거래일마다 그 날짜에 샀다면 평가일까지 보유한 수익률(끝까지 보유면 첫 날은 위 총 수익률과 같음)")
+  @Schema(description = "매수일 ~ 평가일 전 거래일 각각에 샀다면 평가일까지 보유한 수익률(끝까지 보유면 첫 날은 위 총 수익률과 같음)")
   @Builder.Default
   private List<PurchaseDayReturn> purchaseDayReturns = List.of();
 }
