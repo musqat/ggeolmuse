@@ -25,6 +25,11 @@ export interface ReturnPoint {
 export const metricsOf = (row: CompareRow, currency: MetricCurrency) =>
   currency === 'KRW' ? row.metricsKrw : row.metricsUsd;
 
+// 항목마다 배당 기록을 못 받은 종목(겹치면 한 번)
+export const dividendUnavailableOf = (items?: ComparisonItem[] | null): string[] => [
+  ...new Set((items ?? []).flatMap((item) => item.additionalData?.dividendUnavailableSymbols ?? [])),
+];
+
 // 예상 양도세(요청하지 않았으면 null)
 export const taxOf = (row: CompareRow) => row.item.capitalGainsTax ?? row.item.additionalData?.capitalGainsTax ?? null;
 
@@ -36,7 +41,7 @@ export function bestKeys(rows: CompareRow[], value: (row: CompareRow) => number 
   return new Set(valued.filter((row) => value(row) === top).map((row) => row.key));
 }
 
-// 일별 값 ÷ 그때까지 넣은 돈 - 1
+// 일별 값 ÷ 같은 날짜까지 넣은 돈 - 1
 export const returnPoints = (row: CompareRow, currency: MetricCurrency): ReturnPoint[] =>
   assetSeries(row.item.additionalData?.dailyValues ?? [], row.deposits, currency).flatMap((point) =>
     point.returnPct == null ? [] : [{ date: point.date, pct: point.returnPct }],

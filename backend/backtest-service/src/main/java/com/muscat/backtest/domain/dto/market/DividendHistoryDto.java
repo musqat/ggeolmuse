@@ -11,6 +11,7 @@ public class DividendHistoryDto {
 
   private String symbol;
   private List<DividendPayment> dividends;
+  private boolean unavailable; // 배당 이력을 못 받아 빈 목록으로 둔 이력
 
   @Data
   public static class DividendPayment {
@@ -30,9 +31,11 @@ public class DividendHistoryDto {
     }
   }
 
+  // 목록이 null 이면 못 받음 표시를 둔 빈 이력
   public static DividendHistoryDto of(String symbol, List<DividendDto> dividendList) {
     DividendHistoryDto history = new DividendHistoryDto();
     history.setSymbol(symbol);
+    history.setUnavailable(dividendList == null);
 
     if (dividendList == null || dividendList.isEmpty()) {
       history.setDividends(Collections.emptyList());

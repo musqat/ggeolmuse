@@ -105,29 +105,11 @@ public final class BacktestDataUtils {
     log.info("배당 데이터 요청: symbol={}, startDate={}, endDate={}", symbol, startDate, endDate);
 
     var response = marketData.getDividendHistory(symbol, startDate.toString(), endDate.toString());
-
-    DividendHistoryDto history = new DividendHistoryDto();
-    history.setSymbol(symbol);
-    if (response == null || response.isEmpty()) {
-      log.warn("배당 데이터를 찾을 수 없습니다: {}", symbol);
-      history.setDividends(java.util.Collections.emptyList());
-      return history;
+    DividendHistoryDto history = DividendHistoryDto.of(symbol, response);
+    if (history.isUnavailable()) {
+      log.warn("배당 이력을 못 받아 배당 없이 계산: {}", symbol);
     }
-
-    // DividendDto를 DividendPayment로 변환
-    var payments = response.stream()
-      .map(dto -> {
-        var payment = new DividendHistoryDto.DividendPayment();
-        payment.setExDate(dto.exDate());
-        payment.setPayDate(dto.paymentDate());
-        payment.setAmount(dto.amount());
-        payment.setFrequency(null); // frequency는 API에서 제공하지 않음
-        return payment;
-      })
-      .toList();
-
-    history.setDividends(payments);
-    log.info("배당 데이터 변환 완료: symbol={}, dividends={}", symbol, payments.size());
+    log.info("배당 데이터 변환 완료: symbol={}, dividends={}", symbol, history.getDividends().size());
     return history;
   }
 

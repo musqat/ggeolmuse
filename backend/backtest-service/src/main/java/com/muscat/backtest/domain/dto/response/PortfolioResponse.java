@@ -65,7 +65,9 @@ public record PortfolioResponse(
   @Schema(description = "포트폴리오 전체 양도소득세 · 기간 안 납부와 세후 평가 (요청에서 끄면 null)")
   CapitalGainsTax capitalGainsTax,
   @Schema(description = "환율이 없어 기본 환율로 계산한 날 (산 날 · 배당 재투자일 · 평가일, 양도세를 켜면 판 날 · 낸 날)", example = "[]")
-  List<LocalDate> defaultFxDates
+  List<LocalDate> defaultFxDates,
+  @Schema(description = "배당 이력을 못 받아 배당 없이 계산한 종목 (요청 순서)", example = "[]")
+  List<String> dividendUnavailableSymbols
 ) {
 
   // 종목 줄 하나의 원금 · 산 돈 · 지금 가치 · 판 돈 · 배당 · 이익 · 기여 · 비중
@@ -78,9 +80,9 @@ public record PortfolioResponse(
     PortfolioStrategyType strategyType,
     @Schema(description = "체결 시점 (SAME_DAY_CLOSE 신호 난 날 종가, NEXT_DAY_OPEN 신호 다음 거래일 시가, 이동평균 교차 · 밴드 줄만, 다른 줄은 null)", example = "NEXT_DAY_OPEN")
     ExecutionTiming executionTiming,
-    @Schema(description = "원금 (그 종목에 새로 넣은 원화 합: 한 번에 사기 · 적립식 회차 · 신호 줄 첫 매수, KRW)", example = "6000000")
+    @Schema(description = "원금 (종목에 새로 넣은 원화 합: 한 번에 사기 · 적립식 회차 · 신호 줄 첫 매수, KRW)", example = "6000000")
     BigDecimal investedKrw,
-    @Schema(description = "산 돈 (그 종목 매수 원가 합: 새 돈 원화 + 쓴 현금 × 그 날짜 환율, 배당 재투자 · 리밸런싱 매수 포함, KRW)", example = "6000000")
+    @Schema(description = "산 돈 (종목 매수 원가 합: 새 돈 원화 + 쓴 현금 × 산 날 환율, 배당 재투자 · 리밸런싱 매수 포함, KRW)", example = "6000000")
     BigDecimal boughtKrw,
     @Schema(description = "지금 가치 (평가일 보유 × 종가 × 평가일 환율, KRW)", example = "8650000")
     BigDecimal valueKrw,
@@ -100,7 +102,7 @@ public record PortfolioResponse(
     BigDecimal endWeightPercent,
     @Schema(description = "평가일 보유 주식 수", example = "20.512345")
     BigDecimal shares,
-    @Schema(description = "실현 손익 (그 종목 판 거래의 원화 실현 이익 합, KRW)", example = "0")
+    @Schema(description = "실현 손익 (종목을 판 거래의 원화 실현 이익 합, KRW)", example = "0")
     BigDecimal realizedProfitKrw,
     @Schema(description = "매수 거래 수 (배당 재투자 · 연말 정리 빼고)", example = "1")
     int buyCount,

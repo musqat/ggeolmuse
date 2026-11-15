@@ -58,7 +58,7 @@ class StrategyFinalizerTest {
   }
 
   @Test
-  @DisplayName("평가일 수동 환율만 주면 첫 매수 환율에서 그 값까지 날짜 비례로 잇는다")
+  @DisplayName("평가일 수동 환율만 주면 첫 매수 환율에서 수동 환율까지 날짜 비례로 잇는다")
   void manualCurrentInterpolated() {
     FxRates dailyFx = new FxRates(Map.of(FIRST, new BigDecimal("1300"), MIDDLE, new BigDecimal("1300")), Set.of());
 
@@ -69,7 +69,7 @@ class StrategyFinalizerTest {
   }
 
   @Test
-  @DisplayName("시장 환율 기록이 있으면 그 날짜 이하 가장 늦은 기록을 쓴다")
+  @DisplayName("시장 환율 기록이 있으면 조회한 날짜 이하 가장 늦은 기록을 쓴다")
   void marketRecords() {
     FxRates dailyFx = new FxRates(Map.of(FIRST, new BigDecimal("1300"), MIDDLE, new BigDecimal("1320")), Set.of());
 
@@ -184,5 +184,27 @@ class StrategyFinalizerTest {
       assertThat(run(List.of(buy("1350")), candles, null).transactions()).hasSize(1);
       assertThat(run(List.of(buy("1350"), soldOut), candles, PeriodEnd.SELL_AT_END).transactions()).hasSize(2);
     }
+  }
+
+  @Test
+  @DisplayName("배당 이력을 못 받으면 계산 결과에 배당 못 받음 표시, 배당이 없는 빈 이력이면 표시 없음")
+  void dividendsUnavailable() {
+    MarketDataPort marketData = mock(MarketDataPort.class);
+    BigDecimal close = new BigDecimal("120");
+    given(marketData.getOHLCPrice(eq("AAPL"), anyString()))
+      .willReturn(new OHLCPriceDto("AAPL", VALUATION, close, close, close, close, close, 1_000L, "USD", true));
+    given(marketData.getFxRate(anyString())).willReturn(new FxRateDto(VALUATION, new BigDecimal("1350")));
+    given(marketData.getDividendHistory(eq("AAPL"), anyString(), anyString())).willReturn(null).willReturn(List.of());
+
+    StrategyFinalizer.Result missing = StrategyFinalizer.run(marketData, "AAPL", FIRST, VALUATION, null, null, false,
+      BigDecimal.ZERO, new ArrayList<>(List.of(buy("1350"))), Map.of(), FxRates.EMPTY, PeriodEnd.HOLD, BigDecimal.ZERO,
+      false);
+    StrategyFinalizer.Result received = StrategyFinalizer.run(marketData, "AAPL", FIRST, VALUATION, null, null, false,
+      BigDecimal.ZERO, new ArrayList<>(List.of(buy("1350"))), Map.of(), FxRates.EMPTY, PeriodEnd.HOLD, BigDecimal.ZERO,
+      false);
+
+    assertThat(missing.calculation().isDividendsUnavailable()).isTrue();
+    assertThat(missing.calculation().getTotalDividends()).isEqualByComparingTo("0");
+    assertThat(received.calculation().isDividendsUnavailable()).isFalse();
   }
 }

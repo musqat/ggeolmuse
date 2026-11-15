@@ -454,7 +454,8 @@ final class PortfolioRun {
       .toList();
     return new Result(startDate, valuationDate, List.copyOf(transactions), List.copyOf(dividends), positions,
       invested, ledger.cash(), cashKrw, stockValueKrw, totalAssetKrw, rate, performance(totalAssetKrw, rate),
-      taxPayer.payments(), defaultFxDates);
+      taxPayer.payments(), defaultFxDates,
+      lines.stream().filter(line -> line.dividendsUnavailable).map(line -> line.symbol).distinct().toList());
   }
 
   // 산 날부터 일별 가치 · 지표(산 것이 없으면 일별 가치 없음 · 지표 null)
@@ -491,7 +492,7 @@ final class PortfolioRun {
     return dates;
   }
 
-  // 종목 줄 하나의 전략 · 일봉 · 회차 · 배당 · 익절 · 손절 · 신호 · 체결 시점 · 판매 순서와 보유 주식 · 원가 · 당일까지 마지막 종가 · 첫 매수일 · 신호 줄 몫 현금
+  // 종목 줄 하나의 전략 · 일봉 · 회차 · 배당 · 배당 못 받음 · 익절 · 손절 · 신호 · 체결 시점 · 판매 순서와 보유 주식 · 원가 · 당일까지 마지막 종가 · 첫 매수일 · 신호 줄 몫 현금
   static final class Line {
     private final String symbol;
     private final PortfolioStrategyType type;
@@ -499,6 +500,7 @@ final class PortfolioRun {
     private final NavigableMap<LocalDate, OHLCPriceDto> candles;
     private final Map<LocalDate, LocalDate> rounds;
     private final List<DividendPayment> dividends;
+    private final boolean dividendsUnavailable;
     private final TakeProfitStopLoss exits;
     private final SignalHolding signal;
     private final boolean nextOpen;
@@ -514,13 +516,14 @@ final class PortfolioRun {
 
     Line(String symbol, PortfolioStrategyType type, BigDecimal plannedKrw,
       NavigableMap<LocalDate, OHLCPriceDto> candles, Map<LocalDate, LocalDate> rounds, List<DividendPayment> dividends,
-      TakeProfitStopLoss exits, SignalHolding signal, boolean nextOpen, Integer taxSaleOrder) {
+      boolean dividendsUnavailable, TakeProfitStopLoss exits, SignalHolding signal, boolean nextOpen, Integer taxSaleOrder) {
       this.symbol = symbol;
       this.type = type;
       this.plannedKrw = plannedKrw;
       this.candles = candles;
       this.rounds = rounds;
       this.dividends = dividends;
+      this.dividendsUnavailable = dividendsUnavailable;
       this.exits = exits;
       this.signal = signal;
       this.nextOpen = nextOpen;

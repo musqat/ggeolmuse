@@ -107,6 +107,12 @@ describe('DcaConditionalResult', () => {
     expect(screen.getByText('차트 시작 2023-01-01')).toBeVisible()
   })
 
+  it('배당 기록을 받지 못했으면 배당 없이 계산한 종목 알림', () => {
+    render(<DcaConditionalResult result={{ ...result, dividendUnavailableSymbols: ['AAPL'] }} {...props} />)
+
+    expect(screen.getByRole('note')).toHaveTextContent('배당 없이 계산한 종목: AAPL')
+  })
+
   it('매수 0회면 조건이 맞아 산 날이 없다고 한 줄로 알린다', () => {
     render(<DcaConditionalResult result={{ ...result, transactions: [], totalInvested: 0 }} {...props} />)
 

@@ -183,6 +183,7 @@ public class ResponseMapper {
         currentPrice.currentPrice())))
       .skippedRounds(skippedRounds)
       .defaultFxDates(defaultFxDates(transactions, calculation))
+      .dividendUnavailableSymbols(calculation.isDividendsUnavailable() ? List.of(symbol) : List.of())
       .build();
   }
 

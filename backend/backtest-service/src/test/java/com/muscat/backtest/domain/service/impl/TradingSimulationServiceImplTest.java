@@ -124,6 +124,39 @@ class TradingSimulationServiceImplTest {
       SimulationResponse result = tradingSimulationService.runSimulation(testSimulationRequest);
 
       assertThat(result.getDefaultFxDates()).containsExactly(testSimulationRequest.getPurchaseDate());
+      assertThat(result.getDividendUnavailableSymbols()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("배당 이력을 못 받으면 배당 0 으로 계산하고 배당 못 받은 종목에 요청 종목을 실음")
+    void runSimulation_DividendsUnavailable_ListsSymbol() {
+      OHLCPriceDto purchasePrice = createOHLCPrice(TEST_SYMBOL,
+        testSimulationRequest.getPurchaseDate(), new BigDecimal("180.00"), true);
+      given(marketDataPort.getFxRate(anyString()))
+        .willReturn(new FxRateDto(testSimulationRequest.getPurchaseDate(), new BigDecimal("1300")));
+      given(marketDataPort.getCurrentPrice(TEST_SYMBOL))
+        .willReturn(createCurrentPrice(TEST_SYMBOL, new BigDecimal("230.00")));
+      given(marketDataPort.getLatestFxRate())
+        .willReturn(new FxRateDto(LocalDate.now(), new BigDecimal("1320.00")));
+      given(marketDataPort.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString())).willReturn(null);
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+        .willReturn(List.of(purchasePrice));
+      ArgumentCaptor<BigDecimal> totalDividends = ArgumentCaptor.forClass(BigDecimal.class);
+      given(responseMapper.toSimulationResponse(
+        any(SimulationRequest.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), totalDividends.capture(),
+        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        any(BigDecimal.class), any(BigDecimal.class), any(LocalDate.class), any(BigDecimal.class),
+        any(LocalDate.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
+        anyList()))
+        .willReturn(createSimulationResponse());
+
+      SimulationResponse result = tradingSimulationService.runSimulation(testSimulationRequest);
+
+      assertThat(totalDividends.getValue()).isEqualByComparingTo("0");
+      assertThat(result.getDividendUnavailableSymbols()).containsExactly(TEST_SYMBOL);
     }
 
     @Test
@@ -568,7 +601,7 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
-    @DisplayName("원화 주가(종가 × 그 날짜 환율)로 가장 싸게 사서 가장 비싸게 파는 날을 고르고 수익률도 원화로 낸다")
+    @DisplayName("원화 주가(종가 × 같은 날 환율)로 가장 싸게 사서 가장 비싸게 파는 날을 고르고 수익률도 원화로 낸다")
     void optimalTiming_KrwPrice() {
       // 달러로는 1/5 최저 · 10/13 최고, 환율을 곱하면 1/9 가 더 싸고 10/28 이 더 비쌈
       runWith(List.of(
@@ -600,7 +633,7 @@ class TradingSimulationServiceImplTest {
 
       assertThat(buyDate.getValue()).isEqualTo(LocalDate.parse("2023-01-09"));
       assertThat(sellDate.getValue()).isEqualTo(LocalDate.parse("2025-10-28"));
-      // 매수가 · 매도가는 그 날짜 달러 종가
+      // 매수가 · 매도가는 매수일 · 매도일 달러 종가
       assertThat(buyPrice.getValue()).isEqualByComparingTo("227.12");
       assertThat(sellPrice.getValue()).isEqualByComparingTo("542.07");
       // 542.07 × 1431.40 / (227.12 × 1239.25) - 1
@@ -708,7 +741,7 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
-    @DisplayName("과거 매도일이면 그 날짜 조정 종가 · 환율로 평가하고 평가일을 그 날짜로 둔다")
+    @DisplayName("과거 매도일이면 매도일 조정 종가 · 환율로 평가하고 평가일을 매도일로 둔다")
     void pastSaleDate_ValuesAtSaleDate() {
       stubPurchase();
       stubSale();
@@ -923,9 +956,9 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
-    @DisplayName("휴장일에 사면 다음 거래일 종가 · 환율로 사고, 응답의 매수일도 그 날짜다")
+    @DisplayName("휴장일에 사면 다음 거래일 종가 · 환율로 사고, 응답의 매수일도 다음 거래일이다")
     void buysOnNextTradingDay() {
-      // 1/1(일) · 1/2(휴장) 다음 거래일 1/3, 그 전 거래일 12/30 시세 · 환율은 안 씀
+      // 1/1(일) · 1/2(휴장) 다음 거래일 1/3, 직전 거래일 12/30 시세 · 환율은 안 씀
       stubClosed("2023-01-01");
       stubClosed("2023-01-02");
       stubPrice("2023-01-03", "125.00");
@@ -947,7 +980,7 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
-    @DisplayName("평가일까지 다음 거래일이 없으면 그 전 거래일 종가로 산다")
+    @DisplayName("평가일까지 다음 거래일이 없으면 매수일 직전 거래일 종가로 산다")
     void buysOnPreviousTradingDayWhenNoNextBeforeValuation() {
       // 6/3(토)에 사서 6/4(일)에 평가, 그 사이 거래일이 없어 6/2(금) 종가
       stubClosed("2023-06-03");
@@ -1020,7 +1053,7 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
-    @DisplayName("재투자를 켜면 총 배당금은 배당마다 그때 주식 수로 받은 합이다")
+    @DisplayName("재투자를 켜면 총 배당금은 배당마다 배당락일 주식 수로 받은 합이다")
     void totalDividendsUseSharesAtEachExDate() {
       LocalDate firstExDate = LocalDate.of(2024, 3, 8);
       stubPurchaseAndSale();
@@ -1055,7 +1088,7 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
-    @DisplayName("배당일 시세가 일괄 조회에 없으면 그 날짜 시세를 따로 조회해 산다")
+    @DisplayName("배당일 시세가 일괄 조회에 없으면 배당일 시세를 따로 조회해 산다")
     void fetchesMissingDividendDayPrice() {
       stubPurchaseAndSale();
       stubDividend("1.00");
@@ -1173,7 +1206,7 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
-    @DisplayName("날마다 주식 수 × 종가를 그 날짜 환율로 바꾼 값을 싣고, 평가일은 총자산이다")
+    @DisplayName("날마다 주식 수 × 종가를 같은 날 환율로 바꾼 값을 싣고, 평가일은 총자산이다")
     void dailyValuesFollowCloseAndFx() {
       stubSwing();
 
@@ -1259,7 +1292,7 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
-    @DisplayName("연말 정리를 켜면 해마다 결제가 그해 안에 끝나는 마지막 거래일에 공제를 채울 만큼 팔고 다시 산 거래와 기간 끝 매도를 싣고, 끄면 거래를 싣지 않는다")
+    @DisplayName("연말 정리를 켜면 해마다 결제가 같은 해 안에 끝나는 마지막 거래일에 공제를 채울 만큼 팔고 다시 산 거래와 기간 끝 매도를 싣고, 끄면 거래를 싣지 않는다")
     void yearEndHarvestTransactions() {
       LocalDate bought = LocalDate.of(2021, 1, 15);
       LocalDate end = LocalDate.of(2024, 1, 31);
@@ -1640,7 +1673,7 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
-    @DisplayName("주식 수로 사면 매수일별 수익률도 그 날짜 종가로 같은 주식 수를 산 값이다")
+    @DisplayName("주식 수로 사면 매수일별 수익률도 각 매수일 종가로 같은 주식 수를 산 값이다")
     void sharesPurchaseDayReturns() {
       SimulationResponse response = runShares(10, "0.01");
 
@@ -1691,7 +1724,7 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
-    @DisplayName("산 날이 아닌 날은 그 날짜 시장 환율로 산다")
+    @DisplayName("산 날이 아닌 날은 당일 시장 환율로 산다")
     void otherDayUsesMarketFx() {
       stubMayFx("1250");
 
@@ -1702,7 +1735,7 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
-    @DisplayName("현재 환율만 넣어도 산 날이 아닌 날은 그 날짜 시장 환율로 산다")
+    @DisplayName("현재 환율만 넣어도 산 날이 아닌 날은 당일 시장 환율로 산다")
     void currentFxOnlyStillUsesMarketPurchaseFx() {
       stubMayFx("1250");
 

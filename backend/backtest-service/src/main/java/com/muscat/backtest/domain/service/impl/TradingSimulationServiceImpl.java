@@ -192,6 +192,9 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     response.setPurchaseDate(context.purchaseData().date());
     response.setInvestmentAmount(calculation.investmentKrw());
     response.setDefaultFxDates(defaultFxDates(context));
+    response.setDividendUnavailableSymbols(context.dividendHistory().isUnavailable()
+      ? List.of(context.request().getSymbol())
+      : List.of());
 
     response.setCapitalGainsTax(Boolean.TRUE.equals(context.request().getCapitalGainsTax())
       ? CapitalGainsTaxCalculator.of(CapitalGainsTaxCalculator.realizedGains(calculation.taxTransactions()),

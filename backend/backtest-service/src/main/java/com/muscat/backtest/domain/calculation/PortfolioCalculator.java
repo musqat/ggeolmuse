@@ -65,10 +65,11 @@ public final class PortfolioCalculator {
         ? CapitalGainsTaxCalculator.of(gains, result.taxPayments(), totalAsset, result.stockValueKrw(), invested)
         : null)
       .defaultFxDates(result.defaultFxDates())
+      .dividendUnavailableSymbols(result.dividendUnavailableSymbols())
       .build();
   }
 
-  // 종목 줄 하나(원금 = 새 돈 원화 합, 산 돈 = 새 돈 + 쓴 현금 × 그 날짜 환율, 판 돈 = 판 돈 × 판 날 환율, 배당 = 세후 배당 × 배당락일 환율)
+  // 종목 줄 하나(원금 = 새 돈 원화 합, 산 돈 = 새 돈 + 쓴 현금 × 산 날 환율, 판 돈 = 판 돈 × 판 날 환율, 배당 = 세후 배당 × 배당락일 환율)
   private static PortfolioResponse.Asset asset(PortfolioEngine.Position position, PortfolioEngine.Result result,
     BigDecimal totalReturn, BigDecimal plannedSum) {
     List<StrategyTransaction> own = result.transactions().stream()
@@ -121,7 +122,7 @@ public final class PortfolioCalculator {
     return tx.isSell() && !tx.isYearEndHarvest();
   }
 
-  // 새 돈 원화 + 쓴 현금 × 그 날짜 환율
+  // 새 돈 원화 + 쓴 현금 × 산 날 환율
   private static BigDecimal costKrw(StrategyTransaction tx) {
     BigDecimal cash = tx.getCashUsed() != null ? tx.getCashUsed().multiply(tx.getFxRate()) : BigDecimal.ZERO;
     return tx.getAmount().add(cash);

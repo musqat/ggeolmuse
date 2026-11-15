@@ -67,6 +67,25 @@ const row = (symbol: string) => screen.getByText(symbol, { selector: 'td span sp
 const dotColor = (symbol: string) => (row(symbol).querySelector('span[aria-hidden]') as HTMLElement).style.background
 
 describe('SymbolComparisonResult', () => {
+  it('배당 기록을 못 받은 종목을 모아 결과 맨 위에 한 번 알림', () => {
+    const [aapl, msft] = result.items
+    renderResult({
+      ...result,
+      items: [
+        { ...aapl, additionalData: { ...aapl.additionalData, dividendUnavailableSymbols: ['AAPL'] } },
+        { ...msft, additionalData: { ...msft.additionalData, dividendUnavailableSymbols: ['MSFT', 'AAPL'] } },
+      ],
+    })
+
+    expect(screen.getByRole('note')).toHaveTextContent('배당 기록을 받지 못해 배당 없이 계산한 종목: AAPL · MSFT')
+  })
+
+  it('배당 기록을 다 받았으면 알림 없음', () => {
+    renderResult()
+
+    expect(screen.queryByText(/배당 없이 계산한 종목/)).toBeNull()
+  })
+
   it('요약 한 줄에 종목 수 · 투자금 · 최고 · 평균 · 중앙값을 보인다', () => {
     renderResult()
 
@@ -92,7 +111,7 @@ describe('SymbolComparisonResult', () => {
     expect(within(row('MSFT')).getByText('23.07.31 → 23.10.27 · 회복 전')).toBeInTheDocument()
   })
 
-  it('줄을 누르면 그 종목 상세가 펼쳐지고 다른 줄을 누르면 바뀐다', async () => {
+  it('줄을 누르면 누른 종목 상세가 펼쳐지고 다른 종목 줄을 누르면 바뀐다', async () => {
     renderResult()
 
     await userEvent.click(row('AAPL'))
@@ -108,7 +127,7 @@ describe('SymbolComparisonResult', () => {
     expect(screen.getByRole('button', { name: 'AAPL 상세' })).toHaveAttribute('aria-expanded', 'false')
   })
 
-  it('양도세를 요청했으면 세후 수익률 칸을 두고 펼치면 그 종목의 양도세 합 · 낸 양도세 · 남은 양도세 · 세후 총 평가를 보인다', async () => {
+  it('양도세를 요청했으면 세후 수익률 칸을 두고 펼치면 펼친 종목의 양도세 합 · 낸 양도세 · 남은 양도세 · 세후 총 평가를 보인다', async () => {
     const tax = (afterTaxReturnPercent: number, totalTaxKrw: number) => ({
       years: [{ year: 2024, realizedGainKrw: 3000000, deductionKrw: 2500000, taxKrw: totalTaxKrw, dueDate: null, paidKrw: 0 }],
       totalTaxKrw,

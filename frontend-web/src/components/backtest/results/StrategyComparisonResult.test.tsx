@@ -75,6 +75,21 @@ const dotColor = (name: string) => (row(name).querySelector('span[aria-hidden]')
 const noTax = { years: [], totalTaxKrw: 0, paidTaxKrw: 0, unpaidTaxKrw: 0, cashKrw: 0, stockKrw: 0 }
 
 describe('StrategyComparisonResult', () => {
+  it('배당 기록을 못 받은 종목을 전략마다 모아 결과 맨 위에 한 번 알림', () => {
+    renderResult({
+      ...result,
+      items: result.items.map((item) => ({ ...item, additionalData: { ...item.additionalData, dividendUnavailableSymbols: ['AAPL'] } })),
+    })
+
+    expect(screen.getByRole('note')).toHaveTextContent(/^배당 기록을 받지 못해 배당 없이 계산한 종목: AAPL$/)
+  })
+
+  it('배당 기록을 다 받았으면 알림 없음', () => {
+    renderResult()
+
+    expect(screen.queryByText(/배당 없이 계산한 종목/)).toBeNull()
+  })
+
   it('요약 한 줄에 종목 · 전략마다 원금 · 전략 수 · 최고 전략을 한글 이름으로 보인다', () => {
     renderResult()
 
@@ -242,7 +257,7 @@ describe('StrategyComparisonResult', () => {
     expect(screen.getByText('보유 주식').nextElementSibling).toHaveTextContent(/^-$/)
   })
 
-  it('수익률 추이는 그때까지 넣은 돈 대비 % 이고 적립식 매수일에 점을 찍는다', () => {
+  it('수익률 추이는 각 날짜까지 넣은 돈 대비 % 이고 적립식 매수일에 점을 찍는다', () => {
     renderResult()
 
     const [chart] = readCharts()

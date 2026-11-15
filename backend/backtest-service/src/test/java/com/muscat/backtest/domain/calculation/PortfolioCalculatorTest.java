@@ -104,7 +104,7 @@ class PortfolioCalculatorTest {
       List.of(new PortfolioEngine.Dividend("AAA", LocalDate.of(2024, 9, 13), number("200"), number("1050"))),
       List.of(position("AAA", "6000000", "100", "66", "8580000"), position("BBB", "4000000", "0", "50", "0")),
       number("10000000"), number("5200"), number("6760000"), number("8580000"), number("15340000"), number("1300"),
-      performance, CapitalGainsTaxCalculator.Payments.NONE, List.of(JUNE));
+      performance, CapitalGainsTaxCalculator.Payments.NONE, List.of(JUNE), List.of("BBB"));
   }
 
   @Test
@@ -119,7 +119,7 @@ class PortfolioCalculatorTest {
       List.of(buy("AAA", START, "60", "100", "6000000", "1000"), harvestSale, rebuy), List.of(),
       List.of(position("AAA", "6000000", "100", "66", "8580000")), number("6000000"), number("0"), number("0"),
       number("8580000"), number("8580000"), number("1300"), new StrategyPerformance.Result(List.of(), null, null),
-      CapitalGainsTaxCalculator.Payments.NONE, List.of());
+      CapitalGainsTaxCalculator.Payments.NONE, List.of(), List.of());
 
     PortfolioResponse response = PortfolioCalculator.of(request(asset("AAA", "6000000")).build(), result);
 
@@ -180,6 +180,7 @@ class PortfolioCalculatorTest {
     assertThat(response.dailyValues()).containsExactly(first);
     assertThat(response.transactions()).isEqualTo(result.transactions());
     assertThat(response.defaultFxDates()).containsExactly(JUNE);
+    assertThat(response.dividendUnavailableSymbols()).containsExactly("BBB");
     assertThat(response.capitalGainsTax()).isNull();
     // BBB 사이클 끝(4000달러 대비 +25%, 91일), AAA 진행 중, 시작한 사이클 2 ÷ (302일 ÷ 365.25)
     assertThat(response.tradeStats()).usingRecursiveComparison(NUMBERS).isEqualTo(new TradeStats(2, 1, 1, true, 1, 0,
@@ -201,7 +202,7 @@ class PortfolioCalculatorTest {
   }
 
   @Test
-  @DisplayName("리밸런싱 주기를 싣고 리밸런싱으로 판 돈 · 쓴 현금은 그 날짜 환율로 종목 줄의 판 돈 · 산 돈과 매수 · 매도 수에 들고 원금은 그대로다")
+  @DisplayName("리밸런싱 주기를 싣고 리밸런싱으로 판 돈 · 쓴 현금은 리밸런싱한 날 환율로 종목 줄의 판 돈 · 산 돈과 매수 · 매도 수에 들고 원금은 그대로다")
   void rebalanceRows() {
     StrategyTransaction sell = StrategyTransaction.builder().kind(TransactionKind.SELL).symbol("BBB").reason(TradeReason.REBALANCE_SELL)
       .date(JUNE).actualDate(JUNE).price(number("25")).shares(number("-14.4")).amount(BigDecimal.ZERO)
@@ -216,7 +217,7 @@ class PortfolioCalculatorTest {
         buy),
       List.of(), List.of(position("AAA", "780000", "96", "11", "1478400"), position("BBB", "520000", "25.6", "25", "896000")),
       number("1300000"), BigDecimal.ZERO, BigDecimal.ZERO, number("2374400"), number("2374400"), number("1400"),
-      new StrategyPerformance.Result(List.of(), null, null), CapitalGainsTaxCalculator.Payments.NONE, List.of());
+      new StrategyPerformance.Result(List.of(), null, null), CapitalGainsTaxCalculator.Payments.NONE, List.of(), List.of());
 
     PortfolioResponse response = PortfolioCalculator.of(
       request(asset("AAA", "780000"), asset("BBB", "520000")).rebalance(PortfolioRebalance.QUARTERLY).build(), result);
@@ -254,7 +255,7 @@ class PortfolioCalculatorTest {
       List.of(), List.of(position("SPY", "2600000", "100", "22", "2860000"),
         position("QQQ", PortfolioStrategyType.MA_CROSS, "1300000", "100", "6", "780000")),
       number("3900000"), BigDecimal.ZERO, BigDecimal.ZERO, number("3640000"), number("3640000"), number("1300"),
-      new StrategyPerformance.Result(List.of(), null, null), CapitalGainsTaxCalculator.Payments.NONE, List.of());
+      new StrategyPerformance.Result(List.of(), null, null), CapitalGainsTaxCalculator.Payments.NONE, List.of(), List.of());
 
     PortfolioResponse response = PortfolioCalculator.of(
       request(asset("SPY", "2600000"), asset("QQQ", "1300000")).build(), result);
@@ -280,7 +281,7 @@ class PortfolioCalculatorTest {
       List.of(new PortfolioEngine.Dividend("AAA", exDate, number("50"), number("1300"))),
       List.of(position("AAA", "1300000", "104", "12.5", "1690000")), number("1300000"), BigDecimal.ZERO,
       BigDecimal.ZERO, number("1690000"), number("1690000"), number("1300"),
-      new StrategyPerformance.Result(List.of(), null, null), CapitalGainsTaxCalculator.Payments.NONE, List.of());
+      new StrategyPerformance.Result(List.of(), null, null), CapitalGainsTaxCalculator.Payments.NONE, List.of(), List.of());
 
     PortfolioResponse response = PortfolioCalculator.of(request(asset("AAA", "1300000")).build(), result);
 
@@ -298,7 +299,7 @@ class PortfolioCalculatorTest {
     PortfolioEngine.Result result = new PortfolioEngine.Result(START, END, List.of(), List.of(),
       List.of(position("AAA", DCA, "130000", "0", "10", "0")), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
       BigDecimal.ZERO, BigDecimal.ZERO, number("1350"), new StrategyPerformance.Result(List.of(), null, null),
-      CapitalGainsTaxCalculator.Payments.NONE, List.of(END));
+      CapitalGainsTaxCalculator.Payments.NONE, List.of(END), List.of());
 
     PortfolioResponse response = PortfolioCalculator.of(
       request(asset("AAA", "130000")).method(PortfolioMethod.DCA).build(), result);
@@ -322,7 +323,7 @@ class PortfolioCalculatorTest {
         PortfolioStrategyType.MA_CROSS, ExecutionTiming.NEXT_DAY_OPEN, number("1300000"), BigDecimal.ZERO, number("10"),
         BigDecimal.ZERO)), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
       number("1300"), new StrategyPerformance.Result(List.of(), null, null), CapitalGainsTaxCalculator.Payments.NONE,
-      List.of());
+      List.of(), List.of());
 
     PortfolioResponse response = PortfolioCalculator.of(
       request(asset("SPY", "1300000"), asset("QQQ", "1300000")).build(), result);

@@ -48,6 +48,8 @@ public abstract class BaseComparisonRequest {
   private BigDecimal tradingFeeRate;
 
   @Schema(description = "배당 원천징수 세율 (15% = 0.15, null이면 0)", example = "0.15")
+  @DecimalMin(value = "0", message = "배당 세율은 0 이상 1 미만이어야 합니다")
+  @DecimalMax(value = "1", inclusive = false, message = "배당 세율은 0 이상 1 미만이어야 합니다")
   private BigDecimal dividendTaxRate;
 
   @Schema(description = "양도소득세 계산 · 납부 여부 (항목마다 결제된 해의 원화 실현 이익에서 연 250만원 공제 뒤 22% 를 다음 해 5월 1일 이후 첫 거래일에 판 돈에서 냄, 비우면 끔)", example = "true")

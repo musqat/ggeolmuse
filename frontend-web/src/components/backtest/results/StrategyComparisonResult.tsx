@@ -13,7 +13,8 @@ import { purchaseCount, sellCount } from './resultValues';
 import { simpleDeposits, strategyDeposits } from './assetSeries';
 import { CompareTable, type CompareColumn } from './compare/CompareTable';
 import { ReturnLinesChart } from './compare/ReturnLinesChart';
-import { bestKeys, byTotalReturn, metricsOf, returnPoints, taxOf, type CompareRow } from './compare/compareRows';
+import { bestKeys, byTotalReturn, dividendUnavailableOf, metricsOf, returnPoints, taxOf, type CompareRow } from './compare/compareRows';
+import { DividendUnavailableNotice } from './DividendUnavailableNotice';
 import { DrawdownCell } from './compare/DrawdownCell';
 import { AfterTaxCell, TaxDetail } from './compare/AfterTax';
 
@@ -162,6 +163,7 @@ export const StrategyComparisonResult: React.FC<StrategyComparisonResultProps> =
 
   return (
     <div className="space-y-6">
+      <DividendUnavailableNotice symbols={dividendUnavailableOf(result.items)} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-tx-1">
           {symbol && <>{symbol} · </>}전략마다 원금 {formatKrw(result.investmentAmount)} · 전략 {rows.length}개
