@@ -93,9 +93,9 @@ class GlobalExceptionHandlerTest {
   @DisplayName("경로 변수 · 쿼리 파라미터 검증 실패는 400 이고 걸린 파라미터 이름을 싣는다")
   void constraintViolation_BadRequest() throws Exception {
     assertThat(new ExceptionHandlerMethodResolver(GlobalExceptionHandler.class).resolveMethod(violations("aapl", BigDecimal.ONE)))
-      .extracting(Method::getName).isEqualTo("handleConstraintViolationException");
+      .extracting(Method::getName).isEqualTo("handleConstraintViolation");
 
-    ResponseEntity<ProblemDetail> response = handler.handleConstraintViolationException(
+    ResponseEntity<ProblemDetail> response = handler.handleConstraintViolation(
       violations("aapl", new BigDecimal("-1")), new MockHttpServletRequest("GET", "/api/market/price/aapl"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);

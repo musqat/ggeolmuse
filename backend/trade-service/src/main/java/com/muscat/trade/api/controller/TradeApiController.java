@@ -1,5 +1,6 @@
 package com.muscat.trade.api.controller;
 
+import com.muscat.commonlib.constants.CommonConstants;
 import com.muscat.trade.domain.dto.response.TradeResponseDto;
 import com.muscat.trade.domain.service.TradingService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -9,11 +10,14 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,6 +26,7 @@ import java.util.List;
 @RequestMapping("/api/trade-history")
 @RequiredArgsConstructor
 @Slf4j
+@Validated
 @Tag(name = "거래 내역 조회", description = "사용자 거래 내역 조회 및 분석 API")
 public class TradeApiController {
 
@@ -74,9 +79,9 @@ public class TradeApiController {
       @Parameter(description = "JWT 토큰에서 추출되는 사용자 ID", hidden = true)
       @AuthenticationPrincipal Jwt jwt,
       @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
-      @RequestParam(value = "page", defaultValue = "0") int page,
-      @Parameter(description = "페이지 크기", example = "20")
-      @RequestParam(value = "size", defaultValue = "20") int size) {
+      @RequestParam(value = "page", defaultValue = "0") @Min(0) int page,
+      @Parameter(description = "페이지 크기 (1~100)", example = "20")
+      @RequestParam(value = "size", defaultValue = "20") @Min(1) @Max(CommonConstants.MAX_PAGE_SIZE) int size) {
 
     String userId = jwt.getSubject();
 

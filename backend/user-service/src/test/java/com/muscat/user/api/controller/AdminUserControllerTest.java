@@ -2,6 +2,7 @@ package com.muscat.user.api.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
@@ -34,6 +35,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -125,6 +128,28 @@ class AdminUserControllerTest {
     assertThat(pageable.getAllValues().get(0).getPageSize()).isEqualTo(10);
     assertThat(pageable.getAllValues().get(0).getSort()).isEqualTo(Sort.by(Sort.Direction.ASC, "email"));
     assertThat(pageable.getAllValues().get(1).getSort()).isEqualTo(Sort.by(Sort.Direction.DESC, "createdAt"));
+  }
+
+  @ParameterizedTest(name = "page={0} size={1}")
+  @CsvSource({"0, 10000", "0, 101", "0, 0", "-1, 20"})
+  @DisplayName("목록 크기가 1 ~ 100 밖이거나 페이지가 음수면 400 이고 서비스까지 가지 않는다")
+  void getAllUsers_OutOfRange(String page, String size) throws Exception {
+    mockMvc.perform(get(BASE).param("page", page).param("size", size).with(admin()))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.errorCode").value("INVALID_PARAMETER"));
+
+    verify(userService, never()).getAllUsers(any());
+  }
+
+  @ParameterizedTest(name = "page={0} size={1}")
+  @CsvSource({"0, 10000", "0, 501", "0, 0", "-1, 500"})
+  @DisplayName("배당 정산 크기가 1 ~ 500 밖이거나 페이지가 음수면 400 이고 서비스까지 가지 않는다")
+  void getDividendSettlements_OutOfRange(String page, String size) throws Exception {
+    mockMvc.perform(get(BASE + "/dividend-settlements").param("page", page).param("size", size).with(admin()))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.errorCode").value("INVALID_PARAMETER"));
+
+    verify(accountService, never()).getDividendSettlements(anyInt(), anyInt());
   }
 
   @Test

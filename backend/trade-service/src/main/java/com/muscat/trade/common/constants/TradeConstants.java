@@ -11,7 +11,7 @@ public final class TradeConstants {
   public static final BigDecimal DIVIDEND_TAX_RATE = new BigDecimal("0.15");
 
   // 검증 패턴
-  public static final String ACCOUNT_ID_PATTERN = "^[0-9]+$";
+  public static final String ACCOUNT_ID_PATTERN = "^[0-9]{1,18}$";
   public static final int MAX_SYMBOL_LENGTH = 16;
   public static final int MIN_SYMBOL_LENGTH = 1;
   // 지수 심볼 앞 글자(^GSPC · ^NDX)

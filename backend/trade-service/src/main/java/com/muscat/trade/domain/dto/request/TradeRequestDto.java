@@ -25,7 +25,7 @@ public class TradeRequestDto {
 
   @Schema(description = "계좌 ID", example = "12345", required = true)
   @NotBlank(message = "계좌 ID는 필수입니다")
-  @Pattern(regexp = TradeConstants.ACCOUNT_ID_PATTERN, message = "계좌 ID는 숫자만 허용됩니다")
+  @Pattern(regexp = TradeConstants.ACCOUNT_ID_PATTERN, message = "계좌 ID는 18자리 이하 숫자만 허용됩니다")
   private String accountId;
 
   @Schema(description = "종목 심볼", example = "AAPL", required = true)

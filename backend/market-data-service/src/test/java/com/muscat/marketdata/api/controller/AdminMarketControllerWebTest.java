@@ -40,6 +40,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.data.domain.PageImpl;
@@ -175,6 +177,17 @@ class AdminMarketControllerWebTest {
         .andExpect(jsonPath("$.first").value(true));
 
       verify(assetService).getAllAssetSummaries(PageRequest.of(0, 20, Sort.by(Sort.Direction.ASC, "symbol")), true);
+    }
+
+    @ParameterizedTest(name = "page={0} size={1}")
+    @CsvSource({"0, 10000", "0, 101", "0, 0", "-1, 20"})
+    @DisplayName("요약 크기가 1 ~ 100 밖이거나 페이지가 음수면 400 이고 서비스까지 가지 않는다")
+    void summaryOutOfRange(String page, String size) throws Exception {
+      asAdmin(get(BASE + "/assets/summary").param("page", page).param("size", size))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errorCode").value("INVALID_PARAMETER"));
+
+      verify(assetService, never()).getAllAssetSummaries(any(), anyBoolean());
     }
 
     @Test

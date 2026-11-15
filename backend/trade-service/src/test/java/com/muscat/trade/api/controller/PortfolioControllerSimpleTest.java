@@ -100,7 +100,7 @@ class PortfolioControllerSimpleTest {
 
     // When
     ResponseEntity<List<HoldingResponseDto>> response = portfolioController.getAccountPortfolio(
-      mockJwt, "1");
+      mockJwt, 1L);
 
     // Then
     assertThat(response.getStatusCode().value()).isEqualTo(200);
@@ -143,7 +143,7 @@ class PortfolioControllerSimpleTest {
 
     // When
     ResponseEntity<HoldingResponseDto> response = portfolioController.getHoldingBySymbol(mockJwt,
-      "1", "AAPL");
+      1L, "AAPL");
 
     // Then
     assertThat(response.getStatusCode().value()).isEqualTo(200);
@@ -157,7 +157,7 @@ class PortfolioControllerSimpleTest {
   void getHoldingBySymbol_NotFound_Returns404() {
     when(holdingsService.getHoldingBySymbol(eq("test-user-123"), eq(1L), eq("TSLA"))).thenReturn(null);
 
-    ResponseEntity<HoldingResponseDto> response = portfolioController.getHoldingBySymbol(mockJwt, "1", "TSLA");
+    ResponseEntity<HoldingResponseDto> response = portfolioController.getHoldingBySymbol(mockJwt, 1L, "TSLA");
 
     assertThat(response.getStatusCode().value()).isEqualTo(404);
     assertThat(response.getBody()).isNull();
