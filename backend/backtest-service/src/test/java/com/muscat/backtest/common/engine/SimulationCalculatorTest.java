@@ -27,7 +27,7 @@ class SimulationCalculatorTest {
   };
 
   // 100달러 · 환율 1300 에 사서 평가일 120달러 · 환율 1400, 수수료율 0.001, 배당 없음
-  private static SimulationContext context(SimulationRequest.SimulationRequestBuilder request) {
+  private static SimulationContext context(SimulationRequest.SimulationRequestBuilder<?, ?> request) {
     BigDecimal price = new BigDecimal("100");
     OHLCPriceDto bought = new OHLCPriceDto("AAPL", BUY, price, price, price, price, price, 1L, "USD", true);
     return new SimulationContext(request.symbol("AAPL").purchaseDate(BUY).tradingFeeRate(new BigDecimal("0.001")).build(),

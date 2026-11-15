@@ -300,7 +300,7 @@ class ConditionalPurchaseStrategyTest {
     }
 
     // 검사를 모두 통과하는 요청(회당 금액만, 예산 · 최대 횟수 없음)
-    private ConditionalStrategyRequest.ConditionalStrategyRequestBuilder valid() {
+    private ConditionalStrategyRequest.ConditionalStrategyRequestBuilder<?, ?> valid() {
       return ConditionalStrategyRequest.builder()
         .symbol("AAPL")
         .startDate(LocalDate.of(2023, 1, 1))
@@ -377,7 +377,7 @@ class ConditionalPurchaseStrategyTest {
     }
 
     // 회당 130만원(환율 1300 이면 1000달러), 전날 종가 대비 장중 10% 하락 시 매수
-    private ConditionalStrategyRequest.ConditionalStrategyRequestBuilder perPurchase(int days, int maxPurchases) {
+    private ConditionalStrategyRequest.ConditionalStrategyRequestBuilder<?, ?> perPurchase(int days, int maxPurchases) {
       return ConditionalStrategyRequest.builder().userId("test-user").symbol(SYMBOL)
         .startDate(START).endDate(START.plusDays(days - 1))
         .amountPerPurchase(new BigDecimal("1300000"))
@@ -902,7 +902,7 @@ class ConditionalPurchaseStrategyTest {
       private static final Tuple ENTRY = tuple("100", "16.7%하락", 1);
 
       // 회당 1000달러(환율 1300 고정) · 수수료 없음
-      private ConditionalStrategyRequest.ConditionalStrategyRequestBuilder selling(int days, int maxPurchases) {
+      private ConditionalStrategyRequest.ConditionalStrategyRequestBuilder<?, ?> selling(int days, int maxPurchases) {
         return perPurchase(days, maxPurchases).purchaseFxRate(new BigDecimal("1300"));
       }
 

@@ -1274,7 +1274,7 @@ class TradingSimulationServiceImplTest {
         candle(LocalDate.of(2022, 12, 30), "200.00"), candle(LocalDate.of(2023, 12, 27), "250.00"),
         candle(LocalDate.of(2023, 12, 28), "250.00"), candle(LocalDate.of(2023, 12, 29), "250.00"),
         candle(end, "260.00"));
-      SimulationRequest.SimulationRequestBuilder request = SimulationRequest.builder().symbol(TEST_SYMBOL)
+      SimulationRequest.SimulationRequestBuilder<?, ?> request = SimulationRequest.builder().symbol(TEST_SYMBOL)
         .purchaseDate(bought).saleDate(end).investmentAmount(new BigDecimal("13000000"))
         .periodEnd(PeriodEnd.SELL_AT_END).capitalGainsTax(true);
 
@@ -1322,7 +1322,7 @@ class TradingSimulationServiceImplTest {
         candle(LocalDate.of(2022, 12, 30), "200.00"), candle(LocalDate.of(2023, 1, 13), "210.00"),
         candle(LocalDate.of(2023, 12, 27), "250.00"), candle(LocalDate.of(2023, 12, 28), "250.00"),
         candle(LocalDate.of(2023, 12, 29), "250.00"), candle(end, "260.00"));
-      SimulationRequest.SimulationRequestBuilder request = SimulationRequest.builder().symbol(TEST_SYMBOL)
+      SimulationRequest.SimulationRequestBuilder<?, ?> request = SimulationRequest.builder().symbol(TEST_SYMBOL)
         .purchaseDate(bought).investmentAmount(new BigDecimal("13000000")).capitalGainsTax(true).yearEndHarvest(true);
 
       SimulationResponse held = service.runSimulation(request.saleDate(end).build(), false);
@@ -1374,7 +1374,7 @@ class TradingSimulationServiceImplTest {
       given(marketDataClientWrapper.getFxRate(anyString())).willReturn(new FxRateDto(bought, new BigDecimal("1300")));
       stubRange(candle(bought, "100.00"), candle(LocalDate.of(2021, 12, 29), "150.00"),
         candle(LocalDate.of(2021, 12, 30), "150.00"), candle(LocalDate.of(2021, 12, 31), "150.00"), candle(end, "160.00"));
-      SimulationRequest.SimulationRequestBuilder request = SimulationRequest.builder().symbol(TEST_SYMBOL)
+      SimulationRequest.SimulationRequestBuilder<?, ?> request = SimulationRequest.builder().symbol(TEST_SYMBOL)
         .purchaseDate(bought).saleDate(end).investmentAmount(new BigDecimal("13000000"))
         .tradingFeeRate(new BigDecimal("0.01")).capitalGainsTax(true);
 

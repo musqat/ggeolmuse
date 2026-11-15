@@ -102,7 +102,7 @@ class MaBandStrategyTest {
   }
 
   // 원금 130만원(환율 1300 고정이면 1000달러) · 3일 평균 · 위 · 아래 10% · 수수료 없음
-  private static MaBandStrategyRequest.MaBandStrategyRequestBuilder request(int days) {
+  private static MaBandStrategyRequest.MaBandStrategyRequestBuilder<?, ?> request(int days) {
     return MaBandStrategyRequest.builder().userId("test-user").symbol(SYMBOL)
       .startDate(START).endDate(START.plusDays(days))
       .investmentAmount(new BigDecimal("1300000"))
@@ -495,7 +495,7 @@ class MaBandStrategyTest {
   }
 
   // 요청 하나를 바꾼 경우 · 기대 오류 코드
-  private static Arguments invalid(String label, UnaryOperator<MaBandStrategyRequest.MaBandStrategyRequestBuilder> change,
+  private static Arguments invalid(String label, UnaryOperator<MaBandStrategyRequest.MaBandStrategyRequestBuilder<?, ?>> change,
     BacktestResponse code) {
     return Arguments.of(label, change, code);
   }
@@ -527,7 +527,7 @@ class MaBandStrategyTest {
   @ParameterizedTest(name = "{0}")
   @MethodSource("invalidRequests")
   @DisplayName("종목 · 기간 · 원금 · 밴드 기간 · 비율 · 트레일링 스탑 · 부분 익절이 맞지 않거나 배당 재투자를 켜면 시세를 받기 전에 막는다")
-  void rejects(String label, UnaryOperator<MaBandStrategyRequest.MaBandStrategyRequestBuilder> change,
+  void rejects(String label, UnaryOperator<MaBandStrategyRequest.MaBandStrategyRequestBuilder<?, ?>> change,
     BacktestResponse code) {
     MaBandStrategyRequest request = change.apply(request(7)).build();
 

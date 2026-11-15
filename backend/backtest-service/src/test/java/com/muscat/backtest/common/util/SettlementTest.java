@@ -10,14 +10,14 @@ import org.junit.jupiter.api.Test;
 class SettlementTest {
 
   @Test
-  @DisplayName("2024-05-28 부터는 다음 평일이라 2025-12-31 에 판 거래의 결제일은 휴장일 2026-01-01, 2025-12-30 에 판 거래는 그해 12월 31일이다")
+  @DisplayName("2024-05-28 부터는 다음 평일이라 2025-12-31 에 판 거래의 결제일은 휴장일 2026-01-01, 2025-12-30 에 판 거래는 2025-12-31 이다")
   void tPlusOneCrossesYear() {
     assertThat(Settlement.date(LocalDate.of(2025, 12, 31))).isEqualTo(LocalDate.of(2026, 1, 1));
     assertThat(Settlement.date(LocalDate.of(2025, 12, 30))).isEqualTo(LocalDate.of(2025, 12, 31));
   }
 
   @Test
-  @DisplayName("2024-05-28 전은 둘째 평일이라 2023-12-28 에 판 거래의 결제일은 휴장일 2024-01-01, 2023-12-27 에 판 거래는 그해 12월 29일이다")
+  @DisplayName("2024-05-28 전은 둘째 평일이라 2023-12-28 에 판 거래의 결제일은 휴장일 2024-01-01, 2023-12-27 에 판 거래는 2023-12-29 이다")
   void tPlusTwoBeforeMay2024() {
     assertThat(Settlement.date(LocalDate.of(2023, 12, 28))).isEqualTo(LocalDate.of(2024, 1, 1));
     assertThat(Settlement.date(LocalDate.of(2023, 12, 27))).isEqualTo(LocalDate.of(2023, 12, 29));

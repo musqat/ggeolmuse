@@ -1143,7 +1143,7 @@ class BacktestAnalysisServiceImplTest {
       return taxed(periodEnd == PeriodEnd.SELL_AT_END ? "2400000" : "100000");
     }
 
-    private DcaStrategyRequest.DcaStrategyRequestBuilder dca(LocalDate end) {
+    private DcaStrategyRequest.DcaStrategyRequestBuilder<?, ?> dca(LocalDate end) {
       return DcaStrategyRequest.builder().userId("user123").symbol("SPY").startDate(start).endDate(end)
         .amountPerPurchase(new BigDecimal("1000000")).capitalGainsTax(true).yearEndHarvest(true);
     }

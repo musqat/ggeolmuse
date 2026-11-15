@@ -636,7 +636,7 @@ class DCAStrategyTest {
       lenient().when(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString())).thenReturn(List.of());
     }
 
-    private DcaStrategyRequest.DcaStrategyRequestBuilder monthly(LocalDate end, int shares) {
+    private DcaStrategyRequest.DcaStrategyRequestBuilder<?, ?> monthly(LocalDate end, int shares) {
       return DcaStrategyRequest.builder().userId(userId).symbol(symbol).startDate(LocalDate.of(2024, 1, 1)).endDate(end)
         .sharesPerPurchase(shares).purchaseDay(15);
     }
@@ -935,7 +935,7 @@ class DCAStrategyTest {
   @DisplayName("요청 검증 · 투자 주기 · 미래 종료일")
   class ValidationAndScheduleTests {
 
-    private DcaStrategyRequest.DcaStrategyRequestBuilder base() {
+    private DcaStrategyRequest.DcaStrategyRequestBuilder<?, ?> base() {
       return DcaStrategyRequest.builder().userId(userId).symbol(symbol)
         .startDate(LocalDate.of(2024, 1, 1)).endDate(LocalDate.of(2024, 5, 31))
         .amountPerPurchase(new BigDecimal("1300000")).purchaseDay(15);
@@ -1184,7 +1184,7 @@ class DCAStrategyTest {
     }
 
     // 매일 · 매주에서는 쓰지 않는 투자일 · 투자 주기를 채운 요청
-    private DcaStrategyRequest.DcaStrategyRequestBuilder request(DcaFrequency frequency, LocalDate start, LocalDate end) {
+    private DcaStrategyRequest.DcaStrategyRequestBuilder<?, ?> request(DcaFrequency frequency, LocalDate start, LocalDate end) {
       return DcaStrategyRequest.builder().userId(userId).symbol(symbol).startDate(start).endDate(end)
         .amountPerPurchase(new BigDecimal("1300000")).frequency(frequency).purchaseDay(15).investmentInterval(3);
     }
@@ -1409,7 +1409,7 @@ class DCAStrategyTest {
     }
 
     // 매달 15일 260만원 · 수수료 0.25% · 양도세 · 기간 끝 매도
-    private DcaStrategyRequest.DcaStrategyRequestBuilder request() {
+    private DcaStrategyRequest.DcaStrategyRequestBuilder<?, ?> request() {
       return DcaStrategyRequest.builder().userId(userId).symbol(symbol).startDate(start).endDate(end)
         .amountPerPurchase(new BigDecimal("2600000")).purchaseDay(15).tradingFeeRate(new BigDecimal("0.0025"))
         .capitalGainsTax(true).periodEnd(PeriodEnd.SELL_AT_END);

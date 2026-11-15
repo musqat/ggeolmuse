@@ -60,7 +60,7 @@ test('적립식(DCA) 이 돈다', async () => {
   expect(typeof body.totalReturnPercent, 'DCA 응답에 수익률이 없다').toBe('number');
 });
 
-test('적립식 3년에 양도세 · 연말 정리를 켜면 결제가 그해 안에 끝나는 12월 거래일에 공제 채우기 매도 · 재매수 짝과 기간 끝 매도 대비 양도세 비교를 싣는다', async () => {
+test('적립식 3년에 양도세 · 연말 정리를 켜면 결제가 같은 해 안에 끝나는 12월 거래일에 공제 채우기 매도 · 재매수 짝과 기간 끝 매도 대비 양도세 비교를 싣는다', async () => {
   // 끝 날짜 3년 전부터(시세가 그보다 짧아도 비교의 2년은 요청 시작일로 셈)
   const threeYears = `${Number(end.slice(0, 4)) - 3}${end.slice(4)}`;
   const res = await postUntilAllowed(`${API_URL}/analysis/strategy/dca`, {

@@ -111,7 +111,7 @@ class MaCrossStrategyTest {
   }
 
   // 원금 130만원(환율 1300 고정이면 1000달러) · 2 · 3일 선 · 수수료 없음
-  private static MaCrossStrategyRequest.MaCrossStrategyRequestBuilder request(int days) {
+  private static MaCrossStrategyRequest.MaCrossStrategyRequestBuilder<?, ?> request(int days) {
     return MaCrossStrategyRequest.builder().userId("test-user").symbol(SYMBOL)
       .startDate(START).endDate(START.plusDays(days))
       .investmentAmount(new BigDecimal("1300000"))
@@ -996,7 +996,7 @@ class MaCrossStrategyTest {
   }
 
   // 요청 하나를 바꾼 경우 · 기대 오류 코드
-  private static Arguments invalid(String label, UnaryOperator<MaCrossStrategyRequest.MaCrossStrategyRequestBuilder> change,
+  private static Arguments invalid(String label, UnaryOperator<MaCrossStrategyRequest.MaCrossStrategyRequestBuilder<?, ?>> change,
     BacktestResponse code) {
     return Arguments.of(label, change, code);
   }
@@ -1026,7 +1026,7 @@ class MaCrossStrategyTest {
   @ParameterizedTest(name = "{0}")
   @MethodSource("invalidRequests")
   @DisplayName("종목 · 기간 · 원금 · 이동평균 기간 · 트레일링 스탑 · 부분 익절이 맞지 않거나 배당 재투자를 켜면 시세를 받기 전에 막는다")
-  void rejects(String label, UnaryOperator<MaCrossStrategyRequest.MaCrossStrategyRequestBuilder> change,
+  void rejects(String label, UnaryOperator<MaCrossStrategyRequest.MaCrossStrategyRequestBuilder<?, ?>> change,
     BacktestResponse code) {
     MaCrossStrategyRequest request = change.apply(request(7)).build();
 
@@ -1070,7 +1070,7 @@ class MaCrossStrategyTest {
       return new OHLCPriceDto(SYMBOL, START.plusDays(offset), o, o.max(c), o.min(c), c, c, 1_000L, "USD", true);
     }
 
-    private MaCrossStrategyRequest.MaCrossStrategyRequestBuilder nextOpen(int days) {
+    private MaCrossStrategyRequest.MaCrossStrategyRequestBuilder<?, ?> nextOpen(int days) {
       return request(days).executionTiming(ExecutionTiming.NEXT_DAY_OPEN);
     }
 
