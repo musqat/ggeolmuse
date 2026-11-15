@@ -1,5 +1,6 @@
 package com.muscat.backtest.domain.service.impl;
 
+import com.muscat.backtest.common.enums.type.TransactionKind;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -12,9 +13,9 @@ import static org.mockito.BDDMockito.verify;
 import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.BDDMockito.willThrow;
 
-import com.muscat.backtest.common.calculation.CapitalGainsTaxCalculator;
-import com.muscat.backtest.common.engine.PortfolioEngine;
-import com.muscat.backtest.common.engine.StrategyPerformance;
+import com.muscat.backtest.domain.calculation.CapitalGainsTaxCalculator;
+import com.muscat.backtest.domain.engine.PortfolioEngine;
+import com.muscat.backtest.domain.engine.StrategyPerformance;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
@@ -22,7 +23,7 @@ import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PortfolioStrategyType;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
-import com.muscat.backtest.common.util.BacktestHistoryUtils;
+import com.muscat.backtest.domain.service.BacktestHistoryUtils;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
@@ -1142,7 +1143,7 @@ class BacktestAnalysisServiceImplTest {
       return taxed(periodEnd == PeriodEnd.SELL_AT_END ? "2400000" : "100000");
     }
 
-    private DcaStrategyRequest.DcaStrategyRequestBuilder dca(LocalDate end) {
+    private DcaStrategyRequest.DcaStrategyRequestBuilder<?, ?> dca(LocalDate end) {
       return DcaStrategyRequest.builder().userId("user123").symbol("SPY").startDate(start).endDate(end)
         .amountPerPurchase(new BigDecimal("1000000")).capitalGainsTax(true).yearEndHarvest(true);
     }
@@ -1255,12 +1256,12 @@ class BacktestAnalysisServiceImplTest {
     // 2021년 1월 4일 SPY 1만 달러어치를 산 거래와 판 거래(판 날 · 판 돈 USD · 이유)
     private PortfolioEngine.Result engineResult(List<String[]> sales) {
       List<StrategyTransaction> transactions = new java.util.ArrayList<>();
-      transactions.add(StrategyTransaction.builder().symbol("SPY").reason(TradeReason.BUY)
+      transactions.add(StrategyTransaction.builder().kind(TransactionKind.BUY).symbol("SPY").reason(TradeReason.BUY)
         .date(LocalDate.of(2021, 1, 4)).actualDate(LocalDate.of(2021, 1, 4)).price(BigDecimal.TEN)
         .shares(new BigDecimal("1000")).amount(new BigDecimal("10000000")).fxRate(new BigDecimal("1000")).build());
       for (String[] sale : sales) {
         LocalDate date = LocalDate.parse(sale[0]);
-        transactions.add(StrategyTransaction.builder().symbol("SPY").reason(TradeReason.PERIOD_END_SALE).date(date)
+        transactions.add(StrategyTransaction.builder().kind(TransactionKind.SELL).symbol("SPY").reason(TradeReason.PERIOD_END_SALE).date(date)
           .actualDate(date).price(BigDecimal.TEN).shares(new BigDecimal(sale[2]).negate()).amount(BigDecimal.ZERO)
           .proceeds(new BigDecimal(sale[1])).realizedProfit(BigDecimal.ZERO).fxRate(new BigDecimal("1000"))
           .trigger(sale[3]).build());

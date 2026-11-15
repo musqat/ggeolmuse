@@ -61,7 +61,7 @@ public record CapitalGainsTax(
   public record Year(
     @Schema(description = "결제된 연도", example = "2024")
     int year,
-    @Schema(description = "그해 결제된 원화 실현 이익 합 (손실은 그해 이익과 상계, KRW)", example = "4000000")
+    @Schema(description = "결제된 연도의 원화 실현 이익 합 (손실은 같은 연도 이익과 상계, KRW)", example = "4000000")
     BigDecimal realizedGainKrw,
     @Schema(description = "기본 공제 (이익만큼 연 250만원까지, 이익이 없으면 0, KRW)", example = "2500000")
     BigDecimal deductionKrw,
@@ -69,7 +69,7 @@ public record CapitalGainsTax(
     BigDecimal taxKrw,
     @Schema(description = "납부일 (다음 해 5월 1일 이후 첫 거래일, 기간 안에 오지 않았으면 null)", example = "2025-05-01")
     LocalDate dueDate,
-    @Schema(description = "그 해 세금 가운데 기간 안에 낸 양도세 (KRW, 없으면 0)", example = "330000")
+    @Schema(description = "결제된 연도 세금 가운데 기간 안에 낸 양도세 (KRW, 없으면 0)", example = "330000")
     BigDecimal paidKrw
   ) {}
 }

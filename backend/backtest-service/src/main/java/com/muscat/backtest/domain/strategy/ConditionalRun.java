@@ -1,7 +1,7 @@
 package com.muscat.backtest.domain.strategy;
 
-import com.muscat.backtest.common.engine.CapitalGainsTaxPayer;
-import com.muscat.backtest.common.engine.TradeLedger;
+import com.muscat.backtest.domain.engine.CapitalGainsTaxPayer;
+import com.muscat.backtest.domain.engine.TradeLedger;
 import com.muscat.backtest.common.enums.type.PriceDirection;
 import com.muscat.backtest.common.util.FxRates;
 import com.muscat.backtest.common.util.PriceLookup;
@@ -147,18 +147,8 @@ final class ConditionalRun {
     if (fill == null) {
       return null;
     }
-    return StrategyTransaction.builder()
-      .date(date)
-      .actualDate(priceData.date())
-      .price(decision.price())
-      .shares(fill.shares())
-      .fee(fill.fee())
-      .amount(fill.deposit())
-      .cashUsed(fill.cashUsed())
-      .fxRate(fxRate)
-      .defaultFxDate(ledger.defaultFxDate(date))
-      .trigger(decision.trigger())
-      .build();
+    return StrategyTransaction.buy(new StrategyTransaction.Order(null, null, date, priceData.date(), decision.price(),
+      fxRate, ledger.defaultFxDate(date), decision.trigger()), fill.shares(), fill.fee(), fill.deposit(), fill.cashUsed());
   }
 
   // 방향에 맞는 기준가를 넘은 날 매수, 둘 다 닿은 날은 시가부터 하락 기준가 아래면 하락 · 아니면 상승 기준가

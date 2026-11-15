@@ -44,12 +44,12 @@ class PackageLayoutTest {
   }
 
   @Test
-  @DisplayName("domain 아래는 계층 폴더와 계산 폴더(analysis · strategy)만 둔다")
+  @DisplayName("domain 아래는 계층 폴더와 계산 폴더(analysis · strategy · engine · calculation) · 포트 · 검증 폴더만 둠")
   void domainByLayer() {
     assertThat(packagesOf((reader, factory) -> true))
       .filteredOn(name -> name.startsWith(BASE + ".domain"))
       .isNotEmpty()
-      .allMatch(name -> name.matches("com\\.muscat\\.backtest\\.domain\\.(analysis|dto|entity|mapper|model|repository|service|strategy)(\\..+)?"));
+      .allMatch(name -> name.matches("com\\.muscat\\.backtest\\.domain\\.(analysis|calculation|dto|engine|entity|mapper|model|port|repository|service|strategy|validation)(\\..+)?"));
   }
 
   // 본 코드 클래스만 보고 테스트 클래스는 뺌

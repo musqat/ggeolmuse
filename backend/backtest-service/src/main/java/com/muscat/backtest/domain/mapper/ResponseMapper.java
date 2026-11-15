@@ -1,9 +1,9 @@
 package com.muscat.backtest.domain.mapper;
 
-import com.muscat.backtest.common.calculation.ComparisonCalculationResult;
-import com.muscat.backtest.common.calculation.StrategyCalculationResult;
+import com.muscat.backtest.domain.calculation.ComparisonCalculationResult;
+import com.muscat.backtest.domain.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.enums.type.StrategyType;
-import com.muscat.backtest.common.util.BacktestCalculationUtils;
+import com.muscat.backtest.domain.calculation.BacktestCalculationUtils;
 import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.domain.dto.request.BaseComparisonRequest;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;

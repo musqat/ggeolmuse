@@ -12,7 +12,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.never;
 
-import com.muscat.backtest.common.calculation.StrategyCalculationResult;
+import com.muscat.backtest.domain.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.PriceDirection;
@@ -20,7 +20,7 @@ import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.enums.type.TaxSale;
 import com.muscat.backtest.common.exception.BacktestException;
-import com.muscat.backtest.common.util.BacktestCalculationUtils;
+import com.muscat.backtest.domain.calculation.BacktestCalculationUtils;
 import com.muscat.backtest.domain.dto.request.ConditionalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.request.PartialTakeProfit;
@@ -31,8 +31,8 @@ import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.SkippedSpan;
 import com.muscat.backtest.domain.model.StrategyTransaction;
-import com.muscat.backtest.infra.client.MarketDataClientWrapper;
-import com.muscat.backtest.infra.client.dto.FxRateDto;
+import com.muscat.backtest.domain.port.MarketDataPort;
+import com.muscat.backtest.domain.dto.market.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -57,7 +57,7 @@ import com.muscat.commonlib.dto.StockPriceDto;
 class ConditionalPurchaseStrategyTest {
 
   @Mock
-  private MarketDataClientWrapper marketDataClient;
+  private MarketDataPort marketDataClient;
 
   @Mock
   private ResponseMapper responseMapper;
@@ -300,7 +300,7 @@ class ConditionalPurchaseStrategyTest {
     }
 
     // 검사를 모두 통과하는 요청(회당 금액만, 예산 · 최대 횟수 없음)
-    private ConditionalStrategyRequest.ConditionalStrategyRequestBuilder valid() {
+    private ConditionalStrategyRequest.ConditionalStrategyRequestBuilder<?, ?> valid() {
       return ConditionalStrategyRequest.builder()
         .symbol("AAPL")
         .startDate(LocalDate.of(2023, 1, 1))
@@ -377,7 +377,7 @@ class ConditionalPurchaseStrategyTest {
     }
 
     // 회당 130만원(환율 1300 이면 1000달러), 전날 종가 대비 장중 10% 하락 시 매수
-    private ConditionalStrategyRequest.ConditionalStrategyRequestBuilder perPurchase(int days, int maxPurchases) {
+    private ConditionalStrategyRequest.ConditionalStrategyRequestBuilder<?, ?> perPurchase(int days, int maxPurchases) {
       return ConditionalStrategyRequest.builder().userId("test-user").symbol(SYMBOL)
         .startDate(START).endDate(START.plusDays(days - 1))
         .amountPerPurchase(new BigDecimal("1300000"))
@@ -902,7 +902,7 @@ class ConditionalPurchaseStrategyTest {
       private static final Tuple ENTRY = tuple("100", "16.7%하락", 1);
 
       // 회당 1000달러(환율 1300 고정) · 수수료 없음
-      private ConditionalStrategyRequest.ConditionalStrategyRequestBuilder selling(int days, int maxPurchases) {
+      private ConditionalStrategyRequest.ConditionalStrategyRequestBuilder<?, ?> selling(int days, int maxPurchases) {
         return perPurchase(days, maxPurchases).purchaseFxRate(new BigDecimal("1300"));
       }
 

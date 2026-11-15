@@ -8,8 +8,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.backtest.common.exception.BacktestException;
-import com.muscat.backtest.infra.client.dto.DividendDto;
-import com.muscat.backtest.infra.client.dto.FxRateDto;
+import com.muscat.backtest.domain.dto.market.DividendDto;
+import com.muscat.backtest.domain.dto.market.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
 import feign.FeignException;
@@ -35,7 +35,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 // 애노테이션이 실제로 걸린 래퍼(재시도 예외 목록은 설정 리포의 marketDataService 와 같게)
-// 대체 동작을 @CircuitBreaker 에 두면 첫 실패에 대체 동작이 돌아 바깥 @Retry 가 안 걸림
+// 대체 동작을 @CircuitBreaker 에 두면 첫 실패에 대체 동작이 돌아 @CircuitBreaker 를 감싼 @Retry 가 안 걸림
 @SpringBootTest(classes = MarketDataClientWrapper.class, properties = {
   "resilience4j.retry.instances.marketDataService.maxAttempts=3",
   "resilience4j.retry.instances.marketDataService.waitDuration=10ms",

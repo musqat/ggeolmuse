@@ -11,7 +11,7 @@ export interface BacktestOptions {
   capitalGainsTax: boolean;
   // 양도세 낼 현금이 모자랄 때
   taxSale: TaxSale;
-  // 양도세를 켰을 때 결제가 그해 안에 끝나는 마지막 거래일에 공제를 채우거나 손실로 상계
+  // 양도세를 켰을 때 결제가 같은 해 안에 끝나는 마지막 거래일에 공제를 채우거나 손실로 상계
   yearEndHarvest: boolean;
   fxMode: 'auto' | 'manual';
   // 비우면 그 날짜 시장 환율

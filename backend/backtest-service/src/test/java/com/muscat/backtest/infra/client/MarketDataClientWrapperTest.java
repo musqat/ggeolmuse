@@ -7,8 +7,8 @@ import static org.mockito.Mockito.mock;
 
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.exception.BacktestException;
-import com.muscat.backtest.infra.client.dto.DividendDto;
-import com.muscat.backtest.infra.client.dto.FxRateDto;
+import com.muscat.backtest.domain.dto.market.DividendDto;
+import com.muscat.backtest.domain.dto.market.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
 import feign.FeignException;

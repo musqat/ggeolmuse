@@ -8,14 +8,14 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
-import com.muscat.backtest.common.calculation.StrategyCalculationResult;
+import com.muscat.backtest.domain.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.StrategyTransaction;
-import com.muscat.backtest.infra.client.MarketDataClientWrapper;
-import com.muscat.backtest.infra.client.dto.DividendDto;
+import com.muscat.backtest.domain.port.MarketDataPort;
+import com.muscat.backtest.domain.dto.market.DividendDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -41,7 +41,7 @@ class DCARealDataTest {
   private static final BigDecimal FX = new BigDecimal("1300");
 
   @Mock
-  private MarketDataClientWrapper marketDataClient;
+  private MarketDataPort marketDataClient;
 
   @Mock
   private ResponseMapper responseMapper;

@@ -6,20 +6,20 @@ import com.muscat.backtest.common.enums.type.SkipReason;
 import com.muscat.backtest.common.enums.type.StrategyType;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.common.logging.BacktestLogger;
-import com.muscat.backtest.common.engine.StrategyFinalizer;
-import com.muscat.backtest.common.engine.YearEndHarvest;
-import com.muscat.backtest.common.util.RoundPurchase;
-import com.muscat.backtest.common.util.BacktestDataUtils;
+import com.muscat.backtest.domain.engine.StrategyFinalizer;
+import com.muscat.backtest.domain.engine.YearEndHarvest;
+import com.muscat.backtest.domain.calculation.RoundPurchase;
+import com.muscat.backtest.domain.service.BacktestDataUtils;
 import com.muscat.backtest.common.util.FxRates;
 import com.muscat.backtest.common.util.PriceLookup;
-import com.muscat.backtest.common.validation.BacktestRequestValidator;
+import com.muscat.backtest.domain.validation.BacktestRequestValidator;
 import com.muscat.backtest.domain.dto.request.DcaStrategyRequest;
 import com.muscat.backtest.domain.dto.request.StrategyRequest;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.StrategyTransaction;
-import com.muscat.backtest.infra.client.MarketDataClientWrapper;
+import com.muscat.backtest.domain.port.MarketDataPort;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -38,7 +38,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class DCAStrategy implements InvestmentStrategy {
 
-  private final MarketDataClientWrapper marketData;
+  private final MarketDataPort marketData;
   private final ResponseMapper responseMapper;
 
   @Override
@@ -186,17 +186,11 @@ public class DCAStrategy implements InvestmentStrategy {
         }
 
         // 거래 기록 생성
-        StrategyTransaction transaction = StrategyTransaction.builder()
-          .date(currentDate)              // 계획된 매수일
-          .actualDate(priceData.date())   // 실제 거래일
-          .price(price)
-          .shares(purchase.shares())
-          .fee(purchase.feeUsd())
-          .amount(purchase.amountKrw())
-          .fxRate(purchaseFxRate)
-          .defaultFxDate(fxRateMap.isDefault(priceData.date()) ? priceData.date() : null)
-          .trigger(sharesPerPurchase != null ? frequency.trigger(sharesPerPurchase, interval) : frequency.trigger())
-          .build();
+        StrategyTransaction transaction = StrategyTransaction.buy(new StrategyTransaction.Order(null, null,
+            currentDate, priceData.date(), price, purchaseFxRate,
+            fxRateMap.isDefault(priceData.date()) ? priceData.date() : null,
+            sharesPerPurchase != null ? frequency.trigger(sharesPerPurchase, interval) : frequency.trigger()),
+          purchase.shares(), purchase.feeUsd(), purchase.amountKrw(), null);
 
         transactions.add(transaction);
         budget.bought(purchase.amountKrw());

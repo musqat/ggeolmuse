@@ -12,7 +12,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import com.muscat.backtest.common.calculation.StrategyCalculationResult;
+import com.muscat.backtest.domain.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.ExecutionTiming;
 import com.muscat.backtest.common.enums.type.SkipReason;
@@ -28,8 +28,8 @@ import com.muscat.backtest.domain.dto.response.TradeStats;
 import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.StrategyTransaction;
-import com.muscat.backtest.infra.client.MarketDataClientWrapper;
-import com.muscat.backtest.infra.client.dto.FxRateDto;
+import com.muscat.backtest.domain.port.MarketDataPort;
+import com.muscat.backtest.domain.dto.market.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -61,7 +61,7 @@ class MaBandStrategyTest {
   private static final LocalDate START = LocalDate.of(2024, 3, 4);
 
   @Mock
-  private MarketDataClientWrapper marketDataClient;
+  private MarketDataPort marketDataClient;
 
   @Mock
   private ResponseMapper responseMapper;
@@ -102,7 +102,7 @@ class MaBandStrategyTest {
   }
 
   // 원금 130만원(환율 1300 고정이면 1000달러) · 3일 평균 · 위 · 아래 10% · 수수료 없음
-  private static MaBandStrategyRequest.MaBandStrategyRequestBuilder request(int days) {
+  private static MaBandStrategyRequest.MaBandStrategyRequestBuilder<?, ?> request(int days) {
     return MaBandStrategyRequest.builder().userId("test-user").symbol(SYMBOL)
       .startDate(START).endDate(START.plusDays(days))
       .investmentAmount(new BigDecimal("1300000"))
@@ -120,7 +120,7 @@ class MaBandStrategyTest {
       .willReturn(StrategyResponse.builder().build());
   }
 
-  // 시작일 ~ 시작일 + days 날마다 1300원, 고른 날은 그 값
+  // 시작일 ~ 시작일 + days 날마다 1300원, 고른 날은 overrides 환율
   private void stubDailyFx(int days, Map<Integer, String> overrides) {
     Map<String, BigDecimal> rates = new HashMap<>();
     for (int offset = 0; offset <= days; offset++) {
@@ -237,7 +237,7 @@ class MaBandStrategyTest {
     }
 
     @Test
-    @DisplayName("밴드는 수정 종가로 보고 사는 값은 그 날짜 종가다")
+    @DisplayName("밴드는 수정 종가로 보고 사는 값은 산 날 종가다")
     void bandUsesAdjustedClose() {
       // 종가는 늘 10, 수정 종가만 8 → 10 으로 올라 1일째 위 선(9.53) 위
       stubMarket(List.of(adjusted(-2, "10", "8"), adjusted(-1, "10", "8"), adjusted(0, "10", "8"),
@@ -359,7 +359,7 @@ class MaBandStrategyTest {
   class SignalSymbol {
 
     @Test
-    @DisplayName("신호 종목을 주면 그 종목의 밴드로 들고 있을지 정하고 매매 종목이 쉬는 날 바뀐 것은 다음 거래일 종가에 사고판다")
+    @DisplayName("신호 종목을 주면 신호 종목의 밴드로 들고 있을지 정하고 매매 종목이 쉬는 날 바뀐 것은 다음 거래일 종가에 사고판다")
     void tradesOnSignalSymbolBand() {
       // 신호는 banded() 값: 1 · 2일째 위 선 위, 3일째 사이, 4일째 아래 선 아래, 5일째 사이, 6 · 7일째 위 선 위
       List<OHLCPriceDto> signals = banded().stream()
@@ -495,7 +495,7 @@ class MaBandStrategyTest {
   }
 
   // 요청 하나를 바꾼 경우 · 기대 오류 코드
-  private static Arguments invalid(String label, UnaryOperator<MaBandStrategyRequest.MaBandStrategyRequestBuilder> change,
+  private static Arguments invalid(String label, UnaryOperator<MaBandStrategyRequest.MaBandStrategyRequestBuilder<?, ?>> change,
     BacktestResponse code) {
     return Arguments.of(label, change, code);
   }
@@ -527,7 +527,7 @@ class MaBandStrategyTest {
   @ParameterizedTest(name = "{0}")
   @MethodSource("invalidRequests")
   @DisplayName("종목 · 기간 · 원금 · 밴드 기간 · 비율 · 트레일링 스탑 · 부분 익절이 맞지 않거나 배당 재투자를 켜면 시세를 받기 전에 막는다")
-  void rejects(String label, UnaryOperator<MaBandStrategyRequest.MaBandStrategyRequestBuilder> change,
+  void rejects(String label, UnaryOperator<MaBandStrategyRequest.MaBandStrategyRequestBuilder<?, ?>> change,
     BacktestResponse code) {
     MaBandStrategyRequest request = change.apply(request(7)).build();
 

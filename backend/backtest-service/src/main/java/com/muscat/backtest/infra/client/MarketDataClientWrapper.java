@@ -3,8 +3,9 @@ package com.muscat.backtest.infra.client;
 import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.config.CacheConfig;
-import com.muscat.backtest.infra.client.dto.DividendDto;
-import com.muscat.backtest.infra.client.dto.FxRateDto;
+import com.muscat.backtest.domain.dto.market.DividendDto;
+import com.muscat.backtest.domain.dto.market.FxRateDto;
+import com.muscat.backtest.domain.port.MarketDataPort;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
 import feign.FeignException;
@@ -23,7 +24,7 @@ import org.springframework.stereotype.Service;
 // Resilience4j 패턴 적용 Wrapper(서킷브레이커 · 재시도)
 @Slf4j
 @Service
-public class MarketDataClientWrapper {
+public class MarketDataClientWrapper implements MarketDataPort {
 
   private final MarketDataClient marketDataClient;
   private final BigDecimal defaultFxRate;
@@ -34,7 +35,6 @@ public class MarketDataClientWrapper {
     this.defaultFxRate = defaultFxRate;
   }
 
-  // 환율을 못 받은 날에 쓰는 기본 환율(원/USD)
   public BigDecimal defaultFxRate() {
     return defaultFxRate;
   }

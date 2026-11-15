@@ -1,9 +1,9 @@
 package com.muscat.backtest.infra.client;
 
-import com.muscat.backtest.infra.client.dto.DividendDto;
+import com.muscat.backtest.domain.dto.market.DividendDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
-import com.muscat.backtest.infra.client.dto.FxRateDto;
+import com.muscat.backtest.domain.dto.market.FxRateDto;
 import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.cloud.openfeign.FeignClient;

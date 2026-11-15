@@ -1,5 +1,6 @@
 package com.muscat.backtest.domain.strategy;
 
+import com.muscat.backtest.common.enums.type.TransactionKind;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
@@ -12,7 +13,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import com.muscat.backtest.common.calculation.StrategyCalculationResult;
+import com.muscat.backtest.domain.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.enums.type.SkipReason;
@@ -25,9 +26,9 @@ import com.muscat.backtest.domain.mapper.ResponseMapper;
 import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.SkippedSpan;
 import com.muscat.backtest.domain.model.StrategyTransaction;
-import com.muscat.backtest.infra.client.MarketDataClientWrapper;
-import com.muscat.backtest.infra.client.dto.DividendDto;
-import com.muscat.backtest.infra.client.dto.FxRateDto;
+import com.muscat.backtest.domain.port.MarketDataPort;
+import com.muscat.backtest.domain.dto.market.DividendDto;
+import com.muscat.backtest.domain.dto.market.FxRateDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
 import java.math.BigDecimal;
@@ -56,7 +57,7 @@ import com.muscat.backtest.common.enums.response.BacktestResponse;
 class DCAStrategyTest {
 
   @Mock
-  private MarketDataClientWrapper marketDataClient;
+  private MarketDataPort marketDataClient;
 
   @Mock
   private ResponseMapper responseMapper;
@@ -635,7 +636,7 @@ class DCAStrategyTest {
       lenient().when(marketDataClient.getDividendHistory(eq(symbol), anyString(), anyString())).thenReturn(List.of());
     }
 
-    private DcaStrategyRequest.DcaStrategyRequestBuilder monthly(LocalDate end, int shares) {
+    private DcaStrategyRequest.DcaStrategyRequestBuilder<?, ?> monthly(LocalDate end, int shares) {
       return DcaStrategyRequest.builder().userId(userId).symbol(symbol).startDate(LocalDate.of(2024, 1, 1)).endDate(end)
         .sharesPerPurchase(shares).purchaseDay(15);
     }
@@ -888,7 +889,7 @@ class DCAStrategyTest {
 
   private List<StrategyTransaction> createDcaTransactions() {
     List<StrategyTransaction> transactions = new ArrayList<>();
-    transactions.add(StrategyTransaction.builder()
+    transactions.add(StrategyTransaction.builder().kind(TransactionKind.BUY)
       .date(LocalDate.of(2024, 1, 15))
       .actualDate(LocalDate.of(2024, 1, 15))
       .trigger("월정액")
@@ -897,7 +898,7 @@ class DCAStrategyTest {
       .amount(new BigDecimal("1000.00"))
       .fxRate(new BigDecimal("1300.00"))
       .build());
-    transactions.add(StrategyTransaction.builder()
+    transactions.add(StrategyTransaction.builder().kind(TransactionKind.BUY)
       .date(LocalDate.of(2024, 2, 15))
       .actualDate(LocalDate.of(2024, 2, 15))
       .trigger("월정액")
@@ -906,7 +907,7 @@ class DCAStrategyTest {
       .amount(new BigDecimal("1000.00"))
       .fxRate(new BigDecimal("1300.00"))
       .build());
-    transactions.add(StrategyTransaction.builder()
+    transactions.add(StrategyTransaction.builder().kind(TransactionKind.BUY)
       .date(LocalDate.of(2024, 3, 15))
       .actualDate(LocalDate.of(2024, 3, 15))
       .trigger("월정액")
@@ -934,7 +935,7 @@ class DCAStrategyTest {
   @DisplayName("요청 검증 · 투자 주기 · 미래 종료일")
   class ValidationAndScheduleTests {
 
-    private DcaStrategyRequest.DcaStrategyRequestBuilder base() {
+    private DcaStrategyRequest.DcaStrategyRequestBuilder<?, ?> base() {
       return DcaStrategyRequest.builder().userId(userId).symbol(symbol)
         .startDate(LocalDate.of(2024, 1, 1)).endDate(LocalDate.of(2024, 5, 31))
         .amountPerPurchase(new BigDecimal("1300000")).purchaseDay(15);
@@ -1183,7 +1184,7 @@ class DCAStrategyTest {
     }
 
     // 매일 · 매주에서는 쓰지 않는 투자일 · 투자 주기를 채운 요청
-    private DcaStrategyRequest.DcaStrategyRequestBuilder request(DcaFrequency frequency, LocalDate start, LocalDate end) {
+    private DcaStrategyRequest.DcaStrategyRequestBuilder<?, ?> request(DcaFrequency frequency, LocalDate start, LocalDate end) {
       return DcaStrategyRequest.builder().userId(userId).symbol(symbol).startDate(start).endDate(end)
         .amountPerPurchase(new BigDecimal("1300000")).frequency(frequency).purchaseDay(15).investmentInterval(3);
     }
@@ -1408,7 +1409,7 @@ class DCAStrategyTest {
     }
 
     // 매달 15일 260만원 · 수수료 0.25% · 양도세 · 기간 끝 매도
-    private DcaStrategyRequest.DcaStrategyRequestBuilder request() {
+    private DcaStrategyRequest.DcaStrategyRequestBuilder<?, ?> request() {
       return DcaStrategyRequest.builder().userId(userId).symbol(symbol).startDate(start).endDate(end)
         .amountPerPurchase(new BigDecimal("2600000")).purchaseDay(15).tradingFeeRate(new BigDecimal("0.0025"))
         .capitalGainsTax(true).periodEnd(PeriodEnd.SELL_AT_END);
