@@ -158,11 +158,9 @@ public final class YearEndHarvest {
       return null;
     }
     Trade trade = trade(date, sales.getFirst(), price, heldShares, heldCostUsd, feeRate, fxRate);
-    if (defaultFx) {
-      trade.sale().setDefaultFxDate(date);
-      trade.rebuy().setDefaultFxDate(date);
-    }
-    return trade;
+    return defaultFx
+      ? new Trade(trade.sale().withDefaultFxDate(date), trade.rebuy().withDefaultFxDate(date))
+      : trade;
   }
 
   // 그 날짜 값에 정한 주식을 팔고(매도 수수료 뺌, 판 몫 원가 = 보유 원가 × 판 수 ÷ 보유 수, 전량이면 원가 전부) 판 돈 전부로 다시 산 거래(매수 수수료 뺌)
@@ -177,31 +175,18 @@ public final class YearEndHarvest {
     BigDecimal sellFee = BacktestCalculationUtils.calculateTradingFee(gross, feeRate);
     BigDecimal proceeds = gross.subtract(sellFee);
     BigDecimal buyFee = BacktestCalculationUtils.calculateTradingFee(proceeds, feeRate);
-    StrategyTransaction saleTx = base(date, price, fxRate)
-      .shares(shares.negate())
-      .fee(sellFee)
-      .proceeds(proceeds)
-      .realizedProfit(proceeds.subtract(soldCost))
-      .trigger(sale.gain() ? TransactionTrigger.HARVEST_GAIN_SELL : TransactionTrigger.HARVEST_LOSS_SELL)
-      .build();
-    StrategyTransaction rebuy = base(date, price, fxRate)
-      .shares(proceeds.subtract(buyFee).divide(price, Money.SHARES_SCALE, RoundingMode.HALF_UP))
-      .fee(buyFee)
-      .cashUsed(proceeds)
-      .trigger(sale.gain() ? TransactionTrigger.HARVEST_GAIN_BUY : TransactionTrigger.HARVEST_LOSS_BUY)
-      .build();
+    StrategyTransaction saleTx = StrategyTransaction.harvestSale(order(date, price, fxRate,
+        sale.gain() ? TransactionTrigger.HARVEST_GAIN_SELL : TransactionTrigger.HARVEST_LOSS_SELL),
+      shares, sellFee, proceeds, proceeds.subtract(soldCost));
+    StrategyTransaction rebuy = StrategyTransaction.harvestBuy(order(date, price, fxRate,
+        sale.gain() ? TransactionTrigger.HARVEST_GAIN_BUY : TransactionTrigger.HARVEST_LOSS_BUY),
+      proceeds.subtract(buyFee).divide(price, Money.SHARES_SCALE, RoundingMode.HALF_UP), buyFee, proceeds);
     return new Trade(saleTx, rebuy);
   }
 
-  // 그 날짜 · 값 · 환율에 새 돈 없는 거래
-  private static StrategyTransaction.StrategyTransactionBuilder base(LocalDate date, BigDecimal price,
-    BigDecimal fxRate) {
-    return StrategyTransaction.builder()
-      .date(date)
-      .actualDate(date)
-      .price(price)
-      .amount(BigDecimal.ZERO)
-      .fxRate(fxRate);
+  // 받은 날짜 · 가격 · 환율 · 이유 문구의 거래
+  private static StrategyTransaction.Order order(LocalDate date, BigDecimal price, BigDecimal fxRate, String trigger) {
+    return new StrategyTransaction.Order(null, null, date, date, price, fxRate, null, trigger);
   }
 
   // 수수료율이 0 보다 큰지

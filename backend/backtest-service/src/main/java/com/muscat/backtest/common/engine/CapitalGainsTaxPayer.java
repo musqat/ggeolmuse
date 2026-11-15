@@ -2,7 +2,6 @@ package com.muscat.backtest.common.engine;
 
 import com.muscat.backtest.common.calculation.CapitalGainsTaxCalculator;
 import com.muscat.backtest.common.constants.BacktestConstants.CapitalGains;
-import com.muscat.backtest.common.constants.BacktestConstants.TransactionTrigger;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -48,18 +47,7 @@ public final class CapitalGainsTaxPayer {
       return null;
     }
     allocate(paid);
-    return StrategyTransaction.builder()
-      .date(date)
-      .actualDate(date)
-      .price(BigDecimal.ZERO)
-      .shares(BigDecimal.ZERO)
-      .amount(BigDecimal.ZERO)
-      .fee(BigDecimal.ZERO)
-      .fxRate(fxRate)
-      .taxPaid(taxPaid)
-      .defaultFxDate(defaultFx ? date : null)
-      .trigger(TransactionTrigger.CAPITAL_GAINS_TAX_PAYMENT)
-      .build();
+    return StrategyTransaction.taxPayment(date, fxRate, taxPaid, defaultFx ? date : null);
   }
 
   // 그 날짜까지 납부일이 온 남은 세금 ÷ 환율(센트 반올림)에서 현금을 뺀 모자란 달러(끄거나 현금이 넉넉하면 0)

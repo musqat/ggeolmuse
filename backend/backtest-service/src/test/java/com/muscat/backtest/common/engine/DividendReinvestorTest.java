@@ -1,5 +1,6 @@
 package com.muscat.backtest.common.engine;
 
+import com.muscat.backtest.common.enums.type.TransactionKind;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -57,7 +58,7 @@ class DividendReinvestorTest {
 
   private static List<StrategyTransaction> buyTransactions(double shares) {
     List<StrategyTransaction> txs = new ArrayList<>();
-    txs.add(StrategyTransaction.builder()
+    txs.add(StrategyTransaction.builder().kind((BigDecimal.valueOf(shares)).signum() < 0 ? TransactionKind.SELL : TransactionKind.BUY)
         .date(LocalDate.of(2025, 1, 1)).actualDate(LocalDate.of(2025, 1, 1))
         .price(new BigDecimal("40")).shares(BigDecimal.valueOf(shares))
         .amount(new BigDecimal("100000")).fxRate(new BigDecimal("1300")).trigger("월정액")
@@ -94,7 +95,7 @@ class DividendReinvestorTest {
   @DisplayName("배당락일 당일에 산 주식은 그 배당을 받지 못해 재투자도 없다")
   void boughtOnExDate_NoReinvest() {
     List<StrategyTransaction> txs = new ArrayList<>();
-    txs.add(StrategyTransaction.builder()
+    txs.add(StrategyTransaction.builder().kind(TransactionKind.BUY)
         .date(EX.minusDays(2)).actualDate(EX)
         .price(new BigDecimal("40")).shares(BigDecimal.TEN)
         .amount(new BigDecimal("100000")).fxRate(new BigDecimal("1300")).trigger("월정액")

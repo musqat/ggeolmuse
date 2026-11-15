@@ -186,17 +186,11 @@ public class DCAStrategy implements InvestmentStrategy {
         }
 
         // 거래 기록 생성
-        StrategyTransaction transaction = StrategyTransaction.builder()
-          .date(currentDate)              // 계획된 매수일
-          .actualDate(priceData.date())   // 실제 거래일
-          .price(price)
-          .shares(purchase.shares())
-          .fee(purchase.feeUsd())
-          .amount(purchase.amountKrw())
-          .fxRate(purchaseFxRate)
-          .defaultFxDate(fxRateMap.isDefault(priceData.date()) ? priceData.date() : null)
-          .trigger(sharesPerPurchase != null ? frequency.trigger(sharesPerPurchase, interval) : frequency.trigger())
-          .build();
+        StrategyTransaction transaction = StrategyTransaction.buy(new StrategyTransaction.Order(null, null,
+            currentDate, priceData.date(), price, purchaseFxRate,
+            fxRateMap.isDefault(priceData.date()) ? priceData.date() : null,
+            sharesPerPurchase != null ? frequency.trigger(sharesPerPurchase, interval) : frequency.trigger()),
+          purchase.shares(), purchase.feeUsd(), purchase.amountKrw(), null);
 
         transactions.add(transaction);
         budget.bought(purchase.amountKrw());

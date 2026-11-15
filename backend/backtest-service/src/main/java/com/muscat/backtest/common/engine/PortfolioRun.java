@@ -130,13 +130,11 @@ final class PortfolioRun {
       Line line = harvestable.get(sale.symbol());
       YearEndHarvest.Trade trade = YearEndHarvest.trade(date, sale, line.lastClose, line.holding.shares(),
         line.holding.cost(), request.getTradingFeeRate(), fx);
-      trade.sale().setSymbol(line.symbol);
-      trade.sale().setReason(sale.gain() ? TradeReason.HARVEST_GAIN_SELL : TradeReason.HARVEST_LOSS_SELL);
-      trade.sale().setDefaultFxDate(ledger.saleDefaultFxDate(date));
-      trade.rebuy().setSymbol(line.symbol);
-      trade.rebuy().setReason(sale.gain() ? TradeReason.HARVEST_GAIN_BUY : TradeReason.HARVEST_LOSS_BUY);
-      trade.rebuy().setDefaultFxDate(ledger.defaultFxDate(date));
-      ledger.harvest(line.holding, trade);
+      ledger.harvest(line.holding, new YearEndHarvest.Trade(
+        trade.sale().labeled(line.symbol, sale.gain() ? TradeReason.HARVEST_GAIN_SELL : TradeReason.HARVEST_LOSS_SELL)
+          .withDefaultFxDate(ledger.saleDefaultFxDate(date)),
+        trade.rebuy().labeled(line.symbol, sale.gain() ? TradeReason.HARVEST_GAIN_BUY : TradeReason.HARVEST_LOSS_BUY)
+          .withDefaultFxDate(ledger.defaultFxDate(date))));
     }
   }
 
@@ -144,9 +142,9 @@ final class PortfolioRun {
   private void payDueTax(LocalDate date, BigDecimal fx) {
     sellForTax(date, fx, ledger.taxShortfall(taxPayer, date));
     BigDecimal free = freeCash();
-    StrategyTransaction payment = ledger.payTax(taxPayer, date, TradeReason.TAX_PAYMENT);
-    if (payment != null) {
-      takeFromShares(payment.getTaxPaid().subtract(free).max(BigDecimal.ZERO));
+    BigDecimal paid = ledger.payTax(taxPayer, date, TradeReason.TAX_PAYMENT);
+    if (paid.signum() > 0) {
+      takeFromShares(paid.subtract(free).max(BigDecimal.ZERO));
     }
   }
 
@@ -181,19 +179,9 @@ final class PortfolioRun {
   private void reinvest(Line line, LocalDate exDate, OHLCPriceDto candle, BigDecimal usd) {
     BigDecimal price = PriceLookup.effectiveClose(candle);
     LocalDate bought = candle.date();
-    StrategyTransaction tx = StrategyTransaction.builder()
-      .symbol(line.symbol)
-      .reason(TradeReason.DIVIDEND_REINVESTMENT)
-      .date(exDate)
-      .actualDate(bought)
-      .price(price)
-      .shares(usd.divide(price, 8, RoundingMode.HALF_UP))
-      .amount(BigDecimal.ZERO)
-      .cashUsed(usd)
-      .fxRate(ledger.fxOn(bought))
-      .defaultFxDate(ledger.defaultFxDate(bought))
-      .trigger(TransactionTrigger.DIVIDEND_REINVESTMENT)
-      .build();
+    StrategyTransaction tx = StrategyTransaction.reinvestment(new StrategyTransaction.Order(line.symbol,
+        TradeReason.DIVIDEND_REINVESTMENT, exDate, bought, price, ledger.fxOn(bought), ledger.defaultFxDate(bought),
+        TransactionTrigger.DIVIDEND_REINVESTMENT), usd.divide(price, 8, RoundingMode.HALF_UP), usd);
     bought(line, ledger.buy(line.holding, tx));
   }
 
@@ -216,20 +204,9 @@ final class PortfolioRun {
       : MoneyUtils.roundKrw(amount.subtract(free.multiply(fx))).max(BigDecimal.ZERO);
     BigDecimal spendUsd = cashUsed.add(deposit.divide(fx, 8, RoundingMode.HALF_UP));
     BigDecimal fee = ledger.fee(spendUsd);
-    bought(line, ledger.buy(line.holding, StrategyTransaction.builder()
-      .symbol(line.symbol)
-      .reason(reason)
-      .date(planned)
-      .actualDate(date)
-      .price(price)
-      .shares(spendUsd.subtract(fee).divide(price, 8, RoundingMode.HALF_UP))
-      .fee(fee)
-      .amount(deposit)
-      .cashUsed(cashUsed)
-      .fxRate(fx)
-      .defaultFxDate(ledger.defaultFxDate(date))
-      .trigger(trigger)
-      .build()));
+    bought(line, ledger.buy(line.holding, StrategyTransaction.buy(new StrategyTransaction.Order(line.symbol, reason,
+        planned, date, price, fx, ledger.defaultFxDate(date), trigger),
+      spendUsd.subtract(fee).divide(price, 8, RoundingMode.HALF_UP), fee, deposit, cashUsed)));
   }
 
   // 모의 계좌에 남긴 매수를 넣은 돈 · 첫 매수일에 반영

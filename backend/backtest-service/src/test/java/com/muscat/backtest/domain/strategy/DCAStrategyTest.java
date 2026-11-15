@@ -1,5 +1,6 @@
 package com.muscat.backtest.domain.strategy;
 
+import com.muscat.backtest.common.enums.type.TransactionKind;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
@@ -888,7 +889,7 @@ class DCAStrategyTest {
 
   private List<StrategyTransaction> createDcaTransactions() {
     List<StrategyTransaction> transactions = new ArrayList<>();
-    transactions.add(StrategyTransaction.builder()
+    transactions.add(StrategyTransaction.builder().kind(TransactionKind.BUY)
       .date(LocalDate.of(2024, 1, 15))
       .actualDate(LocalDate.of(2024, 1, 15))
       .trigger("월정액")
@@ -897,7 +898,7 @@ class DCAStrategyTest {
       .amount(new BigDecimal("1000.00"))
       .fxRate(new BigDecimal("1300.00"))
       .build());
-    transactions.add(StrategyTransaction.builder()
+    transactions.add(StrategyTransaction.builder().kind(TransactionKind.BUY)
       .date(LocalDate.of(2024, 2, 15))
       .actualDate(LocalDate.of(2024, 2, 15))
       .trigger("월정액")
@@ -906,7 +907,7 @@ class DCAStrategyTest {
       .amount(new BigDecimal("1000.00"))
       .fxRate(new BigDecimal("1300.00"))
       .build());
-    transactions.add(StrategyTransaction.builder()
+    transactions.add(StrategyTransaction.builder().kind(TransactionKind.BUY)
       .date(LocalDate.of(2024, 3, 15))
       .actualDate(LocalDate.of(2024, 3, 15))
       .trigger("월정액")

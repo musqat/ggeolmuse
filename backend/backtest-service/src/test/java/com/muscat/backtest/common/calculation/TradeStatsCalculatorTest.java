@@ -1,5 +1,6 @@
 package com.muscat.backtest.common.calculation;
 
+import com.muscat.backtest.common.enums.type.TransactionKind;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.muscat.backtest.common.constants.BacktestConstants.TransactionTrigger;
@@ -23,7 +24,7 @@ class TradeStatsCalculatorTest {
 
   // 새 돈(KRW)으로 산 거래(원가 = 원화 ÷ 환율), cashUsed 가 있으면 판 돈도 씀
   private static StrategyTransaction buy(LocalDate date, String shares, String amount, String fx, String cashUsed) {
-    return StrategyTransaction.builder().date(date).actualDate(date).shares(new BigDecimal(shares))
+    return StrategyTransaction.builder().kind((new BigDecimal(shares)).signum() < 0 ? TransactionKind.SELL : TransactionKind.BUY).date(date).actualDate(date).shares(new BigDecimal(shares))
       .price(BigDecimal.ONE).amount(new BigDecimal(amount)).fxRate(new BigDecimal(fx))
       .cashUsed(cashUsed == null ? null : new BigDecimal(cashUsed)).trigger("매수").build();
   }
@@ -39,26 +40,25 @@ class TradeStatsCalculatorTest {
   }
 
   private static StrategyTransaction sell(LocalDate date, String shares, String realized, String trigger) {
-    return StrategyTransaction.builder().date(date).actualDate(date).shares(new BigDecimal(shares).negate())
+    return StrategyTransaction.builder().kind(TransactionKind.SELL).date(date).actualDate(date).shares(new BigDecimal(shares).negate())
       .price(BigDecimal.ONE).amount(BigDecimal.ZERO).proceeds(BigDecimal.ONE).fxRate(new BigDecimal("1300"))
       .realizedProfit(new BigDecimal(realized)).trigger(trigger).build();
   }
 
   private static StrategyTransaction taxPayment(LocalDate date) {
-    return StrategyTransaction.builder().date(date).actualDate(date).shares(BigDecimal.ZERO).price(BigDecimal.ZERO)
+    return StrategyTransaction.builder().kind(TransactionKind.TAX_PAYMENT).date(date).actualDate(date).shares(BigDecimal.ZERO).price(BigDecimal.ZERO)
       .amount(BigDecimal.ZERO).fxRate(new BigDecimal("1300")).taxPaid(BigDecimal.TEN)
       .trigger(TransactionTrigger.CAPITAL_GAINS_TAX_PAYMENT).build();
   }
 
   private static StrategyTransaction reinvestment(LocalDate date, String shares) {
-    return StrategyTransaction.builder().date(date).actualDate(date).shares(new BigDecimal(shares))
+    return StrategyTransaction.builder().kind(TransactionKind.DIVIDEND_REINVESTMENT).date(date).actualDate(date).shares(new BigDecimal(shares))
       .price(BigDecimal.TEN).amount(BigDecimal.ZERO).fxRate(new BigDecimal("1300"))
       .trigger(TransactionTrigger.DIVIDEND_REINVESTMENT).build();
   }
 
   private static StrategyTransaction symbol(String symbol, StrategyTransaction tx) {
-    tx.setSymbol(symbol);
-    return tx;
+    return tx.toBuilder().symbol(symbol).build();
   }
 
   private static void assertStats(TradeStats actual, TradeStats expected) {
@@ -207,9 +207,11 @@ class TradeStatsCalculatorTest {
   void yearEndHarvestKeepsCycle() {
     List<StrategyTransaction> transactions = List.of(
       // 1000달러로 사서 연말에 전량 팔아 300달러 이익, 판 돈 1300달러로 다시 사서 이듬해 100달러 이익에 전량 매도
-      buy(on(1, 10), "10"), sell(on(12, 31), "10", "300", TransactionTrigger.HARVEST_GAIN_SELL),
-      buy(on(12, 31), "9.9", "0", "1300", "1300"), sell(on(12, 31).plusDays(31), "9.9", "100"));
-    transactions.get(2).setTrigger(TransactionTrigger.HARVEST_GAIN_BUY);
+      buy(on(1, 10), "10"), sell(on(12, 31), "10", "300", TransactionTrigger.HARVEST_GAIN_SELL).toBuilder()
+        .kind(TransactionKind.HARVEST_SELL).build(),
+      buy(on(12, 31), "9.9", "0", "1300", "1300").toBuilder().kind(TransactionKind.HARVEST_BUY)
+        .trigger(TransactionTrigger.HARVEST_GAIN_BUY).build(),
+      sell(on(12, 31).plusDays(31), "9.9", "100"));
 
     TradeStats stats = TradeStatsCalculator.of(transactions, START, on(12, 31).plusDays(31));
 

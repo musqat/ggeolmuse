@@ -48,8 +48,8 @@ public final class SimulationCalculator {
     LocalDate tradeDate = context.purchaseData().date();
     HoldingTrail trail = new HoldingTrail(harvestDates(context), context.priceMap(), request.getTradingFeeRate(), fx);
     trail.step(tradeDate, purchase.shares(), remainingCash);
-    trail.taxTrade(StrategyTransaction.builder().date(tradeDate).actualDate(tradeDate).price(purchasePriceUsd)
-      .shares(purchase.shares()).fee(tradingFee).cashUsed(buyCostUsd).fxRate(purchaseFxRate).build());
+    trail.taxTrade(StrategyTransaction.buy(new StrategyTransaction.Order(null, null, tradeDate, tradeDate,
+      purchasePriceUsd, purchaseFxRate, null, null), purchase.shares(), tradingFee, null, buyCostUsd));
 
     BigDecimal stockReturn = currentPriceUsd.subtract(purchasePriceUsd);
     BigDecimal stockReturnPercent = MoneyUtils.calculateReturnRate(purchasePriceUsd, currentPriceUsd);
@@ -79,12 +79,11 @@ public final class SimulationCalculator {
 
     // 기간 끝에 팔면 주식 0 · 판 돈은 남은 현금으로(환율은 평가일 환율)
     StrategyTransaction endSale = PeriodEnd.sells(request.getPeriodEnd())
-      ? PeriodEndSale.of(shares, context.priceMap(), context.valuationDate(), currentPriceUsd,
-        request.getTradingFeeRate(), currentFxRate)
+      ? PeriodEndSale.of(shares, StrategyCalculator.holdingCost(trail.taxTransactions()), context.priceMap(),
+        context.valuationDate(), currentPriceUsd, request.getTradingFeeRate(), currentFxRate)
       : null;
     BigDecimal heldShares = shares;
     if (endSale != null) {
-      endSale.setRealizedProfit(endSale.getProceeds().subtract(StrategyCalculator.holdingCost(trail.taxTransactions())));
       trail.taxTrade(endSale);
       heldShares = BigDecimal.ZERO;
       remainingCash = remainingCash.add(endSale.getProceeds());

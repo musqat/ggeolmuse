@@ -142,16 +142,9 @@ public final class DividendReinvestor {
         dividendDayPrice, BacktestConstants.Money.SHARES_SCALE,
         BacktestConstants.Money.ROUNDING_MODE);
 
-    transactions.add(StrategyTransaction.builder()
-        .date(dividend.getExDate())
-        .actualDate(priceAtDividendDate.date())
-        .price(dividendDayPrice)
-        .shares(additionalShares)
-        .amount(BigDecimal.ZERO)
-        .fxRate(fxRateAtDividendDate)
-        .defaultFxDate(defaultFx ? dividend.getExDate() : null)
-        .trigger(BacktestConstants.TransactionTrigger.DIVIDEND_REINVESTMENT)
-        .build());
+    transactions.add(StrategyTransaction.reinvestment(new StrategyTransaction.Order(null, null, dividend.getExDate(),
+        priceAtDividendDate.date(), dividendDayPrice, fxRateAtDividendDate, defaultFx ? dividend.getExDate() : null,
+        BacktestConstants.TransactionTrigger.DIVIDEND_REINVESTMENT), additionalShares, null));
 
     log.debug("배당 재투자: {} - ${} ({}주 보유) -> {}주 추가 매수 @${}",
         dividend.getExDate(), afterTaxDividend, sharesAtDividendDate,

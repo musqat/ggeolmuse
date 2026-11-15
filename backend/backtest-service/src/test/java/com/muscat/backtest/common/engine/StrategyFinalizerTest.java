@@ -1,5 +1,6 @@
 package com.muscat.backtest.common.engine;
 
+import com.muscat.backtest.common.enums.type.TransactionKind;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -37,7 +38,7 @@ class StrategyFinalizerTest {
   private static final LocalDate VALUATION = LocalDate.of(2024, 1, 12);
 
   private static StrategyTransaction buy(String fxRate) {
-    return StrategyTransaction.builder().date(FIRST).actualDate(FIRST).price(new BigDecimal("100"))
+    return StrategyTransaction.builder().kind(TransactionKind.BUY).date(FIRST).actualDate(FIRST).price(new BigDecimal("100"))
       .shares(BigDecimal.TEN).amount(new BigDecimal("1350000")).fxRate(new BigDecimal(fxRate)).trigger("월정액")
       .fee(BigDecimal.ZERO).build();
   }
@@ -174,7 +175,7 @@ class StrategyFinalizerTest {
     @Test
     @DisplayName("끝까지 보유하거나 이미 전량 팔았으면 기간 끝 매도를 더하지 않는다")
     void noSaleWhenHoldingOrSoldOut() {
-      StrategyTransaction soldOut = StrategyTransaction.builder().date(MIDDLE).actualDate(MIDDLE).price(new BigDecimal("110"))
+      StrategyTransaction soldOut = StrategyTransaction.builder().kind(TransactionKind.SELL).date(MIDDLE).actualDate(MIDDLE).price(new BigDecimal("110"))
         .shares(new BigDecimal("-10")).amount(BigDecimal.ZERO).proceeds(new BigDecimal("1100")).fee(BigDecimal.ZERO)
         .realizedProfit(new BigDecimal("100")).fxRate(new BigDecimal("1350")).trigger("10.0%익절").build();
       Map<LocalDate, OHLCPriceDto> candles = Map.of(FIRST, candle(FIRST, "100"), MIDDLE, candle(MIDDLE, "110"));

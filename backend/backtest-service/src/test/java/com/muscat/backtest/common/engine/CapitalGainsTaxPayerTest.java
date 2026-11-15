@@ -1,5 +1,6 @@
 package com.muscat.backtest.common.engine;
 
+import com.muscat.backtest.common.enums.type.TransactionKind;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.muscat.backtest.common.calculation.CapitalGainsTaxCalculator.Payments;
@@ -19,13 +20,13 @@ class CapitalGainsTaxPayerTest {
 
   // 새 돈(KRW)으로 산 10주
   private static StrategyTransaction buy(LocalDate date) {
-    return StrategyTransaction.builder().date(date).actualDate(date).shares(BigDecimal.TEN).price(new BigDecimal("100"))
+    return StrategyTransaction.builder().kind(TransactionKind.BUY).date(date).actualDate(date).shares(BigDecimal.TEN).price(new BigDecimal("100"))
       .amount(new BigDecimal("1300000")).fxRate(FX).build();
   }
 
   // 10주를 판 거래(수수료 뺀 판 돈 USD, 1300원)
   private static StrategyTransaction sell(LocalDate date, String proceeds) {
-    return StrategyTransaction.builder().date(date).actualDate(date).shares(BigDecimal.TEN.negate())
+    return StrategyTransaction.builder().kind(TransactionKind.SELL).date(date).actualDate(date).shares(BigDecimal.TEN.negate())
       .price(BigDecimal.ONE).amount(BigDecimal.ZERO).proceeds(new BigDecimal(proceeds)).fxRate(FX).build();
   }
 

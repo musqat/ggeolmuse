@@ -1,5 +1,6 @@
 package com.muscat.backtest.common.calculation;
 
+import com.muscat.backtest.common.enums.type.TransactionKind;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.muscat.backtest.domain.model.StrategyTransaction;
@@ -17,7 +18,7 @@ class StrategyCalculatorTest {
 
   private static final BigDecimal INVESTED = new BigDecimal("1300000");
   private static final BigDecimal FX_SUM = INVESTED.multiply(new BigDecimal("1300"));
-  private static final List<StrategyTransaction> TXS = List.of(StrategyTransaction.builder()
+  private static final List<StrategyTransaction> TXS = List.of(StrategyTransaction.builder().kind(TransactionKind.BUY)
     .date(LocalDate.of(2024, 1, 15)).actualDate(LocalDate.of(2024, 1, 15)).shares(BigDecimal.TEN)
     .amount(INVESTED).fxRate(new BigDecimal("1300")).build());
   private static final StockPriceDto PRICE = new StockPriceDto("AAPL", null, new BigDecimal("100"), null, null, null,
@@ -77,7 +78,7 @@ class StrategyCalculatorTest {
   @Test
   @DisplayName("전량 매도로 끝나면 총자산은 남은 현금이고 평균 단가가 없다")
   void allSold() {
-    StrategyTransaction sold = StrategyTransaction.builder().date(LocalDate.of(2024, 6, 3))
+    StrategyTransaction sold = StrategyTransaction.builder().kind(TransactionKind.SELL).date(LocalDate.of(2024, 6, 3))
       .actualDate(LocalDate.of(2024, 6, 3)).price(new BigDecimal("110")).shares(new BigDecimal("-10"))
       .amount(BigDecimal.ZERO).fxRate(new BigDecimal("1300")).fee(BigDecimal.ZERO)
       .proceeds(new BigDecimal("1100")).realizedProfit(new BigDecimal("100")).build();
@@ -97,11 +98,11 @@ class StrategyCalculatorTest {
   @Test
   @DisplayName("판 돈으로 다시 사면 평균 단가는 지금 보유분의 원가다")
   void rebuyAverage() {
-    StrategyTransaction sold = StrategyTransaction.builder().date(LocalDate.of(2024, 6, 3))
+    StrategyTransaction sold = StrategyTransaction.builder().kind(TransactionKind.SELL).date(LocalDate.of(2024, 6, 3))
       .actualDate(LocalDate.of(2024, 6, 3)).price(new BigDecimal("110")).shares(new BigDecimal("-10"))
       .amount(BigDecimal.ZERO).fxRate(new BigDecimal("1300")).fee(BigDecimal.ZERO)
       .proceeds(new BigDecimal("1100")).realizedProfit(new BigDecimal("100")).build();
-    StrategyTransaction rebuy = StrategyTransaction.builder().date(LocalDate.of(2024, 7, 1))
+    StrategyTransaction rebuy = StrategyTransaction.builder().kind(TransactionKind.BUY).date(LocalDate.of(2024, 7, 1))
       .actualDate(LocalDate.of(2024, 7, 1)).price(new BigDecimal("110")).shares(BigDecimal.TEN)
       .amount(BigDecimal.ZERO).fxRate(new BigDecimal("1300")).fee(BigDecimal.ZERO)
       .cashUsed(new BigDecimal("1100")).build();

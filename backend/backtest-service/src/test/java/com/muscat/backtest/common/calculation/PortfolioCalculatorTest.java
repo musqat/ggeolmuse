@@ -1,5 +1,6 @@
 package com.muscat.backtest.common.calculation;
 
+import com.muscat.backtest.common.enums.type.TransactionKind;
 import static com.muscat.backtest.common.enums.type.PortfolioStrategyType.DCA;
 import static com.muscat.backtest.common.enums.type.PortfolioStrategyType.LUMP_SUM;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,14 +48,14 @@ class PortfolioCalculatorTest {
 
   private static StrategyTransaction buy(String symbol, LocalDate date, String price, String shares, String amount,
     String fx) {
-    return StrategyTransaction.builder().symbol(symbol).reason(TradeReason.BUY).date(date).actualDate(date)
+    return StrategyTransaction.builder().kind((number(shares)).signum() < 0 ? TransactionKind.SELL : TransactionKind.BUY).symbol(symbol).reason(TradeReason.BUY).date(date).actualDate(date)
       .price(number(price)).shares(number(shares)).amount(number(amount)).fee(BigDecimal.ZERO).fxRate(number(fx))
       .trigger(TransactionTrigger.LUMP_SUM_PURCHASE).build();
   }
 
   private static StrategyTransaction sale(String symbol, LocalDate date, String price, String shares, String proceeds,
     String realized, String fx) {
-    return StrategyTransaction.builder().symbol(symbol).reason(TradeReason.PERIOD_END_SALE).date(date).actualDate(date)
+    return StrategyTransaction.builder().kind(TransactionKind.SELL).symbol(symbol).reason(TradeReason.PERIOD_END_SALE).date(date).actualDate(date)
       .price(number(price)).shares(number(shares).negate()).amount(BigDecimal.ZERO).fee(BigDecimal.ZERO)
       .proceeds(number(proceeds)).realizedProfit(number(realized)).fxRate(number(fx))
       .trigger(TransactionTrigger.PERIOD_END_SALE).build();
@@ -109,13 +110,11 @@ class PortfolioCalculatorTest {
   @Test
   @DisplayName("연말 정리 매도 · 재매수는 줄 · 합계 매수 · 매도 수에 세지 않고 연말 정리만 판 결과에는 매매 통계를 싣지 않는다")
   void yearEndHarvestNotCounted() {
-    StrategyTransaction harvestSale = sale("AAA", END, "66", "50", "3300", "300", "1300");
-    harvestSale.setReason(TradeReason.HARVEST_GAIN_SELL);
-    harvestSale.setTrigger(TransactionTrigger.HARVEST_GAIN_SELL);
-    StrategyTransaction rebuy = buy("AAA", END, "66", "50", "0", "1300");
-    rebuy.setCashUsed(number("3300"));
-    rebuy.setReason(TradeReason.HARVEST_GAIN_BUY);
-    rebuy.setTrigger(TransactionTrigger.HARVEST_GAIN_BUY);
+    StrategyTransaction harvestSale = sale("AAA", END, "66", "50", "3300", "300", "1300").toBuilder()
+      .kind(TransactionKind.HARVEST_SELL).reason(TradeReason.HARVEST_GAIN_SELL).trigger(TransactionTrigger.HARVEST_GAIN_SELL)
+      .build();
+    StrategyTransaction rebuy = buy("AAA", END, "66", "50", "0", "1300").toBuilder().kind(TransactionKind.HARVEST_BUY)
+      .cashUsed(number("3300")).reason(TradeReason.HARVEST_GAIN_BUY).trigger(TransactionTrigger.HARVEST_GAIN_BUY).build();
     PortfolioEngine.Result result = new PortfolioEngine.Result(START, END,
       List.of(buy("AAA", START, "60", "100", "6000000", "1000"), harvestSale, rebuy), List.of(),
       List.of(position("AAA", "6000000", "100", "66", "8580000")), number("6000000"), number("0"), number("0"),
@@ -204,11 +203,11 @@ class PortfolioCalculatorTest {
   @Test
   @DisplayName("리밸런싱 주기를 싣고 리밸런싱으로 판 돈 · 쓴 현금은 그 날짜 환율로 종목 줄의 판 돈 · 산 돈과 매수 · 매도 수에 들고 원금은 그대로다")
   void rebalanceRows() {
-    StrategyTransaction sell = StrategyTransaction.builder().symbol("BBB").reason(TradeReason.REBALANCE_SELL)
+    StrategyTransaction sell = StrategyTransaction.builder().kind(TransactionKind.SELL).symbol("BBB").reason(TradeReason.REBALANCE_SELL)
       .date(JUNE).actualDate(JUNE).price(number("25")).shares(number("-14.4")).amount(BigDecimal.ZERO)
       .fee(BigDecimal.ZERO).proceeds(number("360")).realizedProfit(number("216")).fxRate(number("1400"))
       .trigger(TransactionTrigger.REBALANCE_SELL).build();
-    StrategyTransaction buy = StrategyTransaction.builder().symbol("AAA").reason(TradeReason.REBALANCE_BUY)
+    StrategyTransaction buy = StrategyTransaction.builder().kind(TransactionKind.BUY).symbol("AAA").reason(TradeReason.REBALANCE_BUY)
       .date(JUNE).actualDate(JUNE).price(number("10")).shares(number("36")).amount(BigDecimal.ZERO)
       .fee(BigDecimal.ZERO).cashUsed(number("360")).fxRate(number("1400")).trigger(TransactionTrigger.REBALANCE_BUY)
       .build();
@@ -239,14 +238,14 @@ class PortfolioCalculatorTest {
   @DisplayName("신호 줄이 판 돈으로 다시 산 것은 산 돈에만 들고 원금은 처음 새로 넣은 돈이라 수익률은 원금 대비 이익이다")
   void signalRebuyRow() {
     LocalDate september = LocalDate.of(2024, 9, 2);
-    StrategyTransaction first = StrategyTransaction.builder().symbol("QQQ").reason(TradeReason.STRATEGY_BUY)
+    StrategyTransaction first = StrategyTransaction.builder().kind(TransactionKind.BUY).symbol("QQQ").reason(TradeReason.STRATEGY_BUY)
       .date(START).actualDate(START).price(number("10")).shares(number("100")).amount(number("1300000"))
       .fee(BigDecimal.ZERO).fxRate(number("1300")).trigger(TransactionTrigger.GOLDEN_CROSS).build();
-    StrategyTransaction sell = StrategyTransaction.builder().symbol("QQQ").reason(TradeReason.STRATEGY_SELL)
+    StrategyTransaction sell = StrategyTransaction.builder().kind(TransactionKind.SELL).symbol("QQQ").reason(TradeReason.STRATEGY_SELL)
       .date(JUNE).actualDate(JUNE).price(number("8")).shares(number("-100")).amount(BigDecimal.ZERO)
       .fee(BigDecimal.ZERO).proceeds(number("800")).realizedProfit(number("-200")).fxRate(number("1250"))
       .trigger(TransactionTrigger.DEAD_CROSS).build();
-    StrategyTransaction rebuy = StrategyTransaction.builder().symbol("QQQ").reason(TradeReason.STRATEGY_BUY)
+    StrategyTransaction rebuy = StrategyTransaction.builder().kind(TransactionKind.BUY).symbol("QQQ").reason(TradeReason.STRATEGY_BUY)
       .date(september).actualDate(september).price(number("8")).shares(number("100")).amount(BigDecimal.ZERO)
       .fee(BigDecimal.ZERO).cashUsed(number("800")).fxRate(number("1250")).trigger(TransactionTrigger.GOLDEN_CROSS)
       .build();
@@ -273,7 +272,7 @@ class PortfolioCalculatorTest {
   @DisplayName("배당 재투자는 산 돈 · 배당에 같이 들어가 이익에서 상쇄되고 원금 · 매수 수에는 세지 않는다")
   void reinvestedDividendRow() {
     LocalDate exDate = START.plusDays(2);
-    StrategyTransaction reinvest = StrategyTransaction.builder().symbol("AAA").reason(TradeReason.DIVIDEND_REINVESTMENT)
+    StrategyTransaction reinvest = StrategyTransaction.builder().kind(TransactionKind.DIVIDEND_REINVESTMENT).symbol("AAA").reason(TradeReason.DIVIDEND_REINVESTMENT)
       .date(exDate).actualDate(exDate).price(number("12.5")).shares(number("4")).amount(BigDecimal.ZERO)
       .cashUsed(number("50")).fxRate(number("1300")).trigger(TransactionTrigger.DIVIDEND_REINVESTMENT).build();
     PortfolioEngine.Result result = new PortfolioEngine.Result(START, END,

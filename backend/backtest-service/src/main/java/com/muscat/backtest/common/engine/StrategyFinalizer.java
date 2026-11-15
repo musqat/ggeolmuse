@@ -168,10 +168,9 @@ public final class StrategyFinalizer {
     BigDecimal shares = transactions.stream()
         .map(StrategyTransaction::getShares)
         .reduce(BigDecimal.ZERO, BigDecimal::add);
-    StrategyTransaction sale = PeriodEndSale.of(shares, priceMap, valuationDate, currentPrice.currentPrice(), feeRate,
-        fxRate);
+    StrategyTransaction sale = PeriodEndSale.of(shares, StrategyCalculator.holdingCost(transactions), priceMap,
+        valuationDate, currentPrice.currentPrice(), feeRate, fxRate);
     if (sale != null) {
-      sale.setRealizedProfit(sale.getProceeds().subtract(StrategyCalculator.holdingCost(transactions)));
       transactions.add(sale);
     }
   }

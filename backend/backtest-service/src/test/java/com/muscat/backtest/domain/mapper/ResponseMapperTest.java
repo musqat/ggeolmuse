@@ -1,5 +1,6 @@
 package com.muscat.backtest.domain.mapper;
 
+import com.muscat.backtest.common.enums.type.TransactionKind;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -85,7 +86,7 @@ class ResponseMapperTest {
 
   private static List<StrategyTransaction> transactions(int count) {
     return java.util.stream.IntStream.range(0, count)
-      .mapToObj(i -> StrategyTransaction.builder()
+      .mapToObj(i -> StrategyTransaction.builder().kind(TransactionKind.BUY)
         .date(START.plusMonths(i))
         .actualDate(START.plusMonths(i))
         .price(new BigDecimal("100"))
@@ -104,9 +105,9 @@ class ResponseMapperTest {
     @Test
     @DisplayName("기본 환율로 산 날과 기본 환율인 평가일을 겹치지 않게 날짜순으로 싣는다")
     void defaultFxDates() {
-      List<StrategyTransaction> txs = transactions(3);
-      txs.get(2).setDefaultFxDate(START.plusMonths(2));
-      txs.get(0).setDefaultFxDate(START);
+      List<StrategyTransaction> txs = new java.util.ArrayList<>(transactions(3));
+      txs.set(2, txs.get(2).withDefaultFxDate(START.plusMonths(2)));
+      txs.set(0, txs.get(0).withDefaultFxDate(START));
       StrategyCalculationResult calc = calculation().toBuilder().defaultFxValuationDate(END).build();
 
       StrategyResponse result = mapper.toStrategyResponse(dcaRequest(), txs, calc, price("120.5"), NONE);
@@ -200,7 +201,7 @@ class ResponseMapperTest {
     @DisplayName("거래 건수는 양도세 납부 줄을 빼고 세고, 납부 줄은 낸 달러와 함께 거래 내역에 싣는다")
     void 거래_건수() {
       List<StrategyTransaction> txs = new java.util.ArrayList<>(transactions(7));
-      txs.add(StrategyTransaction.builder().date(END).actualDate(END).price(BigDecimal.ZERO).shares(BigDecimal.ZERO)
+      txs.add(StrategyTransaction.builder().kind(TransactionKind.TAX_PAYMENT).date(END).actualDate(END).price(BigDecimal.ZERO).shares(BigDecimal.ZERO)
         .amount(BigDecimal.ZERO).fee(BigDecimal.ZERO).fxRate(new BigDecimal("1300")).taxPaid(new BigDecimal("434.92"))
         .trigger("양도세 납부").build());
 
@@ -217,10 +218,10 @@ class ResponseMapperTest {
     @DisplayName("거래 건수는 연말 정리 매도 · 재매수를 빼고 센다")
     void 거래_건수_연말_정리() {
       List<StrategyTransaction> txs = new java.util.ArrayList<>(transactions(3));
-      txs.add(StrategyTransaction.builder().date(END).actualDate(END).price(BigDecimal.TEN)
+      txs.add(StrategyTransaction.builder().kind(TransactionKind.HARVEST_SELL).date(END).actualDate(END).price(BigDecimal.TEN)
         .shares(new BigDecimal("-1")).amount(BigDecimal.ZERO).fxRate(new BigDecimal("1300")).trigger("손실 상계 매도")
         .build());
-      txs.add(StrategyTransaction.builder().date(END).actualDate(END).price(BigDecimal.TEN).shares(BigDecimal.ONE)
+      txs.add(StrategyTransaction.builder().kind(TransactionKind.HARVEST_BUY).date(END).actualDate(END).price(BigDecimal.TEN).shares(BigDecimal.ONE)
         .amount(BigDecimal.ZERO).fxRate(new BigDecimal("1300")).trigger("손실 상계 재매수").build());
 
       StrategyResponse result = mapper.toStrategyResponse(dcaRequest(), txs, calculation(), price("120.5"), NONE);

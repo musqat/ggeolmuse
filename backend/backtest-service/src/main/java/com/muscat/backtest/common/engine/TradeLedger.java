@@ -52,7 +52,8 @@ public final class TradeLedger {
   private final FxRates fxRates;
   private final boolean capitalGainsTax;
   private BigDecimal cash = BigDecimal.ZERO;
-  private StrategyTransaction lastPayment;
+  // 마지막 양도세 납부 줄의 자리(없으면 -1)
+  private int lastPayment = -1;
 
   // 수수료율 · 수동 환율(없으면 날마다 환율) · 양도세를 켰는지
   public TradeLedger(BigDecimal feeRate, BigDecimal manualFxRate, FxRates fxRates, boolean capitalGainsTax) {
@@ -95,23 +96,16 @@ public final class TradeLedger {
   public StrategyTransaction buyWithDeposit(Holding holding, LocalDate planned, LocalDate date, BigDecimal price,
     BigDecimal krw, String trigger, TradeReason reason) {
     RoundPurchase purchase = RoundPurchase.byAmount(krw, price, fxOn(date), feeRate);
-    return buy(holding, base(holding, planned, date, price, trigger, reason)
-      .shares(purchase.shares())
-      .fee(purchase.feeUsd())
-      .amount(purchase.amountKrw())
-      .build());
+    return buy(holding, StrategyTransaction.buy(order(holding, planned, date, price, defaultFxDate(date), trigger,
+      reason), purchase.shares(), purchase.feeUsd(), purchase.amountKrw(), null));
   }
 
   // 현금 달러로 받은 가격에 산 거래(수수료는 쓴 달러에서 뺌, 새 돈 없음)
   public StrategyTransaction buyWithCash(Holding holding, LocalDate planned, LocalDate date, BigDecimal price,
     BigDecimal usd, String trigger, TradeReason reason) {
     BigDecimal fee = fee(usd);
-    return buy(holding, base(holding, planned, date, price, trigger, reason)
-      .shares(usd.subtract(fee).divide(price, 8, RoundingMode.HALF_UP))
-      .fee(fee)
-      .amount(BigDecimal.ZERO)
-      .cashUsed(usd)
-      .build());
+    return buy(holding, StrategyTransaction.buy(order(holding, planned, date, price, defaultFxDate(date), trigger,
+      reason), usd.subtract(fee).divide(price, 8, RoundingMode.HALF_UP), fee, BigDecimal.ZERO, usd));
   }
 
   // 산 거래를 남기고 쓴 현금을 빼고 보유 · 원가에 더함
@@ -131,21 +125,8 @@ public final class TradeLedger {
     BigDecimal gross = shares.multiply(price).setScale(8, RoundingMode.HALF_UP);
     BigDecimal fee = fee(gross);
     BigDecimal proceeds = gross.subtract(fee);
-    StrategyTransaction sale = StrategyTransaction.builder()
-      .symbol(holding.symbol)
-      .reason(reason)
-      .date(planned)
-      .actualDate(date)
-      .price(price)
-      .shares(shares.negate())
-      .fee(fee)
-      .amount(BigDecimal.ZERO)
-      .proceeds(proceeds)
-      .realizedProfit(proceeds.subtract(soldCost))
-      .fxRate(fxOn(date))
-      .defaultFxDate(saleDefaultFxDate(date))
-      .trigger(trigger)
-      .build();
+    StrategyTransaction sale = StrategyTransaction.sell(order(holding, planned, date, price, saleDefaultFxDate(date),
+      trigger, reason), shares, fee, proceeds, proceeds.subtract(soldCost));
     transactions.add(sale);
     cash = cash.add(proceeds);
     holding.shares = holding.shares.subtract(shares);
@@ -158,21 +139,21 @@ public final class TradeLedger {
     cash = cash.add(usd);
   }
 
-  // 받은 날짜까지 납부일이 온 양도세를 현금에서 낸 거래(낼 것이 없으면 null), 같은 날 또 내면 같은 날 납부 줄에 더함
-  public StrategyTransaction payTax(CapitalGainsTaxPayer taxPayer, LocalDate date, TradeReason reason) {
+  // 받은 날짜까지 납부일이 온 양도세를 현금에서 내고 이번에 낸 달러(없으면 0), 같은 날 또 내면 같은 날 납부 줄에 더함
+  public BigDecimal payTax(CapitalGainsTaxPayer taxPayer, LocalDate date, TradeReason reason) {
     StrategyTransaction payment = taxPayer.pay(date, transactions, cash, fxOn(date), fxRates.isDefault(date));
     if (payment == null) {
-      return null;
+      return BigDecimal.ZERO;
     }
-    if (lastPayment != null && date.equals(lastPayment.getDate())) {
-      lastPayment.setTaxPaid(lastPayment.getTaxPaid().add(payment.getTaxPaid()));
+    StrategyTransaction last = lastPayment < 0 ? null : transactions.get(lastPayment);
+    if (last != null && date.equals(last.getDate())) {
+      transactions.set(lastPayment, last.withTaxPaid(last.getTaxPaid().add(payment.getTaxPaid())));
     } else {
-      payment.setReason(reason);
-      transactions.add(payment);
-      lastPayment = payment;
+      transactions.add(payment.withReason(reason));
+      lastPayment = transactions.size() - 1;
     }
     cash = cash.subtract(payment.getTaxPaid());
-    return payment;
+    return payment.getTaxPaid();
   }
 
   // 받은 날짜까지 납부일이 온 양도세를 냄(taxSale 이 팔기면 모자란 현금만큼 먼저 받은 가격에 판 거래를 돌려줌, 안 팔면 null)
@@ -223,17 +204,9 @@ public final class TradeLedger {
     }
   }
 
-  // 받은 날짜 환율 · 기본 환율 날을 채운 거래
-  private StrategyTransaction.StrategyTransactionBuilder base(Holding holding, LocalDate planned, LocalDate date,
-    BigDecimal price, String trigger, TradeReason reason) {
-    return StrategyTransaction.builder()
-      .symbol(holding.symbol)
-      .reason(reason)
-      .date(planned)
-      .actualDate(date)
-      .price(price)
-      .fxRate(fxOn(date))
-      .defaultFxDate(defaultFxDate(date))
-      .trigger(trigger);
+  // 받은 날짜 환율의 보유 종목 거래
+  private StrategyTransaction.Order order(Holding holding, LocalDate planned, LocalDate date, BigDecimal price,
+    LocalDate defaultFx, String trigger, TradeReason reason) {
+    return new StrategyTransaction.Order(holding.symbol, reason, planned, date, price, fxOn(date), defaultFx, trigger);
   }
 }

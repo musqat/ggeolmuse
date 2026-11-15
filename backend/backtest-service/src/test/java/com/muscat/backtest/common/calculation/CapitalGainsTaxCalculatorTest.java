@@ -1,5 +1,6 @@
 package com.muscat.backtest.common.calculation;
 
+import com.muscat.backtest.common.enums.type.TransactionKind;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.muscat.backtest.common.calculation.CapitalGainsTaxCalculator.Gain;
@@ -24,20 +25,19 @@ class CapitalGainsTaxCalculatorTest {
 
   // 새 돈(KRW)으로 산 거래
   private static StrategyTransaction buy(LocalDate date, String shares, String price, String amount, String fx) {
-    return StrategyTransaction.builder().date(date).actualDate(date).shares(new BigDecimal(shares))
+    return StrategyTransaction.builder().kind((new BigDecimal(shares)).signum() < 0 ? TransactionKind.SELL : TransactionKind.BUY).date(date).actualDate(date).shares(new BigDecimal(shares))
       .price(new BigDecimal(price)).amount(new BigDecimal(amount)).fxRate(new BigDecimal(fx)).build();
   }
 
   // 판 거래(수수료 뺀 판 돈 USD)
   private static StrategyTransaction sell(LocalDate date, String shares, String proceeds, String fx) {
-    return StrategyTransaction.builder().date(date).actualDate(date).shares(new BigDecimal(shares).negate())
+    return StrategyTransaction.builder().kind(TransactionKind.SELL).date(date).actualDate(date).shares(new BigDecimal(shares).negate())
       .price(BigDecimal.ONE).amount(BigDecimal.ZERO).proceeds(new BigDecimal(proceeds)).fxRate(new BigDecimal(fx))
       .build();
   }
 
   private static StrategyTransaction symbol(String symbol, StrategyTransaction tx) {
-    tx.setSymbol(symbol);
-    return tx;
+    return tx.toBuilder().symbol(symbol).build();
   }
 
   private static List<BigDecimal> amounts(List<Gain> gains) {
@@ -64,7 +64,7 @@ class CapitalGainsTaxCalculatorTest {
     @DisplayName("판 돈으로 다시 산 주식은 쓴 판 돈을 그 날짜 환율로 바꿔 원가에 더한다")
     void cashRebuyCostAtBuyFx() {
       // 1300원에 1100달러 판매(이익 13만원), 1350원일 때 판 돈 1100달러 + 새 돈 13만 5천원으로 12주, 1350원에 1080달러 판매
-      StrategyTransaction rebuy = StrategyTransaction.builder().date(MAY).actualDate(MAY).shares(new BigDecimal("12"))
+      StrategyTransaction rebuy = StrategyTransaction.builder().kind(TransactionKind.BUY).date(MAY).actualDate(MAY).shares(new BigDecimal("12"))
         .price(new BigDecimal("100")).amount(new BigDecimal("135000")).cashUsed(new BigDecimal("1100"))
         .fxRate(new BigDecimal("1350")).build();
 
@@ -92,7 +92,7 @@ class CapitalGainsTaxCalculatorTest {
     @Test
     @DisplayName("배당 재투자로 산 주식은 주식 수 × 주가를 그 날짜 환율로 바꾼 값을 원가로 본다")
     void reinvestedSharesCost() {
-      StrategyTransaction reinvest = StrategyTransaction.builder().date(MAR).actualDate(MAR).shares(new BigDecimal("0.5"))
+      StrategyTransaction reinvest = StrategyTransaction.builder().kind(TransactionKind.DIVIDEND_REINVESTMENT).date(MAR).actualDate(MAR).shares(new BigDecimal("0.5"))
         .price(new BigDecimal("100")).amount(BigDecimal.ZERO).fxRate(new BigDecimal("1400")).trigger("배당 재투자")
         .build();
 
@@ -115,7 +115,7 @@ class CapitalGainsTaxCalculatorTest {
     @Test
     @DisplayName("양도세 납부 줄은 보유 주식 · 원가에 넣지 않는다")
     void skipsTaxPayments() {
-      StrategyTransaction payment = StrategyTransaction.builder().date(MAR).actualDate(MAR).shares(BigDecimal.ZERO)
+      StrategyTransaction payment = StrategyTransaction.builder().kind(TransactionKind.TAX_PAYMENT).date(MAR).actualDate(MAR).shares(BigDecimal.ZERO)
         .price(BigDecimal.ZERO).amount(BigDecimal.ZERO).fee(BigDecimal.ZERO).fxRate(new BigDecimal("1400"))
         .taxPaid(new BigDecimal("100")).trigger("양도세 납부").build();
 

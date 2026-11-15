@@ -1,5 +1,6 @@
 package com.muscat.backtest.common.engine;
 
+import com.muscat.backtest.common.enums.type.TransactionKind;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -26,7 +27,7 @@ class TradeLedgerTest {
 
   // 130만원어치 10주(원가 1000달러)
   private static StrategyTransaction deposit(LocalDate date, int shares, String price) {
-    return StrategyTransaction.builder().date(date).actualDate(date).price(new BigDecimal(price))
+    return StrategyTransaction.builder().kind((BigDecimal.valueOf(shares)).signum() < 0 ? TransactionKind.SELL : TransactionKind.BUY).date(date).actualDate(date).price(new BigDecimal(price))
       .shares(BigDecimal.valueOf(shares)).amount(new BigDecimal("1300000")).fxRate(new BigDecimal("1300")).build();
   }
 
@@ -154,7 +155,7 @@ class TradeLedgerTest {
   }
 
   @Test
-  @DisplayName("양도세는 현금에서 내고 같은 날 또 내면 같은 날 납부 줄에 더함")
+  @DisplayName("양도세는 현금에서 내고 이번에 낸 달러를 돌려주며 같은 날 또 내면 같은 날 납부 줄에 더함")
   void payTax() {
     TradeLedger ledger = new TradeLedger(null, new BigDecimal("1300"), FxRates.EMPTY, true);
     TradeLedger.Holding holding = new TradeLedger.Holding();
@@ -163,15 +164,15 @@ class TradeLedgerTest {
     // 130만원어치 10주를 4100달러에 팔아 403만원 이익, 공제 뒤 22% 33만 6,600원(258.92달러)
     ledger.sell(holding, LocalDate.of(2024, 3, 15), LocalDate.of(2024, 3, 15), new BigDecimal("410"), BigDecimal.TEN,
       new BigDecimal("1000"), "익절", null);
-    ledger.buy(holding, StrategyTransaction.builder().date(LocalDate.of(2024, 6, 3)).actualDate(LocalDate.of(2024, 6, 3))
+    ledger.buy(holding, StrategyTransaction.builder().kind(TransactionKind.BUY).date(LocalDate.of(2024, 6, 3)).actualDate(LocalDate.of(2024, 6, 3))
       .price(new BigDecimal("100")).shares(new BigDecimal("40")).amount(BigDecimal.ZERO).cashUsed(new BigDecimal("4000"))
       .fxRate(new BigDecimal("1300")).build());
     LocalDate due = LocalDate.of(2025, 5, 2);
 
     assertThat(ledger.taxShortfall(payer, due)).isEqualByComparingTo("158.92");
-    assertThat(ledger.payTax(payer, due, TradeReason.TAX_PAYMENT).getTaxPaid()).isEqualByComparingTo("100");
+    assertThat(ledger.payTax(payer, due, TradeReason.TAX_PAYMENT)).isEqualByComparingTo("100");
     ledger.sell(holding, due, due, new BigDecimal("100"), BigDecimal.TWO, new BigDecimal("200"), "양도세 납부용 매도", null);
-    assertThat(ledger.payTax(payer, due, TradeReason.TAX_PAYMENT).getTaxPaid()).isEqualByComparingTo("158.92");
+    assertThat(ledger.payTax(payer, due, TradeReason.TAX_PAYMENT)).isEqualByComparingTo("158.92");
 
     assertThat(ledger.transactions()).filteredOn(StrategyTransaction::isTaxPayment).singleElement()
       .satisfies(payment -> {
@@ -180,7 +181,7 @@ class TradeLedgerTest {
       });
     assertThat(ledger.transactions().get(3).isTaxPayment()).isTrue();
     assertThat(ledger.cash()).isEqualByComparingTo("41.08");
-    assertThat(ledger.payTax(payer, due.plusDays(1), TradeReason.TAX_PAYMENT)).isNull();
+    assertThat(ledger.payTax(payer, due.plusDays(1), TradeReason.TAX_PAYMENT)).isEqualByComparingTo("0");
   }
 
   // 403만원 이익을 낸 뒤 40주 · 현금 100달러가 남은 모의 계좌(2025-05-02 납부일에 양도세 258.92달러)

@@ -23,9 +23,9 @@ public final class PeriodEndSale {
     return lastCandle(priceMap, valuationDate).map(OHLCPriceDto::date).orElse(valuationDate);
   }
 
-  // 평가일까지 마지막 일봉 종가(일봉이 없으면 평가일 시세)에 판 거래, 남은 주식이 없으면 null
-  public static StrategyTransaction of(BigDecimal shares, Map<LocalDate, OHLCPriceDto> priceMap, LocalDate valuationDate,
-    BigDecimal valuationPrice, BigDecimal feeRate, BigDecimal fxRate) {
+  // 평가일까지 마지막 일봉 종가(일봉이 없으면 평가일 시세)에 판 거래와 보유 원가(USD) 대비 실현 손익, 남은 주식이 없으면 null
+  public static StrategyTransaction of(BigDecimal shares, BigDecimal costUsd, Map<LocalDate, OHLCPriceDto> priceMap,
+    LocalDate valuationDate, BigDecimal valuationPrice, BigDecimal feeRate, BigDecimal fxRate) {
     if (!Decimals.isPositive(shares)) {
       return null;
     }
@@ -34,17 +34,9 @@ public final class PeriodEndSale {
     BigDecimal price = last.map(PriceLookup::effectiveClose).orElse(valuationPrice);
     BigDecimal gross = shares.multiply(price).setScale(8, RoundingMode.HALF_UP);
     BigDecimal fee = BacktestCalculationUtils.calculateTradingFee(gross, feeRate);
-    return StrategyTransaction.builder()
-      .date(date)
-      .actualDate(date)
-      .price(price)
-      .shares(shares.negate())
-      .fee(fee)
-      .amount(BigDecimal.ZERO)
-      .proceeds(gross.subtract(fee))
-      .fxRate(fxRate)
-      .trigger(TransactionTrigger.PERIOD_END_SALE)
-      .build();
+    BigDecimal proceeds = gross.subtract(fee);
+    return StrategyTransaction.sell(new StrategyTransaction.Order(null, null, date, date, price, fxRate, null,
+      TransactionTrigger.PERIOD_END_SALE), shares, fee, proceeds, proceeds.subtract(costUsd));
   }
 
   private static Optional<OHLCPriceDto> lastCandle(Map<LocalDate, OHLCPriceDto> priceMap, LocalDate valuationDate) {

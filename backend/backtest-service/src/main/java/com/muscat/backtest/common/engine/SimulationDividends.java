@@ -78,9 +78,9 @@ final class SimulationDividends {
       reinvestDates.add(dividend.getExDate());
       trail.step(dividend.getExDate(), held, cash);
       // 재투자 주식의 원가는 세후 배당 × 배당락일 환율
-      trail.taxTrade(StrategyTransaction.builder().date(dividend.getExDate()).actualDate(dividend.getExDate())
-        .price(dividendDayPrice).shares(additionalShares).amount(BigDecimal.ZERO).cashUsed(afterTaxDividend)
-        .fxRate(trail.fxOn(dividend.getExDate())).build());
+      trail.taxTrade(StrategyTransaction.reinvestment(new StrategyTransaction.Order(null, null, dividend.getExDate(),
+        dividend.getExDate(), dividendDayPrice, trail.fxOn(dividend.getExDate()), null, null), additionalShares,
+        afterTaxDividend));
 
       log.info("배당 재투자: {} - ${} ({}주 보유) -> {}주 추가 매수 @${}",
         dividend.getExDate(), afterTaxDividend, held, additionalShares, dividendDayPrice);

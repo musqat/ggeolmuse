@@ -76,7 +76,7 @@ public final class TradeStatsCalculator {
       }
       if (!tx.isSell()) {
         // 배당 재투자 주식은 보유에만 더함(원가 0)
-        if (!TransactionTrigger.DIVIDEND_REINVESTMENT.equals(tx.getTrigger())) {
+        if (!tx.isReinvestment()) {
           buys++;
           holding.opened = holding.opened == null ? tx.tradedOn() : holding.opened;
           holding.cost = holding.cost.add(tx.costUsd());

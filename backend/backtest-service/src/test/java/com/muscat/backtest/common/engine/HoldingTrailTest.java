@@ -2,6 +2,7 @@ package com.muscat.backtest.common.engine;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.muscat.backtest.common.constants.BacktestConstants.TransactionTrigger;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import java.math.BigDecimal;
@@ -29,10 +30,17 @@ class HoldingTrailTest {
   private static HoldingTrail boughtTenShares() {
     HoldingTrail trail = new HoldingTrail(new TreeSet<>(List.of(HARVEST)), Map.of(HARVEST, candle(HARVEST, "150")),
       new BigDecimal("0.001"), FX);
-    trail.taxTrade(StrategyTransaction.builder().date(BUY).actualDate(BUY).price(new BigDecimal("100"))
-      .shares(new BigDecimal("10")).fee(BigDecimal.ZERO).cashUsed(new BigDecimal("1000"))
-      .fxRate(new BigDecimal("1000")).build());
+    trail.taxTrade(StrategyTransaction.buy(new StrategyTransaction.Order(null, null, BUY, BUY, new BigDecimal("100"),
+      new BigDecimal("1000"), null, null), new BigDecimal("10"), BigDecimal.ZERO, null, new BigDecimal("1000")));
     return trail;
+  }
+
+  // 2025-06-30 에 150달러로 10주를 판 기간 끝 매도
+  private static StrategyTransaction endSale() {
+    LocalDate end = LocalDate.of(2025, 6, 30);
+    return StrategyTransaction.sell(new StrategyTransaction.Order(null, null, end, end, new BigDecimal("150"),
+      new BigDecimal("1000"), null, TransactionTrigger.PERIOD_END_SALE), new BigDecimal("10"), BigDecimal.ZERO,
+      new BigDecimal("1500"), new BigDecimal("500"));
   }
 
   @Test
@@ -69,14 +77,14 @@ class HoldingTrailTest {
     HoldingTrail trail = new HoldingTrail(null, Map.of(), null, FX);
 
     assertThat(trail.harvestBefore(HARVEST, new BigDecimal("10"), BigDecimal.ZERO)).isEqualByComparingTo("10");
-    assertThat(trail.harvestTransactions(StrategyTransaction.builder().build())).isNull();
+    assertThat(trail.harvestTransactions(endSale())).isNull();
   }
 
   @Test
   @DisplayName("연말 정리 거래 뒤에 기간 끝 매도를 붙임")
   void endSaleAppended() {
     HoldingTrail trail = boughtTenShares();
-    StrategyTransaction endSale = StrategyTransaction.builder().date(LocalDate.of(2025, 6, 30)).build();
+    StrategyTransaction endSale = endSale();
 
     trail.harvestBefore(LocalDate.of(2025, 1, 2), new BigDecimal("10"), BigDecimal.ZERO);
 

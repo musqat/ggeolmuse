@@ -1,5 +1,6 @@
 package com.muscat.backtest.common.engine;
 
+import com.muscat.backtest.common.enums.type.TransactionKind;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.muscat.backtest.domain.model.StrategyTransaction;
@@ -23,14 +24,14 @@ class YearEndHarvestTest {
 
   // 주식 수 · 원화(환율 1000)로 산 거래
   private static StrategyTransaction buy(String symbol, String shares, String amountKrw) {
-    return StrategyTransaction.builder().symbol(symbol).date(BOUGHT).actualDate(BOUGHT)
+    return StrategyTransaction.builder().kind((new BigDecimal(shares)).signum() < 0 ? TransactionKind.SELL : TransactionKind.BUY).symbol(symbol).date(BOUGHT).actualDate(BOUGHT)
       .shares(new BigDecimal(shares)).price(BigDecimal.ONE).amount(new BigDecimal(amountKrw))
       .fxRate(new BigDecimal("1000")).trigger("매수").build();
   }
 
   // 판 거래(판 돈 USD, 환율 1000)
   private static StrategyTransaction sell(String shares, String proceedsUsd) {
-    return StrategyTransaction.builder().date(SOLD).actualDate(SOLD).shares(new BigDecimal(shares).negate())
+    return StrategyTransaction.builder().kind(TransactionKind.SELL).date(SOLD).actualDate(SOLD).shares(new BigDecimal(shares).negate())
       .price(BigDecimal.ONE).amount(BigDecimal.ZERO).proceeds(new BigDecimal(proceedsUsd))
       .fxRate(new BigDecimal("1000")).trigger("매도").build();
   }
@@ -132,9 +133,9 @@ class YearEndHarvestTest {
       LocalDate bought = LocalDate.of(2023, 6, 1);
       LocalDate sold = LocalDate.of(2023, 12, 29);
       List<StrategyTransaction> transactions = List.of(
-        StrategyTransaction.builder().date(bought).actualDate(bought).shares(new BigDecimal("100"))
+        StrategyTransaction.builder().kind(TransactionKind.BUY).date(bought).actualDate(bought).shares(new BigDecimal("100"))
           .price(BigDecimal.ONE).amount(new BigDecimal("10000000")).fxRate(new BigDecimal("1000")).build(),
-        StrategyTransaction.builder().date(sold).actualDate(sold).shares(new BigDecimal("-50")).price(BigDecimal.ONE)
+        StrategyTransaction.builder().kind(TransactionKind.SELL).date(sold).actualDate(sold).shares(new BigDecimal("-50")).price(BigDecimal.ONE)
           .amount(BigDecimal.ZERO).proceeds(new BigDecimal("10000")).fxRate(new BigDecimal("1000")).build());
 
       assertThat(plan(transactions, Map.of("", "40"), "0"))
@@ -193,8 +194,7 @@ class YearEndHarvestTest {
     @Test
     @DisplayName("손실 상계는 평가 손실 큰 종목부터 팔고 다 판 종목은 건너뛴다")
     void offsetsBiggestLossFirst() {
-      StrategyTransaction gain = sell("10", "6000");
-      gain.setSymbol("CCC");
+      StrategyTransaction gain = sell("10", "6000").toBuilder().symbol("CCC").build();
       List<StrategyTransaction> transactions = List.of(buy("AAA", "10", "1000000"), buy("BBB", "10", "1000000"),
         buy("CCC", "10", "1000000"), gain);
 

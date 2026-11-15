@@ -1,5 +1,6 @@
 package com.muscat.backtest.common.util;
 
+import com.muscat.backtest.common.enums.type.TransactionKind;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -342,7 +343,7 @@ class BacktestCalculationUtilsTest {
     }
 
     private com.muscat.backtest.domain.model.StrategyTransaction buy(LocalDate planned, LocalDate actual) {
-      return com.muscat.backtest.domain.model.StrategyTransaction.builder()
+      return com.muscat.backtest.domain.model.StrategyTransaction.builder().kind(TransactionKind.BUY)
         .date(planned).actualDate(actual).shares(new BigDecimal("10")).build();
     }
 
@@ -652,7 +653,7 @@ class BacktestCalculationUtilsTest {
     @Test
     @DisplayName("거래 목록 기준: 기간 밖 · 권리락일 없음 · 금액 없음은 빼고 배당락일 보유 주식으로 셈")
     void byTransactions() {
-      List<StrategyTransaction> txs = List.of(StrategyTransaction.builder().date(start).actualDate(start)
+      List<StrategyTransaction> txs = List.of(StrategyTransaction.builder().kind(TransactionKind.BUY).date(start).actualDate(start)
         .shares(BigDecimal.TEN).amount(BigDecimal.ONE).fxRate(BigDecimal.ONE).build());
 
       assertThat(BacktestCalculationUtils.calculateTotalDividends(mixed(), txs, start, end)).isEqualByComparingTo("10");

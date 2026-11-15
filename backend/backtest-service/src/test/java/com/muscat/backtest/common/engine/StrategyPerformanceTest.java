@@ -1,5 +1,6 @@
 package com.muscat.backtest.common.engine;
 
+import com.muscat.backtest.common.enums.type.TransactionKind;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.muscat.backtest.common.constants.BacktestConstants;
@@ -32,7 +33,7 @@ class StrategyPerformanceTest {
   private static final DividendHistoryDto NO_DIVIDENDS = DividendHistoryDto.of("AAPL", List.of());
 
   private static StrategyTransaction buy(LocalDate date, String price, String shares) {
-    return StrategyTransaction.builder().date(date).actualDate(date).price(new BigDecimal(price))
+    return StrategyTransaction.builder().kind((new BigDecimal(shares)).signum() < 0 ? TransactionKind.SELL : TransactionKind.BUY).date(date).actualDate(date).price(new BigDecimal(price))
       .shares(new BigDecimal(shares)).amount(new BigDecimal("1300000")).fxRate(FX).trigger("월정액")
       .fee(BigDecimal.ZERO).build();
   }
@@ -91,7 +92,7 @@ class StrategyPerformanceTest {
   @Test
   @DisplayName("배당 재투자 거래는 주식 수에만 들어가고 입금으로 보지 않는다")
   void reinvestmentIsNotDeposit() {
-    StrategyTransaction reinvest = StrategyTransaction.builder().date(D2).actualDate(D2).price(new BigDecimal("100"))
+    StrategyTransaction reinvest = StrategyTransaction.builder().kind(TransactionKind.DIVIDEND_REINVESTMENT).date(D2).actualDate(D2).price(new BigDecimal("100"))
       .shares(new BigDecimal("0.1")).amount(BigDecimal.ZERO).fxRate(FX)
       .trigger(BacktestConstants.TransactionTrigger.DIVIDEND_REINVESTMENT).build();
 
@@ -148,7 +149,7 @@ class StrategyPerformanceTest {
   void krwBaseIsFirstTradeFx() {
     // 기본 환율 1350 으로 10주를 사고 경로 · 평가일 환율은 1200, 주가는 내내 100
     LocalDate later = LocalDate.of(2025, 1, 2);
-    StrategyTransaction defaulted = StrategyTransaction.builder().date(D1).actualDate(D1).price(new BigDecimal("100"))
+    StrategyTransaction defaulted = StrategyTransaction.builder().kind(TransactionKind.BUY).date(D1).actualDate(D1).price(new BigDecimal("100"))
       .shares(BigDecimal.TEN).amount(new BigDecimal("1350000")).fxRate(new BigDecimal("1350")).trigger("월정액")
       .fee(BigDecimal.ZERO).build();
     BigDecimal pathFx = new BigDecimal("1200");
@@ -191,7 +192,7 @@ class StrategyPerformanceTest {
   private static StrategyTransaction sell(LocalDate date, String price, String shares, String fee) {
     BigDecimal sold = new BigDecimal(shares);
     BigDecimal proceeds = sold.multiply(new BigDecimal(price)).subtract(new BigDecimal(fee));
-    return StrategyTransaction.builder().date(date).actualDate(date).price(new BigDecimal(price))
+    return StrategyTransaction.builder().kind(TransactionKind.SELL).date(date).actualDate(date).price(new BigDecimal(price))
       .shares(sold.negate()).amount(BigDecimal.ZERO).fxRate(FX).trigger("익절").fee(new BigDecimal(fee))
       .proceeds(proceeds).build();
   }
@@ -228,7 +229,7 @@ class StrategyPerformanceTest {
   @Test
   @DisplayName("판 돈으로 다시 산 매수는 입금이 아니라 현금이 주식으로 바뀐 것이다")
   void cashPurchaseIsNotDeposit() {
-    StrategyTransaction rebuy = StrategyTransaction.builder().date(D3).actualDate(D3).price(new BigDecimal("100"))
+    StrategyTransaction rebuy = StrategyTransaction.builder().kind(TransactionKind.BUY).date(D3).actualDate(D3).price(new BigDecimal("100"))
       .shares(BigDecimal.TEN).amount(BigDecimal.ZERO).fxRate(FX).trigger("5.0%하락").fee(BigDecimal.ZERO)
       .cashUsed(new BigDecimal("1000")).build();
     List<StrategyTransaction> txs = List.of(buy(D1, "100", "10"), sell(D2, "100", "10", "0"), rebuy);
@@ -259,7 +260,7 @@ class StrategyPerformanceTest {
   }
 
   private static StrategyTransaction small(LocalDate date, String amountKrw, String shares) {
-    return StrategyTransaction.builder().date(date).actualDate(date).price(new BigDecimal("100"))
+    return StrategyTransaction.builder().kind((new BigDecimal(shares)).signum() < 0 ? TransactionKind.SELL : TransactionKind.BUY).date(date).actualDate(date).price(new BigDecimal("100"))
       .shares(new BigDecimal(shares)).amount(new BigDecimal(amountKrw)).fxRate(FX).trigger("월정액")
       .fee(BigDecimal.ZERO).build();
   }
