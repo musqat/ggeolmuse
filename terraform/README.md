@@ -46,7 +46,7 @@ terraform apply
 - 운영 핵심 자원 (`core.tf`, 가져오는 블록은 `imports.tf`)
   - EC2 `ggeolmuse`(t3a.xlarge, IMDSv2 만 · hop 2)와 보안 그룹 `ggeolmuse-sg`(443 은 접두사 목록 `cloudflare-ipv4` 만)
   - 노드 역할 · 인스턴스 프로파일 `ggeolmuse-ec2-role`(콘솔에서 만들어 EC2 에 연결된 것), 관리 정책 목록 전체와 시크릿 두 개 읽기
-  - RDS `rds_instance_id`(PostgreSQL 15 · db.t3.micro · Single-AZ)
+  - RDS `rds_instance_id`(PostgreSQL 15 · db.t3.micro · Single-AZ, 자동 백업 7일 · 창 08:10 ~ 08:40 KST · 삭제 보호 · 지울 때 최종 스냅숏)
   - 상태 버킷 `ggeolmuse-tfstate-apne2`(버전 관리 · SSE-S3 · 퍼블릭 차단)
   - 모두 `prevent_destroy` 라 plan 이 교체 · 삭제를 잡으면 오류로 멈춘다
 - EventBridge 스케줄러: EC2 / RDS 평일 시작·중지 (`scheduler.tf`, `rds-scheduler.tf`)
@@ -54,7 +54,7 @@ terraform apply
 - EventBridge 규칙 + API Destination: EC2 가 멈추면 슬랙에 `down` 한 줄 (`ec2-stop-alert.tf`). `slack_webhook_url` 이 비면
   만들지 않고, 슬랙에 못 보내면 위 SNS 알람으로 온다
 - S3 버킷 `ggeolmuse-db-backup-apne2` + EC2 역할 쓰기 정책: 월간 pg_dump 보관 (`db-backup.tf`).
-  CronJob 쪽은 `helm/ggeolmuse` 의 `dbBackup`
+  CronJob 쪽은 `helm/ggeolmuse` 의 `dbBackup`. 버전 관리를 켜 같은 키로 덮어써도 옛 덤프가 30일 남는다
 - EventBridge Scheduler(그룹 `ggeolmuse-uptime`) + 규칙 + API Destination: 가동 시간(EC2 시작 20분 뒤부터 중지 전 정시까지)에
   5분마다 프론트 · 시세 API · /auth 를 AWS 에서 GET 으로 확인 (`uptime-check.tf`). 응답 본문은 보지 않고, 2xx 가 아니거나 시간 초과면
   주소별 CloudWatch 알람이 ALARM 이 되고 슬랙에 실패 · 복구 한 줄씩, SNS 이메일(`alarm_email`)로도 온다. 알람은 확인이 있었던 5분 구간만
@@ -77,9 +77,17 @@ terraform init -backend=false && terraform validate && terraform test
 
 1. 아래 표의 값을 `terraform.tfvars` 에 채운다. 교체가 걸린 값은 plan 전에 명령으로 확인한다
 2. `terraform plan` 을 본다. 교체가 잡히면 `prevent_destroy` 오류로 멈추므로 표에서 "다르면 교체" 인 값을 다시 본다
-3. 바꾸겠다고 나온 값은 실제 값을 tfvars(변수가 없으면 코드)로 옮긴다. 남는 것이 import 와 태그 더하기 · 노드 역할의 시크릿 읽기
-   정책 하나 · 연결 안 된 옛 역할 `ggeolmuse-ec2-secrets-role` · 프로파일 `ggeolmuse-ec2-profile` · 옛 역할의 정책 지우기 셋일 때 `terraform apply`
-4. 다시 `terraform plan` 이 `No changes.` 인지 본다
+3. plan 에 남아야 하는 변경은 아래 다섯이다. 이 다섯 말고 바꾸겠다고 나온 값은 실제 값을 tfvars(변수가 없으면 코드)로 옮기고, 이 다섯만
+   남았을 때 `terraform apply`
+   - import 와 태그 더하기
+   - 노드 역할의 시크릿 읽기 정책 하나 만들기
+   - 연결 안 된 옛 역할 `ggeolmuse-ec2-secrets-role` · 프로파일 `ggeolmuse-ec2-profile` · 옛 역할의 정책 지우기 셋
+   - RDS 삭제 보호 · 자동 백업 보존 7일 · 백업 창 `23:10-23:40`(UTC) 가운데 지금 값과 불일치하는 것, 최종 스냅숏 설정(상태값만)
+   - 덤프 버킷 버전 관리 켜기 · 수명 주기 규칙 둘(옛 버전 30일 · 삭제 표시 정리)
+4. apply 는 RDS 가 켜져 있는 평일 06:40 ~ 19:05 KST 에, `aws rds describe-db-instances --db-instance-identifier ggeolmuse-postgres
+   --query 'DBInstances[0].DBInstanceStatus'` 가 `available` 일 때 한다. 멈춘 RDS 는 수정이 `InvalidDBInstanceState` 로 거절돼
+   apply 가 중간에 실패한다
+5. 다시 `terraform plan` 이 `No changes.` 인지 본다
 
 | 변수 | 다르면 | 확인 명령 |
 |---|---|---|
@@ -91,7 +99,7 @@ terraform init -backend=false && terraform validate && terraform test
 | `ec2_extra_ingress` · `cloudflare_rule_description` | 규칙을 지우고 다시 만듦 | 위 명령의 `--query 'SecurityGroups[0].IpPermissions'` |
 | `node_role_policy_arns` | 목록에 없는 관리 정책을 역할에서 뺌 | `aws iam list-attached-role-policies --role-name ggeolmuse-ec2-role --query 'AttachedPolicies[].PolicyArn'` |
 | `node_role_name` · `node_instance_profile_name` | EC2 에 연결되지 않은 역할을 가져옴 | `aws iam get-instance-profile --instance-profile-name ggeolmuse-ec2-role --query 'InstanceProfile.Roles[].RoleName'` |
-| `rds_*` | 암호화 · 사용자 이름은 교체, 나머지는 교체 없이 바뀜 | `aws rds describe-db-instances --db-instance-identifier ggeolmuse-postgres --query 'DBInstances[0].[AllocatedStorage,StorageType,StorageEncrypted,PubliclyAccessible,DBSubnetGroup.DBSubnetGroupName,VpcSecurityGroups[].VpcSecurityGroupId]'` |
+| `rds_*` | 암호화 · 사용자 이름은 교체, 나머지는 교체 없이 바뀜 | `aws rds describe-db-instances --db-instance-identifier ggeolmuse-postgres --query 'DBInstances[0].[AllocatedStorage,StorageType,StorageEncrypted,PubliclyAccessible,DBSubnetGroup.DBSubnetGroupName,VpcSecurityGroups[].VpcSecurityGroupId,DBParameterGroups[].DBParameterGroupName,BackupRetentionPeriod,PreferredBackupWindow,PreferredMaintenanceWindow,DeletionProtection]'` |
 
 - `node_role_policy_arns` 는 처음에는 지금 목록 그대로 둔다. 시크릿 읽기는 인라인 정책으로 따로 들어가므로, 넓은 관리 정책
   (`SecretsManagerReadWrite` 등)은 apply 뒤 ExternalSecret 이 `SecretSynced` 인 것을 보고 목록에서 뺀다
@@ -102,6 +110,56 @@ terraform init -backend=false && terraform validate && terraform test
   'IamInstanceProfileAssociations[].IamInstanceProfile.Arn' --output text` 에 `ggeolmuse-ec2-profile` 이 없는지 본다
 - 인라인 정책 가운데 `ggeolmuse-ec2-secrets-read` · `ggeolmuse-db-backup-write` 를 뺀 나머지는 코드에 없다. `aws iam list-role-policies` 로 보고 필요하면 코드로 옮긴다
 - RDS 마스터 비밀번호는 코드 밖이다. 새로 만들 일은 스냅숏 복원이라 비밀번호를 코드에 두지 않는다
+- 유지 보수 창(`PreferredMaintenanceWindow`)이 백업 창 `23:10-23:40`(UTC)과 겹치면 백업 창 수정이 거절된다. 겹치면
+  `rds_backup_window` 를 RDS 가동 시간 안의 겹치지 않는 30분으로 바꾼다
+
+## 백업 · 복원
+
+| | RDS 자동 백업 | 월간 덤프 |
+|---|---|---|
+| 위치 | RDS 안(시점 복원) | S3 `ggeolmuse-db-backup-apne2/YYYY/MM/<DB>-<시각>.dump` |
+| 주기 · 보존 | 하루 한 번 스냅숏(창 08:10 ~ 08:40 KST, 꺼진 날은 없음) + 트랜잭션 로그, 7일 | 매달 1일 09:00 KST, 400일 |
+| 쓰는 때 | 잘못된 마이그레이션 · 데이터 손상(최근 7일) | RDS 자체를 잃었을 때 · 7일보다 오래된 시점 |
+
+### 시점 복원
+
+새 인스턴스로 복원한 뒤 이름을 바꿔 끼운다. 엔드포인트가 식별자로 정해져 시크릿의 `DB_URL_*` 는 그대로 쓴다.
+
+1. 복원 시각 · 파라미터 그룹 확인 — `aws rds describe-db-instances --db-instance-identifier ggeolmuse-postgres
+   --query 'DBInstances[0].[LatestRestorableTime,DBParameterGroups[].DBParameterGroupName]'`
+2. 새 인스턴스 — 서브넷 그룹 · 보안 그룹 · 파라미터 그룹은 tfvars 의 `rds_subnet_group_name` · `rds_security_group_ids` ·
+   `rds_parameter_group_name` 과 같게. 파라미터 그룹을 빼면 엔진 기본 그룹으로 뜬다
+
+   ```bash
+   aws rds restore-db-instance-to-point-in-time --source-db-instance-identifier ggeolmuse-postgres \
+     --target-db-instance-identifier ggeolmuse-postgres-restore --restore-time <UTC 시각> \
+     --db-subnet-group-name <그룹> --vpc-security-group-ids <SG> --db-parameter-group-name <파라미터 그룹> \
+     --no-publicly-accessible --deletion-protection
+   ```
+
+3. 새 인스턴스가 `available` 이 되면 클러스터 안 임시 파드에서 새 엔드포인트로 접속해 주요 테이블의 행 수를 본다
+4. EC2 를 내려 앱 쓰기를 멈추고 이름을 바꾼다: 옛 것 `ggeolmuse-postgres` → `ggeolmuse-postgres-old`, 새 것 → `ggeolmuse-postgres`
+   (`aws rds modify-db-instance --new-db-instance-identifier … --apply-immediately`)
+5. terraform 상태의 RDS 를 새 것으로: `terraform state rm 'aws_db_instance.postgres[0]'` 뒤 plan 이면 `imports.tf` 가 새 인스턴스를 가져온다
+6. EC2 를 올려 화면을 보고, 며칠 뒤 옛 인스턴스의 삭제 보호를 끄고 지운다
+
+최종 스냅숏에서 되살릴 때는 2번을 `aws rds restore-db-instance-from-db-snapshot --db-snapshot-identifier ggeolmuse-postgres-final …` 로 바꾼다.
+
+### 덤프 복원 테스트
+
+덤프가 실제로 복원되는지와 걸리는 시간을 노트북에서 본다. 덤프 읽기는 노트북 자격 증명만 된다.
+
+```bash
+aws s3 cp s3://ggeolmuse-db-backup-apne2/2026/11/ ~/ggeolmuse-dumps/ --recursive   # 리포 밖
+cd tools && go run ./cmd/db-check -restore ~/ggeolmuse-dumps/*.dump
+```
+
+네트워크 없는 `postgres:15-alpine` 컨테이너에 덤프마다 DB 를 만들어 `pg_restore --exit-on-error` 로 넣고, 테이블마다 덤프의 행 수와
+복원한 DB 의 `count(*)` 를 대조한다. 덤프마다 복원 시간과 합계가 나오고 행 수가 불일치한 테이블이 있거나 복원이 실패하면 종료 코드 1 이다.
+끝나면 컨테이너는 지운다.
+
+덤프를 RDS 에 되살릴 때는 같은 덤프를 클러스터 안 임시 파드(`postgres:15-alpine`)에서 빈 DB 에 `pg_restore --no-owner --no-privileges` 로
+넣는다. 덤프에 소유자 · 권한이 없으므로 넣은 뒤 서비스 계정(`svc_<서비스>`)에 소유자 · 권한을 다시 준다.
 
 ## 제공자 잠금 파일
 

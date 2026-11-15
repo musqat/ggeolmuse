@@ -176,6 +176,41 @@ variable "rds_security_group_ids" {
   default     = null
 }
 
+variable "rds_parameter_group_name" {
+  description = "RDS 파라미터 그룹 이름. rds_instance_id 가 있으면 필요"
+  type        = string
+  default     = null
+}
+
+variable "rds_backup_retention_days" {
+  description = "RDS 자동 백업 보존 일수(시점 복원 범위)"
+  type        = number
+  default     = 7
+
+  validation {
+    condition     = var.rds_backup_retention_days >= 1 && var.rds_backup_retention_days <= 35
+    error_message = "rds_backup_retention_days는 1~35 사이여야 합니다(0 이면 자동 백업이 꺼짐)."
+  }
+}
+
+variable "rds_backup_window" {
+  description = "RDS 자동 백업 창(UTC, HH:MM-HH:MM, 한국 시간으로 RDS 가동 시간 안)"
+  type        = string
+  default     = "23:10-23:40"
+
+  # 백업 창의 시작 · 끝을 한국 시간(UTC+9)으로 바꿔 RDS 시작 ~ 중지 사이인지 확인
+  validation {
+    condition = try(
+      regex("^([01][0-9]|2[0-3]):[0-5][0-9]-([01][0-9]|2[0-3]):[0-5][0-9]$", var.rds_backup_window) != null &&
+      (tonumber(substr(var.rds_backup_window, 0, 2)) * 60 + tonumber(substr(var.rds_backup_window, 3, 2)) + 540) % 1440 >= var.rds_start_hour * 60 + var.rds_start_minute &&
+      (tonumber(substr(var.rds_backup_window, 6, 2)) * 60 + tonumber(substr(var.rds_backup_window, 9, 2)) + 540) % 1440 <= var.rds_stop_hour * 60 + var.rds_stop_minute &&
+      (tonumber(substr(var.rds_backup_window, 0, 2)) * 60 + tonumber(substr(var.rds_backup_window, 3, 2)) + 540) % 1440 < (tonumber(substr(var.rds_backup_window, 6, 2)) * 60 + tonumber(substr(var.rds_backup_window, 9, 2)) + 540) % 1440,
+      false
+    )
+    error_message = "rds_backup_window는 UTC HH:MM-HH:MM 이고 한국 시간으로 RDS 시작 ~ 중지 사이여야 합니다."
+  }
+}
+
 # --- PR 의 읽기 전용 plan (ci-plan-role.tf) ---
 
 variable "ci_plan_role_enabled" {
@@ -335,6 +370,12 @@ variable "db_backup_retention_days" {
   description = "덤프 보존 일수."
   type        = number
   default     = 400
+}
+
+variable "db_backup_noncurrent_days" {
+  description = "덮어쓰이거나 만료된 옛 덤프 버전을 두는 일수"
+  type        = number
+  default     = 30
 }
 
 # EC2 종료 알림 (ec2-stop-alert.tf)

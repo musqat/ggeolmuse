@@ -41,6 +41,7 @@ kubectl logs -f job/db-backup-manual -c upload   # 업로드
 ```
 
 RDS 자동 스냅샷(PITR)과 역할이 다르다. 스냅샷은 5분 단위 시점 복원, 이건 RDS 밖 사본이다.
+복원 절차와 덤프 복원 테스트(`db-check -restore`)는 [terraform/README.md](../../terraform/README.md#백업--복원).
 
 ##  업그레이드
 
