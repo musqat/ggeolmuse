@@ -119,7 +119,8 @@ resource "aws_security_group" "app" {
 # --- 노드 역할 · 인스턴스 프로파일(콘솔에서 만들어 EC2 에 연결된 것) ---
 
 resource "aws_iam_role" "node" {
-  name = var.node_role_name
+  name        = var.node_role_name
+  description = var.node_role_description
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -175,12 +176,16 @@ resource "aws_db_instance" "postgres" {
   username       = var.rds_master_username
 
   allocated_storage      = var.rds_allocated_storage
+  max_allocated_storage  = var.rds_max_allocated_storage
   storage_type           = var.rds_storage_type
   storage_encrypted      = var.rds_storage_encrypted
   publicly_accessible    = var.rds_publicly_accessible
   db_subnet_group_name   = var.rds_subnet_group_name
   vpc_security_group_ids = var.rds_security_group_ids
   parameter_group_name   = var.rds_parameter_group_name
+
+  performance_insights_enabled = var.rds_performance_insights_enabled
+  copy_tags_to_snapshot        = true
 
   # 시점 복원용 자동 백업
   backup_retention_period = var.rds_backup_retention_days
@@ -230,6 +235,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
   bucket = aws_s3_bucket.tfstate.id
 
   rule {
+    bucket_key_enabled = true
+
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"
     }

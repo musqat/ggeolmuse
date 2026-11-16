@@ -117,6 +117,12 @@ variable "node_instance_profile_name" {
   default     = "ggeolmuse-ec2-role"
 }
 
+variable "node_role_description" {
+  description = "노드 역할 설명(콘솔에서 만들 때 넣은 값)"
+  type        = string
+  default     = "Allows EC2 instances to ggeolmuse"
+}
+
 variable "node_role_policy_arns" {
   description = "노드 역할에 둘 관리 정책 ARN 전체. 목록에 없는 관리 정책은 역할에서 빠진다"
   type        = set(string)
@@ -131,7 +137,7 @@ variable "rds_engine_version" {
 variable "rds_instance_class" {
   description = "RDS 인스턴스 등급"
   type        = string
-  default     = "db.t3.micro"
+  default     = "db.t4g.micro"
 }
 
 variable "rds_master_username" {
@@ -180,6 +186,18 @@ variable "rds_parameter_group_name" {
   description = "RDS 파라미터 그룹 이름. rds_instance_id 가 있으면 필요"
   type        = string
   default     = null
+}
+
+variable "rds_max_allocated_storage" {
+  description = "RDS 저장 공간 자동 늘리기 상한(GB, 0 이면 끔)"
+  type        = number
+  default     = 1000
+}
+
+variable "rds_performance_insights_enabled" {
+  description = "RDS Performance Insights(무료 보관 7일)"
+  type        = bool
+  default     = true
 }
 
 variable "rds_backup_retention_days" {
