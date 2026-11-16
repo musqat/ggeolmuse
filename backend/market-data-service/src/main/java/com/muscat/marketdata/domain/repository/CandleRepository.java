@@ -1,6 +1,7 @@
 package com.muscat.marketdata.domain.repository;
 
 import com.muscat.marketdata.domain.entity.Candle;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -32,5 +33,8 @@ public interface CandleRepository extends JpaRepository<Candle, Long>, CandleRep
 
   // 이 날짜보다 오래된 데이터가 있는지(받는 기간 밖에 남는 데이터 확인용)
   boolean existsBySymbolAndDateBefore(String symbol, LocalDate date);
+
+  List<Candle> findBySymbolAndDateGreaterThanEqualAndSplitCoefficientNotOrderByDateAsc(
+    String symbol, LocalDate from, BigDecimal coefficient);
 
 }

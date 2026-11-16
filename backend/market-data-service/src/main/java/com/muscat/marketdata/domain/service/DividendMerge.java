@@ -19,18 +19,27 @@ public final class DividendMerge {
   private DividendMerge() {
   }
 
+  // 바뀐 행과 바꾸기 전 주당 금액(없던 배당은 빈 값)
+  public record Change(Dividend row, BigDecimal before) {
+  }
+
   public static List<Dividend> changedRows(DividendRepository repository, List<DividendDto> fetched) {
-    List<Dividend> rows = new ArrayList<>();
+    return changes(repository, fetched).stream().map(Change::row).toList();
+  }
+
+  public static List<Change> changes(DividendRepository repository, List<DividendDto> fetched) {
+    List<Change> changes = new ArrayList<>();
     for (Dividend fresh : MarketDataMapper.toDividends(fetched)) {
       Optional<Dividend> stored = repository.findBySymbolAndExDate(fresh.getSymbol(), fresh.getExDate());
       if (stored.isEmpty()) {
-        rows.add(fresh);
+        changes.add(new Change(fresh, null));
       } else if (differs(stored.get().getAmount(), fresh.getAmount())) {
+        BigDecimal before = stored.get().getAmount();
         stored.get().setAmount(fresh.getAmount());
-        rows.add(stored.get());
+        changes.add(new Change(stored.get(), before));
       }
     }
-    return rows;
+    return changes;
   }
 
   private static boolean differs(BigDecimal stored, BigDecimal fetched) {

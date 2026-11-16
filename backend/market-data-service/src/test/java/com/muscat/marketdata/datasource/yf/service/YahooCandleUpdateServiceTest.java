@@ -20,6 +20,7 @@ import com.muscat.marketdata.domain.repository.DividendRepository;
 import com.muscat.marketdata.domain.service.CollectionStats;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import com.muscat.marketdata.infra.kafka.DividendEventProducer;
+import com.muscat.marketdata.infra.kafka.SplitEventProducer;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -57,6 +58,7 @@ class YahooCandleUpdateServiceTest {
   @Mock private CollectionStats collectionStats;
   @Mock private AssetEventProducer assetEventProducer;
   @Mock private CandleService candleService;
+  @Mock private SplitEventProducer splitEventProducer;
 
   @InjectMocks
   private YahooCandleUpdateService service;
@@ -259,6 +261,150 @@ class YahooCandleUpdateServiceTest {
 
     assertThat(asset.getFullHistoryThrough()).isEqualTo(D2);
     assertThat(asset.getLatestDate()).isEqualTo(LocalDate.of(2026, 9, 11));
+  }
+
+  private static Candle split(LocalDate date, String close, String coefficient) {
+    Candle candle = candle(date, close);
+    candle.setSplitCoefficient(new BigDecimal(coefficient));
+    return candle;
+  }
+
+  @Nested
+  @DisplayName("분할 이벤트")
+  class SplitEventTests {
+
+    @Test
+    @DisplayName("새로 들어온 분할 봉은 분할일 · 비율로 이벤트 발행")
+    void 새_분할_봉은_이벤트() {
+      stub(FULL_FROM, List.of(candle(D1, "100")), List.of(candle(D1, "100"), split(D2, "101", "4")));
+
+      service.saveCandles(SYMBOL, FULL_FROM, TO);
+
+      verify(splitEventProducer).publishSplitDetected(SYMBOL, D2, new BigDecimal("4"));
+    }
+
+    @Test
+    @DisplayName("계수 1 로 저장된 날짜에 분할이 오면 이벤트 발행")
+    void 계수_1_이던_날의_분할은_이벤트() {
+      stub(FULL_FROM, List.of(candle(D2, "101")), List.of(split(D2, "101", "0.1")));
+
+      service.saveCandles(SYMBOL, FULL_FROM, TO);
+
+      verify(splitEventProducer).publishSplitDetected(SYMBOL, D2, new BigDecimal("0.1"));
+    }
+
+    @Test
+    @DisplayName("이미 같은 계수로 저장된 분할 봉은 다시 발행하지 않음")
+    void 저장된_분할은_다시_내지_않음() {
+      stub(FULL_FROM, List.of(split(D2, "101", "4.00000000")), List.of(split(D2, "101", "4")));
+
+      service.saveCandles(SYMBOL, FULL_FROM, TO);
+
+      verify(splitEventProducer, never()).publishSplitDetected(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("일부 기간 받기에서 새 분할이 보이면 1.25배 아래여도 저장 없이 전 기간 재수집 요청, 분할 이벤트 없음")
+    void 일부_기간의_새_분할은_재수집() {
+      stub(FROM, List.of(candle(D1, "100")), List.of(candle(D1, "100"), split(D2, "101", "1.2")));
+      given(candleRepository.existsBySymbolAndDateBefore(SYMBOL, FROM)).willReturn(true);
+
+      service.saveCandles(SYMBOL, FROM, TO);
+
+      verify(assetEventProducer).publishAssetCreated(asset, true, FULL_FROM, TO, true);
+      verify(candleRepository, never()).saveAll(any());
+      verify(splitEventProducer, never()).publishSplitDetected(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("저장이 실패하면 이벤트 없음")
+    void 저장_실패면_이벤트_없음() {
+      stub(FULL_FROM, List.of(), List.of(split(D2, "101", "4")));
+      given(candleRepository.saveAll(any())).willThrow(new IllegalStateException("db down"));
+
+      service.saveCandles(SYMBOL, FULL_FROM, TO);
+
+      verify(splitEventProducer, never()).publishSplitDetected(any(), any(), any());
+    }
+
+    private com.muscat.marketdata.domain.dto.DividendDto dividend(LocalDate exDate, String amount) {
+      return com.muscat.marketdata.domain.dto.DividendDto.builder().symbol(SYMBOL).exDate(exDate)
+        .amount(new BigDecimal(amount)).currency("USD").build();
+    }
+
+    private void givenStoredDividend(LocalDate exDate, String amount) {
+      given(dividendRepository.findBySymbolAndExDate(SYMBOL, exDate)).willReturn(Optional.of(
+        com.muscat.marketdata.domain.entity.Dividend.builder().symbol(SYMBOL).exDate(exDate)
+          .amount(new BigDecimal(amount)).currency("USD").build()));
+    }
+
+    @Test
+    @DisplayName("새 분할이면 배당을 캔들과 같이 저장하고 배당 이벤트 뒤 분할 이벤트, 분할로만 주당 금액이 바뀐 지난 배당은 배당 이벤트에서 제외")
+    void 새_분할이면_배당_저장_뒤_분할_이벤트() {
+      LocalDate splitOnly = D1.minusDays(60);
+      LocalDate corrected = D1.minusDays(30);
+      LocalDate announced = D2.plusDays(10);
+      stub(FULL_FROM, List.of(candle(D1, "100")), List.of(candle(D1, "100"), split(D2, "101", "4")));
+      given(dividendSource.fetchDividends(SYMBOL, FULL_FROM, TO)).willReturn(List.of(
+        dividend(splitOnly, "0.06"), dividend(corrected, "0.07"), dividend(announced, "0.25")));
+      givenStoredDividend(splitOnly, "0.24000000");
+      givenStoredDividend(corrected, "0.24000000");
+      given(dividendRepository.findBySymbolAndExDate(SYMBOL, announced)).willReturn(Optional.empty());
+
+      assertThat(service.saveCandles(SYMBOL, FULL_FROM, TO)).isEqualTo(2);
+
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<com.muscat.marketdata.domain.entity.Dividend>> saved = ArgumentCaptor.forClass(List.class);
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<com.muscat.marketdata.domain.entity.Dividend>> published = ArgumentCaptor.forClass(List.class);
+      org.mockito.InOrder order = org.mockito.Mockito.inOrder(dividendRepository, dividendEventProducer,
+        splitEventProducer);
+      order.verify(dividendRepository).saveAll(saved.capture());
+      order.verify(dividendEventProducer).publishBatch(published.capture());
+      order.verify(splitEventProducer).publishSplitDetected(SYMBOL, D2, new BigDecimal("4"));
+      assertThat(saved.getValue()).extracting(com.muscat.marketdata.domain.entity.Dividend::getExDate)
+        .containsExactly(splitOnly, corrected, announced);
+      assertThat(published.getValue()).extracting(com.muscat.marketdata.domain.entity.Dividend::getExDate)
+        .containsExactly(corrected, announced);
+      verify(collectionStats).recordDividends(3);
+    }
+
+    @Test
+    @DisplayName("병합(0.1)이면 지난 배당의 주당 금액이 10배로만 바뀐 것도 분할로만 바뀐 것")
+    void 병합도_분할로만_바뀐_배당은_제외() {
+      LocalDate exDate = D1.minusDays(30);
+      stub(FULL_FROM, List.of(), List.of(split(D2, "101", "0.1")));
+      given(dividendSource.fetchDividends(SYMBOL, FULL_FROM, TO)).willReturn(List.of(dividend(exDate, "2.5")));
+      givenStoredDividend(exDate, "0.25000000");
+
+      service.saveCandles(SYMBOL, FULL_FROM, TO);
+
+      verify(dividendRepository).saveAll(any());
+      verify(dividendEventProducer, never()).publishBatch(any());
+      verify(splitEventProducer).publishSplitDetected(SYMBOL, D2, new BigDecimal("0.1"));
+    }
+
+    @Test
+    @DisplayName("새 분할과 같이 받는 배당이 실패하면 0 과 실패 집계, 분할 이벤트 없음")
+    void 배당_받기가_실패하면_분할_이벤트_없음() {
+      stub(FULL_FROM, List.of(), List.of(split(D2, "101", "4")));
+      given(dividendSource.fetchDividends(SYMBOL, FULL_FROM, TO)).willThrow(new IllegalStateException("yahoo down"));
+
+      assertThat(service.saveCandles(SYMBOL, FULL_FROM, TO)).isZero();
+
+      verify(collectionStats).recordSymbolFailed();
+      verify(splitEventProducer, never()).publishSplitDetected(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("새 분할이 없으면 캔들 저장에서 배당을 받지 않음")
+    void 새_분할이_없으면_배당_안_받음() {
+      stub(FULL_FROM, List.of(split(D2, "101", "4")), List.of(split(D2, "101", "4")));
+
+      service.saveCandles(SYMBOL, FULL_FROM, TO);
+
+      verify(dividendSource, never()).fetchDividends(any(), any(), any());
+    }
   }
 
   @Test

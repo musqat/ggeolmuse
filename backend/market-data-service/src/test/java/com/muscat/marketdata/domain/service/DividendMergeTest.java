@@ -72,4 +72,20 @@ class DividendMergeTest {
 
     assertThat(DividendMerge.changedRows(repository, List.of(fetched("0.0946428571")))).isEmpty();
   }
+
+  @Test
+  @DisplayName("바뀐 행마다 바꾸기 전 주당 금액(없던 배당은 빈 값)")
+  void changes_KeepPreviousAmount() {
+    LocalDate newExDate = EX_DATE.plusMonths(3);
+    givenStored("0.04000000");
+    given(repository.findBySymbolAndExDate(SYMBOL, newExDate)).willReturn(Optional.empty());
+
+    List<DividendMerge.Change> changes = DividendMerge.changes(repository, List.of(fetched("0.004"),
+      DividendDto.builder().symbol(SYMBOL).exDate(newExDate).amount(new BigDecimal("0.01")).currency("USD").build()));
+
+    assertThat(changes).extracting(change -> change.row().getExDate(), DividendMerge.Change::before)
+      .containsExactly(org.assertj.core.groups.Tuple.tuple(EX_DATE, new BigDecimal("0.04000000")),
+        org.assertj.core.groups.Tuple.tuple(newExDate, null));
+    assertThat(changes.getFirst().row().getAmount()).isEqualByComparingTo("0.004");
+  }
 }

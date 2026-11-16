@@ -312,6 +312,25 @@ class CandleServiceImplTest {
     }
 
     @Nested
+    @DisplayName("분할 조회")
+    class GetSplitsTests {
+
+        @Test
+        @DisplayName("시작일부터 분할 계수가 1 이 아닌 봉을 대문자 종목으로 찾아 날짜 · 비율로 반환")
+        void getSplits_DateAndRatio() {
+            LocalDate from = LocalDate.of(2020, 1, 1);
+            Candle split = candle(LocalDate.of(2024, 6, 10), "120", "120");
+            split.setSplitCoefficient(new BigDecimal("10.00000000"));
+            given(candleRepository.findBySymbolAndDateGreaterThanEqualAndSplitCoefficientNotOrderByDateAsc(
+                    "NVDA", from, BigDecimal.ONE)).willReturn(List.of(split));
+
+            assertThat(candleService.getSplits("nvda", from))
+                    .extracting(s -> s.date(), s -> s.ratio().toPlainString())
+                    .containsExactly(tuple(LocalDate.of(2024, 6, 10), "10.00000000"));
+        }
+    }
+
+    @Nested
     @DisplayName("현재가 조회 테스트")
     class GetCurrentPriceTests {
 

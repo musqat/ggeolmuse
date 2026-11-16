@@ -2,6 +2,7 @@ package com.muscat.marketdata.config;
 
 import com.muscat.messaging.event.AssetCreatedEvent;
 import com.muscat.messaging.event.DividendUpdatedEvent;
+import com.muscat.messaging.event.StockSplitEvent;
 import com.muscat.messaging.kafka.KafkaFactories;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +43,16 @@ public class KafkaProducerConfig {
     @Bean
     public KafkaTemplate<String, AssetCreatedEvent> assetCreatedKafkaTemplate() {
         return new KafkaTemplate<>(assetCreatedProducerFactory());
+    }
+
+    @Bean
+    public ProducerFactory<String, StockSplitEvent> splitEventProducerFactory() {
+        return KafkaFactories.producerFactory(producerProps(), meterRegistry);
+    }
+
+    @Bean
+    public KafkaTemplate<String, StockSplitEvent> splitEventKafkaTemplate() {
+        return new KafkaTemplate<>(splitEventProducerFactory());
     }
 
     private Map<String, Object> producerProps() {
