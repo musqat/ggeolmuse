@@ -34,15 +34,20 @@ public class SecurityConfig {
     return ServiceSecurity.managementChain(http);
   }
 
-  // Application port (8083) - Public and authenticated endpoints
   @Bean
   @Order(1)
+  public SecurityFilterChain internalSecurityFilterChain(HttpSecurity http) throws Exception {
+    return ServiceSecurity.internalChain(http, jwtAuthenticationConverter());
+  }
+
+  // 애플리케이션 포트(8083)의 공개 · 인증 경로
+  @Bean
+  @Order(2)
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     ServiceSecurity.statelessApi(http)
       .authorizeHttpRequests(auth -> auth
         // Public endpoints - 공개 시장 데이터 API
         .requestMatchers("/api/market/**").permitAll()
-        .requestMatchers("/api/internal/**").permitAll()  // Gateway RewritePath로 변경된 경로
         .requestMatchers(ServiceSecurity.SWAGGER_PATHS).permitAll()
         // Admin endpoints - ADMIN 권한 필요
         .requestMatchers("/api/admin/**").hasAuthority("admin")

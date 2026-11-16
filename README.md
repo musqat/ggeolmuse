@@ -165,19 +165,19 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 ## 테스트
 
-백엔드 **2,833 개**, 프론트 **1,721 개**, E2E **72 개**.
+백엔드 **2,873 개**, 프론트 **1,721 개**, E2E **72 개**.
 
 | 서비스 | 테스트 |
 |---|---|
-| market-data-service | 582 |
-| user-service | 460 |
+| market-data-service | 583 |
+| user-service | 471 |
 | backtest-service | 1,116 |
 | trade-service | 426 |
-| gateway-server | 21 |
+| gateway-server | 22 |
 | config-server | 5 |
-| ggeolmuse-common | 40 |
+| ggeolmuse-common | 58 |
 | messaging | 25 |
-| chat-service | 158 |
+| chat-service | 167 |
 | frontend-web | 1,721 |
 | E2E (Playwright) | 72 |
 
@@ -195,11 +195,11 @@ CI 에서 그 아래면 빌드를 실패시킨다(자바 JaCoCo · chat `tools/c
 
 | 서비스 | 라인 | 분기 |
 |---|---|---|
-| user | 98.4% | 87.7% |
+| user | 98.6% | 87.7% |
 | trade | 99.5% | 96.7% |
 | backtest | 98.9% | 95.2% |
 | market-data | 97.9% | 88.2% |
-| chat | 98.4% | 89.6% |
+| chat | 98.5% | 90.1% |
 | frontend-web | 95.1% | 90.2% |
 
 market-data 의 외부 API 호출은 응답을 흉내 낸 테스트라 실제 API 가 바뀌는 것은 못 잡는다.
@@ -281,7 +281,8 @@ K3s (EC2 단일 노드)      Traefik IngressRoute 로 진입
 EC2 는 Cloudflare 대역에서 온 요청만 받는다. Keycloak 은 Traefik 이 넘긴 전달 헤더로 https 요청을 구분해 쿠키에 Secure 속성을 넣는다.
 
 **인증** — Keycloak 이 토큰을 발급하고, 게이트웨이가 서명 · 만료와 함께 발급자(`iss`)와 발급 클라이언트(`azp`)를 허용 목록으로 검사한다.
-user · trade · market-data · backtest 도 같은 허용 목록으로 다시 검증한다. access token 은 15분이다. refresh token 은 httpOnly 쿠키로 주고,
+user · trade · market-data · backtest 도 같은 허용 목록으로 다시 검증한다. 서비스 사이 내부 API(`/api/internal/**`)는
+서비스 클라이언트로 받은 토큰(realm 역할 `service`)만 받는다. access token 은 15분이다. refresh token 은 httpOnly 쿠키로 주고,
 재발급할 때마다 새것으로 바꿔 옛것은 다시 쓰지 못한다.
 게이트웨이와 서비스는 가입 뒤 이메일 인증 전인 사용자의 토큰(`email_verified` 가 false)을 받지 않는다.
 

@@ -276,6 +276,7 @@ services:
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: custom
       KEYCLOAK_SECRET: local-client-secret
+      KEYCLOAK_SERVICE_CLIENT_SECRET: local-service-secret
       # 시드 admin 계정 (로컬 체험용 더미)
       APP_ADMIN_EMAIL: admin@test.com
       ADMIN_PASSWORD: Admin123!
@@ -339,6 +340,7 @@ services:
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: custom
       KEYCLOAK_SECRET: local-client-secret
+      KEYCLOAK_SERVICE_CLIENT_SECRET: local-service-secret
       KEYCLOAK_ISSUERS: http://localhost:8080/realms/custom,http://keycloak:8080/realms/custom
       KEYCLOAK_CLIENT_IDS: ggeolmuse-client,ggeolmuse-frontend
     healthcheck:
@@ -471,6 +473,7 @@ services:
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: custom
       KEYCLOAK_SECRET: local-client-secret
+      KEYCLOAK_SERVICE_CLIENT_SECRET: local-service-secret
       KEYCLOAK_ISSUERS: http://localhost:8080/realms/custom,http://keycloak:8080/realms/custom
       KEYCLOAK_CLIENT_IDS: ggeolmuse-client,ggeolmuse-frontend
     healthcheck:
@@ -517,6 +520,8 @@ services:
       # iss 는 keycloak 의 KC_HOSTNAME 주소
       KEYCLOAK_ISSUERS: http://localhost:8080/realms/custom,http://keycloak:8080/realms/custom
       KEYCLOAK_CLIENT_IDS: ggeolmuse-client,ggeolmuse-frontend
+      KEYCLOAK_TOKEN_URL: http://keycloak:8080/realms/custom/protocol/openid-connect/token
+      KEYCLOAK_SERVICE_CLIENT_SECRET: local-service-secret
       OTEL_SERVICE_NAME: chat-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
     depends_on:

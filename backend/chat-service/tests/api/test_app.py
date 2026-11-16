@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from app.config import Settings
 from app.core.chat_service import ChatService
 from app.infra.jwks import JwksVerifier
-from app.main import app, build_openai, build_redis, build_verifier
+from app.main import app, build_market_http, build_openai, build_redis, build_verifier
 from tests.tokens import rsa_key, token
 
 
@@ -49,6 +49,26 @@ def test_verifier_takes_issuers_and_clients_from_settings():
             assert verify(token(pem, "k1", iss=issuer, azp="app-client"))["sub"] == "user-1"
         with pytest.raises(ValueError):
             verify(token(pem, "k1", iss="http://keycloak:8080/auth/realms/r", azp="admin-cli"))
+
+
+async def test_market_client_sends_service_token_from_settings():
+    config = Settings(market_data_base_url="http://market-data-service:8083",
+                      keycloak_token_url="http://keycloak:8080/auth/realms/r/protocol/openid-connect/token",
+                      keycloak_service_client_id="svc", keycloak_service_client_secret="s3cret")
+    with respx.mock:
+        token = respx.post(config.keycloak_token_url).mock(
+            return_value=httpx.Response(200, json={"access_token": "t1", "expires_in": 300}))
+        price = respx.get("http://market-data-service:8083/api/internal/market/price/AAPL").mock(
+            return_value=httpx.Response(404))
+        http, token_http = build_market_http(config)
+        try:
+            await http.get("/api/internal/market/price/AAPL")
+        finally:
+            await http.aclose()
+            await token_http.aclose()
+
+    assert "client_id=svc" in token.calls.last.request.content.decode()
+    assert price.calls.last.request.headers["Authorization"] == "Bearer t1"
 
 
 def test_lifespan_builds_service_and_verifier():

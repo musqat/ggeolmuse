@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     keycloak_issuers: str = "http://keycloak:8080/realms/muscathan"  # 받는 토큰의 iss, 쉼표로 여럿
     keycloak_client_ids: str = "ggeolmuse-client,ggeolmuse-frontend"  # 받는 토큰의 azp, 쉼표로 여럿
 
+    # market-data 내부 API 에 싣는 서비스 토큰(client_credentials)
+    keycloak_token_url: str = "http://keycloak:8080/realms/muscathan/protocol/openid-connect/token"
+    keycloak_service_client_id: str = "ggeolmuse-service"
+    keycloak_service_client_secret: str = ""
+
     daily_limit: int = 5
     daily_reject_limit: int = 20
     ohlc_lookback_days: int = 400

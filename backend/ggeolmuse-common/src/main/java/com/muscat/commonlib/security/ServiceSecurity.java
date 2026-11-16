@@ -1,6 +1,7 @@
 package com.muscat.commonlib.security;
 
 import java.util.List;
+import java.util.stream.Stream;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
 import org.springframework.security.config.Customizer;
@@ -28,24 +29,28 @@ public final class ServiceSecurity {
     "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**"
   };
 
+  // 서비스 토큰(서비스 클라이언트의 서비스 계정)이 가진 Keycloak realm 역할
+  public static final String SERVICE_ROLE = "service";
+
   // 받는 토큰의 azp 기본값(이메일 로그인 · 구글 로그인 클라이언트)
   private static final String[] LOGIN_CLIENT_IDS = {"ggeolmuse-client", "ggeolmuse-frontend"};
 
   private ServiceSecurity() {
   }
 
-  // realm JWKS 로 서명을 검사하고 iss · azp 허용 목록(keycloak.issuers · keycloak.client-ids)과 이메일 인증을 보는 디코더
+  // realm JWKS 로 서명을 검사하고 iss · azp 허용 목록(keycloak.issuers · keycloak.client-ids · 서비스 클라이언트)과 이메일 인증을 보는 디코더
   public static JwtDecoder keycloakJwtDecoder(Environment environment) {
     String authServerUrl = environment.getProperty("KEYCLOAK_AUTH_SERVER_URL", "http://localhost:8080");
     String realm = environment.getProperty("KEYCLOAK_REALM", "muscathan");
     String realmUrl = authServerUrl + "/realms/" + realm;
     List<String> issuers = List.of(environment.getProperty("keycloak.issuers", String[].class, new String[] {realmUrl}));
     List<String> loginClientIds = List.of(environment.getProperty("keycloak.client-ids", String[].class, LOGIN_CLIENT_IDS));
+    List<String> clientIds = Stream.concat(loginClientIds.stream(), Stream.of(ServiceTokenProvider.clientId(environment))).toList();
 
     NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(realmUrl + "/protocol/openid-connect/certs").build();
     decoder.setJwtValidator(JwtValidators.createDefaultWithValidators(List.of(
       new JwtClaimValidator<Object>(JwtClaimNames.ISS, iss -> iss != null && issuers.contains(iss.toString())),
-      new JwtClaimValidator<Object>("azp", azp -> azp != null && loginClientIds.contains(azp.toString())),
+      new JwtClaimValidator<Object>("azp", azp -> azp != null && clientIds.contains(azp.toString())),
       emailVerified(loginClientIds))));
     return decoder;
   }
@@ -93,6 +98,20 @@ public final class ServiceSecurity {
       .headers(headers -> headers
         .frameOptions(FrameOptionsConfig::disable)
       );
+  }
+
+  // /api/internal/** 는 Keycloak realm 역할 service(서비스 토큰)가 있어야 함
+  public static SecurityFilterChain internalChain(HttpSecurity http, KeycloakJwtAuthenticationConverter converter)
+    throws Exception {
+    statelessApi(http)
+      .securityMatcher("/api/internal/**")
+      .authorizeHttpRequests(auth -> auth
+        .anyRequest().hasAuthority(SERVICE_ROLE)
+      )
+      .oauth2ResourceServer(oauth2 -> oauth2
+        .jwt(jwt -> jwt.jwtAuthenticationConverter(converter))
+      );
+    return http.build();
   }
 
   // /api/admin/** 는 Keycloak realm 역할 admin 이 있어야 함

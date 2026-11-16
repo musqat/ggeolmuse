@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 
-@DisplayName("토큰의 사용자 id 찾기")
+@DisplayName("토큰 · Keycloak ID 로 사용자 id 찾기")
 class AuthUtilTest {
 
   private final UserRepository userRepository = mock(UserRepository.class);
@@ -47,10 +47,28 @@ class AuthUtilTest {
   @Test
   @DisplayName("토큰이 없거나 sub 가 비면 인증 실패, DB 에 그 sub 가 없으면 사용자 없음이다")
   void failures() {
-    assertThatThrownBy(() -> authUtil.requireUserId(null)).isInstanceOf(AuthenticationException.class);
+    assertThatThrownBy(() -> authUtil.requireUserId((Jwt) null)).isInstanceOf(AuthenticationException.class);
     assertThatThrownBy(() -> authUtil.requireUserId(jwt(b -> b.subject(" "))))
       .isInstanceOf(AuthenticationException.class);
     assertThatThrownBy(() -> authUtil.requireUserId(jwt(b -> b.claim("email", "user@example.com"))))
+      .isInstanceOfSatisfying(UserException.class,
+        e -> assertThat(e.getCode()).isEqualTo(UserResponse.USER_NOT_FOUND));
+  }
+
+  @Test
+  @DisplayName("Keycloak ID 로 사용자 id 를 찾고, 비활성이면 ACCOUNT_DISABLED · 없으면 USER_NOT_FOUND")
+  void byKeycloakId() {
+    User disabled = User.builder().id(8L).emailVerified(true).build();
+    disabled.changeEnabledStatus(false);
+    given(userRepository.findByKeycloakId("kc-1"))
+      .willReturn(Optional.of(User.builder().id(7L).emailVerified(true).build()));
+    given(userRepository.findByKeycloakId("kc-2")).willReturn(Optional.of(disabled));
+
+    assertThat(authUtil.requireUserId("kc-1")).isEqualTo(7L);
+    assertThatThrownBy(() -> authUtil.requireUserId("kc-2"))
+      .isInstanceOfSatisfying(UserException.class,
+        e -> assertThat(e.getCode()).isEqualTo(UserResponse.ACCOUNT_DISABLED));
+    assertThatThrownBy(() -> authUtil.requireUserId("kc-3"))
       .isInstanceOfSatisfying(UserException.class,
         e -> assertThat(e.getCode()).isEqualTo(UserResponse.USER_NOT_FOUND));
   }

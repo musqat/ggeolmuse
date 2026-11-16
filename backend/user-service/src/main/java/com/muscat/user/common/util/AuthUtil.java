@@ -32,6 +32,11 @@ public class AuthUtil {
       throw new AuthenticationException(UserResponse.USER_NOT_FOUND);
     }
 
+    return requireUserId(keycloakId);
+  }
+
+  // Keycloak ID 로 찾은 활성 · 이메일 인증된 사용자 id
+  public Long requireUserId(String keycloakId) {
     User user = userRepository.findByKeycloakId(keycloakId)
         .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
 

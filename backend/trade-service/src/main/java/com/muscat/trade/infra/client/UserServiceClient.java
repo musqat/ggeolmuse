@@ -21,7 +21,7 @@ public interface UserServiceClient {
   @GetMapping("/api/admin/users/dividend-settlements")
   DividendSettlementPageDto getDividendSettlements(@RequestParam("page") int page, @RequestParam("size") int size);
 
-  // 토큰 사용자의 모든 계좌 환전 기록(오래된 것부터)
+  // 받은 Keycloak ID 사용자의 모든 계좌 환전 기록(오래된 것부터, 서비스 토큰)
   @GetMapping("/api/internal/accounts/exchanges")
-  List<ExchangeRecordDto> getExchangeRecords();
+  List<ExchangeRecordDto> getExchangeRecords(@RequestParam("keycloakId") String keycloakId);
 }

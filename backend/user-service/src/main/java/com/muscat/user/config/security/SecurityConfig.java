@@ -56,12 +56,18 @@ public class SecurityConfig {
     return ServiceSecurity.adminChain(http, jwtAuthenticationConverter());
   }
 
-  // Private endpoints (8080) - JWT authentication required
   @Bean
   @Order(2)
+  public SecurityFilterChain internalSecurityFilterChain(HttpSecurity http) throws Exception {
+    return ServiceSecurity.internalChain(http, jwtAuthenticationConverter());
+  }
+
+  // 사용자 · 계좌 경로(8080)는 JWT 인증 필요
+  @Bean
+  @Order(3)
   public SecurityFilterChain privateSecurityFilterChain(HttpSecurity http) throws Exception {
     ServiceSecurity.statelessApi(http)
-      .securityMatcher("/api/users/**", "/api/accounts/**", "/api/internal/**")
+      .securityMatcher("/api/users/**", "/api/accounts/**")
       .authorizeHttpRequests(auth -> auth
         .anyRequest().authenticated()
       )

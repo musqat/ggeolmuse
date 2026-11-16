@@ -167,12 +167,31 @@ class ServiceJwtDecoderTest {
   }
 
   @Test
-  @DisplayName("허용 목록이 없으면 내부 주소의 realm 발급자와 로그인 클라이언트 둘만 받는다")
+  @DisplayName("서비스 클라이언트의 토큰은 클라이언트 허용 목록에 없고 email_verified 가 false 여도 통과한다")
+  void serviceClientPasses() throws Exception {
+    mockMvc.perform(get("/api/things")
+        .header("Authorization", "Bearer " + token(internalIssuer(), "ggeolmuse-service", false)))
+      .andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName("서비스 클라이언트 이름은 KEYCLOAK_SERVICE_CLIENT_ID 로 바꾼다")
+  void serviceClientIdFromEnvironment() throws JOSEException {
+    JwtDecoder decoder = ServiceSecurity.keycloakJwtDecoder(environment().withProperty("KEYCLOAK_SERVICE_CLIENT_ID", "svc"));
+
+    assertThat(decoder.decode(token(internalIssuer(), "svc")).getSubject()).isEqualTo("user-1");
+    assertThatThrownBy(() -> decoder.decode(token(internalIssuer(), "ggeolmuse-service")))
+      .isInstanceOf(JwtValidationException.class);
+  }
+
+  @Test
+  @DisplayName("허용 목록이 없으면 내부 주소의 realm 발급자와 로그인 클라이언트 둘 · 서비스 클라이언트만 받는다")
   void defaultsToInternalIssuerAndLoginClients() throws JOSEException {
     JwtDecoder decoder = ServiceSecurity.keycloakJwtDecoder(environment());
 
     assertThat(decoder.decode(token(internalIssuer(), "ggeolmuse-client")).getSubject()).isEqualTo("user-1");
     assertThat(decoder.decode(token(internalIssuer(), "ggeolmuse-frontend")).getSubject()).isEqualTo("user-1");
+    assertThat(decoder.decode(token(internalIssuer(), "ggeolmuse-service")).getSubject()).isEqualTo("user-1");
     assertThatThrownBy(() -> decoder.decode(token(PUBLIC_ISSUER, "ggeolmuse-client")))
       .isInstanceOf(JwtValidationException.class);
     assertThatThrownBy(() -> decoder.decode(token(internalIssuer(), "admin-cli")))

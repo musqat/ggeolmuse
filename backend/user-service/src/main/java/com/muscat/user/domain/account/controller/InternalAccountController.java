@@ -12,13 +12,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "Internal Account", description = "서비스 사이 계좌 조회 API")
+@Tag(name = "Internal Account", description = "서비스 사이 계좌 조회 API(서비스 토큰)")
 @RestController
 @RequestMapping("/api/internal/accounts")
 @RequiredArgsConstructor
@@ -28,18 +27,19 @@ public class InternalAccountController {
   private final AccountHistoryService accountHistoryService;
   private final AuthUtil authUtil;
 
-  @Operation(summary = "환전 기록 조회", description = "토큰 사용자의 모든 계좌 환전 기록을 오래된 것부터 조회합니다")
+  @Operation(summary = "환전 기록 조회", description = "Keycloak ID 로 찾은 사용자의 모든 계좌 환전 기록을 오래된 것부터 조회합니다")
   @ApiResponses(value = {
     @ApiResponse(responseCode = "200", description = "조회 성공(기록이 없으면 빈 배열)"),
+    @ApiResponse(responseCode = "400", description = "Keycloak ID 없음 또는 이메일 인증 전 계정"),
     @ApiResponse(responseCode = "401", description = "인증 실패"),
-    @ApiResponse(responseCode = "403", description = "비활성화된 계정"),
+    @ApiResponse(responseCode = "403", description = "서비스 토큰이 아님 또는 비활성화된 계정"),
     @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
   })
   @GetMapping("/exchanges")
   public ResponseEntity<List<ExchangeRecordDto>> getExchangeRecords(
-    @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
+    @Parameter(description = "사용자 Keycloak ID(사용자 토큰의 sub)") @RequestParam String keycloakId) {
 
-    Long userId = authUtil.requireUserId(jwt);
+    Long userId = authUtil.requireUserId(keycloakId);
     return ResponseEntity.ok(accountHistoryService.getExchangeRecords(userId));
   }
 }

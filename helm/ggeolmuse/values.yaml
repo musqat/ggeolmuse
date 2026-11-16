@@ -301,6 +301,7 @@ services:
       - MAIL_USERNAME
       - MAIL_PASSWORD
       - MAIL_FROM
+      - KEYCLOAK_SERVICE_CLIENT_SECRET
     # 시드 관리자 비밀번호
     secretEnv:
       ADMIN_PASSWORD: KEYCLOAK_ADMIN_USER_PASSWORD
@@ -312,6 +313,7 @@ services:
       DB_PASSWORD: DB_PASSWORD_USER
       DB_URL_USER: DB_URL_USER
       KEYCLOAK_SECRET: KEYCLOAK_SECRET
+      KEYCLOAK_SERVICE_CLIENT_SECRET: KEYCLOAK_SERVICE_CLIENT_SECRET
       MAIL_USERNAME: MAIL_USERNAME
       MAIL_PASSWORD: MAIL_PASSWORD
       MAIL_FROM: MAIL_FROM
@@ -346,6 +348,8 @@ services:
     labels:
       tier: business-service
     env: {}
+    extraSecrets:
+      - KEYCLOAK_SERVICE_CLIENT_SECRET
     secretFiles:
       CONFIG_SERVER_USERNAME: CONFIG_SERVER_USERNAME
       CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
@@ -354,6 +358,7 @@ services:
       DB_PASSWORD: DB_PASSWORD_TRADE
       DB_URL_TRADE: DB_URL_TRADE
       KEYCLOAK_SECRET: KEYCLOAK_SECRET
+      KEYCLOAK_SERVICE_CLIENT_SECRET: KEYCLOAK_SERVICE_CLIENT_SECRET
     strategy:
       rollingUpdate:
         maxUnavailable: 0
@@ -424,6 +429,8 @@ services:
     labels:
       tier: business-service
     env: {}
+    extraSecrets:
+      - KEYCLOAK_SERVICE_CLIENT_SECRET
     secretFiles:
       CONFIG_SERVER_USERNAME: CONFIG_SERVER_USERNAME
       CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
@@ -431,6 +438,7 @@ services:
       DB_PASSWORD: DB_PASSWORD_BACKTEST
       DB_URL_BACKTEST: DB_URL_BACKTEST
       KEYCLOAK_SECRET: KEYCLOAK_SECRET
+      KEYCLOAK_SERVICE_CLIENT_SECRET: KEYCLOAK_SERVICE_CLIENT_SECRET
     probes:
       readiness:
         initialDelaySeconds: 60
@@ -455,6 +463,7 @@ services:
     secretFiles:
       OPENAI_API_KEY: OPENAI_API_KEY
       REDIS_PASSWORD: REDIS_PASSWORD
+      KEYCLOAK_SERVICE_CLIENT_SECRET: KEYCLOAK_SERVICE_CLIENT_SECRET
     # /metrics 수집(ServiceMonitor · monitoring 에서 서비스 포트 접근)
     metrics:
       enabled: false
@@ -514,6 +523,7 @@ secrets:
     keycloakAdminUsername: ""
     keycloakAdminPassword: ""
     keycloakClientSecret: ""
+    keycloakServiceClientSecret: ""
     keycloakTestUserPassword: ""
     mailUsername: ""
     mailPassword: ""
