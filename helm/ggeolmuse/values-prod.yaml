@@ -97,7 +97,7 @@ infrastructure:
 # Config Server
 configServer:
   image:
-    tag: "d92916d"
+    tag: "1.9.0"
   env:
     springProfiles: git,prod
   resources:
@@ -111,7 +111,7 @@ configServer:
 # Gateway Server
 gatewayServer:
   image:
-    tag: "d92916d"
+    tag: "1.9.0"
   env:
     springProfiles: prod
   probes:
@@ -133,7 +133,7 @@ gatewayServer:
 services:
   userService:
     image:
-      tag: "d92916d"
+      tag: "1.9.0"
     env:
       # market-data 와 같은 한국 시각(저장 시각 · 오늘 날짜 기준, 옛 UTC 시각은 Flyway V6 이 옮김)
       TZ: "Asia/Seoul"
@@ -155,7 +155,7 @@ services:
 
   tradeService:
     image:
-      tag: "d92916d"
+      tag: "1.9.0"
     env:
       TZ: "Asia/Seoul"
     probes:
@@ -173,7 +173,7 @@ services:
 
   marketDataService:
     image:
-      tag: "d92916d"
+      tag: "1.9.0"
     env:
       TZ: "Asia/Seoul"
       # 마켓 데이터 설정
@@ -199,7 +199,7 @@ services:
 
   backtestService:
     image:
-      tag: "d92916d"
+      tag: "1.9.0"
     env:
       TZ: "Asia/Seoul"
     probes:
@@ -236,7 +236,7 @@ services:
 # 프론트엔드
 frontend:
   image:
-    tag: "d92916d"
+    tag: "1.9.0"
   env:
     apiUrl: https://ggeolmuse.com/api
     keycloakUrl: https://ggeolmuse.com/auth
