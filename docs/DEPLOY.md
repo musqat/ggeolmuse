@@ -104,3 +104,8 @@ PR 이 기존 데이터를 다시 계산하거나 다시 쌓아야 하면 그 PR
 
       SELECT id FROM account WHERE total_exchanged_krw > 0
         AND (total_exchanged_usd = 0 OR ABS(total_exchanged_krw / total_exchanged_usd - avg_exchange_rate) > 0.01);
+
+- 주식 분할을 체결 · 보유에 반영하게 바꾼 배포(trade V14): `flyway_schema_history` 에 V14 가 success 인지 보고,
+  관리자 토큰으로 `POST /api/admin/trade/splits/backfill`(202)을 한 번 부른다. 같은 경로의 `GET` 이 `running: false` 가 될 때까지 보고
+  `last` 의 `changed`(맞춘 체결 수) · `failed`(실패한 종목 수) · `reconcileFailed`(보내지 못한 배당 재계산 요청 수)를 본다.
+  진행 상태는 요청을 받은 파드 것이고, 같은 분할은 두 번 반영하지 않아서 다시 불러도 된다

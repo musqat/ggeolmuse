@@ -53,6 +53,9 @@ export type TransactionHistoryItem = {
   executedAt: string;
   status?: 'PENDING' | 'COMPLETED' | 'CANCELLED';    // 매수 · 매도만(정산 전 매수는 PENDING, 잔액 반영 실패면 CANCELLED)
   cancelReason?: string | null;
+  splitRatio?: number | null;                        // 매수 · 매도만: 분할로 맞춘 비율 누적(분할 뒤 주식 수 ÷ 처음 주식 수)
+  preSplitQuantity?: number | null;                  // 매수 · 매도만: 분할로 맞추기 전 처음 수량
+  preSplitPrice?: number | null;                     // 매수 · 매도만: 분할로 맞추기 전 처음 체결가
 };
 
 // 매수 · 매도 체결 결과

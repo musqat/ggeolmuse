@@ -95,12 +95,24 @@ describe('TradeHistoryList', () => {
     expect(screen.getByText('NVDA')).toBeInTheDocument()
   })
 
-  it('계좌를 고르면 그 계좌의 거래와 배당만 남는다', async () => {
+  it('계좌를 고르면 고른 계좌의 거래와 배당만 남는다', async () => {
     renderList()
 
     await userEvent.selectOptions(screen.getByLabelText('계좌'), '2')
 
     const rows = screen.getAllByTestId('history-row').map((el) => el.dataset.type)
     expect(rows).toEqual(['SELL', 'DIVIDEND'])
+  })
+  it('분할로 맞춘 체결 줄에 몇 주가 몇 주로 바뀌었는지와 처음 수량을 줄바꿈 없는 한 줄로', () => {
+    const split = { type: 'BUY', tradeId: 9, accountId: 1, symbol: 'NVDA', quantity: 40, price: 100, totalAmount: 4000, fee: 0, date: '2024-06-03', executedAt: '2024-06-03T10:00:00', status: 'COMPLETED', splitRatio: 4, preSplitQuantity: 10, preSplitPrice: 400 } as TransactionHistoryItem
+    render(<TradeHistoryList transactions={[split, items[0]]} accounts={accounts} onRefresh={vi.fn()} />)
+
+    const line = screen.getByText('1주→4주 분할 · 처음 10주')
+    expect(line).toHaveClass('truncate', 'whitespace-nowrap')
+    const rows = screen.getAllByTestId('history-row')
+    const splitRow = rows.find((row) => within(row).queryByText('NVDA'))!
+    const plainRow = rows.find((row) => within(row).queryByText('AAPL'))!
+    expect(within(splitRow).getByText('40주 × $100.00')).toBeInTheDocument()
+    expect(within(plainRow).queryByText(/분할/)).not.toBeInTheDocument()
   })
 })

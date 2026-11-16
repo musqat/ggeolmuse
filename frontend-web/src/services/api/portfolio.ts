@@ -13,6 +13,7 @@ export type HoldingResponse = {
   currentValue?: number;              // 현재 평가액
   unrealizedPnL?: number;             // 미실현 손익
   returnRate?: number;                // 수익률
+  splitRatio?: number | null;         // 보유에 반영한 분할 비율 누적(분할 뒤 주식 수 ÷ 처음 주식 수)
 };
 
 // 포트폴리오 요약 정보
@@ -30,7 +31,7 @@ export type PortfolioSummaryResponse = {
 // 수익 흐름 기간(1M 은 30일 · 3M 은 90일 · 1Y 는 365일 전부터, ALL 은 첫 거래일부터)
 export type ProfitFlowPeriod = '1M' | '3M' | '1Y' | 'ALL';
 
-// 거래일 하나의 원화 수익(평가손익 + 실현 손익 + 받은 배당 − 수수료)과 그 날짜에 들고 있던 종목 매수 금액(투자 원금)
+// 거래일 하나의 원화 수익(평가손익 + 실현 손익 + 받은 배당 − 수수료)과 같은 거래일에 들고 있던 종목 매수 금액(투자 원금)
 export type ProfitPoint = { date: string; profitKrw: number; investedKrw: number };
 
 // 기간 안 수익 흐름과 최고 · 최저 · 현재 수익(점이 없으면 best · worst 는 null)
@@ -190,7 +191,7 @@ export type TradingHabitsResponse = {
 // 거래일 하나의 SPY 원화 수익
 export type MarketPoint = { date: string; profitKrw: number };
 
-// 같은 날짜에 같은 돈을 SPY 에 넣었을 때의 수익 흐름(수익 흐름 점과 같은 날짜, SPY 종가나 그 날짜 환율이 없으면 빈 points · 0)
+// 같은 날짜에 같은 돈을 SPY 에 넣었을 때의 수익 흐름(수익 흐름 점과 같은 날짜, SPY 종가나 점 날짜 환율이 없으면 빈 points · 0)
 export type MarketComparisonResponse = {
   symbol: string;
   points: MarketPoint[];

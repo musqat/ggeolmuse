@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import type { HoldingResponse } from '../../services/api';
 import { formatPercent, formatShares, formatSigned, formatUsd } from '../../utils/format';
+import { splitLabel } from '../../utils/split';
 import { gainLossTone } from '../../utils/gainLoss';
 import {
   ROW_CARD_BODY,
@@ -46,6 +47,11 @@ export const HoldingsTable: React.FC<{ holdings: HoldingResponse[] }> = ({ holdi
               <tr key={holding.holdingId} className={`${ROW_CARD_ROW} hover:bg-surface/50`}>
                 <td className={TITLE}>
                   <div className="text-sm font-medium text-tx-1">{holding.symbol}</div>
+                  {holding.splitRatio != null && (
+                    <div className="truncate whitespace-nowrap text-[11px] text-tx-3">
+                      {`${splitLabel(holding.splitRatio)} 반영`}
+                    </div>
+                  )}
                 </td>
                 <td className={CELL} data-label="보유량">
                   {formatShares(holding.totalQuantity)}
