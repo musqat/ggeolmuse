@@ -47,7 +47,7 @@ public class SecurityConfig {
     ServiceSecurity.statelessApi(http)
       .authorizeHttpRequests(auth -> auth
         .requestMatchers(ServiceSecurity.SWAGGER_PATHS).permitAll()
-        // All API endpoints - JWT 인증 필요 (FeignClient도 JWT 전달)
+        // All API endpoints - JWT 인증 필요
         .requestMatchers("/api/**").authenticated()
         // 나머지는 모두 거부
         .anyRequest().denyAll()

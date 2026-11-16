@@ -46,6 +46,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -275,7 +276,7 @@ class AdminUserControllerTest {
   @Test
   @DisplayName("정지된 관리자는 토큰이 유효해도 관리자 API 를 쓰지 못한다")
   void disabledAdmin_Forbidden() throws Exception {
-    willThrow(new UserException(UserResponse.ACCOUNT_DISABLED)).given(authUtil).requireUserId(any());
+    willThrow(new UserException(UserResponse.ACCOUNT_DISABLED)).given(authUtil).requireUserId(any(Jwt.class));
 
     mockMvc.perform(get(BASE + "/stats").with(admin())).andExpect(status().isForbidden());
 

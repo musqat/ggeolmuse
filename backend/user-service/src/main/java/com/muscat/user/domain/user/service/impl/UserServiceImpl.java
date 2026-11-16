@@ -26,6 +26,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -98,13 +99,13 @@ public class UserServiceImpl implements UserService {
     }
 
     try {
-      User savedUser = transactionTemplate.execute(status -> {
+      User savedUser = Objects.requireNonNull(transactionTemplate.execute(status -> {
         User user = userMapper.createLocalUser(email, nickname, keycloakId);
         user.changePassword(passwordEncoder.encode(password));
         User saved = userRepository.save(user);
         createAndSendVerificationToken(saved);
         return saved;
-      });
+      }));
 
       log.info("회원가입 성공: {}", email);
       return savedUser;
@@ -334,7 +335,6 @@ public class UserServiceImpl implements UserService {
 
 
   @Override
-  @Transactional
   public User verifyEmail(String token) {
     EmailToken emailToken = emailTokenRepository.findByTokenWithUser(token)
       .orElseThrow(() -> {
@@ -348,14 +348,27 @@ public class UserServiceImpl implements UserService {
     }
 
     User user = emailToken.getUser();
-    user.verifyEmail();
+    markKeycloakEmailVerified(user);
 
-    emailTokenRepository.delete(emailToken);
-
-    User verifiedUser = userRepository.save(user);
+    // 다시 읽은 사용자에 이메일 인증만 표시(Keycloak 호출 중 바뀐 활성 상태 등 유지)
+    User verifiedUser = Objects.requireNonNull(transactionTemplate.execute(status -> {
+      User current = findById(user.getId());
+      current.verifyEmail();
+      emailTokenRepository.delete(emailToken);
+      return userRepository.save(current);
+    }));
     log.debug("이메일 인증 완료: {}", user.getEmail());
 
     return verifiedUser;
+  }
+
+  private void markKeycloakEmailVerified(User user) {
+    try {
+      keycloakService.markEmailVerified(user.getKeycloakId());
+    } catch (Exception e) {
+      log.error("Keycloak 이메일 인증 표시 실패: keycloakId={}", user.getKeycloakId(), e);
+      throw new UserException(UserResponse.EMAIL_VERIFY_FAILED);
+    }
   }
 
   @Override
@@ -617,19 +630,21 @@ public class UserServiceImpl implements UserService {
   }
 
   @Override
-  @Transactional
   public User adminVerifyEmail(Long userId) {
     User user = findById(userId);
 
     log.info("Admin이 사용자 이메일 강제 인증: userId={}, email={}",
       userId, user.getEmail());
 
-    user.verifyEmail();
+    markKeycloakEmailVerified(user);
 
-    // 이메일 인증 토큰 삭제 (있다면)
-    emailTokenRepository.deleteByUser(user);
-
-    User verifiedUser = userRepository.save(user);
+    User verifiedUser = Objects.requireNonNull(transactionTemplate.execute(status -> {
+      User current = findById(userId);
+      current.verifyEmail();
+      // 이메일 인증 토큰 삭제 (있다면)
+      emailTokenRepository.deleteByUser(current);
+      return userRepository.save(current);
+    }));
     log.info("사용자 이메일 강제 인증 완료: {}", user.getEmail());
 
     return verifiedUser;
@@ -637,12 +652,12 @@ public class UserServiceImpl implements UserService {
 
   @Override
   public void adminDeleteUser(Long userId) {
-    User user = transactionTemplate.execute(status -> {
+    User user = Objects.requireNonNull(transactionTemplate.execute(status -> {
       User found = findById(userId);
       log.info("Admin이 사용자 강제 탈퇴 처리: userId={}, email={}", userId, found.getEmail());
       removeLocalUser(found);
       return found;
-    });
+    }));
     deleteKeycloakUserQuietly(user.getKeycloakId());
 
     log.info("사용자 강제 탈퇴 완료: {}", user.getEmail());

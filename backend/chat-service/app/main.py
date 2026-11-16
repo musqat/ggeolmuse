@@ -24,6 +24,7 @@ from app.infra.llm import ChatModel
 from app.infra.market_api import MarketClient
 from app.infra.metrics import MetricsMiddleware, RequestMetrics
 from app.infra.quota import RateLimiter
+from app.infra.service_token import ServiceTokenAuth
 from app.infra.tracing import instrument_app, instrument_client, provider_from_env
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -44,6 +45,15 @@ def build_verifier(config: Settings) -> JwksVerifier:
     """토큰 검증(받는 iss · azp 는 설정에서 쉼표로 나눈 값)"""
     return JwksVerifier(config.keycloak_jwks_url, issuers=_csv(config.keycloak_issuers),
                         client_ids=_csv(config.keycloak_client_ids))
+
+
+def build_market_http(config: Settings) -> tuple[httpx.AsyncClient, httpx.AsyncClient]:
+    """market-data 클라이언트(요청마다 서비스 토큰)와 서비스 토큰을 받는 Keycloak 클라이언트"""
+    token_http = httpx.AsyncClient(timeout=config.market_timeout_seconds)
+    auth = ServiceTokenAuth(config.keycloak_token_url, config.keycloak_service_client_id,
+                            config.keycloak_service_client_secret, token_http)
+    http = httpx.AsyncClient(base_url=config.market_data_base_url, timeout=config.market_timeout_seconds, auth=auth)
+    return http, token_http
 
 
 def _csv(value: str) -> tuple[str, ...]:
@@ -80,7 +90,7 @@ request_metrics = RequestMetrics(REGISTRY)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     redis = build_redis(settings)
-    http = httpx.AsyncClient(base_url=settings.market_data_base_url, timeout=settings.market_timeout_seconds)
+    http, token_http = build_market_http(settings)
     if tracer_provider:
         instrument_client(http, tracer_provider)
     openai = build_openai(settings)
@@ -88,6 +98,7 @@ async def lifespan(app: FastAPI):
     app.state.chat_service = build_chat_service(settings, redis, http, openai)
     yield
     await http.aclose()
+    await token_http.aclose()
     await redis.aclose()
     openai.close()
     if tracer_provider:

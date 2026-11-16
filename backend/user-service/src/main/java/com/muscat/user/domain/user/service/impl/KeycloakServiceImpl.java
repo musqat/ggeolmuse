@@ -97,6 +97,10 @@ public class KeycloakServiceImpl implements KeycloakService {
 
   @Override
   public String createUser(String email, String password) {
+    return createUser(email, password, false);
+  }
+
+  private String createUser(String email, String password, boolean emailVerified) {
     // 1. Admin 토큰 획득
     String adminToken = getAdminToken();
 
@@ -115,7 +119,7 @@ public class KeycloakServiceImpl implements KeycloakService {
       "username", email,
       "email", email,
       "enabled", true,
-      "emailVerified", true,
+      "emailVerified", emailVerified,
       "credentials", List.of(Map.of(
         "type", "password",
         "value", password,
@@ -187,9 +191,21 @@ public class KeycloakServiceImpl implements KeycloakService {
   }
 
   @Override
+  public void markEmailVerified(String keycloakId) {
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.setBearerAuth(getAdminToken());
+
+    restTemplate.put(getAdminRealmUrl() + "/users/" + keycloakId,
+      new HttpEntity<>(Map.of("emailVerified", true), headers));
+
+    log.info("Keycloak 사용자 이메일 인증 표시: {}", keycloakId);
+  }
+
+  @Override
   public String createAdminUser(String email, String password) {
-    // 1. 일반 사용자 생성
-    String keycloakId = createUser(email, password);
+    // 1. 이메일 인증된 사용자 생성
+    String keycloakId = createUser(email, password, true);
 
     // 2. admin role 부여 (Keycloak realm role은 소문자)
     try {
@@ -463,14 +479,15 @@ public class KeycloakServiceImpl implements KeycloakService {
   }
 
   private String extractAccessToken(ResponseEntity<Map> response, String operation) {
-    if (response.getBody() == null) {
+    Map<?, ?> body = response.getBody();
+    if (body == null) {
       log.error("{} 응답이 null입니다", operation);
       throw new KeycloakException(KeycloakResponse.API_ERROR);
     }
 
-    String accessToken = (String) response.getBody().get("access_token");
+    String accessToken = (String) body.get("access_token");
     if (accessToken == null || accessToken.trim().isEmpty()) {
-      log.error("{} 응답에 access_token이 없습니다: {}", operation, response.getBody());
+      log.error("{} 응답에 access_token이 없습니다: {}", operation, body);
       throw new KeycloakException(KeycloakResponse.API_ERROR);
     }
 

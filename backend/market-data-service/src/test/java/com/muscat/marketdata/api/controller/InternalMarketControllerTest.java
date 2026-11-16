@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.muscat.commonlib.security.ServiceSecurity;
 import com.muscat.marketdata.common.exception.GlobalExceptionHandler;
 import com.muscat.marketdata.config.security.SecurityConfig;
 import com.muscat.marketdata.domain.dto.DividendDto;
@@ -25,18 +26,24 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import jakarta.servlet.Filter;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
-// backtest · trade 가 토큰 없이 부르는 내부 경로(환율 범위는 InternalMarketControllerFxRangeTest)
+// 서비스 토큰(realm 역할 service)으로 부르는 내부 경로
 @WebMvcTest(InternalMarketController.class)
 @ContextConfiguration(classes = {InternalMarketController.class, GlobalExceptionHandler.class, SecurityConfig.class})
 @ActiveProfiles("test")
@@ -49,6 +56,16 @@ class InternalMarketControllerTest {
 
   @Autowired
   private MockMvc mockMvc;
+
+  @Autowired
+  private WebApplicationContext context;
+
+  @Autowired
+  @Qualifier("springSecurityFilterChain")
+  private Filter securityFilter;
+
+  // 요청마다 서비스 토큰을 싣는 MockMvc
+  private MockMvc service;
 
   @MockitoBean
   private CandleService candleService;
@@ -73,25 +90,56 @@ class InternalMarketControllerTest {
     return FxRate.builder().date(date).rate(new BigDecimal(rate)).build();
   }
 
+  private static Jwt token(String value, List<String> roles) {
+    return Jwt.withTokenValue(value).header("alg", "none").subject("sub-" + value)
+      .claim("realm_access", Map.of("roles", roles)).build();
+  }
+
+  @BeforeEach
+  void serviceToken() {
+    given(jwtDecoder.decode("service-token")).willReturn(token("service-token", List.of(ServiceSecurity.SERVICE_ROLE)));
+    given(jwtDecoder.decode("user-token")).willReturn(token("user-token", List.of()));
+    given(jwtDecoder.decode("admin-token")).willReturn(token("admin-token", List.of("admin")));
+    service = MockMvcBuilders.webAppContextSetup(context)
+      .addFilters(securityFilter)
+      .defaultRequest(get("/").header("Authorization", "Bearer service-token"))
+      .build();
+  }
+
+  @Test
+  @DisplayName("토큰이 없으면 401, 서비스 역할이 없는 사용자 · 관리자 토큰은 403 이고 시세 · 환율을 조회하지 않는다")
+  void withoutServiceRole_Rejected() throws Exception {
+    mockMvc.perform(get(BASE + "/price/AAPL")).andExpect(status().isUnauthorized());
+    mockMvc.perform(get(BASE + "/price/AAPL").header("Authorization", "Bearer user-token"))
+      .andExpect(status().isForbidden());
+    mockMvc.perform(get(BASE + "/price/AAPL").header("Authorization", "Bearer admin-token"))
+      .andExpect(status().isForbidden());
+    mockMvc.perform(post(BASE + "/fx/bulk").contentType(MediaType.APPLICATION_JSON).content("[\"2024-01-01\"]"))
+      .andExpect(status().isUnauthorized());
+
+    verify(candleService, never()).getCurrentPrice(anyString());
+    verify(fxRateService, never()).findByDates(any());
+  }
+
   @Test
   @DisplayName("내부 시세 조회도 하이픈 · 점이 든 종목을 받는다")
   void symbolsWithDotHyphen() throws Exception {
-    mockMvc.perform(get(BASE + "/ohlc/{symbol}/range", "BRK-B").param("startDate", "2024-01-01").param("endDate", "2024-03-31"))
+    service.perform(get(BASE + "/ohlc/{symbol}/range", "BRK-B").param("startDate", "2024-01-01").param("endDate", "2024-03-31"))
       .andExpect(status().isOk());
-    mockMvc.perform(get(BASE + "/ohlc/{symbol}/range", "BRK.B").param("startDate", "2024-01-01").param("endDate", "2024-03-31"))
+    service.perform(get(BASE + "/ohlc/{symbol}/range", "BRK.B").param("startDate", "2024-01-01").param("endDate", "2024-03-31"))
       .andExpect(status().isOk());
   }
 
   @Test
-  @DisplayName("날짜 시세 · 기간 시세는 토큰 없이 종목과 날짜를 넘겨 받는다")
+  @DisplayName("날짜 시세 · 기간 시세는 종목과 날짜를 넘겨 받는다")
   void candles() throws Exception {
     given(candleService.getOHLCPrice("AAPL", START)).willReturn(candle(START, "185.6"));
     given(candleService.getOHLCPriceRange("AAPL", START, END)).willReturn(List.of(candle(START, "185.6"), candle(END, "171.5")));
 
-    mockMvc.perform(get(BASE + "/ohlc/AAPL").param("date", "2024-01-01"))
+    service.perform(get(BASE + "/ohlc/AAPL").param("date", "2024-01-01"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.closePrice").value(185.6));
-    mockMvc.perform(get(BASE + "/ohlc/AAPL/range").param("startDate", "2024-01-01").param("endDate", "2024-03-31"))
+    service.perform(get(BASE + "/ohlc/AAPL/range").param("startDate", "2024-01-01").param("endDate", "2024-03-31"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$[1].date").value("2024-03-31"));
   }
@@ -99,7 +147,7 @@ class InternalMarketControllerTest {
   @Test
   @DisplayName("기간 시세에 종료일이 없으면 400 이고 서비스까지 가지 않는다")
   void rangeMissingEnd() throws Exception {
-    mockMvc.perform(get(BASE + "/ohlc/AAPL/range").param("startDate", "2024-01-01"))
+    service.perform(get(BASE + "/ohlc/AAPL/range").param("startDate", "2024-01-01"))
       .andExpect(status().isBadRequest())
       .andExpect(jsonPath("$.parameterName").value("endDate"));
 
@@ -112,10 +160,10 @@ class InternalMarketControllerTest {
     given(candleService.getCurrentPrice("AAPL")).willReturn(StockPriceDto.builder().symbol("AAPL").currentPrice(new BigDecimal("230")).build());
     given(candleService.getCurrentPrice("NOPE")).willThrow(new IllegalStateException("no candle"));
 
-    mockMvc.perform(get(BASE + "/price/AAPL"))
+    service.perform(get(BASE + "/price/AAPL"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.currentPrice").value(230));
-    mockMvc.perform(get(BASE + "/prices").param("symbols", "aapl", "nope"))
+    service.perform(get(BASE + "/prices").param("symbols", "aapl", "nope"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.AAPL.currentPrice").value(230))
       .andExpect(jsonPath("$.NOPE").doesNotExist());
@@ -128,7 +176,7 @@ class InternalMarketControllerTest {
       .symbol("AAPL").currentPrice(new BigDecimal("230")).date(LocalDate.of(2026, 10, 15))
       .available(true).active(true).build());
 
-    mockMvc.perform(get(BASE + "/price/AAPL"))
+    service.perform(get(BASE + "/price/AAPL"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.active").value(true))
       .andExpect(jsonPath("$.date").value("2026-10-15"));
@@ -140,14 +188,14 @@ class InternalMarketControllerTest {
     given(fxRateService.findByDate(START)).willReturn(fx(START, "1300.5"));
     given(fxRateService.getLatestRate()).willReturn(Optional.of(fx(END, "1330")), Optional.empty());
 
-    mockMvc.perform(get(BASE + "/fx/2024-01-01"))
+    service.perform(get(BASE + "/fx/2024-01-01"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.rate").value(1300.5));
-    mockMvc.perform(get(BASE + "/fx/2024-01-02")).andExpect(status().isNotFound());
-    mockMvc.perform(get(BASE + "/fx/latest"))
+    service.perform(get(BASE + "/fx/2024-01-02")).andExpect(status().isNotFound());
+    service.perform(get(BASE + "/fx/latest"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.date").value("2024-03-31"));
-    mockMvc.perform(get(BASE + "/fx/latest")).andExpect(status().isNotFound());
+    service.perform(get(BASE + "/fx/latest")).andExpect(status().isNotFound());
   }
 
   @Test
@@ -155,7 +203,7 @@ class InternalMarketControllerTest {
   void bulkFx() throws Exception {
     given(fxRateService.findByDates(List.of(START, END))).willReturn(Map.of(END, new BigDecimal("1330")));
 
-    mockMvc.perform(post(BASE + "/fx/bulk").contentType(MediaType.APPLICATION_JSON).content("[\"2024-01-01\",\"2024-03-31\"]"))
+    service.perform(post(BASE + "/fx/bulk").contentType(MediaType.APPLICATION_JSON).content("[\"2024-01-01\",\"2024-03-31\"]"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$['2024-03-31']").value(1330))
       .andExpect(jsonPath("$['2024-01-01']").doesNotExist());
@@ -167,7 +215,7 @@ class InternalMarketControllerTest {
     given(dividendService.getDividendHistory("AAPL", START, END)).willReturn(List.of(
       DividendDto.builder().symbol("AAPL").exDate(LocalDate.of(2024, 2, 9)).amount(new BigDecimal("0.24")).build()));
 
-    mockMvc.perform(get(BASE + "/dividend/AAPL").param("startDate", "2024-01-01").param("endDate", "2024-03-31"))
+    service.perform(get(BASE + "/dividend/AAPL").param("startDate", "2024-01-01").param("endDate", "2024-03-31"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$[0].amount").value(0.24));
   }
@@ -177,7 +225,7 @@ class InternalMarketControllerTest {
   void bulkFx_TooManyDates_BadRequest() throws Exception {
     String body = "[" + String.join(",", java.util.Collections.nCopies(FxRateService.MAX_BULK_DATES + 1, "\"2024-03-04\"")) + "]";
 
-    mockMvc.perform(post(BASE + "/fx/bulk").contentType(MediaType.APPLICATION_JSON).content(body))
+    service.perform(post(BASE + "/fx/bulk").contentType(MediaType.APPLICATION_JSON).content(body))
       .andExpect(status().isBadRequest());
 
     verify(fxRateService, never()).findByDates(any());

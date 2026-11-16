@@ -23,7 +23,7 @@ class JwksVerifier:
         self._fetched_at = 0.0
 
     def __call__(self, token: str) -> dict:
-        """서명 · 만료 · 발급자(iss) · 받은 클라이언트(azp)를 확인한 클레임(틀린 토큰은 ValueError)"""
+        """서명 · 만료 · 발급자(iss) · 받은 클라이언트(azp) · 이메일 인증을 확인한 클레임(틀린 토큰은 ValueError)"""
         try:
             kid = jwt.get_unverified_header(token).get("kid")
             claims = jwt.decode(token, self._keys_for(kid), algorithms=["RS256"], issuer=self._issuers,
@@ -33,6 +33,8 @@ class JwksVerifier:
         # aud 에는 Keycloak 기본값(account)만 실려 받은 클라이언트는 azp 로 봄
         if claims.get("azp") not in self._client_ids:
             raise ValueError(f"받지 않는 클라이언트의 토큰: {claims.get('azp')}")
+        if claims.get("email_verified") is not True:
+            raise ValueError("이메일 인증 전 사용자의 토큰")
         return claims
 
     # 처음이거나, 모르는 키 ID 인데 받은 지 refresh_seconds 가 지났으면 다시 받는다(키 교체)

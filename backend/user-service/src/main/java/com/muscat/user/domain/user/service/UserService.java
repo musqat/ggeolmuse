@@ -16,7 +16,7 @@ public interface UserService {
   // Keycloak OAuth 사용자 동기화(email_verified 클레임이 참일 때만 인증 상태)
   User createUserFromKeycloak(String keycloakId, String email, String nickname, boolean emailVerified);
 
-  // 이메일 토큰 검증 + 사용자 활성화 +  이메일 토큰 삭제
+  // 이메일 토큰 검증 + Keycloak · 로컬 이메일 인증 + 이메일 토큰 삭제
   User verifyEmail(String token);
 
   // 기존 이메일 토큰 삭제 + 새 이메일 토큰 생성 + 메일 재발송

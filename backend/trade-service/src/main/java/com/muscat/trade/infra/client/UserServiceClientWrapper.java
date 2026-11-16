@@ -29,9 +29,9 @@ public class UserServiceClientWrapper {
 
   @CircuitBreaker(name = "userService")
   @Retry(name = "userService", fallbackMethod = "getExchangeRecordsFallback")
-  public List<ExchangeRecordDto> getExchangeRecords() {
+  public List<ExchangeRecordDto> getExchangeRecords(String keycloakId) {
     log.debug("Calling user-service getExchangeRecords");
-    return userServiceClient.getExchangeRecords();
+    return userServiceClient.getExchangeRecords(keycloakId);
   }
 
   private AccountBalanceDto getAccountBalanceFallback(Long accountId, Exception ex) {
@@ -44,7 +44,7 @@ public class UserServiceClientWrapper {
   }
 
   // 4xx 포함 모든 실패를 사용자 서비스 오류로
-  private List<ExchangeRecordDto> getExchangeRecordsFallback(Exception ex) {
+  private List<ExchangeRecordDto> getExchangeRecordsFallback(String keycloakId, Exception ex) {
     log.error("환전 기록 조회 실패(대체 동작): error={}", ex.getMessage());
     throw new TradeException(TradeResponse.USER_SERVICE_ERROR, ex);
   }

@@ -879,6 +879,7 @@ class UserServiceImplTest {
       testUser.setEmailVerified(false);
 
       given(emailTokenRepository.findByTokenWithUser(token)).willReturn(Optional.of(emailToken));
+      given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
       given(userRepository.save(testUser)).willReturn(testUser);
 
       // when
@@ -886,8 +887,30 @@ class UserServiceImplTest {
 
       // then
       assertThat(result.isEmailVerified()).isTrue();
+      verify(keycloakService).markEmailVerified(keycloakId);
       verify(emailTokenRepository).delete(emailToken);
       verify(userRepository).save(testUser);
+    }
+
+    @Test
+    @DisplayName("Keycloak 에 인증 표시를 못 하면 로컬 인증 없이 실패하고 이메일 인증 토큰은 남는다")
+    void verifyEmail_KeycloakFails_KeepsToken() {
+      String token = UUID.randomUUID().toString();
+      EmailToken emailToken = new EmailToken();
+      emailToken.setToken(token);
+      emailToken.setUser(testUser);
+      emailToken.setExpiryDate(LocalDateTime.now().plusHours(24));
+      testUser.setEmailVerified(false);
+      given(emailTokenRepository.findByTokenWithUser(token)).willReturn(Optional.of(emailToken));
+      doThrow(new KeycloakException(KeycloakResponse.API_ERROR)).when(keycloakService).markEmailVerified(keycloakId);
+
+      assertThatThrownBy(() -> userService.verifyEmail(token))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.EMAIL_VERIFY_FAILED.getMessage());
+
+      assertThat(testUser.isEmailVerified()).isFalse();
+      verify(emailTokenRepository, never()).delete(any(EmailToken.class));
+      verify(userRepository, never()).save(any(User.class));
     }
 
     @Test
@@ -1276,8 +1299,24 @@ class UserServiceImplTest {
 
       // then
       assertThat(result.isEmailVerified()).isTrue();
+      verify(keycloakService).markEmailVerified(keycloakId);
       verify(emailTokenRepository).deleteByUser(testUser);
       verify(userRepository).save(testUser);
+    }
+
+    @Test
+    @DisplayName("관리자 강제 인증도 Keycloak 에 인증 표시를 못 하면 로컬 인증 없이 실패한다")
+    void adminVerifyEmail_KeycloakFails_Throws() {
+      testUser.setEmailVerified(false);
+      given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+      doThrow(new KeycloakException(KeycloakResponse.API_ERROR)).when(keycloakService).markEmailVerified(keycloakId);
+
+      assertThatThrownBy(() -> userService.adminVerifyEmail(1L))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.EMAIL_VERIFY_FAILED.getMessage());
+
+      assertThat(testUser.isEmailVerified()).isFalse();
+      verify(userRepository, never()).save(any(User.class));
     }
 
     @Test

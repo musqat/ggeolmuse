@@ -1,11 +1,13 @@
 package com.muscat.commonlib.config;
 
+import com.muscat.commonlib.security.ServiceTokenProvider;
 import feign.Logger;
 import feign.RequestInterceptor;
 import feign.Retryer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 
@@ -13,6 +15,8 @@ import org.springframework.security.oauth2.jwt.Jwt;
 @Configuration
 @Slf4j
 public class FeignConfig {
+
+  private static final String INTERNAL_PATH = "/api/internal/";
 
   @Bean
   public Logger.Level feignLoggerLevel() {
@@ -26,17 +30,26 @@ public class FeignConfig {
   }
 
   @Bean
-  public RequestInterceptor jwtTokenInterceptor() {
+  public ServiceTokenProvider serviceTokenProvider(Environment environment) {
+    return ServiceTokenProvider.fromEnvironment(environment);
+  }
+
+  // 내부 경로는 서비스 토큰, 나머지 경로는 요청한 사용자의 토큰
+  @Bean
+  public RequestInterceptor jwtTokenInterceptor(ServiceTokenProvider serviceTokenProvider) {
     return requestTemplate -> {
       try {
+        if (requestTemplate.path().startsWith(INTERNAL_PATH)) {
+          requestTemplate.header("Authorization", "Bearer " + serviceTokenProvider.token());
+          return;
+        }
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof Jwt jwt) {
           String token = jwt.getTokenValue();
           requestTemplate.header("Authorization", "Bearer " + token);
         }
       } catch (Exception e) {
-        log.warn("JWT 토큰 처리 오류: target={}, error={}",
-          requestTemplate.feignTarget().name(), e.getMessage());
+        log.warn("JWT 토큰 처리 오류: path={}, error={}", requestTemplate.path(), e.getMessage());
       }
     };
   }

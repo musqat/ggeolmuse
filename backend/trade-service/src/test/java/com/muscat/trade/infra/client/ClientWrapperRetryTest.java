@@ -159,10 +159,10 @@ class ClientWrapperRetryTest {
   void exchangeRecords_RetriesServerError() {
     List<ExchangeRecordDto> records = List.of(new ExchangeRecordDto(3L, LocalDateTime.of(2024, 9, 2, 10, 0), "KRW",
       "USD", new BigDecimal("1300000.00"), new BigDecimal("1000.00"), new BigDecimal("1300.000000")));
-    given(userClient.getExchangeRecords()).willThrow(serverError(), serverError()).willReturn(records);
+    given(userClient.getExchangeRecords("user-1")).willThrow(serverError(), serverError()).willReturn(records);
 
-    assertThat(userWrapper.getExchangeRecords()).isSameAs(records);
-    verify(userClient, times(3)).getExchangeRecords();
+    assertThat(userWrapper.getExchangeRecords("user-1")).isSameAs(records);
+    verify(userClient, times(3)).getExchangeRecords("user-1");
   }
 
   @Test
@@ -172,13 +172,13 @@ class ClientWrapperRetryTest {
       StandardCharsets.UTF_8, null);
     FeignException unauthorized = FeignException.errorStatus("UserServiceClient#getExchangeRecords",
       Response.builder().status(401).reason("Unauthorized").request(request).headers(Map.of()).build());
-    given(userClient.getExchangeRecords()).willThrow(unauthorized);
+    given(userClient.getExchangeRecords("user-1")).willThrow(unauthorized);
 
-    assertThatThrownBy(() -> userWrapper.getExchangeRecords())
+    assertThatThrownBy(() -> userWrapper.getExchangeRecords("user-1"))
       .isInstanceOf(TradeException.class)
       .hasFieldOrPropertyWithValue("errorCode", "USER_SERVICE_ERROR")
       .hasCause(unauthorized);
-    verify(userClient, times(1)).getExchangeRecords();
+    verify(userClient, times(1)).getExchangeRecords("user-1");
   }
 
   private static FeignException serverError() {

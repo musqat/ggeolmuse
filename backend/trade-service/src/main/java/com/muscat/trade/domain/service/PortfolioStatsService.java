@@ -115,7 +115,7 @@ public class PortfolioStatsService {
   // 환전한 원금의 환율 효과(기간 끝 − 기간 시작 전날), accountId 는 계좌 ID 또는 all
   public FxStatsResponse fx(String userId, String accountId, FlowPeriod period) {
     Long account = portfolioStatsReader.account(userId, accountId);
-    List<ExchangeRecordDto> exchanges = userServiceClientWrapper.getExchangeRecords().stream()
+    List<ExchangeRecordDto> exchanges = userServiceClientWrapper.getExchangeRecords(userId).stream()
       .filter(exchange -> account == null || account.equals(exchange.accountId()))
       .toList();
     LocalDate today = LocalDate.now(clock);

@@ -80,6 +80,12 @@ spec:
             secretKeyRef:
               name: {{ .Values.secrets.name }}
               key: KEYCLOAK_CLIENT_SECRET
+        - name: KEYCLOAK_SERVICE_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.name }}
+              key: KEYCLOAK_SERVICE_CLIENT_SECRET
+              optional: true
         {{- end }}
         command: ["sh", "-c"]
         args:
@@ -87,6 +93,8 @@ spec:
           {{- if ne .Values.infrastructure.keycloak.env.kcDbVendor "postgres" }}
           rm -rf /opt/keycloak/data/h2/*
           {{- end }}
+          # 클라이언트 secret 치환 식(값이 없으면 secret 줄을 지워 Keycloak 이 새로 만듦)
+          sub() { if [ -n "$2" ]; then echo "s/\${$1}/$2/g"; else echo "/\${$1}/d"; fi; }
           {{- if $secretFiles }}
           # 시크릿은 파일에서 읽어 메모리 볼륨의 설정 파일로(환경변수 · 프로세스 인자에 안 남음)
           # 설정 파일이 값을 그대로 읽게 하는 이스케이프
@@ -99,9 +107,11 @@ spec:
           db-password=$(v DB_PASSWORD)
           EOF
           sed -e "s/\${KEYCLOAK_CLIENT_SECRET}/$(cat /etc/secrets/KEYCLOAK_CLIENT_SECRET)/g" \
+              -e "$(sub KEYCLOAK_SERVICE_CLIENT_SECRET "$(cat /etc/keycloak-clients/KEYCLOAK_SERVICE_CLIENT_SECRET 2>/dev/null)")" \
               /opt/keycloak/data/import-template/muscathan-realm.json > /opt/keycloak/data/import/muscathan-realm.json
           {{- else }}
           sed -e "s/\${KEYCLOAK_CLIENT_SECRET}/${KEYCLOAK_CLIENT_SECRET}/g" \
+              -e "$(sub KEYCLOAK_SERVICE_CLIENT_SECRET "${KEYCLOAK_SERVICE_CLIENT_SECRET:-}")" \
               /opt/keycloak/data/import-template/muscathan-realm.json > /opt/keycloak/data/import/muscathan-realm.json
           {{- end }}
           {{- if eq .Values.infrastructure.keycloak.env.kcDbVendor "postgres" }}
@@ -118,6 +128,9 @@ spec:
         {{- if $secretFiles }}
         - name: secrets
           mountPath: /etc/secrets
+          readOnly: true
+        - name: client-secrets
+          mountPath: /etc/keycloak-clients
           readOnly: true
         - name: keycloak-conf
           mountPath: /run/keycloak
@@ -159,6 +172,16 @@ spec:
           {{- $keys := dict "DB_USERNAME" .Values.infrastructure.keycloak.dbSecretKeys.username "DB_PASSWORD" .Values.infrastructure.keycloak.dbSecretKeys.password }}
           {{- range list "KEYCLOAK_ADMIN_USERNAME" "KEYCLOAK_ADMIN_PASSWORD" "DB_USERNAME" "DB_PASSWORD" "KEYCLOAK_CLIENT_SECRET" }}
           - key: {{ get $keys . | default . }}
+            path: {{ . }}
+          {{- end }}
+      # 없어도 기동하는 클라이언트 secret
+      - name: client-secrets
+        secret:
+          secretName: {{ .Values.secrets.name }}
+          optional: true
+          items:
+          {{- range list "KEYCLOAK_SERVICE_CLIENT_SECRET" }}
+          - key: {{ . }}
             path: {{ . }}
           {{- end }}
       - name: keycloak-conf

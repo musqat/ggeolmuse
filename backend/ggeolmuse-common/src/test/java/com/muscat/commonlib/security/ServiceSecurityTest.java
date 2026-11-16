@@ -36,18 +36,22 @@ class ServiceSecurityTest {
   @Autowired
   private MockMvc mockMvc;
 
-  // 관리 포트 · 관리자 · API 세 체인을 순서대로 둠
+  // 관리 포트 · 관리자 · 내부 · API 네 체인을 순서대로 둠
   @Configuration
   @EnableWebSecurity
   static class SecurityChains {
 
-    // admin-token 만 realm 역할 admin 을 가진 토큰으로 풂
+    // admin-token 은 realm 역할 admin, service-token 은 realm 역할 service 를 가진 토큰으로 풂
     @Bean
     JwtDecoder jwtDecoder() {
       return token -> Jwt.withTokenValue(token)
         .header("alg", "none")
         .subject("user-1")
-        .claim("realm_access", Map.of("roles", token.equals("admin-token") ? List.of("admin") : List.of()))
+        .claim("realm_access", Map.of("roles", switch (token) {
+          case "admin-token" -> List.of("admin");
+          case "service-token" -> List.of("service");
+          default -> List.of();
+        }))
         .build();
     }
 
@@ -65,6 +69,12 @@ class ServiceSecurityTest {
 
     @Bean
     @Order(2)
+    SecurityFilterChain internal(HttpSecurity http) throws Exception {
+      return ServiceSecurity.internalChain(http, new KeycloakJwtAuthenticationConverter());
+    }
+
+    @Bean
+    @Order(3)
     SecurityFilterChain api(HttpSecurity http) throws Exception {
       ServiceSecurity.statelessApi(http)
         .authorizeHttpRequests(auth -> auth
@@ -79,10 +89,22 @@ class ServiceSecurityTest {
   @RestController
   static class Probe {
 
-    @GetMapping({"/api/admin/stats", "/api/things", "/swagger-ui/index.html", "/actuator/health"})
+    @GetMapping({"/api/admin/stats", "/api/internal/things", "/api/things", "/swagger-ui/index.html", "/actuator/health"})
     String ok() {
       return "ok";
     }
+  }
+
+  @Test
+  @DisplayName("내부 경로는 토큰이 없으면 401, realm 역할 service 가 없으면 관리자라도 403, 있으면 통과한다")
+  void internalPathNeedsServiceRole() throws Exception {
+    mockMvc.perform(get("/api/internal/things")).andExpect(status().isUnauthorized());
+    mockMvc.perform(get("/api/internal/things").header("Authorization", "Bearer user-token"))
+      .andExpect(status().isForbidden());
+    mockMvc.perform(get("/api/internal/things").header("Authorization", "Bearer admin-token"))
+      .andExpect(status().isForbidden());
+    mockMvc.perform(get("/api/internal/things").header("Authorization", "Bearer service-token"))
+      .andExpect(status().isOk());
   }
 
   @Test

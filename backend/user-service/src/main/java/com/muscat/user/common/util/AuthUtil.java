@@ -32,12 +32,22 @@ public class AuthUtil {
       throw new AuthenticationException(UserResponse.USER_NOT_FOUND);
     }
 
+    return requireUserId(keycloakId);
+  }
+
+  // Keycloak ID 로 찾은 활성 · 이메일 인증된 사용자 id
+  public Long requireUserId(String keycloakId) {
     User user = userRepository.findByKeycloakId(keycloakId)
         .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
 
     // 이미 발급된 토큰도 여기서 차단(만료 전까지 유효)
     if (!user.isEnabled()) {
       throw new UserException(UserResponse.ACCOUNT_DISABLED);
+    }
+
+    // 이메일 인증 전 사용자는 토큰이 있어도 차단
+    if (!user.isEmailVerified()) {
+      throw new UserException(UserResponse.EMAIL_NOT_VERIFIED);
     }
 
     return user.getId();

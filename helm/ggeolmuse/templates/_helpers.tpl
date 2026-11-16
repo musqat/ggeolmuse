@@ -77,6 +77,10 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   value: {{ .Values.global.keycloak.authServerUrl | quote }}
 - name: KEYCLOAK_REALM
   value: {{ .Values.global.keycloak.realm | quote }}
+- name: KEYCLOAK_ISSUERS
+  value: {{ include "ggeolmuse.keycloakIssuers" . | quote }}
+- name: KEYCLOAK_CLIENT_IDS
+  value: {{ include "ggeolmuse.keycloakClientIds" . | quote }}
 {{- if (include "ggeolmuse.secretFiles" .) }}
 # 시크릿은 /etc/secrets 파일(secretFiles)
 - name: SPRING_CLOUD_CONFIG_URI

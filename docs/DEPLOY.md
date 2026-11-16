@@ -79,6 +79,14 @@ Java 서비스는 멀티스테이지 Dockerfile 이고 빌드 컨텍스트가 �
 설정을 함께 바꿨다면 config 저장소도 같이 올린다. 코드와 설정이 짝인 변경은
 한쪽만 배포하면 기본값으로 돌아간다.
 
+서비스 사이 호출(`/api/internal/**`)은 Keycloak 클라이언트 `ggeolmuse-service` 의 서비스 토큰으로 인증한다.
+이미 있는 realm 에는 차트의 realm 가져오기가 들어가지 않아서, 처음 켜는 배포는 머지 전에 Keycloak 에서 realm 역할 `service` 와
+서비스 계정만 켠 클라이언트 `ggeolmuse-service` 를 만들고 서비스 계정에 `service` 를 준다. Keycloak 이 만든 secret 은
+Secrets Manager 의 `KEYCLOAK_SERVICE_CLIENT_SECRET` 에 넣고, 배포 뒤 클러스터 Secret 에 그 키가 들어왔는지 본다.
+secret 을 다시 만들면 Secrets Manager 값을 바꾸고 클러스터 Secret 이 동기화된 뒤 그 secret 을 쓰는 서비스를 다시 띄운다(토큰 발급기는 기동할 때 secret 을 읽는다).
+게이트웨이와 서비스는 이메일 인증 전 사용자의 토큰을 받지 않으니, 이 검사를 처음 켜는 배포는 머지 전에 user DB 와 Keycloak 의
+이메일 미인증 사용자 수를 보고 인증 메일 다시 보내기나 관리자 강제 인증으로 푼다.
+
 ArgoCD 자신은 `helm/argocd/application-argocd.yaml` 이 차트 버전과 `values-argocd.yaml` 로 맞춘다.
 자동 동기화는 꺼 두어, 콘솔에서 바꾼 값은 OutOfSync 로만 보인다. 값을 바꾸는 PR 을 머지한 뒤
 ArgoCD 화면에서 `argocd` 앱의 차이를 보고 Sync 한다. 차트 버전은 `install-argocd.sh` 와 같게 둔다.

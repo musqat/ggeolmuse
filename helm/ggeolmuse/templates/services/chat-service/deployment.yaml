@@ -38,9 +38,13 @@ spec:
           value: {{ include "ggeolmuse.keycloakIssuers" . | quote }}
         - name: KEYCLOAK_CLIENT_IDS
           value: {{ include "ggeolmuse.keycloakClientIds" . | quote }}
+        - name: KEYCLOAK_TOKEN_URL
+          value: "{{ .Values.global.keycloak.authServerUrl }}/realms/{{ .Values.global.keycloak.realm }}/protocol/openid-connect/token"
         {{- if not $secretFiles }}
         - name: OPENAI_API_KEY
           {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "OPENAI_API_KEY") | nindent 10 }}
+        - name: KEYCLOAK_SERVICE_CLIENT_SECRET
+          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KEYCLOAK_SERVICE_CLIENT_SECRET") | nindent 10 }}
         {{- end }}
         {{- if .Values.global.otel.enabled }}
         - name: OTEL_SERVICE_NAME

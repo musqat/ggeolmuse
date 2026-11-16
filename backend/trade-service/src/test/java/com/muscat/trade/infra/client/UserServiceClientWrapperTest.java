@@ -58,13 +58,13 @@ class UserServiceClientWrapperTest {
   }
 
   @Test
-  @DisplayName("환전 기록은 사용자 서비스가 준 목록을 그대로 돌려준다")
+  @DisplayName("환전 기록은 받은 Keycloak ID 로 사용자 서비스에서 가져온 목록을 그대로 돌려준다")
   void exchangeRecords_Delegates() {
     List<ExchangeRecordDto> records = List.of(new ExchangeRecordDto(3L, LocalDateTime.of(2024, 9, 2, 10, 15, 30),
       "KRW", "USD", new BigDecimal("1300000.00"), new BigDecimal("1000.00"), new BigDecimal("1300.000000")));
-    given(client.getExchangeRecords()).willReturn(records);
+    given(client.getExchangeRecords("user-1")).willReturn(records);
 
-    assertThat(wrapper.getExchangeRecords()).isSameAs(records);
+    assertThat(wrapper.getExchangeRecords("user-1")).isSameAs(records);
   }
 
   @Test
@@ -75,11 +75,11 @@ class UserServiceClientWrapperTest {
     FeignException.NotFound notFound = new FeignException.NotFound("Not Found", request, null, Map.of());
     RuntimeException down = new RuntimeException("down");
 
-    assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getExchangeRecordsFallback", notFound))
+    assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getExchangeRecordsFallback", "user-1", notFound))
       .isInstanceOf(TradeException.class)
       .hasMessage(TradeResponse.USER_SERVICE_ERROR.getMessage())
       .hasCause(notFound);
-    assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getExchangeRecordsFallback", down))
+    assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getExchangeRecordsFallback", "user-1", down))
       .isInstanceOf(TradeException.class)
       .hasCause(down);
   }

@@ -392,10 +392,10 @@ class PortfolioStatsServiceTest {
   }
 
   @Test
-  @DisplayName("환율 효과는 그 계좌의 환전 기록만 오늘과 기간 시작 전날 환율로 내고 체결이 없는 계좌도 낸다")
+  @DisplayName("환율 효과는 조회한 계좌의 환전 기록만 오늘과 기간 시작 전날 환율로 내고 체결이 없는 계좌도 낸다")
   void fx_OneAccountWithDayBeforePeriod() {
     given(tradeRepository.findFirstByAccountIdOrderByIdAsc(ACCOUNT)).willReturn(Optional.empty());
-    given(userServiceClientWrapper.getExchangeRecords()).willReturn(List.of(
+    given(userServiceClientWrapper.getExchangeRecords(USER)).willReturn(List.of(
       krwToUsd(ACCOUNT, LocalDate.of(2024, 9, 2), "1000.00", "1300"),
       krwToUsd(4L, LocalDate.of(2024, 10, 20), "500.00", "1350"),
       krwToUsd(ACCOUNT, LocalDate.of(2024, 10, 20), "1000.00", "1350")));
@@ -416,7 +416,7 @@ class PortfolioStatsServiceTest {
   @Test
   @DisplayName("전체 계좌 · 전체 기간 환율 효과는 모든 계좌의 환전 기록을 오늘 환율 하나로 낸다")
   void fx_AllAccountsAllPeriod() {
-    given(userServiceClientWrapper.getExchangeRecords()).willReturn(List.of(
+    given(userServiceClientWrapper.getExchangeRecords(USER)).willReturn(List.of(
       krwToUsd(ACCOUNT, LocalDate.of(2024, 9, 2), "1000.00", "1300"),
       usdToKrw(4L, LocalDate.of(2024, 11, 1), "300.00", "1380")));
     fx(Map.of("2024-11-10", new BigDecimal("1385.2")));
@@ -433,7 +433,7 @@ class PortfolioStatsServiceTest {
   @Test
   @DisplayName("환전 기록이 없으면 효과 0 · 빈 목록이고 지금 환율만 낸다")
   void fx_NoExchanges() {
-    given(userServiceClientWrapper.getExchangeRecords()).willReturn(List.of());
+    given(userServiceClientWrapper.getExchangeRecords(USER)).willReturn(List.of());
     fx(Map.of("2024-11-10", new BigDecimal("1385.2")));
 
     FxStatsResponse response = service.fx(USER, "all", FlowPeriod.ONE_YEAR);
@@ -448,7 +448,7 @@ class PortfolioStatsServiceTest {
   @Test
   @DisplayName("환전 기록을 못 받으면 사용자 서비스 오류로 예외가 나고 시세는 부르지 않는다")
   void fx_UserServiceError() {
-    given(userServiceClientWrapper.getExchangeRecords())
+    given(userServiceClientWrapper.getExchangeRecords(USER))
       .willThrow(new TradeException(TradeResponse.USER_SERVICE_ERROR));
 
     assertThatThrownBy(() -> service.fx(USER, "all", FlowPeriod.ALL))
@@ -465,7 +465,7 @@ class PortfolioStatsServiceTest {
   }
 
   @Test
-  @DisplayName("거래 패턴은 그 계좌의 기간 안 완료 체결로 세고 보유 기간은 기간 앞 매수부터 짝지으며 시세 · 환율은 부르지 않는다")
+  @DisplayName("거래 패턴은 조회한 계좌의 기간 안 완료 체결로 세고 보유 기간은 기간 앞 매수부터 짝지으며 시세 · 환율은 부르지 않는다")
   void habits_OneAccount() {
     ownAccount(List.of(
         buy(ACCOUNT, "AAPL", "10", "100.00", "0.00", LocalDate.of(2024, 9, 2)),

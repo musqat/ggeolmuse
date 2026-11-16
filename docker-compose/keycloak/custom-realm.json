@@ -83,6 +83,21 @@
       "attributes": {
         "pkce.code.challenge.method": "S256"
       }
+    },
+    {
+      "clientId": "ggeolmuse-service",
+      "name": "GGeolmuse Service-to-Service Client",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "local-service-secret",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "fullScopeAllowed": true
     }
   ],
   "clientScopeMappings": {
@@ -106,6 +121,10 @@
       {
         "name": "admin",
         "description": "Administrator role"
+      },
+      {
+        "name": "service",
+        "description": "Service-to-service token role"
       }
     ]
   },
@@ -121,6 +140,14 @@
           "manage-clients"
         ]
       }
+    },
+    {
+      "username": "service-account-ggeolmuse-service",
+      "enabled": true,
+      "serviceAccountClientId": "ggeolmuse-service",
+      "realmRoles": [
+        "service"
+      ]
     }
   ],
   "components": {

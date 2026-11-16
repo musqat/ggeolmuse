@@ -220,6 +220,26 @@ class KeycloakServiceImplTest {
     }
 
     @Test
+    @DisplayName("가입 계정은 활성 · 이메일 인증 안 됨으로 만든다")
+    @SuppressWarnings("unchecked")
+    void createUser_EmailNotVerified() {
+      adminTokenOk();
+      HttpHeaders created = new HttpHeaders();
+      created.add("Location", AUTH_SERVER_URL + "/admin/realms/" + REALM + "/users/" + TEST_KEYCLOAK_ID);
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Void.class)))
+        .willReturn(new ResponseEntity<>(created, HttpStatus.CREATED));
+
+      keycloakService.createUser(TEST_EMAIL, TEST_PASSWORD);
+
+      ArgumentCaptor<HttpEntity<Map<String, Object>>> entity = ArgumentCaptor.forClass(HttpEntity.class);
+      verify(restTemplate).postForEntity(eq(AUTH_SERVER_URL + "/admin/realms/" + REALM + "/users"), entity.capture(),
+        eq(Void.class));
+      assertThat(entity.getValue().getBody())
+        .containsEntry("enabled", true)
+        .containsEntry("emailVerified", false);
+    }
+
+    @Test
     @DisplayName("Location 헤더가 없으면 예외가 발생한다")
     void createUser_NoLocationHeader_ThrowsException() {
       // given
@@ -573,6 +593,21 @@ class KeycloakServiceImplTest {
     }
 
     @Test
+    @DisplayName("이메일 인증 표시는 관리자 토큰으로 Keycloak ID 의 사용자에 emailVerified 만 보낸다")
+    @SuppressWarnings("unchecked")
+    void markEmailVerified_PutsEmailVerifiedFlag() {
+      adminTokenOk();
+
+      keycloakService.markEmailVerified(TEST_KEYCLOAK_ID);
+
+      ArgumentCaptor<HttpEntity<Map<String, Object>>> entity = ArgumentCaptor.forClass(HttpEntity.class);
+      verify(restTemplate).put(eq(AUTH_SERVER_URL + "/admin/realms/" + REALM + "/users/" + TEST_KEYCLOAK_ID),
+        entity.capture());
+      assertThat(entity.getValue().getHeaders().getFirst(HttpHeaders.AUTHORIZATION)).isEqualTo("Bearer admin_access_token");
+      assertThat(entity.getValue().getBody()).isEqualTo(Map.of("emailVerified", true));
+    }
+
+    @Test
     @DisplayName("관리자 토큰 응답이 비었거나 access_token 이 없으면 API_ERROR 다")
     void adminToken_BadResponse_ApiError() {
       given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
@@ -639,7 +674,8 @@ class KeycloakServiceImplTest {
     }
 
     @Test
-    @DisplayName("관리자 생성은 사용자를 만들고 admin 역할을 넣는다. 역할을 못 넣으면 USER_CREATE_FAILED 다")
+    @DisplayName("관리자 생성은 이메일 인증된 사용자를 만들고 admin 역할을 넣으며, 역할을 못 넣으면 USER_CREATE_FAILED 다")
+    @SuppressWarnings("unchecked")
     void createAdminUser() {
       adminTokenOk();
       HttpHeaders created = new HttpHeaders();
@@ -653,6 +689,9 @@ class KeycloakServiceImplTest {
         .willReturn(ResponseEntity.ok(List.of()));
 
       assertThat(keycloakService.createAdminUser("admin@example.com", "Adm1n-pass!")).isEqualTo(TEST_KEYCLOAK_ID);
+      ArgumentCaptor<HttpEntity<Map<String, Object>>> entity = ArgumentCaptor.forClass(HttpEntity.class);
+      verify(restTemplate).postForEntity(endsWith("/users"), entity.capture(), eq(Void.class));
+      assertThat(entity.getValue().getBody()).containsEntry("emailVerified", true);
       assertThatThrownBy(() -> keycloakService.createAdminUser("admin@example.com", "Adm1n-pass!"))
         .isInstanceOf(KeycloakException.class)
         .hasMessage(KeycloakResponse.USER_CREATE_FAILED.getMessage());

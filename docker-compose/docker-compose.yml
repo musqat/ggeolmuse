@@ -276,6 +276,7 @@ services:
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: custom
       KEYCLOAK_SECRET: local-client-secret
+      KEYCLOAK_SERVICE_CLIENT_SECRET: local-service-secret
       # 시드 admin 계정 (로컬 체험용 더미)
       APP_ADMIN_EMAIL: admin@test.com
       ADMIN_PASSWORD: Admin123!
@@ -285,9 +286,8 @@ services:
       SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS: "20"
       SPRING_CLOUD_CONFIG_RETRY_INITIAL_INTERVAL: "2000"
       SPRING_CLOUD_CONFIG_RETRY_MAX_INTERVAL: "10000"
-      # JWT: issuer는 브라우저 발급값(localhost) 문자열 검증, 키는 내부 keycloak에서 fetch
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8080/realms/custom
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/custom/protocol/openid-connect/certs
+      KEYCLOAK_ISSUERS: http://localhost:8080/realms/custom,http://keycloak:8080/realms/custom
+      KEYCLOAK_CLIENT_IDS: ggeolmuse-client,ggeolmuse-frontend
       MAIL_USERNAME: ${MAIL_USERNAME:-local@example.com}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-local-dummy}
     depends_on:
@@ -340,8 +340,9 @@ services:
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: custom
       KEYCLOAK_SECRET: local-client-secret
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8080/realms/custom
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/custom/protocol/openid-connect/certs
+      KEYCLOAK_SERVICE_CLIENT_SECRET: local-service-secret
+      KEYCLOAK_ISSUERS: http://localhost:8080/realms/custom,http://keycloak:8080/realms/custom
+      KEYCLOAK_CLIENT_IDS: ggeolmuse-client,ggeolmuse-frontend
     healthcheck:
       # actuator/health는 보안(401)이라 TCP 포트 응답으로 liveness 체크
       test: ["CMD", "sh", "-c", "nc -z localhost 8081"]
@@ -416,8 +417,8 @@ services:
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: custom
       KEYCLOAK_SECRET: local-client-secret
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8080/realms/custom
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/custom/protocol/openid-connect/certs
+      KEYCLOAK_ISSUERS: http://localhost:8080/realms/custom,http://keycloak:8080/realms/custom
+      KEYCLOAK_CLIENT_IDS: ggeolmuse-client,ggeolmuse-frontend
     healthcheck:
       test: ["CMD", "sh", "-c", "nc -z localhost 8083"]
       interval: 30s
@@ -472,8 +473,9 @@ services:
       KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
       KEYCLOAK_REALM: custom
       KEYCLOAK_SECRET: local-client-secret
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8080/realms/custom
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/custom/protocol/openid-connect/certs
+      KEYCLOAK_SERVICE_CLIENT_SECRET: local-service-secret
+      KEYCLOAK_ISSUERS: http://localhost:8080/realms/custom,http://keycloak:8080/realms/custom
+      KEYCLOAK_CLIENT_IDS: ggeolmuse-client,ggeolmuse-frontend
     healthcheck:
       # actuator/health는 보안(401)이라 TCP 포트 응답으로 liveness 체크
       test: ["CMD", "sh", "-c", "nc -z localhost 8082"]
@@ -518,6 +520,8 @@ services:
       # iss 는 keycloak 의 KC_HOSTNAME 주소
       KEYCLOAK_ISSUERS: http://localhost:8080/realms/custom,http://keycloak:8080/realms/custom
       KEYCLOAK_CLIENT_IDS: ggeolmuse-client,ggeolmuse-frontend
+      KEYCLOAK_TOKEN_URL: http://keycloak:8080/realms/custom/protocol/openid-connect/token
+      KEYCLOAK_SERVICE_CLIENT_SECRET: local-service-secret
       OTEL_SERVICE_NAME: chat-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
     depends_on:
