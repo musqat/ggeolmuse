@@ -46,7 +46,7 @@ terraform apply
 - 운영 핵심 자원 (`core.tf`, 가져오는 블록은 `imports.tf`)
   - EC2 `ggeolmuse`(t3a.xlarge, IMDSv2 만 · hop 2)와 보안 그룹 `ggeolmuse-sg`(443 은 접두사 목록 `cloudflare-ipv4` 만)
   - 노드 역할 · 인스턴스 프로파일 `ggeolmuse-ec2-role`(콘솔에서 만들어 EC2 에 연결된 것), 관리 정책 목록 전체와 시크릿 두 개 읽기
-  - RDS `rds_instance_id`(PostgreSQL 15 · db.t3.micro · Single-AZ, 자동 백업 7일 · 창 08:10 ~ 08:40 KST · 삭제 보호 · 지울 때 최종 스냅숏)
+  - RDS `rds_instance_id`(PostgreSQL 15 · db.t4g.micro · Single-AZ, 저장 공간 자동 늘리기 1000GB 까지 · Performance Insights, 자동 백업 7일 · 창 08:10 ~ 08:40 KST · 삭제 보호 · 지울 때 최종 스냅숏)
   - 상태 버킷 `ggeolmuse-tfstate-apne2`(버전 관리 · SSE-S3 · 퍼블릭 차단)
   - 모두 `prevent_destroy` 라 plan 이 교체 · 삭제를 잡으면 오류로 멈춘다
 - EventBridge 스케줄러: EC2 / RDS 평일 시작·중지 (`scheduler.tf`, `rds-scheduler.tf`)
@@ -77,9 +77,10 @@ terraform init -backend=false && terraform validate && terraform test
 
 1. 아래 표의 값을 `terraform.tfvars` 에 채운다. 교체가 걸린 값은 plan 전에 명령으로 확인한다
 2. `terraform plan` 을 본다. 교체가 잡히면 `prevent_destroy` 오류로 멈추므로 표에서 "다르면 교체" 인 값을 다시 본다
-3. plan 에 남아야 하는 변경은 아래 다섯이다. 이 다섯 말고 바꾸겠다고 나온 값은 실제 값을 tfvars(변수가 없으면 코드)로 옮기고, 이 다섯만
+3. plan 에 남아야 하는 변경은 아래 여섯이다. 이 여섯 말고 바꾸겠다고 나온 값은 실제 값을 tfvars(변수가 없으면 코드)로 옮기고, 이 여섯만
    남았을 때 `terraform apply`
-   - import 와 태그 더하기
+   - import 와 태그 더하기(EC2 이름표는 `ggeolmuse` 로)
+   - 보안 그룹의 쓰지 않는 5432 자기 참조 규칙 지우기(RDS 는 RDS 보안 그룹이 EC2 그룹을 받음)
    - 노드 역할의 시크릿 읽기 정책 하나 만들기
    - 연결 안 된 옛 역할 `ggeolmuse-ec2-secrets-role` · 프로파일 `ggeolmuse-ec2-profile` · 옛 역할의 정책 지우기 셋
    - RDS 삭제 보호 · 자동 백업 보존 7일 · 백업 창 `23:10-23:40`(UTC) 가운데 지금 값과 불일치하는 것, 최종 스냅숏 설정(상태값만)
@@ -99,7 +100,7 @@ terraform init -backend=false && terraform validate && terraform test
 | `ec2_extra_ingress` · `cloudflare_rule_description` | 규칙을 지우고 다시 만듦 | 위 명령의 `--query 'SecurityGroups[0].IpPermissions'` |
 | `node_role_policy_arns` | 목록에 없는 관리 정책을 역할에서 뺌 | `aws iam list-attached-role-policies --role-name ggeolmuse-ec2-role --query 'AttachedPolicies[].PolicyArn'` |
 | `node_role_name` · `node_instance_profile_name` | EC2 에 연결되지 않은 역할을 가져옴 | `aws iam get-instance-profile --instance-profile-name ggeolmuse-ec2-role --query 'InstanceProfile.Roles[].RoleName'` |
-| `rds_*` | 암호화 · 사용자 이름은 교체, 나머지는 교체 없이 바뀜 | `aws rds describe-db-instances --db-instance-identifier ggeolmuse-postgres --query 'DBInstances[0].[AllocatedStorage,StorageType,StorageEncrypted,PubliclyAccessible,DBSubnetGroup.DBSubnetGroupName,VpcSecurityGroups[].VpcSecurityGroupId,DBParameterGroups[].DBParameterGroupName,BackupRetentionPeriod,PreferredBackupWindow,PreferredMaintenanceWindow,DeletionProtection]'` |
+| `rds_*` | 암호화 · 사용자 이름은 교체, 나머지는 교체 없이 바뀜 | `aws rds describe-db-instances --db-instance-identifier ggeolmuse-postgres --query 'DBInstances[0].[AllocatedStorage,MaxAllocatedStorage,PerformanceInsightsEnabled,CopyTagsToSnapshot,StorageType,StorageEncrypted,PubliclyAccessible,DBSubnetGroup.DBSubnetGroupName,VpcSecurityGroups[].VpcSecurityGroupId,DBParameterGroups[].DBParameterGroupName,BackupRetentionPeriod,PreferredBackupWindow,PreferredMaintenanceWindow,DeletionProtection]'` |
 
 - `node_role_policy_arns` 는 처음에는 지금 목록 그대로 둔다. 시크릿 읽기는 인라인 정책으로 따로 들어가므로, 넓은 관리 정책
   (`SecretsManagerReadWrite` 등)은 apply 뒤 ExternalSecret 이 `SecretSynced` 인 것을 보고 목록에서 뺀다

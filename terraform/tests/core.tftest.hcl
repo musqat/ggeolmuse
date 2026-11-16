@@ -147,6 +147,10 @@ run "node_role" {
     error_message = "노드 역할을 EC2 가 맡지 못함"
   }
   assert {
+    condition     = aws_iam_role.node.description == "Allows EC2 instances to ggeolmuse"
+    error_message = "노드 역할 설명이 운영 값과 다름"
+  }
+  assert {
     condition     = aws_iam_instance_profile.node.role == "ggeolmuse-ec2-role"
     error_message = "프로파일이 노드 역할을 담지 않음"
   }
@@ -183,6 +187,10 @@ run "tfstate_bucket" {
     error_message = "상태 버킷 기본 암호화가 SSE-S3 가 아님"
   }
   assert {
+    condition     = one([for r in aws_s3_bucket_server_side_encryption_configuration.tfstate.rule : r.bucket_key_enabled])
+    error_message = "상태 버킷 암호화의 버킷 키가 운영 값(켬)과 다름"
+  }
+  assert {
     condition = alltrue([
       aws_s3_bucket_public_access_block.tfstate.block_public_acls,
       aws_s3_bucket_public_access_block.tfstate.block_public_policy,
@@ -215,10 +223,18 @@ run "rds" {
     condition = (
       aws_db_instance.postgres[0].engine == "postgres" &&
       aws_db_instance.postgres[0].engine_version == "15" &&
-      aws_db_instance.postgres[0].instance_class == "db.t3.micro" &&
+      aws_db_instance.postgres[0].instance_class == "db.t4g.micro" &&
       aws_db_instance.postgres[0].multi_az == false
     )
-    error_message = "엔진 · 버전 · 등급 · Single-AZ 가 운영(PostgreSQL 15 · db.t3.micro)과 다름"
+    error_message = "엔진 · 버전 · 등급 · Single-AZ 가 운영(PostgreSQL 15 · db.t4g.micro)과 다름"
+  }
+  assert {
+    condition = (
+      aws_db_instance.postgres[0].max_allocated_storage == 1000 &&
+      aws_db_instance.postgres[0].performance_insights_enabled &&
+      aws_db_instance.postgres[0].copy_tags_to_snapshot
+    )
+    error_message = "저장 공간 자동 늘리기 · Performance Insights · 스냅숏 이름표 복사가 운영 값과 다름"
   }
   assert {
     condition     = aws_db_instance.postgres[0].storage_encrypted && aws_db_instance.postgres[0].allocated_storage == 20 && aws_db_instance.postgres[0].vpc_security_group_ids == toset(["sg-0fedcba9876543210"])
