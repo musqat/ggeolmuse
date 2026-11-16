@@ -11,10 +11,10 @@ public interface KeycloakService {
   // 브라우저가 public client 로 시작한 구글 로그인(PKCE)의 인가 코드 → 토큰
   TokenResponseDto exchangePkceCode(String code, String codeVerifier, String redirectUri);
 
-  // Keycloak에 사용자 생성
+  // Keycloak에 이메일 인증 안 된 사용자 생성
   String createUser(String email, String password);
 
-  // Keycloak에 관리자 사용자 생성 (admin role 부여)
+  // Keycloak에 이메일 인증된 관리자 사용자 생성 (admin role 부여)
   String createAdminUser(String email, String password);
 
   // Keycloak 사용자 비밀번호 재설정 (현재 비밀번호 불필요)
@@ -22,6 +22,9 @@ public interface KeycloakService {
 
   // Keycloak 사용자 활성 상태 변경(끄면 새 로그인 · 토큰 갱신 차단)
   void setEnabled(String keycloakId, boolean enabled);
+
+  // Keycloak 사용자를 이메일 인증됨으로 표시
+  void markEmailVerified(String keycloakId);
 
   // Keycloak 사용자 삭제
   void deleteUser(String keycloakId);

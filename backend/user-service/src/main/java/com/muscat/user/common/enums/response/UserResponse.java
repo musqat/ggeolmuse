@@ -59,6 +59,7 @@ public enum UserResponse implements ErrorCode {
   EMAIL_SEND_FAILED("이메일 발송에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   PASSWORD_CHANGE_FAILED("비밀번호 변경에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   PASSWORD_RESET_FAILED("비밀번호 재설정에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+  EMAIL_VERIFY_FAILED("이메일 인증에 실패했습니다. 잠시 뒤 다시 시도해 주세요.", HttpStatus.INTERNAL_SERVER_ERROR),
   GOOGLE_LOGIN_FAILED("Google 소셜 로그인 처리 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   GOOGLE_USER_INFO_FAILED("Google 사용자 정보 조회에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   KEYCLOAK_TOKEN_FAILED("Keycloak 토큰 처리 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),

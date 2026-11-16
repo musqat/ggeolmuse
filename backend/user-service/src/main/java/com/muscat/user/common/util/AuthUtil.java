@@ -40,6 +40,11 @@ public class AuthUtil {
       throw new UserException(UserResponse.ACCOUNT_DISABLED);
     }
 
+    // 이메일 인증 전 사용자는 토큰이 있어도 차단
+    if (!user.isEmailVerified()) {
+      throw new UserException(UserResponse.EMAIL_NOT_VERIFIED);
+    }
+
     return user.getId();
   }
 

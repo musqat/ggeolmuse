@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.willAnswer;
 
 import com.muscat.user.config.mail.MailService;
+import com.muscat.user.domain.user.entity.EmailToken;
 import com.muscat.user.domain.user.entity.PasswordResetToken;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.repository.EmailTokenRepository;
@@ -63,7 +64,7 @@ class UserServiceTransactionTest {
   @MockitoBean
   private MailService mailService;
 
-  // Keycloak 호출마다 그때 DB 트랜잭션이 열려 있었는지
+  // Keycloak 호출마다 호출 시점에 DB 트랜잭션이 열려 있었는지
   private final List<Boolean> inTransaction = new ArrayList<>();
 
   private Answer<Object> recording(Object result) {
@@ -143,6 +144,93 @@ class UserServiceTransactionTest {
     assertThat(inTransaction).containsExactly(false, false);
     assertThat(passwordResetTokenRepository.findAll()).singleElement()
       .extracting(PasswordResetToken::isUsed).isEqualTo(true);
+  }
+
+  @Test
+  @DisplayName("이메일 인증은 트랜잭션 밖에서 Keycloak 에 인증 표시를 하고 인증 토큰을 지운다")
+  void verifyEmail_MarksKeycloakOutsideTransaction() {
+    User user = userRepository.save(User.builder()
+      .email(EMAIL)
+      .nickname("인증 전")
+      .keycloakId(KEYCLOAK_ID)
+      .build());
+    EmailToken token = new EmailToken();
+    token.setToken("verify-tx");
+    token.setUser(user);
+    token.setExpiryDate(LocalDateTime.now().plusHours(1));
+    emailTokenRepository.save(token);
+    willAnswer(recording(null)).given(keycloakService).markEmailVerified(KEYCLOAK_ID);
+
+    userService.verifyEmail("verify-tx");
+
+    assertThat(inTransaction).containsExactly(false);
+    assertThat(userRepository.findById(user.getId()).orElseThrow().isEmailVerified()).isTrue();
+    assertThat(emailTokenRepository.findAll()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("관리자 이메일 인증은 트랜잭션 밖에서 Keycloak 에 인증 표시를 한다")
+  void adminVerifyEmail_MarksKeycloakOutsideTransaction() {
+    User user = userRepository.save(User.builder()
+      .email(EMAIL)
+      .nickname("인증 전")
+      .keycloakId(KEYCLOAK_ID)
+      .build());
+    willAnswer(recording(null)).given(keycloakService).markEmailVerified(KEYCLOAK_ID);
+
+    userService.adminVerifyEmail(user.getId());
+
+    assertThat(inTransaction).containsExactly(false);
+    assertThat(userRepository.findById(user.getId()).orElseThrow().isEmailVerified()).isTrue();
+  }
+
+  // Keycloak 호출 중 관리자가 계정을 비활성으로 바꾼 상황
+  private Answer<Object> disablingDuringCall(Long userId) {
+    return invocation -> {
+      User current = userRepository.findById(userId).orElseThrow();
+      current.changeEnabledStatus(false);
+      userRepository.save(current);
+      return null;
+    };
+  }
+
+  @Test
+  @DisplayName("이메일 인증은 Keycloak 호출 사이에 바뀐 활성 상태를 그대로 둔다")
+  void verifyEmail_KeepsEnabledChangedDuringKeycloakCall() {
+    User user = userRepository.save(User.builder()
+      .email(EMAIL)
+      .nickname("인증 전")
+      .keycloakId(KEYCLOAK_ID)
+      .build());
+    EmailToken token = new EmailToken();
+    token.setToken("verify-race");
+    token.setUser(user);
+    token.setExpiryDate(LocalDateTime.now().plusHours(1));
+    emailTokenRepository.save(token);
+    willAnswer(disablingDuringCall(user.getId())).given(keycloakService).markEmailVerified(KEYCLOAK_ID);
+
+    userService.verifyEmail("verify-race");
+
+    User saved = userRepository.findById(user.getId()).orElseThrow();
+    assertThat(saved.isEmailVerified()).isTrue();
+    assertThat(saved.isEnabled()).isFalse();
+  }
+
+  @Test
+  @DisplayName("관리자 이메일 인증은 Keycloak 호출 사이에 바뀐 활성 상태를 그대로 둔다")
+  void adminVerifyEmail_KeepsEnabledChangedDuringKeycloakCall() {
+    User user = userRepository.save(User.builder()
+      .email(EMAIL)
+      .nickname("인증 전")
+      .keycloakId(KEYCLOAK_ID)
+      .build());
+    willAnswer(disablingDuringCall(user.getId())).given(keycloakService).markEmailVerified(KEYCLOAK_ID);
+
+    userService.adminVerifyEmail(user.getId());
+
+    User saved = userRepository.findById(user.getId()).orElseThrow();
+    assertThat(saved.isEmailVerified()).isTrue();
+    assertThat(saved.isEnabled()).isFalse();
   }
 
   @Test

@@ -122,7 +122,7 @@ public class AuthController {
     ),
     @ApiResponse(
       responseCode = "400",
-      description = "잘못된 토큰 또는 만료된 토큰",
+      description = "잘못된 토큰 · 만료된 토큰 또는 Keycloak 이메일 인증 표시 실패",
       content = @Content(
         mediaType = "text/html",
         examples = @ExampleObject(

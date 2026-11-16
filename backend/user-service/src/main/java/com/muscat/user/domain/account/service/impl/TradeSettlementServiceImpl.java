@@ -12,6 +12,7 @@ import com.muscat.user.infra.kafka.TradeRejectedEventProducer;
 import com.muscat.user.infra.kafka.TradeSettledEventProducer;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -45,12 +46,12 @@ public class TradeSettlementServiceImpl implements TradeSettlementService {
   public void settle(TradeCompletedEvent event) {
     TradeSettlement outcome;
     try {
-      outcome = transactionTemplate.execute(status -> apply(event));
+      outcome = Objects.requireNonNull(transactionTemplate.execute(status -> apply(event)));
     } catch (AccountException e) {
       if (!e.getHttpStatus().is4xxClientError()) {
         throw e;
       }
-      outcome = transactionTemplate.execute(status -> reject(event, e));
+      outcome = Objects.requireNonNull(transactionTemplate.execute(status -> reject(event, e)));
     }
     announce(event, outcome);
   }

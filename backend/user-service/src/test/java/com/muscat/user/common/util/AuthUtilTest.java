@@ -37,7 +37,8 @@ class AuthUtilTest {
   @Test
   @DisplayName("토큰 sub 의 사용자 id 를 돌려주고 email 클레임으로는 찾지 않는다")
   void bySubject() {
-    given(userRepository.findByKeycloakId("kc-1")).willReturn(Optional.of(User.builder().id(7L).build()));
+    given(userRepository.findByKeycloakId("kc-1"))
+      .willReturn(Optional.of(User.builder().id(7L).emailVerified(true).build()));
 
     assertThat(authUtil.requireUserId(jwt(b -> b.claim("email", "old@example.com")))).isEqualTo(7L);
     verify(userRepository, never()).findByEmail(any());
@@ -55,9 +56,19 @@ class AuthUtilTest {
   }
 
   @Test
+  @DisplayName("이메일 인증 전 사용자는 토큰이 있어도 막는다")
+  void unverified_Rejected() {
+    given(userRepository.findByKeycloakId("kc-1")).willReturn(Optional.of(User.builder().id(7L).build()));
+
+    assertThatThrownBy(() -> authUtil.requireUserId(jwt(b -> b.claim("email_verified", true))))
+      .isInstanceOfSatisfying(UserException.class,
+        e -> assertThat(e.getCode()).isEqualTo(UserResponse.EMAIL_NOT_VERIFIED));
+  }
+
+  @Test
   @DisplayName("비활성 사용자는 토큰이 살아 있어도 막는다")
   void disabled_Rejected() {
-    User disabled = User.builder().id(7L).build();
+    User disabled = User.builder().id(7L).emailVerified(true).build();
     disabled.changeEnabledStatus(false);
     given(userRepository.findByKeycloakId("kc-1")).willReturn(Optional.of(disabled));
 
