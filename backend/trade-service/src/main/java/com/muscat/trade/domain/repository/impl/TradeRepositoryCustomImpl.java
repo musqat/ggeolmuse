@@ -8,6 +8,7 @@ import com.muscat.trade.domain.repository.TradeRepositoryCustom;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.DateExpression;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,8 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * TradeRepositoryCustom
@@ -35,6 +38,18 @@ public class TradeRepositoryCustomImpl implements TradeRepositoryCustom {
                 .from(trade)
                 .where(trade.status.eq(status))
                 .fetch();
+    }
+
+    @Override
+    public Map<String, LocalDate> findFirstTradeDateBySymbol() {
+        DateExpression<LocalDate> first = trade.tradeDate.min();
+        return queryFactory
+                .select(trade.symbol, first)
+                .from(trade)
+                .groupBy(trade.symbol)
+                .fetch()
+                .stream()
+                .collect(Collectors.toMap(row -> row.get(trade.symbol), row -> row.get(first)));
     }
 
     @Override

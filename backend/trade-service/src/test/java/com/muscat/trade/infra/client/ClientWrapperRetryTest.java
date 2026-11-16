@@ -13,6 +13,7 @@ import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
 import com.muscat.trade.infra.client.dto.DividendDto;
 import com.muscat.trade.infra.client.dto.ExchangeRecordDto;
+import com.muscat.trade.infra.client.dto.SplitDto;
 import feign.FeignException;
 import feign.Request;
 import feign.Response;
@@ -37,7 +38,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 // 애노테이션이 실제로 걸린 래퍼(재시도 예외 목록은 설정 리포의 marketService · userService 와 같게)
-// 대체 동작을 @CircuitBreaker 에 두면 첫 실패에 대체 동작이 돌아 바깥 @Retry 가 안 걸림
+// 대체 동작을 @CircuitBreaker 에 두면 첫 실패에 대체 동작이 돌아 @CircuitBreaker 를 감싼 @Retry 가 안 걸림
 @SpringBootTest(classes = {MarketServiceClientWrapper.class, UserServiceClientWrapper.class}, properties = {
   "resilience4j.retry.instances.marketService.maxAttempts=3",
   "resilience4j.retry.instances.marketService.waitDuration=10ms",
@@ -87,16 +88,19 @@ class ClientWrapperRetryTest {
       new Call("기간 시세", c -> c.getOHLCPriceRange("AAPL", "2024-01-01", "2024-12-31"),
         w -> w.getOHLCPriceRange("AAPL", "2024-01-01", "2024-12-31"), List.of(mock(OHLCPriceDto.class))),
       new Call("여러 날짜 환율", c -> c.getBulkFxRates(List.of("2024-09-16")),
-        w -> w.getBulkFxRates(List.of("2024-09-16")), Map.of("2024-09-16", new BigDecimal("1330.5"))));
+        w -> w.getBulkFxRates(List.of("2024-09-16")), Map.of("2024-09-16", new BigDecimal("1330.5"))),
+      new Call("분할 목록", c -> c.getSplits("NVDA", "2024-01-01"),
+        w -> w.getSplits("NVDA", "2024-01-01"), List.of(new SplitDto("2024-06-10", BigDecimal.TEN))));
   }
 
   static Stream<Call> flowCalls() {
-    return marketCalls().filter(call -> call.name().startsWith("기간") || call.name().startsWith("여러 날짜"));
+    return marketCalls().filter(call -> call.name().startsWith("기간") || call.name().startsWith("여러 날짜")
+      || call.name().startsWith("분할"));
   }
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("flowCalls")
-  @DisplayName("기간 시세 · 여러 날짜 환율이 세 번 다 5xx 면 빈 값이 아니라 시장 데이터 오류 코드로 예외가 난다")
+  @DisplayName("기간 시세 · 여러 날짜 환율 · 분할 목록이 세 번 다 5xx 면 빈 값 대신 시장 데이터 오류 코드 예외")
   void flowCall_ServerErrorEveryTime_MarketDataError(Call call) {
     FeignException last = serverError();
     given(call.client().apply(marketClient)).willThrow(serverError(), serverError(), last);

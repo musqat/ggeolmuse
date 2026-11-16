@@ -37,7 +37,7 @@ class TradeRepositoryQueryTest {
   @Autowired
   private TestEntityManager entityManager;
 
-  // 넣은 행을 먼저 내보내고 그 뒤 호출에서 실행된 SQL 수
+  // 넣은 행을 먼저 내보낸 뒤 호출에서 실행된 SQL 수
   private long statementsOf(Runnable call) {
     entityManager.flush();
     Statistics statistics = entityManager.getEntityManager().getEntityManagerFactory()
@@ -110,6 +110,17 @@ class TradeRepositoryQueryTest {
       new TradePosition(USER, 10L, "AAPL"), new TradePosition(USER, 20L, "AAPL"));
   }
 
+  @Test
+  @DisplayName("종목마다 모든 상태 체결 가운데 가장 이른 거래일")
+  void firstTradeDateBySymbol() {
+    save(USER, 10, "AAPL", TradeType.BUY, "1", "100", LocalDate.of(2026, 10, 3), 9);
+    save(OTHER_USER, 30, "AAPL", TradeType.BUY, "1", "100", LocalDate.of(2026, 9, 1), 9, TradeStatus.CANCELLED);
+    save(USER, 10, "TSLA", TradeType.BUY, "1", "100", LocalDate.of(2026, 10, 5), 9, TradeStatus.PENDING);
+
+    assertThat(tradeRepository.findFirstTradeDateBySymbol()).containsExactlyInAnyOrderEntriesOf(java.util.Map.of(
+      "AAPL", LocalDate.of(2026, 9, 1), "TSLA", LocalDate.of(2026, 10, 5)));
+  }
+
   @Nested
   @DisplayName("매도 가능 수량 (매도일까지와 뒤 체결마다의 누적 보유 가운데 최솟값)")
   class SellableQuantity {
@@ -129,7 +140,7 @@ class TradeRepositoryQueryTest {
     }
 
     @Test
-    @DisplayName("체결된 같은 계좌 · 같은 종목만 세고, 그 날짜 이후 매수는 넣지 않는다")
+    @DisplayName("체결된 같은 계좌 · 같은 종목만 세고, 매도일 이후 매수는 넣지 않는다")
     void countsCompletedSameAccountSymbolUpToDate() {
       assertThat(sellable(LocalDate.of(2026, 10, 4))).isEqualByComparingTo("6");
       assertThat(sellable(LocalDate.of(2026, 10, 10))).isEqualByComparingTo("11");

@@ -1,6 +1,7 @@
 package com.muscat.trade.infra.client;
 
 import com.muscat.trade.infra.client.dto.DividendDto;
+import com.muscat.trade.infra.client.dto.SplitDto;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
 import java.math.BigDecimal;
@@ -33,7 +34,12 @@ public interface MarketServiceClient {
       @RequestParam("startDate") String startDate,
       @RequestParam("endDate") String endDate);
 
-  // 날짜마다 그 날짜 이하 가장 늦은 환율(날짜 문자열 → USD/KRW)
+  // 시작일부터 난 분할(날짜 순)
+  @GetMapping("/api/internal/market/splits/{symbol}")
+  List<SplitDto> getSplits(@PathVariable("symbol") String symbol,
+      @RequestParam("startDate") String startDate);
+
+  // 각 날짜 이하 가장 늦은 환율(날짜 문자열 → USD/KRW)
   @PostMapping("/api/internal/market/fx/bulk")
   Map<String, BigDecimal> getBulkFxRates(@RequestBody List<String> dates);
 }
