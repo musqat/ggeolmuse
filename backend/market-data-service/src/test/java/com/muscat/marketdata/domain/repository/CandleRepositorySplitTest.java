@@ -85,6 +85,22 @@ class CandleRepositorySplitTest {
     assertThat(result).containsExactly("AAPL", "NVDA");
   }
 
+  @Test
+  @DisplayName("한 종목의 시작일부터 계수가 1 이 아닌 봉만 날짜 순으로 반환")
+  void 한_종목의_분할_봉() {
+    candle("AAPL", LocalDate.of(2014, 6, 9), "7");
+    candle("AAPL", LocalDate.of(2020, 8, 28), "1");
+    candle("AAPL", LocalDate.of(2020, 8, 31), "4");
+    candle("AAPL", LocalDate.of(2005, 2, 28), "2");   // 시작일 이전
+    candle("NVDA", LocalDate.of(2024, 6, 10), "10");  // 조회하지 않는 종목
+
+    List<Candle> result = candleRepository.findBySymbolAndDateGreaterThanEqualAndSplitCoefficientNotOrderByDateAsc(
+      "AAPL", LocalDate.of(2014, 6, 9), BigDecimal.ONE);
+
+    assertThat(result).extracting(Candle::getDate)
+      .containsExactly(LocalDate.of(2014, 6, 9), LocalDate.of(2020, 8, 31));
+  }
+
   private void asset(String symbol, LocalDate fullHistoryThrough) {
     Asset asset = Asset.builder()
       .symbol(symbol).name(symbol).country("US").currency("USD").assetType("EQUITY")

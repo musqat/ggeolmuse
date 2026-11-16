@@ -51,6 +51,13 @@ public interface TradeRepository extends JpaRepository<Trade, Long>, TradeReposi
   @Query("select t from Trade t where t.id = :id")
   Optional<Trade> findByIdForUpdate(@Param("id") Long id);
 
+  // 받은 날짜 전 한 종목의 가장 이른 체결(모든 상태)
+  Optional<Trade> findFirstBySymbolAndTradeDateBeforeOrderByTradeDateAsc(String symbol, LocalDate before);
+
+  // 분할 반영용 잠금 읽기(받은 날짜 전 한 종목의 모든 상태 체결, ID 순)
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  List<Trade> findBySymbolAndTradeDateBeforeOrderByIdAsc(String symbol, LocalDate before);
+
   // 계좌 삭제 시 모든 거래 내역 삭제
   void deleteByAccountId(Long accountId);
 

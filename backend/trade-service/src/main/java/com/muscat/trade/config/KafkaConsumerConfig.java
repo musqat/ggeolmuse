@@ -2,6 +2,7 @@ package com.muscat.trade.config;
 
 import com.muscat.messaging.event.AccountDeletedEvent;
 import com.muscat.messaging.event.DividendUpdatedEvent;
+import com.muscat.messaging.event.StockSplitEvent;
 import com.muscat.messaging.event.TradeRejectedEvent;
 import com.muscat.messaging.event.TradeSettledEvent;
 import com.muscat.messaging.kafka.KafkaFactories;
@@ -52,6 +53,17 @@ public class KafkaConsumerConfig {
     public ConcurrentKafkaListenerContainerFactory<String, DividendReconcileRequest>
     dividendReconcileKafkaListenerContainerFactory() {
         return KafkaFactories.manualAckContainer(dividendReconcileConsumerFactory(), 1, kafkaErrorHandler());
+    }
+
+    @Bean
+    public ConsumerFactory<String, StockSplitEvent> stockSplitEventConsumerFactory() {
+        return consumerFactory(StockSplitEvent.class, "-split-consumer");
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, StockSplitEvent>
+    stockSplitEventKafkaListenerContainerFactory() {
+        return KafkaFactories.manualAckContainer(stockSplitEventConsumerFactory(), 1, kafkaErrorHandler());
     }
 
     @Bean

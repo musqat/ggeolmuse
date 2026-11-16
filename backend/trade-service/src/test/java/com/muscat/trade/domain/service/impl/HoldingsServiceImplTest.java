@@ -15,9 +15,14 @@ import com.muscat.trade.common.logging.TradeLogger;
 import com.muscat.trade.domain.dto.TradePosition;
 import com.muscat.trade.domain.dto.response.HoldingResponseDto;
 import com.muscat.trade.domain.dto.response.PortfolioSummary;
+import com.muscat.trade.common.enums.type.TradeStatus;
+import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.domain.entity.Holdings;
+import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.repository.HoldingsRepository;
 import com.muscat.trade.domain.repository.PortfolioSummaryProjection;
+import com.muscat.trade.domain.repository.TradeRepository;
+import java.time.LocalDate;
 import com.muscat.trade.domain.service.DividendPayoutService;
 import com.muscat.trade.infra.client.MarketServiceClientWrapper;
 import java.math.BigDecimal;
@@ -46,6 +51,8 @@ class HoldingsServiceImplTest {
   private MarketServiceClientWrapper marketServiceClientWrapper;
   @Mock
   private DividendPayoutService dividendPayoutService;
+  @Mock
+  private TradeRepository tradeRepository;
 
   @InjectMocks
   private HoldingsServiceImpl holdingsService;
@@ -115,6 +122,73 @@ class HoldingsServiceImplTest {
       List<HoldingResponseDto> result = holdingsService.getPortfolio(TEST_USER_ID, TEST_ACCOUNT_ID);
 
       assertThat(result.getFirst().totalDividends()).isEqualByComparingTo("2.12");
+    }
+
+    @Test
+    @DisplayName("보유 줄의 분할 비율은 지금 남은 매수 묶음 가운데 분할로 맞춘 가장 이른 체결의 누적 비율")
+    void getPortfolio_SplitRatioOfEarliestRemainingLot() {
+      Holdings msft = Holdings.builder().userId(TEST_USER_ID).accountId(TEST_ACCOUNT_ID).symbol("MSFT")
+        .totalQuantity(new BigDecimal("2")).avgPurchasePrice(new BigDecimal("400.00"))
+        .totalInvestedAmount(new BigDecimal("800.00")).build();
+      given(holdingsRepository.findByUserIdAndAccountId(TEST_USER_ID, TEST_ACCOUNT_ID))
+        .willReturn(List.of(testHolding, msft));
+      given(marketServiceClientWrapper.getCurrentPrices(List.of(TEST_SYMBOL, "MSFT"))).willReturn(Map.of());
+      given(tradeRepository.findByUserIdAndStatusOrderByExecutedAtAscIdAsc(TEST_USER_ID, TradeStatus.COMPLETED))
+        .willReturn(List.of(
+          lot(2L, TEST_SYMBOL, TradeType.BUY, "6", LocalDate.of(2024, 2, 1), "3"),
+          lot(1L, TEST_SYMBOL, TradeType.BUY, "6", LocalDate.of(2024, 1, 2), "6"),
+          lot(3L, "MSFT", TradeType.BUY, "2", LocalDate.of(2024, 7, 1), null)));
+
+      List<HoldingResponseDto> result = holdingsService.getPortfolio(TEST_USER_ID, TEST_ACCOUNT_ID);
+
+      assertThat(result.get(0).splitRatio()).isEqualByComparingTo("6");
+      assertThat(result.get(1).splitRatio()).isNull();
+    }
+
+    @Test
+    @DisplayName("다 판 매수 묶음의 분할은 빼고 남은 묶음 기준, 다 판 뒤 분할 뒤에 다시 산 자리는 빈 값")
+    void getPortfolio_SplitRatioIgnoresSoldLots() {
+      Holdings msft = Holdings.builder().userId(TEST_USER_ID).accountId(TEST_ACCOUNT_ID).symbol("MSFT")
+        .totalQuantity(new BigDecimal("2")).avgPurchasePrice(new BigDecimal("400.00"))
+        .totalInvestedAmount(new BigDecimal("800.00")).build();
+      given(holdingsRepository.findByUserIdAndAccountId(TEST_USER_ID, TEST_ACCOUNT_ID))
+        .willReturn(List.of(testHolding, msft));
+      given(marketServiceClientWrapper.getCurrentPrices(List.of(TEST_SYMBOL, "MSFT"))).willReturn(Map.of());
+      given(tradeRepository.findByUserIdAndStatusOrderByExecutedAtAscIdAsc(TEST_USER_ID, TradeStatus.COMPLETED))
+        .willReturn(List.of(
+          lot(1L, TEST_SYMBOL, TradeType.BUY, "40", LocalDate.of(2024, 1, 2), "40"),
+          lot(2L, TEST_SYMBOL, TradeType.BUY, "10", LocalDate.of(2024, 3, 1), "10"),
+          lot(3L, TEST_SYMBOL, TradeType.SELL, "40", LocalDate.of(2024, 4, 1), "10"),
+          lot(4L, "MSFT", TradeType.BUY, "4", LocalDate.of(2024, 1, 2), "4"),
+          lot(5L, "MSFT", TradeType.SELL, "4", LocalDate.of(2024, 2, 1), "4"),
+          lot(6L, "MSFT", TradeType.BUY, "2", LocalDate.of(2024, 7, 1), null)));
+
+      List<HoldingResponseDto> result = holdingsService.getPortfolio(TEST_USER_ID, TEST_ACCOUNT_ID);
+
+      assertThat(result.get(0).splitRatio()).isEqualByComparingTo("10");
+      assertThat(result.get(1).splitRatio()).isNull();
+    }
+
+    private Trade lot(long id, String symbol, TradeType type, String quantity, LocalDate tradeDate, String ratio) {
+      return Trade.builder().id(id).userId(TEST_USER_ID).accountId(TEST_ACCOUNT_ID).symbol(symbol).tradeType(type)
+        .quantity(new BigDecimal(quantity)).tradeDate(tradeDate).executedAt(tradeDate.atTime(10, 0))
+        .splitRatio(ratio == null ? null : new BigDecimal(ratio)).status(TradeStatus.COMPLETED).build();
+    }
+
+    @Test
+    @DisplayName("미실현 손익 · 수익률은 센트로 반올림한 평균 단가가 아니라 총 투자금액 기준")
+    void getPortfolio_PnLFromInvestedAmount() {
+      Holdings split = Holdings.builder().userId(TEST_USER_ID).accountId(TEST_ACCOUNT_ID).symbol(TEST_SYMBOL)
+        .totalQuantity(new BigDecimal("300")).avgPurchasePrice(new BigDecimal("33.33"))
+        .totalInvestedAmount(new BigDecimal("10000.00")).build();
+      given(holdingsRepository.findByUserIdAndAccountId(TEST_USER_ID, TEST_ACCOUNT_ID)).willReturn(List.of(split));
+      given(marketServiceClientWrapper.getCurrentPrices(List.of(TEST_SYMBOL)))
+        .willReturn(Map.of(TEST_SYMBOL, currentPrice(new BigDecimal("40.00"))));
+
+      HoldingResponseDto dto = holdingsService.getPortfolio(TEST_USER_ID, TEST_ACCOUNT_ID).getFirst();
+
+      assertThat(dto.unrealizedPnL()).isEqualByComparingTo("2000.00");
+      assertThat(dto.returnRate()).isEqualByComparingTo("20");
     }
 
     @Test
@@ -309,6 +383,24 @@ class HoldingsServiceImplTest {
 
       verify(tradeLogger).logPortfolioAccess(eq(TEST_USER_ID), eq("PORTFOLIO_SUMMARY"),
         anyString(), eq(1));
+    }
+
+    @Test
+    @DisplayName("종목별 평가손익 · 수익률도 센트로 반올림한 평균 단가가 아니라 총 투자금액 기준")
+    void getPortfolioSummary_SymbolPnLFromInvestedAmount() {
+      Holdings split = Holdings.builder().userId(TEST_USER_ID).accountId(TEST_ACCOUNT_ID).symbol(TEST_SYMBOL)
+        .totalQuantity(new BigDecimal("300")).avgPurchasePrice(new BigDecimal("33.33"))
+        .totalInvestedAmount(new BigDecimal("10000.00")).build();
+      given(holdingsRepository.findByUserId(TEST_USER_ID)).willReturn(List.of(split));
+      given(holdingsRepository.calculatePortfolioSummary(TEST_USER_ID))
+        .willReturn(new PortfolioSummaryProjection(new BigDecimal("10000.00"), 1));
+      given(marketServiceClientWrapper.getCurrentPrices(List.of(TEST_SYMBOL)))
+        .willReturn(Map.of(TEST_SYMBOL, currentPrice(new BigDecimal("40.00"))));
+
+      PortfolioSummary result = holdingsService.getPortfolioSummary(TEST_USER_ID);
+
+      assertThat(result.getSymbolUnrealizedPnL().get(TEST_SYMBOL)).isEqualByComparingTo("2000.00");
+      assertThat(result.getSymbolReturnRates().get(TEST_SYMBOL)).isEqualByComparingTo("20");
     }
 
     @Test

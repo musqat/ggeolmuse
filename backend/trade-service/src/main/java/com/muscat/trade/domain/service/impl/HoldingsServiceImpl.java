@@ -6,17 +6,23 @@ import com.muscat.trade.common.logging.TradeLogger;
 import com.muscat.trade.domain.dto.TradePosition;
 import com.muscat.trade.domain.dto.response.HoldingResponseDto;
 import com.muscat.trade.domain.dto.response.PortfolioSummary;
+import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.domain.entity.Holdings;
+import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.repository.HoldingsRepository;
+import com.muscat.trade.domain.repository.TradeRepository;
+import com.muscat.trade.domain.service.DividendEntitlement;
 import com.muscat.trade.domain.service.DividendPayoutService;
 import com.muscat.trade.domain.service.HoldingsService;
 import com.muscat.trade.infra.client.MarketServiceClientWrapper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +39,7 @@ public class HoldingsServiceImpl implements HoldingsService {
   private final TradeLogger tradeLogger;
   private final MarketServiceClientWrapper marketServiceClientWrapper;
   private final DividendPayoutService dividendPayoutService;
+  private final TradeRepository tradeRepository;
 
   @Override
   public List<HoldingResponseDto> getPortfolio(String userId, Long accountId) {
@@ -51,6 +58,7 @@ public class HoldingsServiceImpl implements HoldingsService {
     Map<TradePosition, BigDecimal> dividends = holdings.isEmpty()
       ? Map.of()
       : dividendPayoutService.dividendsOnHeldShares(userId);
+    Map<TradePosition, BigDecimal> splitRatios = holdings.isEmpty() ? Map.of() : splitRatiosOf(userId);
 
     // 현재가 정보와 함께 DTO 생성
     return holdings.stream()
@@ -59,10 +67,26 @@ public class HoldingsServiceImpl implements HoldingsService {
         HoldingResponseDto dto = currentPrice != null
           ? HoldingResponseDto.of(holding, currentPrice)
           : HoldingResponseDto.from(holding);
-        return dto.withTotalDividends(dividends.getOrDefault(
-          new TradePosition(userId, holding.getAccountId(), holding.getSymbol()), BigDecimal.ZERO));
+        TradePosition position = new TradePosition(userId, holding.getAccountId(), holding.getSymbol());
+        return dto.withTotalDividends(dividends.getOrDefault(position, BigDecimal.ZERO))
+          .withSplitRatio(splitRatios.get(position));
       })
       .collect(Collectors.toList());
+  }
+
+  // 자리마다 지금 남은 매수 묶음 가운데 분할로 맞춘 가장 이른 체결의 누적 비율(없으면 자리 없음)
+  private Map<TradePosition, BigDecimal> splitRatiosOf(String userId) {
+    Map<TradePosition, List<Trade>> tradesByPosition = tradeRepository
+      .findByUserIdAndStatusOrderByExecutedAtAscIdAsc(userId, TradeStatus.COMPLETED).stream()
+      .collect(Collectors.groupingBy(t -> new TradePosition(userId, t.getAccountId(), t.getSymbol())));
+    Map<TradePosition, BigDecimal> ratios = new HashMap<>();
+    tradesByPosition.forEach((position, trades) ->
+      DividendEntitlement.remainingByBuyBefore(trades, LocalDate.MAX).stream()
+        .map(lot -> lot.buy().getSplitRatio())
+        .filter(Objects::nonNull)
+        .findFirst()
+        .ifPresent(ratio -> ratios.put(position, ratio)));
+    return ratios;
   }
 
   @Override
@@ -139,18 +163,13 @@ public class HoldingsServiceImpl implements HoldingsService {
         BigDecimal holdingValue = holding.getTotalQuantity().multiply(currentPrice);
         totalCurrentValue = totalCurrentValue.add(holdingValue);
 
-        // 종목별 수익률 계산
-        if (holding.getAvgPurchasePrice().compareTo(BigDecimal.ZERO) > 0) {
-          BigDecimal returnRate = currentPrice.subtract(holding.getAvgPurchasePrice())
-            .divide(holding.getAvgPurchasePrice(), 4, RoundingMode.HALF_UP)
-            .multiply(TradeConstants.PERCENTAGE_MULTIPLIER);
-          symbolReturnRates.put(holding.getSymbol(), returnRate);
-        }
-
-        // 종목별 평가손익 계산
-        BigDecimal bookValue = holding.getTotalQuantity().multiply(holding.getAvgPurchasePrice());
-        BigDecimal pnl = holdingValue.subtract(bookValue);
+        // 종목별 평가손익 · 수익률(총 투자금액 기준)
+        BigDecimal pnl = holdingValue.subtract(holding.getTotalInvestedAmount());
         symbolUnrealizedPnL.put(holding.getSymbol(), pnl);
+        if (holding.getTotalInvestedAmount().signum() > 0) {
+          symbolReturnRates.put(holding.getSymbol(),
+            HoldingResponseDto.returnRate(pnl, holding.getTotalInvestedAmount()));
+        }
 
         // 현재가 포함한 보유 정보
         holdings.add(HoldingResponseDto.of(holding, currentPrice));

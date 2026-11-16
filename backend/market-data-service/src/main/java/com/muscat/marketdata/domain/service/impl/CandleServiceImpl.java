@@ -3,6 +3,7 @@ package com.muscat.marketdata.domain.service.impl;
 import com.muscat.marketdata.common.enums.StockSort;
 import com.muscat.marketdata.config.MarketDataProperties;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
+import com.muscat.marketdata.domain.dto.SplitDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
 import com.muscat.marketdata.domain.entity.Asset;
 import com.muscat.marketdata.domain.entity.Candle;
@@ -123,6 +124,14 @@ public class CandleServiceImpl implements CandleService {
     log.info("OHLC 범위 조회 완료: symbol={}, total={}", upperSymbol, result.size());
 
     return result;
+  }
+
+  @Override
+  public List<SplitDto> getSplits(String symbol, LocalDate from) {
+    return candleRepository.findBySymbolAndDateGreaterThanEqualAndSplitCoefficientNotOrderByDateAsc(
+        symbol.toUpperCase(), from, BigDecimal.ONE).stream()
+      .map(candle -> new SplitDto(candle.getDate(), candle.getSplitCoefficient()))
+      .toList();
   }
 
   @Override

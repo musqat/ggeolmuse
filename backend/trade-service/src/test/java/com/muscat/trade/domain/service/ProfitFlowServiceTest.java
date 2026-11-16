@@ -284,6 +284,19 @@ class ProfitFlowServiceTest {
   }
 
   @Test
+  @DisplayName("마지막 계산 뒤(1분 여유)에 분할을 반영한 체결이 있으면 반영한 체결의 거래일부터 다시 계산")
+  void flow_SplitAppliedAfterLastComputation_RecomputesFromItsTradeDate() {
+    Trade adjusted = trade(ACCOUNT, TradeType.BUY, "AAPL", "2", "200.00", "0.00", D2, TradeStatus.COMPLETED,
+      STORED_AT.minusDays(5));
+    adjusted.applySplit(new BigDecimal("2"), new BigDecimal("4"), STORED_AT.minusSeconds(30));
+    Trade adjustedBefore = trade(ACCOUNT, TradeType.BUY, "AAPL", "2", "200.00", "0.00", D1, TradeStatus.COMPLETED,
+      STORED_AT.minusDays(5));
+    adjustedBefore.applySplit(new BigDecimal("2"), new BigDecimal("4"), STORED_AT.minusMinutes(2));
+
+    assertRecomputedFrom(List.of(adjusted, adjustedBefore), List.of(), D2);
+  }
+
+  @Test
   @DisplayName("마지막 계산 뒤 바뀐 날짜가 최근 7거래일 안이면 최근 7거래일부터 다시 계산한다")
   void flow_ChangeInsideRecentDays_RecomputesFromRecentDays() {
     assertRecomputedFrom(List.of(trade(ACCOUNT, TradeType.BUY, "AAPL", "1", "100.00", "0.00",
@@ -393,7 +406,7 @@ class ProfitFlowServiceTest {
   }
 
   @Test
-  @DisplayName("전체 계좌는 계좌마다 계산한 수익 · 투자 원금을 날짜마다 더하고, 그 날짜에 점이 없는 계좌는 직전 점을 쓴다")
+  @DisplayName("전체 계좌는 계좌마다 계산한 수익 · 투자 원금을 날짜마다 더하고, 더할 날짜에 점이 없는 계좌는 직전 점을 쓴다")
   void flow_AllAccounts_SumsByDateWithCarry() {
     Trade aapl = trade(ACCOUNT, TradeType.BUY, "AAPL", "1", "100.00", "0.00", D1, TradeStatus.COMPLETED,
       D1.atTime(10, 0));

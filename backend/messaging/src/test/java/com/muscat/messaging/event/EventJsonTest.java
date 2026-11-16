@@ -3,6 +3,7 @@ package com.muscat.messaging.event;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,18 @@ class EventJsonTest {
     assertThat(json).contains("\"exDate\":\"2024-02-09\"");
     assertThat(mapper.readValue("{\"exDate\":\"2024-02-09\"}", DividendPayoutEvent.class).getExDate())
       .isEqualTo(LocalDate.of(2024, 2, 9));
+  }
+
+  @Test
+  @DisplayName("분할일은 yyyy-MM-dd 문자열, 비율은 숫자로 쓰고 읽음")
+  void stockSplitDateAndRatio() throws Exception {
+    String json = mapper.writeValueAsString(StockSplitEvent.builder()
+      .symbol("NVDA").splitDate(LocalDate.of(2024, 6, 10)).ratio(new BigDecimal("10")).build());
+
+    assertThat(json).contains("\"splitDate\":\"2024-06-10\"").contains("\"ratio\":10");
+    StockSplitEvent read = mapper.readValue("{\"splitDate\":\"2024-06-10\",\"ratio\":0.1}", StockSplitEvent.class);
+    assertThat(read.getSplitDate()).isEqualTo(LocalDate.of(2024, 6, 10));
+    assertThat(read.getRatio()).isEqualByComparingTo("0.1");
   }
 
   @Test

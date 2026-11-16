@@ -110,6 +110,18 @@ describe('Portfolio', () => {
     expect(table.getByText('(+11.11%)')).toBeInTheDocument()
   })
 
+  it('분할을 반영한 보유는 종목 아래에 몇 주가 몇 주로 바뀌었는지 한 줄', async () => {
+    vi.mocked(portfolioApi.getAccountPortfolio).mockResolvedValue({
+      data: [{ ...HOLDING, splitRatio: 4 }, { ...HOLDING, holdingId: 2, symbol: 'MSFT' }],
+    } as never)
+    renderPage()
+
+    const table = within(await screen.findByRole('table'))
+    const line = await table.findByText('1주→4주 분할 반영')
+    expect(line).toHaveClass('truncate', 'whitespace-nowrap')
+    expect(table.getAllByText(/분할 반영/)).toHaveLength(1)
+  })
+
   it('휴대폰 너비에서는 보유 종목 표를 줄마다 카드로 보이고 둘째 칸부터 머리줄 이름을 칸 이름으로 둠', async () => {
     renderPage()
 

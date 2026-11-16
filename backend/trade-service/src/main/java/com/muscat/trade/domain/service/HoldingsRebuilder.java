@@ -10,6 +10,7 @@ import com.muscat.trade.domain.repository.TradeRepository;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,9 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 public class HoldingsRebuilder {
+
+  // holdings.avg_purchase_price 컬럼의 소수 자리
+  private static final int AVG_PRICE_SCALE = 2;
 
   private final TradeRepository tradeRepository;
   private final HoldingsRepository holdingsRepository;
@@ -67,7 +71,7 @@ public class HoldingsRebuilder {
     BigDecimal oldAvgPrice = existing.map(Holdings::getAvgPurchasePrice).orElse(BigDecimal.ZERO);
     boolean changed = rebuilt == null ? existing.isPresent()
       : existing.isEmpty() || oldQuantity.compareTo(rebuilt.getTotalQuantity()) != 0
-        || oldAvgPrice.compareTo(rebuilt.getAvgPurchasePrice()) != 0;
+        || oldAvgPrice.compareTo(rebuilt.getAvgPurchasePrice().setScale(AVG_PRICE_SCALE, RoundingMode.HALF_UP)) != 0;
     if (rebuilt == null) {
       existing.ifPresent(holdingsRepository::delete);
     } else if (existing.isPresent()) {

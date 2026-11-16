@@ -483,7 +483,7 @@ public class TradingServiceImpl implements TradingService {
       userId, symbol, sellDate, sellableQuantity, quantity);
   }
 
-  // 매도 가능 수량(체결을 원장 순서로 읽는 쿼리 하나)
+  // 매도 가능 수량(체결을 보유 계산과 같은 순서로 읽는 쿼리 하나)
   private BigDecimal calculateSellableQuantity(String userId, Long accountId, String symbol,
     LocalDate sellDate) {
     // DB 레벨에서 집계하여 성능 최적화

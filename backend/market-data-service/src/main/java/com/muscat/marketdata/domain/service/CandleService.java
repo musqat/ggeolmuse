@@ -2,6 +2,7 @@ package com.muscat.marketdata.domain.service;
 
 import com.muscat.marketdata.common.enums.StockSort;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
+import com.muscat.marketdata.domain.dto.SplitDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
 import java.time.LocalDate;
 import java.util.Collection;
@@ -17,13 +18,16 @@ public interface CandleService {
   // 일자별 캔들 · 배당수익률 정렬 순서 캐시를 모두 비움
   void evictCandleCaches();
 
-  // 그 종목의 날짜들만 일자별 캔들 캐시에서 비움(날짜가 많으면 일자별 캐시 전체)
+  // 받은 종목 · 날짜만 일자별 캔들 캐시에서 비움(날짜가 많으면 일자별 캐시 전체)
   void evictOhlc(String symbol, Collection<LocalDate> dates);
 
   // 배당수익률 정렬 순서 캐시만 비움
   void evictDividendYieldOrder();
 
   List<OHLCPriceDto> getOHLCPriceRange(String symbol, LocalDate startDate, LocalDate endDate);
+
+  // 시작일부터 난 분할(날짜 순)
+  List<SplitDto> getSplits(String symbol, LocalDate from);
 
   // 최신 캔들과 전일 대비 변화율
   StockPriceDto getCurrentPrice(String symbol);

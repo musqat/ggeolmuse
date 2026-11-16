@@ -75,6 +75,10 @@ class TradeTest {
       null,
       TradeStatus.COMPLETED,
       null,
+      null,
+      null,
+      null,
+      null,
       null
     );
 
@@ -82,6 +86,30 @@ class TradeTest {
     assertThat(trade.getId()).isEqualTo(2L);
     assertThat(trade.getSymbol()).isEqualTo("MSFT");
     assertThat(trade.getTradeType()).isEqualTo(TradeType.SELL);
+  }
+
+  @Test
+  @DisplayName("수량을 분할 뒤 수량으로, 체결가를 분할 비율로 나눈 값으로 바꾸고 처음 수량 · 체결가는 첫 분할 때만 남김")
+  void applySplit_ScalesQuantityAndPrice() {
+    Trade trade = Trade.builder().quantity(new BigDecimal("10")).price(new BigDecimal("401.23"))
+      .totalAmount(new BigDecimal("4012.30")).build();
+    LocalDateTime first = LocalDateTime.of(2024, 6, 10, 9, 0);
+    LocalDateTime second = LocalDateTime.of(2024, 9, 2, 9, 0);
+
+    trade.applySplit(new BigDecimal("3"), new BigDecimal("30"), first);
+    assertThat(trade.getQuantity()).isEqualByComparingTo("30");
+    assertThat(trade.getPrice()).isEqualByComparingTo("133.743333");
+    assertThat(trade.getSplitRatio()).isEqualByComparingTo("3");
+    assertThat(trade.getSplitAppliedAt()).isEqualTo(first);
+
+    trade.applySplit(new BigDecimal("0.5"), new BigDecimal("15"), second);
+    assertThat(trade.getQuantity()).isEqualByComparingTo("15");
+    assertThat(trade.getPrice()).isEqualByComparingTo("267.486666");
+    assertThat(trade.getSplitRatio()).isEqualByComparingTo("1.5");
+    assertThat(trade.getSplitAppliedAt()).isEqualTo(second);
+    assertThat(trade.getPreSplitQuantity()).isEqualByComparingTo("10");
+    assertThat(trade.getPreSplitPrice()).isEqualByComparingTo("401.23");
+    assertThat(trade.getTotalAmount()).isEqualByComparingTo("4012.30");
   }
 
   @Test

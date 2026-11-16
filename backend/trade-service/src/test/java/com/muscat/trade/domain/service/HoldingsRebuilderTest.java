@@ -92,6 +92,18 @@ class HoldingsRebuilderTest {
   }
 
   @Test
+  @DisplayName("센트보다 긴 체결가로 쌓은 평균 단가는 평균 단가 칸 자리(2)로 맞춰 기존 보유와 비교")
+  void rebuild_ComparesAvgPriceAtColumnScale() {
+    Holdings stored = Holdings.builder().userId("user-1").accountId(20L).symbol("AAPL")
+      .totalQuantity(new BigDecimal("3")).avgPurchasePrice(new BigDecimal("124.81"))
+      .totalInvestedAmount(new BigDecimal("374.42")).build();
+    givenHoldings(stored);
+    givenTrades(trade(1, TradeType.BUY, "3", "124.807503"));
+
+    assertThat(rebuilder.rebuild("user-1", 20L, "AAPL", false)).isFalse();
+  }
+
+  @Test
   @DisplayName("쌓은 수량 · 평균 단가가 기존 보유와 다를 때만 바뀜으로 셈")
   void rebuild_ReportsChange() {
     Holdings same = Holdings.builder().userId("user-1").accountId(20L).symbol("AAPL")

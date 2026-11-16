@@ -15,6 +15,7 @@ import com.muscat.marketdata.common.exception.GlobalExceptionHandler;
 import com.muscat.marketdata.config.security.SecurityConfig;
 import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
+import com.muscat.marketdata.domain.dto.SplitDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
 import com.muscat.marketdata.domain.entity.FxRate;
 import com.muscat.marketdata.domain.repository.FxRateRepository;
@@ -218,6 +219,20 @@ class InternalMarketControllerTest {
     service.perform(get(BASE + "/dividend/AAPL").param("startDate", "2024-01-01").param("endDate", "2024-03-31"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$[0].amount").value(0.24));
+  }
+
+  @Test
+  @DisplayName("분할 목록은 시작일부터 날짜 · 비율로 돌려주고 시작일이 없으면 400")
+  void splits() throws Exception {
+    given(candleService.getSplits("NVDA", START)).willReturn(List.of(
+      new SplitDto(LocalDate.of(2024, 6, 10), new BigDecimal("10"))));
+
+    service.perform(get(BASE + "/splits/NVDA").param("startDate", "2024-01-01"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$[0].date").value("2024-06-10"))
+      .andExpect(jsonPath("$[0].ratio").value(10));
+    service.perform(get(BASE + "/splits/NVDA"))
+      .andExpect(status().isBadRequest());
   }
 
   @Test

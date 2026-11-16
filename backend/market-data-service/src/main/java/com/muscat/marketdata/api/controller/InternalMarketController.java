@@ -2,6 +2,7 @@ package com.muscat.marketdata.api.controller;
 
 import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
+import com.muscat.marketdata.domain.dto.SplitDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
 import com.muscat.commonlib.constants.CommonConstants;
 import com.muscat.commonlib.dto.FxRateRangeDto;
@@ -71,6 +72,16 @@ public class InternalMarketController {
     List<OHLCPriceDto> result = candleService.getOHLCPriceRange(symbol, startDate, endDate);
 
     return ResponseEntity.status(HttpStatus.OK).body(result);
+  }
+
+  // 시작일부터 난 분할의 날짜 · 비율
+  @GetMapping("/splits/{symbol}")
+  public ResponseEntity<List<SplitDto>> getSplits(
+    @PathVariable @NotBlank @Pattern(regexp = CommonConstants.SYMBOL_PATTERN) String symbol,
+    @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate) {
+    log.debug("내부 분할 조회 요청: symbol={}, startDate={}", symbol, startDate);
+
+    return ResponseEntity.ok(candleService.getSplits(symbol, startDate));
   }
 
   @GetMapping("/price/{symbol}")

@@ -5,6 +5,7 @@ import com.muscat.commonlib.dto.StockPriceDto;
 import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.infra.client.dto.DividendDto;
+import com.muscat.trade.infra.client.dto.SplitDto;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import java.math.BigDecimal;
@@ -52,6 +53,13 @@ public class MarketServiceClientWrapper {
   }
 
   @CircuitBreaker(name = "marketService")
+  @Retry(name = "marketService", fallbackMethod = "getSplitsFallback")
+  public List<SplitDto> getSplits(String symbol, String startDate) {
+    log.debug("Calling market-data-service getSplits for symbol: {}, from {}", symbol, startDate);
+    return marketServiceClient.getSplits(symbol, startDate);
+  }
+
+  @CircuitBreaker(name = "marketService")
   @Retry(name = "marketService", fallbackMethod = "getBulkFxRatesFallback")
   public Map<String, BigDecimal> getBulkFxRates(List<String> dates) {
     log.debug("Calling market-data-service getBulkFxRates for dates: {}", dates.size());
@@ -84,6 +92,12 @@ public class MarketServiceClientWrapper {
     String endDate, Exception ex) {
     log.error("Fallback triggered for getOHLCPriceRange. Symbol: {}, Error: {}",
       symbol, ex.getMessage());
+    throw new TradeException(TradeResponse.MARKET_DATA_SERVICE_ERROR, ex);
+  }
+
+  // 분할 목록도 못 받으면 빈 목록 대신 오류(분할 없음과 구별)
+  private List<SplitDto> getSplitsFallback(String symbol, String startDate, Exception ex) {
+    log.error("Fallback triggered for getSplits. Symbol: {}, Error: {}", symbol, ex.getMessage());
     throw new TradeException(TradeResponse.MARKET_DATA_SERVICE_ERROR, ex);
   }
 

@@ -2,6 +2,7 @@ package com.muscat.marketdata.datasource.yf.service;
 
 import com.muscat.marketdata.domain.dto.DividendDto;
 import com.muscat.marketdata.domain.entity.Candle;
+import com.muscat.marketdata.domain.entity.Dividend;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.DividendRepository;
@@ -11,6 +12,7 @@ import com.muscat.marketdata.domain.service.DividendMerge;
 import com.muscat.marketdata.domain.service.SplitScale;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import com.muscat.marketdata.infra.kafka.DividendEventProducer;
+import com.muscat.marketdata.infra.kafka.SplitEventProducer;
 
 import java.util.Comparator;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.CandleSource;
@@ -57,6 +59,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
     private final CollectionStats collectionStats;
     private final AssetEventProducer assetEventProducer;
     private final CandleService candleService;
+    private final SplitEventProducer splitEventProducer;
 
     // 관리자 재수집 기본값과 같음(이 날부터 받을 때는 과거 종가 비교 안 함)
     private static final LocalDate FULL_HISTORY_FROM = LocalDate.of(1970, 1, 1);
@@ -66,6 +69,9 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
 
     // 서버 차이(84종목 상대 차이 최대 1.4e-6)와 배당 변화(가장 작아도 2.7e-4) 사이의 adjclose 허용치
     private static final BigDecimal ADJUSTED_CLOSE_TOLERANCE = new BigDecimal("0.00001");
+
+    // 배당 금액 칸의 마지막 자리 한 단위(분할 비율을 곱한 뒤 비교 허용치)
+    private static final BigDecimal DIVIDEND_UNIT = new BigDecimal("0.00000001");
 
     // self-injection: saveBoth에서 proxy 통해 호출해야 REQUIRES_NEW가 실제로 적용됨
     @Lazy
@@ -83,7 +89,8 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
             }
 
             Map<String, Candle> existing = loadExisting(symbol, from, to);
-            if (scaleChanged(existing, candles) && isPartialWindow(symbol, from)) {
+            List<Candle> newSplits = newSplits(existing, candles);
+            if ((scaleChanged(existing, candles) || !newSplits.isEmpty()) && isPartialWindow(symbol, from)) {
                 resyncFullHistory(symbol, to);
                 return 0;
             }
@@ -113,6 +120,12 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
                         assetRepository.save(asset);
                     }
                 }));
+
+            if (!newSplits.isEmpty()) {
+                saveDividendsWithSplits(symbol, from, to, newSplits);
+            }
+            newSplits.forEach(split ->
+                splitEventProducer.publishSplitDetected(symbol, split.getDate(), split.getSplitCoefficient()));
 
             collectionStats.recordSymbol(merged.inserted(), merged.updatedDates().size());
             log.debug("[YF-캔들저장] 완료: symbol={}, 받음={}, 신규={}, 갱신={}",
@@ -202,6 +215,58 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
             .orElse(false);
     }
 
+    // 처음 보는 분할 봉(저장된 봉이 없거나 계수 1 이던 날에 1 이 아닌 계수)
+    private static List<Candle> newSplits(Map<String, Candle> existing, List<Candle> candles) {
+        return candles.stream()
+            .filter(fresh -> isSplit(fresh.getSplitCoefficient()))
+            .filter(fresh -> {
+                Candle prev = existing.get(key(fresh));
+                return prev == null || !isSplit(prev.getSplitCoefficient());
+            })
+            .toList();
+    }
+
+    private static boolean isSplit(BigDecimal coefficient) {
+        return coefficient != null && coefficient.compareTo(BigDecimal.ONE) != 0;
+    }
+
+    // 분할 기준으로 바뀐 주당 배당을 캔들과 같은 트랜잭션에 저장
+    private void saveDividendsWithSplits(String symbol, LocalDate from, LocalDate to, List<Candle> splits) {
+        List<DividendMerge.Change> changes = DividendMerge.changes(dividendRepository,
+            dividendSource.fetchDividends(symbol, from, to));
+        if (changes.isEmpty()) {
+            return;
+        }
+        List<Dividend> rows = changes.stream().map(DividendMerge.Change::row).toList();
+        dividendRepository.saveAll(rows);
+        afterCommit(candleService::evictDividendYieldOrder);
+        // 분할로만 바뀐 지난 배당은 배당 이벤트에서 제외
+        List<Dividend> announced = changes.stream()
+            .filter(change -> !splitOnly(change, splits))
+            .map(DividendMerge.Change::row)
+            .toList();
+        if (!announced.isEmpty()) {
+            afterCommit(() -> dividendEventProducer.publishBatch(announced));
+        }
+        collectionStats.recordDividends(rows.size());
+    }
+
+    // 지난 배당의 주당 금액이 배당락일 뒤 새 분할 비율의 곱만큼만 바뀌었는지
+    private static boolean splitOnly(DividendMerge.Change change, List<Candle> splits) {
+        if (change.before() == null) {
+            return false;
+        }
+        BigDecimal factor = splits.stream()
+            .filter(split -> split.getDate().isAfter(change.row().getExDate()))
+            .map(Candle::getSplitCoefficient)
+            .reduce(BigDecimal.ONE, BigDecimal::multiply);
+        if (factor.compareTo(BigDecimal.ONE) == 0) {
+            return false;
+        }
+        BigDecimal gap = change.before().subtract(change.row().getAmount().multiply(factor)).abs();
+        return gap.compareTo(factor.add(BigDecimal.ONE).multiply(DIVIDEND_UNIT)) <= 0;
+    }
+
     // 실패한 종목 트랜잭션만 조용히 롤백
     private static void rollbackThisSymbol() {
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
@@ -220,7 +285,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
         assetRepository.findById(symbol).ifPresent(asset ->
             assetEventProducer.publishAssetCreated(asset, true, FULL_HISTORY_FROM, to, true));
         collectionStats.recordSplitResync();
-        log.info("[YF-캔들저장] 분할로 과거 종가가 바뀌어 배당까지 전 기간을 다시 받는다: symbol={}", symbol);
+        log.info("[YF-캔들저장] 분할이 보여 배당까지 전 기간을 다시 받는다: symbol={}", symbol);
     }
 
     private record Merged(int inserted, List<LocalDate> updatedDates) {}

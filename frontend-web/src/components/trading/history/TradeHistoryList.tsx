@@ -6,6 +6,7 @@ import TradeCancelledBadge from '../TradeCancelledBadge';
 import TradePendingBadge from '../TradePendingBadge';
 import { applyFilters, groupByDay, summarize, type HistoryFilter } from './tradeHistory';
 import { formatQuantity, formatSigned, formatUsd } from '../../../utils/format';
+import { splitLabel } from '../../../utils/split';
 
 interface AccountOption {
   accountId: number;
@@ -60,6 +61,10 @@ const detailParts = (item: TransactionHistoryItem): string[] =>
         ...(item.fee ? [`수수료 ${formatUsd(item.fee)}`] : []),
       ];
 
+// 분할로 맞춘 체결의 비율과 처음 수량(예: 1주→4주 분할 · 처음 10주)
+const splitNote = (ratio: number, preSplitQuantity?: number | null) =>
+  preSplitQuantity ? `${splitLabel(ratio)} · 처음 ${formatQuantity(preSplitQuantity)}주` : splitLabel(ratio);
+
 // 요약에서 뺀 거래 수(예: 취소 1건 · 정산 중 1건 제외)
 const excludedNote = (cancelled: number, pending: number) => {
   const parts = [
@@ -104,6 +109,11 @@ const HistoryRow = ({ item, accountName }: HistoryRowProps) => {
             </span>
           ))}
         </p>
+        {item.splitRatio != null && (
+          <p className="truncate whitespace-nowrap text-[11px] text-tx-3">
+            {splitNote(item.splitRatio, item.preSplitQuantity)}
+          </p>
+        )}
       </div>
       <div className="text-right">
         <p

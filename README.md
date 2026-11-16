@@ -165,20 +165,20 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 ## 테스트
 
-백엔드 **2,873 개**, 프론트 **1,721 개**, E2E **72 개**.
+백엔드 **2,936 개**, 프론트 **1,727 개**, E2E **72 개**.
 
 | 서비스 | 테스트 |
 |---|---|
-| market-data-service | 583 |
+| market-data-service | 599 |
 | user-service | 471 |
 | backtest-service | 1,116 |
-| trade-service | 426 |
+| trade-service | 472 |
 | gateway-server | 22 |
 | config-server | 5 |
 | ggeolmuse-common | 58 |
-| messaging | 25 |
+| messaging | 26 |
 | chat-service | 167 |
-| frontend-web | 1,721 |
+| frontend-web | 1,727 |
 | E2E (Playwright) | 72 |
 
 E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마다 돈다.
@@ -196,9 +196,9 @@ CI 에서 그 아래면 빌드를 실패시킨다(자바 JaCoCo · chat `tools/c
 | 서비스 | 라인 | 분기 |
 |---|---|---|
 | user | 98.6% | 87.7% |
-| trade | 99.5% | 96.7% |
+| trade | 99.5% | 96.8% |
 | backtest | 98.9% | 95.2% |
-| market-data | 97.9% | 88.2% |
+| market-data | 97.9% | 88.4% |
 | chat | 98.5% | 90.1% |
 | frontend-web | 95.1% | 90.2% |
 
