@@ -68,6 +68,18 @@ def test_client_must_be_allowed():
                 verifier(token(pem, "k1", azp=client_id))
 
 
+def test_email_must_be_verified():
+    # 가입만 하고 이메일 인증 전인 사용자의 토큰 거절
+    pem, public_jwk = rsa_key("k1")
+    with respx.mock:
+        respx.get(URL).mock(return_value=httpx.Response(200, json={"keys": [public_jwk]}))
+        verifier = _verifier()
+        assert verifier(token(pem, "k1", email_verified=True))["sub"] == "user-1"
+        for verified in (False, None):
+            with pytest.raises(ValueError):
+                verifier(token(pem, "k1", email_verified=verified))
+
+
 def test_unknown_kid_refetches_after_interval():
     _, old_jwk = rsa_key("old")
     pem, new_jwk = rsa_key("new")

@@ -281,8 +281,9 @@ K3s (EC2 단일 노드)      Traefik IngressRoute 로 진입
 EC2 는 Cloudflare 대역에서 온 요청만 받는다. Keycloak 은 Traefik 이 넘긴 전달 헤더로 https 요청을 구분해 쿠키에 Secure 속성을 넣는다.
 
 **인증** — Keycloak 이 토큰을 발급하고, 게이트웨이가 서명 · 만료와 함께 발급자(`iss`)와 발급 클라이언트(`azp`)를 허용 목록으로 검사한다.
-user · trade · market-data · backtest 도 리소스 서버로 다시 검증한다. access token 은 15분이다. refresh token 은 httpOnly 쿠키로 주고,
+user · trade · market-data · backtest 도 같은 허용 목록으로 다시 검증한다. access token 은 15분이다. refresh token 은 httpOnly 쿠키로 주고,
 재발급할 때마다 새것으로 바꿔 옛것은 다시 쓰지 못한다.
+게이트웨이와 서비스는 가입 뒤 이메일 인증 전인 사용자의 토큰(`email_verified` 가 false)을 받지 않는다.
 
 **요청 상한** — 게이트웨이가 Redis 토큰 버킷으로 경로마다 상한을 둔다. 시세 조회는 초당 200, 백테스트는 요청 하나에 토큰 10개라 초당 50,
 로그인 · 비밀번호 찾기는 10초에 한 번꼴(연속 세 번)이다. 버킷은 Cloudflare 가 넣은 실 클라이언트 IP(`CF-Connecting-IP`)와 경로로 나눈다.

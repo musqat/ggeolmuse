@@ -91,6 +91,16 @@ class JwtDecoderTest {
   }
 
   @Test
+  @DisplayName("이메일 인증 전 사용자의 토큰과 email_verified 가 없는 토큰은 막는다")
+  void unverifiedEmailRejected() throws JOSEException {
+    String unverified = token(INTERNAL_ISSUER, "app-client", Instant.now().plusSeconds(300), false);
+    String noClaim = token(INTERNAL_ISSUER, "app-client", Instant.now().plusSeconds(300), null);
+
+    assertThatThrownBy(() -> decoder.decode(unverified).block()).isInstanceOf(JwtValidationException.class);
+    assertThatThrownBy(() -> decoder.decode(noClaim).block()).isInstanceOf(JwtValidationException.class);
+  }
+
+  @Test
   @DisplayName("만료된 토큰은 그대로 막는다")
   void expiredRejected() throws JOSEException {
     String expired = token(INTERNAL_ISSUER, "app-client", Instant.now().minusSeconds(300));
@@ -103,12 +113,19 @@ class JwtDecoderTest {
   }
 
   private String token(String issuer, String clientId, Instant expiresAt) throws JOSEException {
+    return token(issuer, clientId, expiresAt, true);
+  }
+
+  private String token(String issuer, String clientId, Instant expiresAt, Boolean emailVerified) throws JOSEException {
     JWTClaimsSet.Builder claims = new JWTClaimsSet.Builder().subject("user-1").expirationTime(Date.from(expiresAt));
     if (issuer != null) {
       claims.issuer(issuer);
     }
     if (clientId != null) {
       claims.claim("azp", clientId);
+    }
+    if (emailVerified != null) {
+      claims.claim("email_verified", emailVerified);
     }
     SignedJWT jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(key.getKeyID()).build(),
         claims.build());

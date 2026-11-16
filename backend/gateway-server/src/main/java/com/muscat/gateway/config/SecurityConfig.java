@@ -118,13 +118,14 @@ public class SecurityConfig {
         return buildJwtDecoder(jwkSetUri, issuers, clientIds);
     }
 
-    // 서명 · 만료에 더해 iss · azp 가 허용 목록에 있는 토큰만 통과
+    // 서명 · 만료에 더해 iss · azp 가 허용 목록에 있고 이메일 인증된 사용자의 토큰만 통과
     static ReactiveJwtDecoder buildJwtDecoder(String jwkSetUri, List<String> issuers, List<String> clientIds) {
         NimbusReactiveJwtDecoder decoder = NimbusReactiveJwtDecoder.withJwkSetUri(jwkSetUri).build();
         decoder.setJwtValidator(JwtValidators.createDefaultWithValidators(List.of(
             new JwtClaimValidator<Object>(JwtClaimNames.ISS, iss -> iss != null && issuers.contains(iss.toString())),
             // aud 에는 Keycloak 기본값(account)만 실려 받은 클라이언트는 azp 로 봄
-            new JwtClaimValidator<Object>("azp", azp -> azp != null && clientIds.contains(azp.toString())))));
+            new JwtClaimValidator<Object>("azp", azp -> azp != null && clientIds.contains(azp.toString())),
+            new JwtClaimValidator<Object>("email_verified", Boolean.TRUE::equals))));
         return decoder;
     }
 
