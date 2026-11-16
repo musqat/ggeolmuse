@@ -5,7 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 
-// 보유 원장과 계좌 통계가 체결을 쌓는 순서(거래일 → 체결 시각 → ID)
+// 보유 계산과 계좌 통계가 체결을 쌓는 순서(거래일 → 체결 시각 → ID)
 public final class TradeOrder {
 
   public static final Comparator<Trade> LEDGER = Comparator

@@ -58,6 +58,7 @@ class PortfolioControllerSimpleTest {
         new BigDecimal("8000.00"),
         new BigDecimal("500.00"),
         new BigDecimal("6.67"),
+      null,
       null
     )
     );
@@ -91,6 +92,7 @@ class PortfolioControllerSimpleTest {
         new BigDecimal("9600.00"),
         new BigDecimal("600.00"),
         new BigDecimal("6.67"),
+      null,
       null
     )
     );
@@ -135,6 +137,7 @@ class PortfolioControllerSimpleTest {
       new BigDecimal("16000.00"),
       new BigDecimal("1000.00"),
       new BigDecimal("6.67"),
+      null,
       null
     );
 

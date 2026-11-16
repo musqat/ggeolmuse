@@ -56,7 +56,7 @@ public class TradeRepositoryCustomImpl implements TradeRepositoryCustom {
             String symbol,
             LocalDate sellDate
     ) {
-        // 매수는 더하고 매도는 빼서 보유 원장과 같은 순서로 쌓음
+        // 매수는 더하고 매도는 빼서 보유 계산과 같은 순서로 쌓음
         NumberExpression<BigDecimal> signedQuantity = new CaseBuilder()
                 .when(trade.tradeType.eq(TradeType.BUY)).then(trade.quantity)
                 .otherwise(trade.quantity.negate());

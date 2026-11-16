@@ -11,6 +11,7 @@ public sealed interface TransactionHistoryItem {
   // 거래일(배당은 배당락일), 최신순 정렬 기준
   LocalDate date();
 
+  // 분할로 맞춘 체결은 누적 분할 비율과 처음 수량 · 체결가(아니면 빈 값)
   record TradeItem(
     String type,
     Long tradeId,
@@ -23,13 +24,17 @@ public sealed interface TransactionHistoryItem {
     LocalDate date,
     LocalDateTime executedAt,
     String status,
-    String cancelReason
+    String cancelReason,
+    BigDecimal splitRatio,
+    BigDecimal preSplitQuantity,
+    BigDecimal preSplitPrice
   ) implements TransactionHistoryItem {
 
     public static TradeItem from(Trade trade) {
       return new TradeItem(trade.getTradeType().name(), trade.getId(), trade.getAccountId(),
         trade.getSymbol(), trade.getQuantity(), trade.getPrice(), trade.getTotalAmount(), trade.getFee(),
-        trade.getTradeDate(), trade.getExecutedAt(), trade.getStatus().name(), trade.getCancelReason());
+        trade.getTradeDate(), trade.getExecutedAt(), trade.getStatus().name(), trade.getCancelReason(),
+        trade.getSplitRatio(), trade.getPreSplitQuantity(), trade.getPreSplitPrice());
     }
   }
 

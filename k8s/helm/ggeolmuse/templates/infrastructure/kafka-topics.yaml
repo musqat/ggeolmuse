@@ -65,6 +65,7 @@ spec:
               trading.dividend.reconcile.DLT      3      2592000000
               market.asset.created.DLT            3      2592000000
               market.dividend.updated.DLT         3      2592000000
+              market.split.detected.DLT           3      2592000000
               user.account.deleted.DLT            3      2592000000
               user.email.send.DLT                 3      2592000000
               user.trade.rejected.DLT             3      2592000000

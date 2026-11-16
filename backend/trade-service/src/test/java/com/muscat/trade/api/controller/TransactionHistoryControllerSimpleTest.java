@@ -99,6 +99,25 @@ class TransactionHistoryControllerSimpleTest {
   }
 
   @Test
+  @DisplayName("분할로 맞춘 체결 줄에 누적 분할 비율 · 처음 수량 · 처음 체결가 포함")
+  void getTransactionHistory_SplitAdjustedTrade() {
+    Trade trade = Trade.builder().id(2L).userId("test-user-123").accountId(1L).symbol("NVDA")
+      .tradeType(TradeType.BUY).quantity(new BigDecimal("40")).price(new BigDecimal("100.000000"))
+      .totalAmount(new BigDecimal("4000.00")).tradeDate(LocalDate.of(2024, 6, 3))
+      .executedAt(LocalDateTime.of(2024, 6, 3, 10, 0)).splitRatio(new BigDecimal("4"))
+      .preSplitQuantity(new BigDecimal("10")).preSplitPrice(new BigDecimal("400.00")).build();
+    when(tradeRepository.findByUserIdOrderByExecutedAtDesc(eq("test-user-123"), any(Pageable.class)))
+      .thenReturn(new PageImpl<>(List.of(trade)));
+    when(dividendService.getUserDividends(eq("test-user-123"))).thenReturn(List.of());
+
+    Map<String, Object> row = json(transactionHistoryController.getTransactionHistory(mockJwt).getBody()).get(0);
+
+    assertThat(new BigDecimal(row.get("splitRatio").toString())).isEqualByComparingTo("4");
+    assertThat(new BigDecimal(row.get("preSplitQuantity").toString())).isEqualByComparingTo("10");
+    assertThat(new BigDecimal(row.get("preSplitPrice").toString())).isEqualByComparingTo("400");
+  }
+
+  @Test
   @DisplayName("거래 내역 조회 - 배당 포함")
   void getTransactionHistory_WithDividends_ReturnsHistory() {
     // Given
@@ -188,7 +207,8 @@ class TransactionHistoryControllerSimpleTest {
     List<Map<String, Object>> body = json(transactionHistoryController.getTransactionHistory(mockJwt).getBody());
 
     assertThat(body.get(0)).containsOnlyKeys("type", "tradeId", "accountId", "symbol", "quantity", "price",
-      "totalAmount", "fee", "date", "executedAt", "status", "cancelReason");
+      "totalAmount", "fee", "date", "executedAt", "status", "cancelReason", "splitRatio", "preSplitQuantity",
+      "preSplitPrice");
     assertThat(body.get(1)).containsOnlyKeys("type", "accountId", "symbol", "quantity", "price", "totalAmount",
       "grossAmount", "taxAmount", "fee", "date", "executedAt", "dividendPerShare", "shares");
     assertThat(body.get(1)).containsEntry("quantity", null).containsEntry("grossAmount", new BigDecimal("30.00"));

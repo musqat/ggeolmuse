@@ -44,7 +44,10 @@ public record HoldingResponseDto(
   BigDecimal returnRate, // 수익률 (%)
 
   @Schema(description = "지금 들고 있는 주식이 받은 세후 배당 (USD)", example = "2.12")
-  BigDecimal totalDividends
+  BigDecimal totalDividends,
+
+  @Schema(description = "보유에 반영한 분할 비율 누적(분할 뒤 주식 수 ÷ 처음 주식 수, 반영한 분할이 없으면 빈 값)", example = "4")
+  BigDecimal splitRatio
 ) {
 
   // Entity to DTO 변환
@@ -61,22 +64,16 @@ public record HoldingResponseDto(
       null,  // currentValue
       null,  // unrealizedPnL
       null,  // returnRate
+      null,
       null
     );
   }
 
-  // 현재가 정보 포함한 DTO 생성
+  // 현재가 정보 포함한 DTO 생성(손익 · 수익률은 총 투자금액 기준)
   public static HoldingResponseDto of(Holdings holding, BigDecimal currentPrice) {
     BigDecimal currentValue = holding.getTotalQuantity().multiply(currentPrice);
-    BigDecimal bookValue = holding.getTotalQuantity().multiply(holding.getAvgPurchasePrice());
-    BigDecimal unrealizedPnL = currentValue.subtract(bookValue);
-
-    BigDecimal returnRate = BigDecimal.ZERO;
-    if (holding.getAvgPurchasePrice().compareTo(BigDecimal.ZERO) > 0) {
-      returnRate = currentPrice.subtract(holding.getAvgPurchasePrice())
-        .divide(holding.getAvgPurchasePrice(), 4, RoundingMode.HALF_UP)
-        .multiply(TradeConstants.PERCENTAGE_MULTIPLIER);
-    }
+    BigDecimal unrealizedPnL = currentValue.subtract(holding.getTotalInvestedAmount());
+    BigDecimal returnRate = returnRate(unrealizedPnL, holding.getTotalInvestedAmount());
 
     return new HoldingResponseDto(
       holding.getId(),
@@ -90,12 +87,26 @@ public record HoldingResponseDto(
       currentValue,
       unrealizedPnL,
       returnRate,
+      null,
       null
     );
   }
 
+  // 손익 ÷ 투자금액(%), 투자금액이 0 이하면 0
+  public static BigDecimal returnRate(BigDecimal unrealizedPnL, BigDecimal invested) {
+    if (invested.signum() <= 0) {
+      return BigDecimal.ZERO;
+    }
+    return unrealizedPnL.divide(invested, 4, RoundingMode.HALF_UP).multiply(TradeConstants.PERCENTAGE_MULTIPLIER);
+  }
+
   public HoldingResponseDto withTotalDividends(BigDecimal dividends) {
     return new HoldingResponseDto(id, accountId, symbol, totalQuantity, avgPurchasePrice, totalInvestedAmount,
-      createdAt, currentPrice, currentValue, unrealizedPnL, returnRate, dividends);
+      createdAt, currentPrice, currentValue, unrealizedPnL, returnRate, dividends, splitRatio);
+  }
+
+  public HoldingResponseDto withSplitRatio(BigDecimal ratio) {
+    return new HoldingResponseDto(id, accountId, symbol, totalQuantity, avgPurchasePrice, totalInvestedAmount,
+      createdAt, currentPrice, currentValue, unrealizedPnL, returnRate, totalDividends, ratio);
   }
 }

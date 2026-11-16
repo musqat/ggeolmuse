@@ -72,10 +72,6 @@ public class Holdings {
   @Version
   private Long version;
 
-  // ============================================
-  // 도메인 메서드 (Domain Methods)
-  // ============================================
-
   // 매수: 평균 매수가 재계산 (가중 평균)
   public void addPurchase(BigDecimal quantity, BigDecimal price, int pricePrecision) {
     BigDecimal currentTotalValue = this.totalQuantity.multiply(this.avgPurchasePrice);
