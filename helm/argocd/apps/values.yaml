@@ -1,0 +1,50 @@
+# 운영 k3s 부품 Application 목록(이름 = 릴리스 이름, 동기화는 사람이 누를 때만)
+repoURL: https://github.com/musqat/ggeolmuse
+targetRevision: master
+
+apps:
+  # 앱 차트의 SecretStore · ExternalSecret 이 쓰는 CRD 와 컨트롤러(노드 역할로 Secrets Manager 를 읽음)
+  external-secrets:
+    namespace: external-secrets-system
+    repoURL: https://charts.external-secrets.io
+    chart: external-secrets
+    version: 1.0.0
+    # CRD 가 커서 클라이언트 apply 의 어노테이션 한도를 넘음
+    serverSideApply: true
+
+  prometheus:
+    namespace: monitoring
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    version: 79.5.0
+    serverSideApply: true
+    valueFiles:
+      - helm/monitoring/prometheus-values-prod.yaml
+
+  loki:
+    namespace: monitoring
+    repoURL: https://grafana.github.io/helm-charts
+    chart: loki-stack
+    version: 2.10.2
+    valueFiles:
+      - helm/monitoring/loki-values.yaml
+
+  tempo:
+    namespace: monitoring
+    repoURL: https://grafana.github.io/helm-charts
+    chart: tempo
+    version: 1.24.0
+    valueFiles:
+      - helm/monitoring/tempo-values.yaml
+
+  # k3s 번들 Traefik 의 값(HelmChartConfig) · 네임스페이스를 넘는 서비스 읽기 권한 · 지표 수집
+  k3s-traefik:
+    namespace: kube-system
+    path: helm/k3s-traefik
+
+# 네임스페이스마다 레이블과 레이블을 둘 앱 하나(앱 차트 NetworkPolicy 가 모니터링 네임스페이스를 고르는 레이블)
+namespaceMetadata:
+  monitoring:
+    owner: prometheus
+    labels:
+      name: monitoring

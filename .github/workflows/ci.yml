@@ -310,6 +310,17 @@ jobs:
           rules helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml
           rules k8s/helm/ggeolmuse -f k8s/helm/ggeolmuse/values-prod.yaml -f k8s/helm/ggeolmuse/values-k8s.yaml
 
+      # 운영 k3s 부품 Application 묶음(External Secrets · 모니터링 · Traefik 값), 네임스페이스 메타데이터는 네임스페이스마다 한 앱
+      - name: 부품 Application 묶음 렌더 · 네임스페이스 메타데이터 중복 검사
+        run: |
+          helm lint helm/argocd/apps
+          helm template k3s-apps helm/argocd/apps > k3s-apps.yaml
+          dup=$(awk '/^---/{ns=""} /^    namespace: /{ns=$2} /^    managedNamespaceMetadata:/{print ns}' k3s-apps.yaml | sort | uniq -d)
+          if [ -n "$dup" ]; then
+            echo "::error::managedNamespaceMetadata 를 둔 Application 이 둘 이상인 네임스페이스: $dup"
+            exit 1
+          fi
+
       # NetworkPolicy 허용 목록에 없는 새 서비스 포트 검사(tools/cmd/netpol-check)
       - name: NetworkPolicy 서비스 포트 대조
         working-directory: tools
@@ -364,6 +375,17 @@ jobs:
           go vet ./...
           go test ./...
 
+  # 운영 노드 부트스트랩 스크립트 정적 검사 · --dry-run 출력 테스트
+  node-scripts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: shellcheck · 테스트
+        run: |
+          shellcheck helm/k3s-node/*.sh
+          bash helm/k3s-node/bootstrap_test.sh
+
   # terraform 형식 · 문법 · 가짜 프로바이더 테스트(AWS 에 닿지 않음, 운영 루트와 멀티 노드 루트)
   terraform:
     runs-on: ubuntu-latest
@@ -417,6 +439,7 @@ jobs:
       - scan-images
       - scan-manifests
       - tools
+      - node-scripts
       - terraform
     if: always()
     steps:

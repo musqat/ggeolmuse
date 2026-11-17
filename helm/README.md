@@ -173,7 +173,7 @@ kubectl port-forward svc/frontend-web 3000:3000   # 프론트
 kubectl port-forward svc/gateway-server 8070:8070 # API
 ```
 
-> 코드 수정 후 재배포: 해당 서비스만 다시 `docker build` → `helm upgrade ...` 또는 `kubectl rollout restart deployment/<svc>`.
+> 코드 수정 후 재배포: 고친 서비스만 다시 `docker build` → `helm upgrade ...` 또는 `kubectl rollout restart deployment/<svc>`.
 
 ### ArgoCD GitOps
 
@@ -184,17 +184,25 @@ master 의 `helm/ggeolmuse` 가 바뀌면(이미지 태그는 values-prod.yaml) 
   <img src="../.github/images/infra/아르고.png" alt="ArgoCD Status" width="500"/>
 </div>
 
-```yaml
-# 클러스터의 Application(리포에는 없음)
-spec:
-  source:
-    repoURL: https://github.com/musqat/ggeolmuse
-    path: helm/ggeolmuse
-    helm:
-      valueFiles:
-        - values.yaml
-        - values-prod.yaml
-```
+운영 k3s 의 Application 은 모두 리포에 있다.
+
+| Application | 정의 | 동기화 |
+|---|---|---|
+| `ggeolmuse` | `argocd/application-ggeolmuse.yaml`(앱 차트, `values-prod.yaml`) | 자동 |
+| `argocd` | `argocd/application-argocd.yaml`(ArgoCD 자신) | 수동 |
+| `k3s-apps` | `argocd/root.yaml`(아래 부품 Application 묶음 `argocd/apps`) | 자동(목록만) |
+| `external-secrets` · `prometheus` · `loki` · `tempo` · `k3s-traefik` | `argocd/apps/values.yaml`(차트 버전 고정, 값 파일은 `monitoring/` · `k3s-traefik/`) | 수동 |
+
+노드를 새로 세울 때는 [`k3s-node/bootstrap.sh`](k3s-node/README.md#노드-세우기)가 ArgoCD 를 깔고 이 Application 들을 만든다.
+부품은 `external-secrets` → `prometheus` → `loki` · `tempo` → `k3s-traefik` 순서로 Sync 한다(앱 차트의 SecretStore 와
+Traefik PodMonitor 가 앞 부품의 CRD 를 씀).
+
+**손으로 설치한 부품을 넘겨받을 때(한 번)** — 지금 노드의 부품은 손으로 설치돼 있다.
+
+1. `helm list -A` 의 부품 릴리스 이름 · 네임스페이스 · 차트 버전이 `argocd/apps/values.yaml` 과 다르면 먼저 values 를 설치된 릴리스에 맞춰 머지한다(넘겨받기와 올리기를 나눔)
+2. `kubectl apply -f helm/argocd/root.yaml`
+3. Application 마다 ArgoCD 화면의 차이(App Diff)가 추적 어노테이션 · 레이블 정도인지 보고 Sync 한다
+4. 넘겨받은 뒤에는 `helm upgrade` 대신 ArgoCD 에서 Sync 한다(`helm uninstall` 은 ArgoCD 가 맞추는 리소스까지 지움)
 
 멀티 노드 k8s 의 앱 차트 · Application 목록 · 모니터링 값은 [`k8s/`](../k8s/README.md) 에 따로 있다.
 

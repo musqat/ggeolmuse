@@ -1,0 +1,5 @@
+apiVersion: v2
+name: ggeolmuse-k3s-apps
+description: 운영 k3s 에서 ArgoCD 가 리포로 맞추는 부품 Application 묶음(External Secrets · 모니터링 스택 · Traefik 값)
+type: application
+version: 0.1.0
