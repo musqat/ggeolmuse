@@ -6,6 +6,7 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,12 +21,14 @@ import org.slf4j.LoggerFactory;
 class CollectionStatsTest {
 
   private CollectionStats stats;
+  private SimpleMeterRegistry registry;
   private Logger logger;
   private ListAppender<ILoggingEvent> appender;
 
   @BeforeEach
   void setUp() {
-    stats = new CollectionStats();
+    registry = new SimpleMeterRegistry();
+    stats = new CollectionStats(registry);
     logger = (Logger) LoggerFactory.getLogger(CollectionStats.class);
     appender = new ListAppender<>();
     appender.start();
@@ -36,6 +39,39 @@ class CollectionStatsTest {
   @AfterEach
   void tearDown() {
     logger.detachAppender(appender);
+  }
+
+  private double count(String name, String tag, String value) {
+    return registry.get(name).tag(tag, value).counter().count();
+  }
+
+  @Test
+  @DisplayName("수집 결과를 지표로도 세고, 완료로 보면 마지막 완료 시각을 남긴다")
+  void metrics_countResultsAndLastCompleted() {
+    stats.recordSymbol(3, 1);
+    stats.recordSymbolEmpty();
+    stats.recordSymbolFailed();
+    stats.recordSplitResync();
+    stats.recordDividends(2);
+    stats.recordRequestNotFound();
+    stats.recordRequestHttpError();
+    stats.recordRequestUnreachable();
+
+    stats.report();
+    assertThat(registry.get("marketdata.collection.last.completed").gauge().value()).isZero();
+    stats.report();
+
+    assertThat(count("marketdata.collection.symbols", "result", "ok")).isEqualTo(1);
+    assertThat(count("marketdata.collection.symbols", "result", "empty")).isEqualTo(1);
+    assertThat(count("marketdata.collection.symbols", "result", "failed")).isEqualTo(1);
+    assertThat(count("marketdata.collection.symbols", "result", "split_resync")).isEqualTo(1);
+    assertThat(count("marketdata.collection.candles", "change", "inserted")).isEqualTo(3);
+    assertThat(count("marketdata.collection.candles", "change", "updated")).isEqualTo(1);
+    assertThat(registry.get("marketdata.collection.dividends").counter().count()).isEqualTo(2);
+    assertThat(count("marketdata.collection.requests.failed", "reason", "not_found")).isEqualTo(1);
+    assertThat(count("marketdata.collection.requests.failed", "reason", "http_error")).isEqualTo(1);
+    assertThat(count("marketdata.collection.requests.failed", "reason", "unreachable")).isEqualTo(1);
+    assertThat(registry.get("marketdata.collection.last.completed").gauge().value()).isPositive();
   }
 
   private List<String> messages() {
