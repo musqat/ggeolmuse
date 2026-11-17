@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { getApiErrorMessage, getApiErrorStatus } from '../../utils/apiError';
+import { getApiErrorMessage } from '../../utils/apiError';
+import { loginErrorMessage } from '../../utils/authErrors';
 import { Modal } from '../common/Modal';
 import {
   AuthTextField,
@@ -37,19 +38,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
       await onLogin(email, password);
       onClose();
     } catch (err: unknown) {
-      // 백엔드 에러 메시지 파싱
-      const status = getApiErrorStatus(err);
-      let errorMessage = '로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.';
-
-      if (status === 403) {
-        errorMessage = '이메일 인증이 완료되지 않았습니다. 이메일을 확인해주세요.';
-      } else if (status === 401 || status === 400) {
-        errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
-      } else {
-        errorMessage = getApiErrorMessage(err, errorMessage);
-      }
-
-      setError(errorMessage);
+      setError(loginErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
