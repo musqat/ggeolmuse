@@ -1,5 +1,5 @@
 # 빌드 스테이지 (빌드 컨텍스트: 레포 루트)
-FROM maven:3.9-eclipse-temurin-21 AS build
+FROM maven:3.9-eclipse-temurin-21@sha256:99e61abcff91a9b1333463bd8451fb18495d6eba9250ac66a338b518f8278320 AS build
 WORKDIR /app
 
 # Central 미러(keycloak 부모 pom 이 끌고 오는 jboss 저장소가 응답 없음)
@@ -26,7 +26,7 @@ COPY backend/user-service/src ./src
 RUN mvn -B clean package -DskipTests -q
 
 # 런타임 스테이지
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jre-alpine@sha256:ac05c3c42b7c2f1a52c9bd52f01041fa1958231b15ebeae7420429cbc5baf474
 
 # 베이스 이미지가 늦게 따라오는 알파인 보안 패치를 빌드 때 받음
 RUN apk upgrade --no-cache

@@ -32,10 +32,8 @@ spec:
       {{- if .Values.global.aws.serviceAccount.create }}
       serviceAccountName: {{ $svc.name }}
       {{- end }}
-      {{- with $svc.podSecurityContext }}
       securityContext:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- include "ggeolmuse.podSecurityContext" . | nindent 8 }}
       {{- /* config-server 자신은 대기 없음 */}}
       {{- if ne $svc.name .Values.configServer.name }}
       initContainers:

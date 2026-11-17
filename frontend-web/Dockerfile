@@ -1,5 +1,5 @@
 # 프론트엔드 Dockerfile
-FROM node:22 AS build
+FROM node:22@sha256:e13726ca604184d7a91fcacab1fc09eefd642dc28e79ac34e85540dd93b78cfb AS build
 
 # K8s 환경용 기본값이 있는 빌드 인자
 ARG VITE_API_URL=/api
@@ -18,8 +18,8 @@ WORKDIR /app
 # package.json과 package-lock.json 복사
 COPY package*.json ./
 
-# 의존성 설치
-RUN npm install
+# 잠금 파일 그대로 의존성 설치
+RUN npm ci
 
 # 소스 코드 복사
 COPY . .
@@ -28,7 +28,7 @@ COPY . .
 RUN npm run build
 
 # Nginx 서버
-FROM nginx:alpine
+FROM nginx:alpine@sha256:fed7e14be83cbd2661a75cdc5b872d936cf155d46c327084d30b8df19ae88d72
 
 # 베이스 이미지가 늦게 따라오는 알파인 보안 패치를 빌드 때 받음
 RUN apk upgrade --no-cache
