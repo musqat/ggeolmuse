@@ -3,10 +3,10 @@
 Prometheus · Grafana · AlertManager · Loki · Tempo. 자바 서비스에는 OpenTelemetry
 Java Agent 가 주입돼 있다.
 
-**배포 경로가 ggeolmuse 차트와 다르다.** 운영 k3s 에서 ArgoCD 는 `helm/ggeolmuse` 만 동기화하고
-이 스택은 손으로 설치한다.
-멀티 노드 k8s 에서는 ArgoCD 의 `prometheus` · `loki` · `tempo` Application 을 Sync 해서 설치하고 [`k8s/monitoring`](../../k8s/monitoring) 의 `*-values-k8s.yaml` 을
-덧붙인다(저장 클래스 gp3 · 컨트롤 플레인 지표).
+차트 버전과 값은 ArgoCD 의 `prometheus` · `loki` · `tempo` Application 이 리포로 맞춘다. 운영 k3s 는
+[`helm/argocd/apps`](../argocd/apps/values.yaml), 멀티 노드 k8s 는 [`k8s/argocd/apps`](../../k8s/argocd/apps/values.yaml) 에 있고
+멀티 노드는 [`k8s/monitoring`](../../k8s/monitoring) 의 `*-values-k8s.yaml` 을 더한다(저장 클래스 gp3 · 컨트롤 플레인 지표).
+자동 동기화는 꺼 두어, 머지한 뒤 ArgoCD 화면에서 차이를 보고 Sync 한다.
 
 <br>
 
@@ -45,14 +45,8 @@ kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-passwor
 
 ## 올리기
 
-```bash
-helm -n monitoring upgrade prometheus prometheus-community/kube-prometheus-stack \
-  -f prometheus-values-prod.yaml
-```
-
-`-f` 를 빼면 릴리스에 저장된 옛 값이 다시 적용된다. 저장된 값은
-`helm -n monitoring get values prometheus` 로 본다. 파일과 다르면 그 파일로 한 번 더
-upgrade 하면 맞춰진다.
+값 파일이나 차트 버전(`helm/argocd/apps/values.yaml`)을 고쳐 머지하면 Application 이 OutOfSync 가 된다. ArgoCD 화면에서
+차이를 보고 Sync 한다. 렌더 값은 리포 파일에서만 오므로 클러스터에 남은 옛 값이 다시 적용되는 일은 없다.
 
 `prometheusSpec.ruleSelector` 는 `{}` 여야 한다. 레이블을 걸면 차트가 함께 설치한
 PrometheusRule 35개가 걸러진다. `serviceMonitorSelector` 와
@@ -138,7 +132,7 @@ SLO 알림은 게이트웨이 경로 지표(`spring_cloud_gateway_requests_secon
 코드다. `trading.trade.completed` 는
 user-service 가 처리한 체결을 `trade_settlements` 에 남겨 다시 넣어도 한 번만 반영하고, 남긴 결과를 다시 알린다.
 `user.trade.settled` 는 trade-service 가 대기 매수만 완료로 바꿔 다시 넣어도 한 번만 반영한다.
-`trading.dividend.reconcile` 은 그때 거래로 다시 계산해 몇 번 넣어도 같다. `market.asset.created` 는 그 종목을 다시 받아
+`trading.dividend.reconcile` 은 처리 시점의 거래로 다시 계산해 몇 번 넣어도 같다. `market.asset.created` 는 메시지의 종목을 다시 받아
 있는 봉에 합쳐 몇 번 넣어도 같다. `trading.dividend.payout` 은 다시 넣지
 않고 백필(`POST /api/admin/trade/dividends/reconcile`)을 돌린다. 지금 몫을 다 다시 보내 옛 메시지 값으로 돌아가지
 않는다. 끝나면 `GET /api/admin/trade/dividends/payout-diff` 가 비었는지 본다. 다른 토픽은 다시 넣기 전에 이미
@@ -162,8 +156,8 @@ user-service 가 처리한 체결을 `trade_settlements` 에 남겨 다시 넣�
 
 `TradeCancelNeedsReview` 는 반영 실패로 체결을 취소했는데 자동으로 다 되돌리지 못한 경우다. `uncovered_sell` 은
 취소된 매수로 산 주식을 반영 실패가 오기 전에 판 경우로, 보유를 0 으로 두었다. 사용자 잔액을 손으로 맞춘다.
-매수가 정산 뒤에 보유에 들어가면서 정산 전 주식은 팔 수 없어, 이 경우는 그 전에 저장된 체결에서만 남는다.
-배당은 경보 대상이 아니다. 취소하면 그 계좌 · 종목의 배당 몫을 다시 계산해 이미 넣은 배당을 돌려받는다.
+매수가 정산 뒤에 보유에 들어가면서 정산 전 주식은 팔 수 없어, 이 경우는 매수를 대기로 저장하기 전 버전으로 저장된 체결에서만 남는다.
+배당은 경보 대상이 아니다. 취소하면 취소된 체결의 계좌 · 종목 배당 몫을 다시 계산해 이미 넣은 배당을 돌려받는다.
 
 반복 주기는 critical 1시간, 나머지 4시간. `groupWait` 30초, `groupInterval` 5분.
 
@@ -178,7 +172,7 @@ kubectl create job --from=cronjob/morning-check morning-check-manual
 kubectl delete job morning-check-manual
 ```
 
-**낮 동안 사이트 확인** — 그 뒤로는 terraform 의 [`uptime-check.tf`](../../terraform/uptime-check.tf) 가 AWS 에서 5분마다
+**낮 동안 사이트 확인** — 아침 기동 확인 뒤로는 terraform 의 [`uptime-check.tf`](../../terraform/uptime-check.tf) 가 AWS 에서 5분마다
 프론트 · 시세 API · /auth 를 GET 으로 확인하고, 실패하면 terraform 의 슬랙 웹훅(`slack_webhook_url`)과 SNS 이메일(`alarm_email`)로 알린다.
 노드 · 클러스터 · Prometheus 가 함께 멈춘 때도 알림이 온다.
 
@@ -212,7 +206,7 @@ promtail 이 파드 로그를 Loki 로 보낸다. Loki 는 노드 디스크(loca
 
 ```bash
 kubectl -n monitoring delete statefulset loki --cascade=orphan
-helm -n monitoring upgrade loki grafana/loki-stack --version 2.10.2 -f loki-values.yaml
+# ArgoCD 에서 loki Sync
 kubectl -n monitoring delete pod loki-0
 ```
 
@@ -234,12 +228,12 @@ kubectl -n monitoring delete pod loki-0
 서비스 그래프 · 스팬 지표를 만들어 Prometheus 로 보낸다(remote write). Grafana 에서 로그 줄의 `trace_id` 를 누르면
 트레이스로, 트레이스에서는 그 시간의 로그로 넘어간다.
 
-영구 저장을 켜거나 끌 때는 StatefulSet 의 볼륨 정의가 바뀌어 `helm upgrade` 가 거절된다. 그때는 StatefulSet 만 먼저 지우고, 올린 뒤 남은 파드를 지워 새 볼륨으로 다시 띄운다.
+영구 저장을 켜거나 끌 때는 StatefulSet 의 볼륨 정의가 바뀌어 Sync 가 거절된다. StatefulSet 만 먼저 지우고, Sync 한 뒤 남은 파드를 지워 새 볼륨으로 다시 띄운다.
 새 StatefulSet 은 남은 파드를 넘겨받기만 하고 다시 띄우지 않는다.
 
 ```bash
 kubectl -n monitoring delete statefulset tempo --cascade=orphan
-helm -n monitoring upgrade tempo grafana/tempo --version 1.24.0 -f tempo-values.yaml
+# ArgoCD 에서 tempo Sync
 kubectl -n monitoring delete pod tempo-0
 ```
 
@@ -260,9 +254,11 @@ kubectl -n monitoring delete pod tempo-0
 <br>
 
 <details>
-<summary><b>처음 설치할 때</b></summary>
+<summary><b>ArgoCD 없이 설치할 때</b></summary>
 
 <br>
+
+운영은 [노드 세우기](../k3s-node/README.md#노드-세우기)가 Application 을 만들고 Sync 로 설치한다. ArgoCD 가 없는 곳에서는 같은 버전으로:
 
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -278,7 +274,7 @@ helm install tempo grafana/tempo --version 1.24.0 -n monitoring -f tempo-values.
 ```
 
 올릴 때도 같은 버전 · 같은 값 파일로 `helm upgrade` 한다. 값 파일을 빼면 릴리스에 남은 옛 값으로 돌아간다. loki-stack 2.10.3 은
-StatefulSet 의 바꿀 수 없는 필드를 바꿔 upgrade 가 거절된다.
+StatefulSet 의 바꿀 수 없는 필드를 바꿔 올리기가 거절된다.
 
 로컬은 `prometheus-values-prod.yaml` 대신 `prometheus-values.yaml` 을 쓴다.
 

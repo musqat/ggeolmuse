@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# 운영 k3s 노드 세우기(Amazon Linux, 사용: sudo bootstrap.sh [--dry-run], 버전은 K3S_VERSION 으로 바꿈)
+# 운영 k3s 노드 세우기 · ArgoCD 설치(Amazon Linux, 사용: sudo bootstrap.sh [--dry-run], 버전은 K3S_VERSION 으로 바꿈)
 set -euo pipefail
 
 K3S_VERSION="${K3S_VERSION:-v1.33.5+k3s1}"
 here="$(cd "$(dirname "$0")" && pwd)"
+root="$(cd "$here/../.." && pwd)"
 
 usage() { echo "사용: sudo $0 [--dry-run]" >&2; }
 
@@ -27,6 +28,10 @@ fi
 
 if ! $dry_run && [ "$(id -u)" -ne 0 ]; then
   usage
+  exit 1
+fi
+if ! $dry_run && ! command -v helm >/dev/null; then
+  echo "helm 이 없음(ArgoCD 설치에 씀)" >&2
   exit 1
 fi
 
@@ -58,3 +63,9 @@ if ! $dry_run; then
   done
 fi
 run k3s kubectl wait --for=condition=Ready nodes --all --timeout=5m
+
+# ArgoCD 설치와 부품(External Secrets · 모니터링 · Traefik 값) · 앱 Application 생성, 부품 동기화는 수동
+echo "ArgoCD · Application"
+run env -C "$root/helm/argocd" KUBECONFIG=/etc/rancher/k3s/k3s.yaml bash install-argocd.sh
+run k3s kubectl apply -f "$root/helm/argocd/root.yaml"
+run k3s kubectl apply -f "$root/helm/argocd/application-ggeolmuse.yaml"

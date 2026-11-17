@@ -33,6 +33,20 @@ conf="$(grep -v '^[[:space:]]*#' "$here/config.yaml")"
 has "$conf" 'write-kubeconfig-mode: "0640"'
 has "$conf" "write-kubeconfig-group: ec2-user"
 
+# k3s 다음에 ArgoCD 와 Application(부품 묶음 · 앱)
+root="$(cd "$here/../.." && pwd)"
+has "$out" "+ env -C $root/helm/argocd KUBECONFIG=/etc/rancher/k3s/k3s.yaml bash install-argocd.sh"
+has "$out" "+ k3s kubectl apply -f $root/helm/argocd/root.yaml"
+has "$out" "+ k3s kubectl apply -f $root/helm/argocd/application-ggeolmuse.yaml"
+for f in helm/argocd/install-argocd.sh helm/argocd/root.yaml helm/argocd/application-ggeolmuse.yaml; do
+  [ -f "$root/$f" ] || fail "파일 없음: $f"
+done
+ready_line=$(grep -n -- "condition=Ready" <<<"$out" | head -1 | cut -d: -f1)
+argocd_line=$(grep -n -- "install-argocd.sh" <<<"$out" | head -1 | cut -d: -f1)
+if [ -z "$ready_line" ] || [ -z "$argocd_line" ] || [ "$ready_line" -gt "$argocd_line" ]; then
+  fail "노드 Ready 전에 ArgoCD 설치"
+fi
+
 # 설정 파일 설치 뒤 k3s 설치(첫 기동에서 설정을 읽음)
 config_line=$(grep -n -- "/etc/rancher/k3s/config.yaml$" <<<"$out" | head -1 | cut -d: -f1)
 install_line=$(grep -n -- "INSTALL_K3S_VERSION" <<<"$out" | head -1 | cut -d: -f1)
