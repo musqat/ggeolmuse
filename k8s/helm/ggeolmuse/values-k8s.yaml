@@ -25,11 +25,8 @@ networkPolicy:
 configServer:
   replicaCount: 2
 
-# LoadBalancer 를 줄 컨트롤러 없음(입구 Envoy 가 클러스터 IP 로 받음)
 gatewayServer:
   replicaCount: 2
-  service:
-    type: ClusterIP
 
 services:
   userService:
@@ -45,8 +42,6 @@ services:
 
 frontend:
   replicaCount: 2
-  service:
-    type: ClusterIP
 
 # 외부 진입은 Gateway API(컨트롤러는 Envoy Gateway)
 ingress:

@@ -102,8 +102,8 @@ terraform init -backend=false && terraform validate && terraform test
 | `node_role_name` · `node_instance_profile_name` | EC2 에 연결되지 않은 역할을 가져옴 | `aws iam get-instance-profile --instance-profile-name ggeolmuse-ec2-role --query 'InstanceProfile.Roles[].RoleName'` |
 | `rds_*` | 암호화 · 사용자 이름은 교체, 나머지는 교체 없이 바뀜 | `aws rds describe-db-instances --db-instance-identifier ggeolmuse-postgres --query 'DBInstances[0].[AllocatedStorage,MaxAllocatedStorage,PerformanceInsightsEnabled,CopyTagsToSnapshot,StorageType,StorageEncrypted,PubliclyAccessible,DBSubnetGroup.DBSubnetGroupName,VpcSecurityGroups[].VpcSecurityGroupId,DBParameterGroups[].DBParameterGroupName,BackupRetentionPeriod,PreferredBackupWindow,PreferredMaintenanceWindow,DeletionProtection]'` |
 
-- `node_role_policy_arns` 는 처음에는 지금 목록 그대로 둔다. 시크릿 읽기는 인라인 정책으로 따로 들어가므로, 넓은 관리 정책
-  (`SecretsManagerReadWrite` 등)은 apply 뒤 ExternalSecret 이 `SecretSynced` 인 것을 보고 목록에서 뺀다
+- `node_role_policy_arns` 는 비워 둔다(`[]`). 시크릿 읽기는 인라인 정책(앱 · Origin 인증서 시크릿 둘의 읽기)으로 따로 들어가고,
+  관리 정책을 넣으면 노드의 모든 파드가 그 권한을 쓴다. 시크릿 쓰기는 CloudShell 에서 한다
 - RDS 보안 그룹의 인바운드가 출발지로 가리키는 그룹은 `aws ec2 describe-security-groups --group-ids <rds_security_group_ids>
   --query 'SecurityGroups[].IpPermissions[].UserIdGroupPairs[].GroupId' --output text` 로 본다. 출발지 그룹이 EC2 에 달려 있는데
   `ec2_extra_security_group_ids` 에 없으면 apply 가 EC2 에서 빼 노드에서 RDS 5432 로 가는 연결이 거부된다

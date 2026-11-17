@@ -12,7 +12,7 @@ vpc_id                         = "vpc-xxxxxxxxxxxxxxxxx"
 ec2_security_group_id          = "sg-xxxxxxxxxxxxxxxxx"
 ec2_security_group_description = "..."
 
-# 443(Cloudflare 대역) 말고 있는 인바운드를 그대로 옮김(없으면 [])
+# 443(Cloudflare 대역) 말고 둘 인바운드(SSH 는 내 IP /32 하나, 앱 포트는 열지 않음, 없으면 [])
 ec2_extra_ingress = [
   # { description = "", protocol = "tcp", from_port = 22, to_port = 22, cidr_blocks = ["x.x.x.x/32"] },
 ]
@@ -20,10 +20,8 @@ ec2_extra_ingress = [
 # ggeolmuse-sg 말고 EC2 에 달린 보안 그룹 전부(목록에서 빼면 EC2 에서도 빠짐, 없으면 [])
 ec2_extra_security_group_ids = []
 
-# 노드 역할에 지금 있는 관리 정책 ARN 전부(목록에서 빼면 역할에서도 빠짐)
-node_role_policy_arns = [
-  # "arn:aws:iam::aws:policy/...",
-]
+# 노드 역할에 둘 관리 정책 ARN(시크릿 읽기는 인라인 정책이라 비워 둠, 목록에 없는 정책은 역할에서 빠짐)
+node_role_policy_arns = []
 
 # 선택 —— RDS 도 가져오고 껐다 켤 때(엔드포인트가 아닌 DB 식별자)
 # rds_instance_id          = "ggeolmuse-postgres"

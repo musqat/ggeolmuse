@@ -165,12 +165,12 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 ## 테스트
 
-백엔드 **2,936 개**, 프론트 **1,727 개**, E2E **72 개**.
+백엔드 **2,943 개**, 프론트 **1,727 개**, E2E **72 개**.
 
 | 서비스 | 테스트 |
 |---|---|
 | market-data-service | 599 |
-| user-service | 471 |
+| user-service | 478 |
 | backtest-service | 1,116 |
 | trade-service | 472 |
 | gateway-server | 22 |
@@ -195,7 +195,7 @@ CI 에서 그 아래면 빌드를 실패시킨다(자바 JaCoCo · chat `tools/c
 
 | 서비스 | 라인 | 분기 |
 |---|---|---|
-| user | 98.6% | 87.7% |
+| user | 98.4% | 87.9% |
 | trade | 99.5% | 96.8% |
 | backtest | 98.9% | 95.2% |
 | market-data | 97.9% | 88.4% |

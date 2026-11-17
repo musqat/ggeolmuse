@@ -124,7 +124,7 @@ spec:
     - Ingress
 {{- if .Values.gatewayServer.enabled }}
 ---
-# 게이트웨이: 인그레스 컨트롤러 · LoadBalancer 의 API 요청, monitoring 의 지표 수집
+# 게이트웨이: 인그레스 컨트롤러의 API 요청, monitoring 의 지표 수집
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -155,7 +155,7 @@ spec:
 {{- end }}
 {{- if .Values.frontend.enabled }}
 ---
-# 프론트엔드: 인그레스 컨트롤러 · LoadBalancer 의 화면 요청
+# 프론트엔드: 인그레스 컨트롤러의 화면 요청
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
