@@ -51,8 +51,10 @@ jobs:
           distribution: temurin
           java-version: 21
       # 잡마다 다른 캐시 키(받는 의존이 다름)
+      # PR 은 캐시 읽기만(저장은 master push, 잡 끝)
       - name: Cache Maven dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        id: m2-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-bom-${{ hashFiles('**/pom.xml') }}
@@ -63,6 +65,12 @@ jobs:
           mvn -s "$GITHUB_WORKSPACE/.mvn/ci-settings.xml" clean install
           cd ../ggeolmuse-common
           mvn -s "$GITHUB_WORKSPACE/.mvn/ci-settings.xml" clean install
+      - name: Maven 캐시 저장
+        if: github.event_name == 'push' && steps.m2-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.m2
+          key: ${{ steps.m2-cache.outputs.cache-primary-key }}
 
   build-messaging:
     runs-on: ubuntu-latest
@@ -74,8 +82,10 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+      # PR 은 캐시 읽기만(저장은 master push, 잡 끝)
       - name: Cache Maven dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        id: m2-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-messaging-${{ hashFiles('**/pom.xml') }}
@@ -88,6 +98,12 @@ jobs:
         run: |
           cd backend/messaging
           mvn -s "$GITHUB_WORKSPACE/.mvn/ci-settings.xml" clean install
+      - name: Maven 캐시 저장
+        if: github.event_name == 'push' && steps.m2-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.m2
+          key: ${{ steps.m2-cache.outputs.cache-primary-key }}
 
   build-services:
     runs-on: ubuntu-latest
@@ -106,8 +122,10 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+      # PR 은 캐시 읽기만(저장은 master push, 잡 끝)
       - name: Cache Maven dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        id: m2-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ matrix.service }}-${{ hashFiles('**/pom.xml') }}
@@ -146,7 +164,8 @@ jobs:
           tags: ${{ matrix.service }}:ci-${{ github.sha }}
           load: true
           cache-from: type=gha,scope=${{ matrix.service }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          # 캐시 쓰기는 master push 만
+          cache-to: ${{ github.event_name == 'push' && format('type=gha,mode=max,scope={0}', matrix.service) || '' }}
 
       # 고친 버전이 나온 CRITICAL 이면 실패(설치 · DB 받기 실패는 경고만)
       - name: Trivy 이미지 스캔
@@ -154,6 +173,12 @@ jobs:
         with:
           image: ${{ matrix.service }}:ci-${{ github.sha }}
           name: ${{ matrix.service }}
+      - name: Maven 캐시 저장
+        if: github.event_name == 'push' && steps.m2-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.m2
+          key: ${{ steps.m2-cache.outputs.cache-primary-key }}
 
   # 프론트엔드는 BOM · messaging 과 무관해 Java 잡과 병렬
   build-frontend:
@@ -200,7 +225,8 @@ jobs:
           tags: frontend-web:ci-${{ github.sha }}
           load: true
           cache-from: type=gha,scope=frontend-web
-          cache-to: type=gha,mode=max,scope=frontend-web
+          # 캐시 쓰기는 master push 만
+          cache-to: ${{ github.event_name == 'push' && 'type=gha,mode=max,scope=frontend-web' || '' }}
 
       # 고친 버전이 나온 CRITICAL 이면 실패(설치 · DB 받기 실패는 경고만)
       - name: Trivy 이미지 스캔
@@ -268,7 +294,8 @@ jobs:
           tags: chat-service:ci-${{ github.sha }}
           load: true
           cache-from: type=gha,scope=chat-service
-          cache-to: type=gha,mode=max,scope=chat-service
+          # 캐시 쓰기는 master push 만
+          cache-to: ${{ github.event_name == 'push' && 'type=gha,mode=max,scope=chat-service' || '' }}
 
       # 고친 버전이 나온 CRITICAL 이면 실패(설치 · DB 받기 실패는 경고만)
       - name: Trivy 이미지 스캔
@@ -513,12 +540,21 @@ jobs:
           done
           exit 1
 
+      # 기동이 일시 오류(이미지 받기 · 포트)로 실패하면 20초 뒤 다시(최대 3번)
       - name: 스택 기동
         working-directory: docker-compose
-        run: docker compose up -d
+        run: |
+          for i in 1 2 3; do
+            docker compose up -d && exit 0
+            echo "기동 실패 ${i}번째, 20초 뒤 다시"
+            sleep 20
+          done
+          exit 1
 
+      # PR 은 캐시 읽기만(저장은 master push, 설치 뒤)
       - name: Playwright 브라우저 캐시
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        id: playwright-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ hashFiles('tests/e2e/package-lock.json') }}
@@ -539,6 +575,13 @@ jobs:
           printf 'Acquire::Retries "1";\nAcquire::http::Timeout "20";\nAcquire::https::Timeout "20";\n' \
             | sudo tee /etc/apt/apt.conf.d/99-e2e-timeouts > /dev/null
           timeout 240 npx playwright install-deps chromium
+
+      - name: Playwright 브라우저 캐시 저장
+        if: github.event_name == 'push' && steps.playwright-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
 
       - name: E2E 실행
         working-directory: tests/e2e
@@ -595,13 +638,45 @@ jobs:
           echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
           exit 1
 
-  # master push 의 검사 · E2E 가 둘 다 성공하면 릴리스(release.yml)
+  # 머지한 PR 번호와 빌드할 서비스 칸에 체크가 있는지(PR 없는 커밋 · 체크 없는 머지는 릴리스를 부르지 않음)
+  release-check:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      release: ${{ steps.check.outputs.release }}
+      pr: ${{ steps.pr.outputs.number }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
+        with:
+          go-version-file: tools/go.mod
+          cache-dependency-path: tools/go.sum
+      # 머지 커밋의 PR(본문은 파일로만 넘김)
+      - id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+            --jq "[.[] | select(.merged_at != null and .merge_commit_sha == \"$GITHUB_SHA\")][0] // {}" > "$RUNNER_TEMP/pr.json"
+          jq -r '.body // ""' "$RUNNER_TEMP/pr.json" > "$RUNNER_TEMP/pr-body.md"
+          echo "number=$(jq -r '.number // ""' "$RUNNER_TEMP/pr.json")" >> "$GITHUB_OUTPUT"
+      - id: check
+        working-directory: tools
+        run: go run ./cmd/release-plan -checked "$RUNNER_TEMP/pr-body.md" | tee -a "$GITHUB_OUTPUT"
+
+  # master push 의 검사 · E2E 가 둘 다 성공하고 체크한 서비스가 있으면 릴리스(release.yml)
   release:
-    needs: [ci-result, e2e]
-    if: ${{ github.event_name == 'push' && needs.ci-result.result == 'success' && needs.e2e.result == 'success' }}
+    needs: [ci-result, e2e, release-check]
+    if: ${{ github.event_name == 'push' && needs.ci-result.result == 'success' && needs.e2e.result == 'success' && needs.release-check.outputs.release == 'true' }}
     permissions:
       contents: read
       pull-requests: read
       actions: read
     uses: ./.github/workflows/release.yml
+    with:
+      pr: ${{ needs.release-check.outputs.pr }}
     secrets: inherit

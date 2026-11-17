@@ -184,3 +184,25 @@ func TestCompareVersions(t *testing.T) {
 		}
 	}
 }
+
+// 체크한 서비스가 있거나 칸을 못 읽으면 릴리스를 부름(못 읽은 칸은 릴리스의 계획 단계가 실패로 알림)
+func TestWantsRelease(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+		want bool
+	}{
+		{"체크한 서비스", "## 빌드할 서비스\n- [x] user-service\n- [ ] trade-service\n", true},
+		{"체크 없음", "## 빌드할 서비스\n- [ ] user-service\n", false},
+		{"칸 없는 본문", "## 요약\n - 고친다\n", false},
+		{"빈 본문(PR 없는 커밋)", "", false},
+		{"못 읽는 칸", "## 빌드할 서비스\n- [x] user-service 1.8\n", true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := wantsRelease(c.body); got != c.want {
+				t.Fatalf("릴리스 %t, 기대 %t", got, c.want)
+			}
+		})
+	}
+}

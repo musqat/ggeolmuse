@@ -3,6 +3,11 @@ name: 릴리스
 # master push 의 CI(검사 · E2E)가 끝에서 부르면 머지한 PR 의 빌드할 서비스 칸에서 체크한 서비스(수동 실행은 입력한 서비스) 가운데 운영 배포 이후 바뀐 것만 빌드 · 푸시하고 운영 태그를 커밋(ArgoCD 반영), 끝에 롤아웃 · 스모크 요청 확인
 on:
   workflow_call:
+    inputs:
+      pr:
+        description: '머지한 PR 번호(요약용)'
+        type: string
+        required: false
   # 수동 실행(master 에서만): CI 가 성공한 가장 최근 master 커밋에서, 입력한 서비스 가운데 운영 배포 이후 바뀐 것만
   workflow_dispatch:
     inputs:
@@ -93,10 +98,11 @@ jobs:
           TAGS: ${{ steps.plan.outputs.tags }}
           HELD: ${{ steps.plan.outputs.held }}
           UNCHANGED: ${{ steps.plan.outputs.unchanged }}
+          PR: ${{ inputs.pr }}
         run: |
           # JSON 목록 · 객체를 쉼표 목록으로(비면 없음)
           plain() { local v; v=$(printf '%s' "$1" | tr -d '[]{}"' | sed 's/:/ /g; s/,/, /g'); printf '%s' "${v:-없음}"; }
-          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then how=수동 실행; else how=머지; fi
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then how=수동 실행; else how="머지 #${PR}"; fi
           {
             echo "### 릴리스 계획 ${SHA::7} ($how)"
             echo "- 빌드할 서비스: $(plain "$SERVICES")"
@@ -197,6 +203,7 @@ jobs:
       SHA: ${{ needs.plan.outputs.sha }}
       TAGS: ${{ needs.plan.outputs.tags }}
       SERVICES: ${{ needs.plan.outputs.services }}
+      PR: ${{ inputs.pr }}
     # 푸시한 태그 커밋과 태그를 바꾼 서비스(바꿀 서비스가 없으면 빈 값)
     outputs:
       commit: ${{ steps.tag.outputs.commit }}
@@ -257,7 +264,7 @@ jobs:
             done
             git commit -qam "$subject" -m "[skip ci]"
             if out=$(git push -q origin HEAD:master 2>&1); then
-              echo "### 릴리스 — $subject" >> "$GITHUB_STEP_SUMMARY"
+              echo "### 릴리스 — $subject${PR:+ (PR #$PR)}" >> "$GITHUB_STEP_SUMMARY"
               [ -z "$config" ] || echo "설정 리포 커밋 ${config::7}" >> "$GITHUB_STEP_SUMMARY"
               printf 'commit=%s\nservices=%s\n' "$(git rev-parse HEAD)" "$still" >> "$GITHUB_OUTPUT"
               exit 0
@@ -291,7 +298,7 @@ jobs:
           go-version-file: tools/go.mod
           cache: false
 
-      # 토큰이 없으면 경고만(릴리스는 통과)
+      # 토큰이 없으면 실패(확인 없이 끝난 릴리스를 성공으로 보지 않음)
       - name: 롤아웃 · 스모크 확인
         working-directory: tools
         env:
@@ -301,8 +308,8 @@ jobs:
           CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
           if [ -z "$ARGOCD_TOKEN" ]; then
-            echo "::warning::환경 release 에 ARGOCD_TOKEN 없음, 롤아웃 · 스모크 확인 건너뜀"
-            exit 0
+            echo "::error::환경 release 에 ARGOCD_TOKEN 없음(docs/DEPLOY.md 의 릴리스 봇 준비)"
+            exit 1
           fi
           {
             echo "### 롤아웃 확인"

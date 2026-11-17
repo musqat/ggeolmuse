@@ -5,7 +5,6 @@
 **Live Demo**: https://ggeolmuse.com — 평일 07:30~19:00 (KST) 에만 띄워둡니다
 
 [![CI/CD](https://github.com/musqat/ggeolmuse/actions/workflows/ci.yml/badge.svg)](https://github.com/musqat/ggeolmuse/actions)
-[![E2E](https://github.com/musqat/ggeolmuse/actions/workflows/e2e.yml/badge.svg)](https://github.com/musqat/ggeolmuse/actions)
 
 <div align="center">
   <img src=".github/images/main/메인페이지.png" alt="GGeolmuse 메인 화면" width="800"/>
@@ -183,9 +182,9 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 저장소 테스트는 Flyway 로 만든 Postgres 컨테이너에서 돌아서 로컬 `mvn test` 에도 Docker 가 필요하다.
 
-E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마다 돈다.
+E2E 는 CI 워크플로의 잡으로 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마다 돈다. 문서 · 운영 차트 · 인프라만 바뀐 PR 은 건너뛴다.
 시세 · 환율은 market-data 의 고정 데이터라 외부가 흔들려도 결과가 같다.
-그래서 필수 체크로 두고, 릴리스도 같은 커밋의 E2E 성공을 기다린다.
+그래서 필수 체크로 두고, 릴리스도 같은 실행의 E2E 가 성공한 뒤 끝의 잡으로 돈다.
 
 <details>
 <summary><b>커버리지와 그 한계</b></summary>
@@ -251,7 +250,7 @@ MSK·ElastiCache→파드 내 실행. values 파일만 바꾸면 되돌릴 수 �
 ```
 GitHub Actions          빌드 · 테스트 · Trivy 스캔(PR)
         ↓
-GitHub Actions 릴리스    CI · E2E 초록 뒤 PR 에서 체크한 서비스 가운데 바뀐 것만 push, 운영 태그 커밋
+GitHub Actions 릴리스    CI(검사 · E2E) 초록 뒤 PR 에서 체크한 서비스 가운데 바뀐 것만 push, 운영 태그 커밋
         ↓
 ArgoCD (GitOps)         Helm 차트를 추적해 동기화
         ↓
@@ -301,7 +300,7 @@ EC2 는 Cloudflare 대역에서 온 요청만 받아서 밖에서 이 헤더를 
 
 **브라우저** — nginx 가 CSP · X-Frame-Options · X-Content-Type-Options(nosniff) · Referrer-Policy 를 응답에 넣는다.
 
-**공급망** — 외부 액션은 커밋 SHA, 베이스 이미지는 digest 로 고정하고 Dependabot 이 주 1회 올리기 PR 을 연다.
+**공급망** — 외부 액션은 커밋 SHA, 베이스 이미지는 digest 로 고정하고 Dependabot 이 월 1회 부 · 수 버전 묶음 PR 을 연다(주 버전은 계획해서 따로).
 이미지 스캔은 고친 버전이 나온 CRITICAL 이 있으면 PR · 릴리스를 막고(예외는 `.trivyignore`), 운영 이미지도 주 1회 다시 스캔한다.
 PR 커밋의 secret 은 gitleaks, 코드는 CodeQL 이 본다.
 

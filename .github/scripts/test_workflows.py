@@ -35,9 +35,35 @@ class WorkflowsTest(unittest.TestCase):
     def test_ci_calls_release_after_checks_and_e2e_on_push(self):
         release = job(text("ci.yml"), "release")
         self.assertIn("uses: ./.github/workflows/release.yml", release)
-        self.assertIn("needs: [ci-result, e2e]", release)
+        self.assertIn("needs: [ci-result, e2e, release-check]", release)
         self.assertIn("github.event_name == 'push'", release)
         self.assertIn("secrets: inherit", release)
+
+    def test_release_only_when_the_merged_pr_checked_a_service(self):
+        ci = text("ci.yml")
+        check = job(ci, "release-check")
+        self.assertIn("go run ./cmd/release-plan -checked", check)
+        release = job(ci, "release")
+        self.assertIn("needs.release-check.outputs.release == 'true'", release)
+        self.assertIn("pr: ${{ needs.release-check.outputs.pr }}", release)
+        self.assertIn("    inputs:\n      pr:", text("release.yml"))
+
+    def test_pr_runs_only_read_caches(self):
+        ci = text("ci.yml")
+        self.assertNotRegex(ci, r"uses: actions/cache@")
+        saves = re.findall(r"- name: [^\n]*\n(?:\s+id: [^\n]*\n)?\s+if: ([^\n]*)\n\s+uses: actions/cache/save@", ci)
+        self.assertEqual(len(saves), len(re.findall(r"uses: actions/cache/restore@", ci)))
+        self.assertTrue(all("github.event_name == 'push'" in cond for cond in saves))
+        cache_to = re.findall(r"cache-to: ([^\n]*)", ci)
+        self.assertTrue(cache_to and all("github.event_name == 'push'" in value for value in cache_to))
+
+    def test_e2e_retries_stack_start(self):
+        self.assertIn("docker compose up -d && exit 0", job(text("ci.yml"), "e2e"))
+
+    def test_rollout_fails_without_token(self):
+        rollout = job(text("release.yml"), "rollout")
+        self.assertIn('echo "::error::환경 release 에 ARGOCD_TOKEN 없음', rollout)
+        self.assertNotIn("확인 건너뜀", rollout)
 
     def test_release_starts_only_from_ci_or_by_hand(self):
         on = re.search(r"^on:\n(.*?)(?=^\S)", text("release.yml"), re.M | re.S).group(1)

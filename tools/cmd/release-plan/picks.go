@@ -152,3 +152,9 @@ func compareVersions(a, b string) (int, bool) {
 	}
 	return 0, true
 }
+
+// wantsRelease 는 PR 본문의 빌드할 서비스 칸에 체크한 서비스가 있는지(칸을 못 읽어도 true, 릴리스 계획이 실패로 알림)
+func wantsRelease(body string) bool {
+	picks, _, err := parsePicks(body)
+	return err != nil || len(picks) > 0
+}
