@@ -1,5 +1,5 @@
 # 빌드 스테이지 (빌드 컨텍스트: 레포 루트)
-FROM maven:3.9-eclipse-temurin-21@sha256:99e61abcff91a9b1333463bd8451fb18495d6eba9250ac66a338b518f8278320 AS build
+FROM maven:3.9-eclipse-temurin-26@sha256:b2c1ad85954592f9928e84327c65201f308ad9b5d8ed7d5b823717c97bf23fbb AS build
 WORKDIR /app
 
 # Central 미러(keycloak 부모 pom 이 끌고 오는 jboss 저장소가 응답 없음)
