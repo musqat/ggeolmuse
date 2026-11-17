@@ -321,8 +321,8 @@ jobs:
             exit 1
           fi
 
-      # NetworkPolicy 허용 목록에 없는 새 서비스 포트 검사(tools/cmd/netpol-check)
-      - name: NetworkPolicy 서비스 포트 대조
+      # NetworkPolicy 기본 거부 · 워크로드마다 여는 정책 · 허용 목록에 없는 새 서비스 포트 검사(tools/cmd/netpol-check)
+      - name: NetworkPolicy 기본 거부 · 서비스 포트 대조
         working-directory: tools
         run: go run ./cmd/netpol-check ../rendered.yaml
 

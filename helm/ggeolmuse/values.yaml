@@ -506,6 +506,10 @@ networkPolicy:
     - 8081
     - 8082
     - 8083
+  # 네임스페이스로 들어오는 요청 기본 거부(허용 정책에 적은 출처 · 포트만 받음)
+  defaultDeny: true
+  # 외부 요청을 넘기는 인그레스 컨트롤러 · LoadBalancer 파드의 네임스페이스(k3s 는 Traefik · ServiceLB 가 kube-system)
+  ingressNamespace: kube-system
   # 노드 IAM 역할(인스턴스 메타데이터)로 가는 egress 차단(역할로 S3 에 올리는 파드만 예외)
   instanceMetadata:
     block: true
