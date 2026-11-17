@@ -19,7 +19,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
     <lombok.version>1.18.34</lombok.version>
-    <jackson.version>2.17.0</jackson.version>
+    <jackson.version>2.18.11</jackson.version>
   </properties>
 
   <!-- spring-kafka · Micrometer · OpenTelemetry · 테스트 라이브러리 버전 -->
