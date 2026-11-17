@@ -1,5 +1,5 @@
 import type { PieChartData } from '../components/charts/portfolio/PortfolioPieChart';
-import type { AccountBalance, HoldingResponse, PortfolioSummaryResponse } from '../services/api';
+import type { AccountBalance, HoldingResponse } from '../services/api';
 
 // 자산 구성 파이 · 자산 배분 목록 색(index.css), 금액 큰 순으로 다섯 자리 · 여섯째부터 회색(파이에서도 ETC 로 묶임)
 const ALLOCATION_COLORS = ['var(--alloc-1)', 'var(--alloc-2)', 'var(--alloc-3)', 'var(--alloc-4)', 'var(--alloc-5)'];
@@ -31,7 +31,7 @@ export const allocationItems = (
 
 // 총자산(USD) = 주식 평가액 + USD 현금 + KRW 현금 ÷ 환율
 export const totalAssetsUsd = (
-  summary: PortfolioSummaryResponse | null | undefined,
+  summary: { totalCurrentValue: number } | null | undefined,
   balance: AccountBalance | undefined,
   exchangeRate: number,
 ): number =>

@@ -159,4 +159,28 @@ describe('Portfolio', () => {
     expect(screen.getByText('-6.83%')).toHaveClass('text-loss')
     expect(screen.queryByText(/$-/)).toBeNull()
   })
+
+  it('요약 카드 · 총 자산은 이 계좌 보유로 셈하고 다른 계좌가 섞인 전체 요약은 받지 않는다', async () => {
+    vi.mocked(portfolioApi.getPortfolioSummary).mockResolvedValue({
+      data: { totalCurrentValue: 9_999, totalUnrealizedPnL: 999, totalReturnRate: 99 },
+    } as never)
+    renderPage()
+
+    // 이 계좌 주식 200 + 100 + 135,000 ÷ 1,350
+    expect(await screen.findByText('$400.00')).toBeInTheDocument()
+    expect(screen.getByText('+11.11%')).toBeInTheDocument()
+    expect(portfolioApi.getPortfolioSummary).not.toHaveBeenCalled()
+  })
+
+  it('현재가 없는 종목은 총 자산 · 평가손익 · 수익률에서 빼고 그 종목을 알린다', async () => {
+    vi.mocked(portfolioApi.getAccountPortfolio).mockResolvedValue({
+      data: [HOLDING, { holdingId: 2, symbol: 'MSFT', totalQuantity: 5, totalInvestedAmount: 500, avgPurchasePrice: 100 }],
+    } as never)
+    renderPage()
+
+    expect(await screen.findByText('$400.00')).toBeInTheDocument()
+    // 손익 20 ÷ 현재가 있는 종목 투자 180
+    expect(screen.getByText('+11.11%')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('현재가가 없는 종목(MSFT)은 총 자산 · 평가손익 · 수익률에서 뺐습니다')
+  })
 })
