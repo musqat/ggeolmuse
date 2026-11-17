@@ -6,6 +6,7 @@ import { tradeApi, type TransactionHistoryItem } from '../services/api';
 import { accountListQuery } from '../hooks/useAccounts';
 import { TradeHistoryList } from '../components/trading/history/TradeHistoryList';
 import { historyRefetchInterval } from '../components/trading/history/tradeHistory';
+import { LoadError } from '../components/common/LoadError';
 
 const TradeHistory: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -42,17 +43,16 @@ const TradeHistory: React.FC = () => {
           <p className="text-tx-2 mt-1">매수 · 매도 · 배당을 거래일 최신순으로 보입니다</p>
         </div>
 
-        {error && (
-          <div className="bg-danger/10 border border-danger/25 text-danger px-4 py-3 rounded-lg">
-            거래내역을 불러오는데 실패했습니다.
-          </div>
-        )}
+        {error && <LoadError message="거래내역을 불러오지 못했습니다" onRetry={() => void refetch()} />}
 
-        <TradeHistoryList
-          transactions={transactions}
-          accounts={accounts}
-          onRefresh={() => refetch()}
-        />
+        {/* 못 받았는데 받아 둔 내역도 없으면 빈 목록을 보이지 않음 */}
+        {!(error && transactions.length === 0) && (
+          <TradeHistoryList
+            transactions={transactions}
+            accounts={accounts}
+            onRefresh={() => refetch()}
+          />
+        )}
       </div>
     </div>
   );

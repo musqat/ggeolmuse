@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { stockApi } from '../services/api';
+import { queryKeys } from '../services/queryKeys';
 import { convertOHLCToCandlestick, type CandlestickChartData } from '../types/ohlc';
 import { getDateRangeForTimeframe, getTodayString, subtractDays, type Timeframe } from '../utils/dateUtils';
 
@@ -32,7 +33,7 @@ export const useTradingChart = ({ symbol, timeframe, customStartDate, customEndD
   );
 
   const { data: chartData = NO_CANDLES, isLoading: loading } = useQuery({
-    queryKey: ['stock', 'ohlc', symbol, dateRange],
+    queryKey: queryKeys.stock.ohlc(symbol, dateRange),
     queryFn: async () => {
       if (!dateRange) return [];
 
@@ -85,7 +86,7 @@ export const useTradingChart = ({ symbol, timeframe, customStartDate, customEndD
       return;
     }
     const candles = await queryClient.fetchQuery({
-      queryKey: ['stock', 'ohlc', symbol, { startDate: date, endDate: date }],
+      queryKey: queryKeys.stock.ohlc(symbol, { startDate: date, endDate: date }),
       queryFn: async () => {
         const response = await stockApi.getOHLCData(symbol, date, date);
         return Array.isArray(response.data) ? convertOHLCToCandlestick(response.data) : [];

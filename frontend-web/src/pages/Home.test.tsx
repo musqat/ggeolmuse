@@ -99,6 +99,19 @@ describe('Home', () => {
     expect(screen.getAllByText('-')).toHaveLength(5)
   })
 
+  it('시세를 못 받으면 자리 표시와 함께 실패와 다시 시도를 보이고 다시 시도하면 다시 받는다', async () => {
+    vi.mocked(stockApi.getAllStocksWithPrices).mockRejectedValue(new Error('down'))
+    renderHome()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('시세를 불러오지 못했습니다')
+
+    vi.mocked(stockApi.getAllStocksWithPrices).mockResolvedValue({ data: { content: STOCKS } } as never)
+    await userEvent.click(screen.getByRole('button', { name: '다시 시도' }))
+
+    expect(await screen.findByText('Microsoft')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
   it('목록 종목을 누르면 그 종목 차트로 간다', async () => {
     const user = userEvent.setup()
     renderHome()

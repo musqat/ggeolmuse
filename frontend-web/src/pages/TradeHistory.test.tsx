@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { accountsApi, tradeApi } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
@@ -40,10 +41,16 @@ describe('TradeHistory', () => {
     expect(screen.getByRole('heading', { name: '거래내역' })).toBeInTheDocument()
   })
 
-  it('내역을 못 받으면 실패 문구를 보인다', async () => {
+  it('내역을 못 받으면 빈 목록 대신 실패와 다시 시도를 보이고 다시 시도하면 다시 받는다', async () => {
     vi.mocked(tradeApi.history).mockRejectedValue(new Error('down'))
     renderPage()
 
-    expect(await screen.findByText('거래내역을 불러오는데 실패했습니다.')).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('거래내역을 불러오지 못했습니다')
+    expect(screen.queryByText(/내역 0건/)).toBeNull()
+
+    vi.mocked(tradeApi.history).mockResolvedValue({ data: [{ tradeId: 1 }] } as never)
+    await userEvent.click(screen.getByRole('button', { name: '다시 시도' }))
+
+    expect(await screen.findByText('내역 1건 · 계좌 1개')).toBeInTheDocument()
   })
 })

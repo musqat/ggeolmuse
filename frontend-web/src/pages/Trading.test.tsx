@@ -80,8 +80,9 @@ describe('Trading 주문', () => {
       accountId: 3, symbol: 'AAPL', quantity: 10, tradeDate: '2026-10-09', priceType: 'CLOSE', manualPrice: undefined,
     }, expect.any(String)))
     expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('매수 주문이 체결되었습니다.'))
-    // 잔고 · 보유가 바뀌어 거래 · 계좌 쪽 조회를 다시 받음
+    // 잔고 · 보유가 바뀌어 거래 · 포트폴리오 · 계좌 쪽 조회를 다시 받음
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['trade'] })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['portfolio'] })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['account'] })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['accounts'] }, { cancelRefetch: false })
     expect(screen.getByRole('spinbutton')).toHaveValue(1)
@@ -127,21 +128,20 @@ describe('Trading 주문', () => {
 
       await userEvent.click(submitButton())
       await waitFor(() => expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('매수 주문을 받았습니다.')))
-      expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ['portfolio'] })
-
-      const accountRefreshes = () => invalidate.mock.calls.filter(([filters]) => filters?.queryKey?.[0] === 'account').length
-      expect(accountRefreshes()).toBe(1)
+      const refreshes = (domain: string) => invalidate.mock.calls.filter(([filters]) => filters?.queryKey?.[0] === domain).length
+      expect(refreshes('portfolio')).toBe(1)
+      expect(refreshes('account')).toBe(1)
 
       await vi.advanceTimersByTimeAsync(2000)
 
-      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['portfolio'] })
-      expect(accountRefreshes()).toBe(2)
+      expect(refreshes('portfolio')).toBe(2)
+      expect(refreshes('account')).toBe(2)
     } finally {
       vi.useRealTimers()
     }
   })
 
-  it('완료된 체결이면 보유 조회를 다시 받지 않는다', async () => {
+  it('완료된 체결이면 보유 조회를 바로 한 번 다시 받고 2초 뒤에는 다시 받지 않는다', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
       vi.mocked(tradeApi.buy).mockResolvedValue({ data: { ...TRADE, status: 'COMPLETED' } } as never)
@@ -152,7 +152,7 @@ describe('Trading 주문', () => {
       await waitFor(() => expect(alertSpy).toHaveBeenCalled())
       await vi.advanceTimersByTimeAsync(2000)
 
-      expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ['portfolio'] })
+      expect(invalidate.mock.calls.filter(([filters]) => filters?.queryKey?.[0] === 'portfolio')).toHaveLength(1)
     } finally {
       vi.useRealTimers()
     }

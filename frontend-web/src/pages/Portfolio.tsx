@@ -9,13 +9,14 @@ import { AllocationList } from '../components/portfolio/AllocationList';
 import { HoldingsTable } from '../components/portfolio/HoldingsTable';
 import { allocationItems, totalAssetsUsd } from '../utils/portfolioAllocation';
 import { formatKrw, formatUsd } from '../utils/format';
+import { LoadError } from '../components/common/LoadError';
 
 const Portfolio: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const accountId = searchParams.get('accountId');
-  const { holdings, summary, balance, exchangeRate, loading } = usePortfolioData(accountId, isAuthenticated);
+  const { holdings, summary, balance, exchangeRate, loading, failed, retry } = usePortfolioData(accountId, isAuthenticated);
 
   // 계좌 ID 없음
   if (!accountId) {
@@ -39,6 +40,15 @@ const Portfolio: React.FC = () => {
 
   if (loading) {
     return <PageSpinner />;
+  }
+
+  if (failed) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <h1 className="text-3xl font-bold text-tx-1 mb-6">포트폴리오</h1>
+        <LoadError message="포트폴리오를 불러오지 못했습니다" onRetry={retry} />
+      </div>
+    );
   }
 
   const items = allocationItems(holdings, balance, exchangeRate);
