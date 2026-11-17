@@ -1,4 +1,4 @@
-// set-image-tag 는 운영 값 파일에서 서비스의 이미지 태그 줄만 바꾼다
+// set-image-tag 는 운영 값 파일에서 서비스의 이미지 태그 줄과 config-server 의 설정 리포 커밋 줄만 바꾼다
 package main
 
 import (
@@ -16,6 +16,7 @@ import (
 func main() {
 	tagsJSON := flag.String("tags", "", "서비스별 태그(JSON 객체)")
 	built := flag.String("built", "", "빌드한 커밋(봇 커밋 제목 끝 괄호)")
+	configLabel := flag.String("config-label", "", "config-server 가 읽을 설정 리포 커밋(비면 그대로)")
 	flag.Parse()
 	args := flag.Args()
 	if *tagsJSON != "" {
@@ -26,7 +27,7 @@ func main() {
 		if err := json.Unmarshal([]byte(*tagsJSON), &tags); err != nil {
 			fail(fmt.Errorf("-tags 는 JSON 객체: %w", err))
 		}
-		text, subject, err := applyTags(read(args[0]), args[1:], tags, *built)
+		text, subject, err := applyTagsWithConfig(read(args[0]), args[1:], tags, *built, *configLabel)
 		if err != nil {
 			fail(err)
 		}
@@ -68,8 +69,18 @@ func applyTags(text string, services []string, tags map[string]string, built str
 	return text, release.Subject(services, tags, built), nil
 }
 
+// applyTagsWithConfig 는 applyTags 에 설정 리포 커밋(비면 그대로)까지 바꾼 값 파일과 봇 커밋 제목
+func applyTagsWithConfig(text string, services []string, tags map[string]string, built, configLabel string) (string, string, error) {
+	text, subject, err := applyTags(text, services, tags, built)
+	if err != nil || configLabel == "" {
+		return text, subject, err
+	}
+	text, err = values.SetConfigLabel(text, configLabel)
+	return text, subject, err
+}
+
 func usage() {
-	fmt.Fprintln(os.Stderr, "사용: set-image-tag <값 파일> <태그> <서비스>... | set-image-tag -tags <JSON> -built <커밋> <값 파일> <서비스>...")
+	fmt.Fprintln(os.Stderr, "사용: set-image-tag <값 파일> <태그> <서비스>... | set-image-tag -tags <JSON> -built <커밋> [-config-label <설정 리포 커밋>] <값 파일> <서비스>...")
 	os.Exit(2)
 }
 

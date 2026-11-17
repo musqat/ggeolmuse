@@ -9,6 +9,9 @@ spring:
       uri: ${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}
       username: ${CONFIG_SERVER_USERNAME:config}
       password: ${CONFIG_SERVER_PASSWORD}
+  # 요청 내내 DB 커넥션을 점유하지 않게 요청 단위 영속성 세션 끔(원격 호출 동안 풀 고갈 방지)
+  jpa:
+    open-in-view: false
 
 server:
   port: 8081

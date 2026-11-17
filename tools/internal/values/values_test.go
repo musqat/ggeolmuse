@@ -87,3 +87,32 @@ func TestFind(t *testing.T) {
 		t.Fatal("값 파일에 없는 서비스가 들어옴")
 	}
 }
+
+func TestSetConfigLabel(t *testing.T) {
+	const sha = "6f28852d0123456789abcdef0123456789abcdef"
+	text := "configServer:\n  image:\n    tag: \"1.7.0\"\n  # 설정 리포 커밋\n  gitLabel: main\nservices:\n  gitLabel: keep\n"
+	got, err := SetConfigLabel(text, sha)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "configServer:\n  image:\n    tag: \"1.7.0\"\n  # 설정 리포 커밋\n  gitLabel: " + sha + "\nservices:\n  gitLabel: keep\n"
+	if got != want {
+		t.Fatalf("값 파일\n%s\n기대\n%s", got, want)
+	}
+}
+
+func TestSetConfigLabelErrors(t *testing.T) {
+	cases := []struct{ name, text, label, want string }{
+		{"커밋 모양 아님", "configServer:\n  gitLabel: main\n", "main", "설정 리포 커밋 모양 아님"},
+		{"짧은 커밋", "configServer:\n  gitLabel: main\n", "6f28852", "설정 리포 커밋 모양 아님"},
+		{"줄 없음", "configServer:\n  image:\n    tag: \"1.7.0\"\n", "6f28852d0123456789abcdef0123456789abcdef", "configServer.gitLabel 없음"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := SetConfigLabel(c.text, c.label)
+			if err == nil || !strings.Contains(err.Error(), c.want) {
+				t.Fatalf("오류 %v, 기대 %q", err, c.want)
+			}
+		})
+	}
+}

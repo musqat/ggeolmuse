@@ -239,6 +239,8 @@ configServer:
   # 환경별 파일(dev · prod)이 덮어씀
   env:
     springProfiles: git
+  # 읽을 설정 리포 커밋 · 브랜치(운영 값 파일은 릴리스 봇이 main 끝 커밋으로 바꿈)
+  gitLabel: main
   probes:
     readiness:
       initialDelaySeconds: 60

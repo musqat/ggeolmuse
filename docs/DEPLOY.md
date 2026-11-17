@@ -76,8 +76,10 @@ Java 서비스는 멀티스테이지 Dockerfile 이고 빌드 컨텍스트가 �
 `ggeolmuse-bom` 을 먼저 설치해야 해서다. frontend 와 chat-service 만 자기 폴더가
 컨텍스트다.
 
-설정을 함께 바꿨다면 config 저장소도 같이 올린다. 코드와 설정이 짝인 변경은
-한쪽만 배포하면 기본값으로 돌아간다.
+운영 config-server 는 `values-prod.yaml` 의 `configServer.gitLabel` 커밋을 읽고, 서비스는 라벨 없이 그 커밋의 설정을 받는다.
+릴리스 봇이 태그를 바꿀 때 그 줄도 설정 리포 main 끝 커밋으로 바꾼다. 코드와 설정이 짝인 변경은 설정 리포에 먼저 올리고
+PR 을 머지한다. 설정만 바꾸면 그 줄을 새 커밋으로 바꾸는 PR 을 머지하고, ArgoCD 가 config-server 를 다시 띄운 뒤 그 설정을
+쓰는 서비스를 다시 띄운다(서비스는 기동할 때 설정을 읽는다).
 
 서비스 사이 호출(`/api/internal/**`)은 Keycloak 클라이언트 `ggeolmuse-service` 의 서비스 토큰으로 인증한다.
 이미 있는 realm 에는 차트의 realm 가져오기가 들어가지 않아서, 처음 켜는 배포는 머지 전에 Keycloak 에서 realm 역할 `service` 와

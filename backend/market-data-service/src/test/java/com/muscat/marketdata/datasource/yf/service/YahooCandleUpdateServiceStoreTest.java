@@ -13,9 +13,11 @@ import com.muscat.marketdata.domain.repository.CandleRepository;
 import com.muscat.marketdata.domain.repository.DividendRepository;
 import com.muscat.marketdata.infra.kafka.AssetEventProducer;
 import com.muscat.marketdata.infra.kafka.DividendEventProducer;
+import com.muscat.marketdata.infra.kafka.SplitEventProducer;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 // 실제 트랜잭션 · H2 저장으로 본 종목 하나의 캔들 · 배당 저장
 @SpringBootTest
@@ -55,6 +58,9 @@ class YahooCandleUpdateServiceStoreTest {
 
   @MockitoBean
   private AssetEventProducer assetEventProducer;
+
+  @MockitoBean
+  private SplitEventProducer splitEventProducer;
 
   @MockitoBean
   private AlphaVantageScheduler alphaVantageScheduler;
@@ -95,6 +101,49 @@ class YahooCandleUpdateServiceStoreTest {
     assertThat(service.saveDividends("WHLR", FROM, TO)).isEqualTo(1);
     assertThat(dividendRepository.findAll()).singleElement()
       .satisfies(d -> assertThat(d.getAmount()).isEqualByComparingTo(adjusted));
+  }
+
+  @Test
+  @DisplayName("캔들 · 배당은 외부에서 받는 동안 트랜잭션을 열지 않는다")
+  void fetchesOutsideTransaction() {
+    List<Boolean> inTransaction = new CopyOnWriteArrayList<>();
+    given(candleSource.fetchDailyAdjusted(eq("WHLR"), any(), any())).willAnswer(invocation -> {
+      inTransaction.add(TransactionSynchronizationManager.isActualTransactionActive());
+      return List.of(candle(LocalDate.of(2026, 11, 2), BigDecimal.TEN));
+    });
+    given(dividendSource.fetchDividends(eq("WHLR"), any(), any())).willAnswer(invocation -> {
+      inTransaction.add(TransactionSynchronizationManager.isActualTransactionActive());
+      return List.of(dividend(LocalDate.of(2026, 10, 1), BigDecimal.ONE));
+    });
+
+    assertThat(service.saveBoth("WHLR", FROM, TO)).isEqualTo(2);
+
+    assertThat(inTransaction).containsExactly(false, false);
+    assertThat(candleRepository.findAll()).hasSize(1);
+    assertThat(dividendRepository.findAll()).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("받은 봉에 분할이 있으면 분할 기준 배당도 트랜잭션 밖에서 받아 캔들과 같이 저장한다")
+  void splitDividendsFetchedOutsideTransaction() {
+    List<Boolean> inTransaction = new CopyOnWriteArrayList<>();
+    Candle split = Candle.builder().symbol("WHLR").date(LocalDate.of(2026, 11, 2)).currency("USD")
+      .open(BigDecimal.TEN).high(BigDecimal.TEN).low(BigDecimal.TEN).close(BigDecimal.TEN)
+      .adjustedClose(BigDecimal.TEN).volume(1L).splitCoefficient(new BigDecimal("2")).build();
+    given(candleSource.fetchDailyAdjusted(eq("WHLR"), any(), any())).willAnswer(invocation -> {
+      inTransaction.add(TransactionSynchronizationManager.isActualTransactionActive());
+      return List.of(candle(LocalDate.of(2026, 10, 30), new BigDecimal("20")), split);
+    });
+    given(dividendSource.fetchDividends(eq("WHLR"), any(), any())).willAnswer(invocation -> {
+      inTransaction.add(TransactionSynchronizationManager.isActualTransactionActive());
+      return List.of(dividend(LocalDate.of(2026, 10, 1), new BigDecimal("0.5")));
+    });
+
+    assertThat(service.saveCandles("WHLR", FROM, TO)).isEqualTo(2);
+
+    assertThat(inTransaction).containsExactly(false, false);
+    assertThat(dividendRepository.findAll()).singleElement()
+      .satisfies(d -> assertThat(d.getAmount()).isEqualByComparingTo("0.5"));
   }
 
   private static DividendDto dividend(LocalDate exDate, BigDecimal amount) {

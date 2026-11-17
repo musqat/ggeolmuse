@@ -7,6 +7,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.mock;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.muscat.messaging.event.DividendUpdatedEvent;
 import com.muscat.trade.common.enums.type.TradeType;
@@ -22,21 +25,25 @@ import com.muscat.trade.infra.client.dto.DividendDto;
 import com.muscat.trade.infra.client.dto.DividendSettlementPageDto;
 import com.muscat.trade.infra.kafka.DividendEventConsumer;
 import com.muscat.trade.infra.kafka.DividendReconcileProducer;
+import com.zaxxer.hikari.HikariDataSource;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -44,12 +51,13 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.ConfluentKafkaContainer;
 
-// 원격 호출 · 카프카 발행을 부르는 순간 트랜잭션이 열려 있는지 Flyway 로 만든 Postgres 에서 봄
+// 원격 호출 · 카프카 발행을 부르는 순간 트랜잭션 · DB 커넥션을 점유하고 있는지 Flyway 로 만든 Postgres 에서 봄
 @SpringBootTest(properties = {
   "spring.jpa.hibernate.ddl-auto=validate",
   "spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect"
 })
 @ActiveProfiles("test")
+@AutoConfigureMockMvc
 @Testcontainers
 @DisplayName("원격 호출의 트랜잭션 범위 (TestContainers)")
 class RemoteCallTransactionIT {
@@ -90,6 +98,12 @@ class RemoteCallTransactionIT {
 
   @Autowired
   private TradeRepository tradeRepository;
+
+  @Autowired
+  private MockMvc mockMvc;
+
+  @Autowired
+  private DataSource dataSource;
 
   @MockitoBean
   private MarketServiceClientWrapper marketServiceClientWrapper;
@@ -178,5 +192,23 @@ class RemoteCallTransactionIT {
     dividendBackfillService.diff();
 
     assertThat(inTransaction).containsExactly(false, false);
+  }
+
+  @Test
+  @DisplayName("포트폴리오 요청은 현재가를 받는 동안 DB 커넥션을 점유하지 않는다")
+  void portfolioRequest_NoConnectionDuringRemoteCall() throws Exception {
+    holdingsRepository.save(Holdings.builder().userId(USER).accountId(ACCOUNT).symbol(SYMBOL)
+      .totalQuantity(new BigDecimal("10")).avgPurchasePrice(new BigDecimal("150"))
+      .totalInvestedAmount(new BigDecimal("1500")).build());
+    List<Integer> activeConnections = new CopyOnWriteArrayList<>();
+    given(marketServiceClientWrapper.getCurrentPrices(anyList())).willAnswer(invocation -> {
+      activeConnections.add(dataSource.unwrap(HikariDataSource.class).getHikariPoolMXBean().getActiveConnections());
+      return Map.of();
+    });
+
+    mockMvc.perform(get("/api/portfolio/account/" + ACCOUNT).with(jwt().jwt(token -> token.subject(USER))))
+      .andExpect(status().isOk());
+
+    assertThat(activeConnections).containsExactly(0);
   }
 }

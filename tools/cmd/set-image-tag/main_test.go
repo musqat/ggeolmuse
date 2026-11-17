@@ -40,3 +40,21 @@ func TestApplyTagsMissingTag(t *testing.T) {
 		t.Fatalf("오류 %v", err)
 	}
 }
+
+// 설정 리포 커밋을 받으면 config-server 의 gitLabel 줄도 바꿈
+func TestApplyTagsConfigLabel(t *testing.T) {
+	const sha = "6f28852d0123456789abcdef0123456789abcdef"
+	text, _, err := applyTagsWithConfig(valuesText+"configServer:\n  gitLabel: main\n", []string{"frontend-web"},
+		map[string]string{"frontend-web": "0123456"}, "0123456789", sha)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(text, "configServer:\n  gitLabel: "+sha) {
+		t.Fatalf("gitLabel 안 바뀜:\n%s", text)
+	}
+	text, _, err = applyTagsWithConfig(valuesText+"configServer:\n  gitLabel: main\n", []string{"frontend-web"},
+		map[string]string{"frontend-web": "0123456"}, "0123456789", "")
+	if err != nil || !strings.Contains(text, "gitLabel: main") {
+		t.Fatalf("빈 커밋이면 그대로여야 함: %v\n%s", err, text)
+	}
+}

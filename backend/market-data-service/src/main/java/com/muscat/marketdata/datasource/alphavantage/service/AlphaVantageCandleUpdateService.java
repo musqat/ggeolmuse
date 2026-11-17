@@ -13,12 +13,13 @@ import com.muscat.marketdata.datasource.common.MarketDataProvider.DividendSource
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -44,7 +45,9 @@ public class AlphaVantageCandleUpdateService implements com.muscat.marketdata.do
 
     private final DividendEventProducer dividendEventProducer;
 
-    @Transactional
+    private final TransactionTemplate transactionTemplate;
+
+    // 마지막 봉으로 받을 기간을 정하고 외부에서 받은 뒤 새 봉만 트랜잭션 하나로 저장
     public int saveCandles(String symbol, LocalDate from, LocalDate to) {
         // 증분 수집: 마지막 캔들 날짜 확인
         Optional<Candle> lastCandle = candleRepository.findFirstBySymbolOrderByDateDesc(symbol);
@@ -73,6 +76,11 @@ public class AlphaVantageCandleUpdateService implements com.muscat.marketdata.do
             return 0;
         }
 
+        return Objects.requireNonNull(transactionTemplate.execute(status -> storeCandles(symbol, candles)));
+    }
+
+    // 저장된 날짜를 뺀 봉 저장 · 종목의 최신 종가 갱신
+    private int storeCandles(String symbol, List<Candle> candles) {
         // 중복 캔들 필터링 (Batch Query 방식: 1회 쿼리로 모든 날짜 조회)
         Set<LocalDate> existingDates = candleRepository.findBySymbol(symbol)
             .stream()
@@ -119,12 +127,16 @@ public class AlphaVantageCandleUpdateService implements com.muscat.marketdata.do
         return date;
     }
 
-    @Transactional
+    // 외부에서 배당을 받은 뒤 바뀐 배당만 트랜잭션 하나로 저장
     public int saveDividends(String symbol, LocalDate from, LocalDate to) {
         List<DividendDto> dtos = dividendSource.fetchDividends(symbol, from, to);
         if (dtos == null || dtos.isEmpty()) {
             return 0;
         }
+        return Objects.requireNonNull(transactionTemplate.execute(status -> storeDividends(symbol, dtos)));
+    }
+
+    private int storeDividends(String symbol, List<DividendDto> dtos) {
         List<Dividend> rows = DividendMerge.changedRows(dividendRepository, dtos);
         if (rows.isEmpty()) {
             log.debug("[배당금] {} - 바뀐 배당 없음, 저장 스킵", symbol);
@@ -140,7 +152,6 @@ public class AlphaVantageCandleUpdateService implements com.muscat.marketdata.do
         return rows.size();
     }
 
-    @Transactional
     public int saveBoth(String symbol, LocalDate from, LocalDate to) {
         int c = saveCandles(symbol, from, to);
         int d = saveDividends(symbol, from, to);
