@@ -50,6 +50,8 @@ cd modules/k8s-cluster && terraform init -backend=false && terraform test
 | 쿠버네티스 | 1.31 | 1.35 |
 
 - 파드 · 서비스 대역은 k3s 와 같다(`10.42.0.0/16` · `10.43.0.0/16`). Keycloak 의 신뢰 프록시 대역을 그대로 쓴다
+- 앱 네임스페이스로 들어오는 요청은 똑같이 기본 거부다. 외부 요청은 `envoy-gateway-system` 의 Envoy 프록시에서 받고, Keycloak 두 대끼리
+  캐시 클러스터 포트(7800 · 57800)를 연다. kind 의 Postgres 는 business 서비스 · Keycloak 에서만 받는다
 - 컨트롤 플레인이 멈춰도 떠 있는 파드는 계속 돈다. 배포 · 변경만 멈추고, etcd 는 스냅샷으로 되살린다
 
 <br>

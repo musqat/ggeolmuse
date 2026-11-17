@@ -206,6 +206,18 @@ spec:
     ports:
     - protocol: TCP
       port: {{ $infra.keycloak.port }}
+  {{- if gt (int $infra.keycloak.replicas) 1 }}
+  # 여러 대일 때 캐시 클러스터(JGroups 7800 · 장애 감지 57800)
+  - from:
+    - podSelector:
+        matchLabels:
+          app: keycloak
+    ports:
+    - protocol: TCP
+      port: 7800
+    - protocol: TCP
+      port: 57800
+  {{- end }}
 {{- end }}
 {{- if .Values.configServer.enabled }}
 ---

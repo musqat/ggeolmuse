@@ -290,6 +290,11 @@ jobs:
       - name: values.yaml 만으로 렌더 확인
         run: helm template ggeolmuse helm/ggeolmuse > /dev/null
 
+      - name: 멀티 노드 차트 렌더
+        run: |
+          helm template ggeolmuse k8s/helm/ggeolmuse -f k8s/helm/ggeolmuse/values-prod.yaml \
+            -f k8s/helm/ggeolmuse/values-k8s.yaml > rendered-k8s.yaml
+
       # 익명 받기 횟수 제한(429) 회피용 읽기 전용 토큰
       - name: Docker Hub 로그인
         uses: docker/login-action@v4
@@ -321,10 +326,12 @@ jobs:
             exit 1
           fi
 
-      # NetworkPolicy 기본 거부 · 워크로드마다 여는 정책 · 허용 목록에 없는 새 서비스 포트 검사(tools/cmd/netpol-check)
+      # 두 차트의 NetworkPolicy 기본 거부 · 워크로드마다 여는 정책 · 허용 목록에 없는 새 서비스 포트 검사(tools/cmd/netpol-check)
       - name: NetworkPolicy 기본 거부 · 서비스 포트 대조
         working-directory: tools
-        run: go run ./cmd/netpol-check ../rendered.yaml
+        run: |
+          go run ./cmd/netpol-check ../rendered.yaml
+          go run ./cmd/netpol-check ../rendered-k8s.yaml
 
       # 두 차트 · compose 의 realm 클라이언트 흐름 · 역할과 Keycloak 클라이언트 secret 을 받는 워크로드 검사(tools/cmd/keycloak-check)
       - name: Keycloak 클라이언트 권한과 secret 을 받는 곳을 본다
@@ -333,8 +340,6 @@ jobs:
           go run ./cmd/keycloak-check ../rendered.yaml \
             ../helm/ggeolmuse/config-files/keycloak-realm-template.json \
             ../docker-compose/keycloak/custom-realm.json
-          helm template ggeolmuse ../k8s/helm/ggeolmuse -f ../k8s/helm/ggeolmuse/values-prod.yaml \
-            -f ../k8s/helm/ggeolmuse/values-k8s.yaml > ../rendered-k8s.yaml
           go run ./cmd/keycloak-check ../rendered-k8s.yaml ../k8s/helm/ggeolmuse/config-files/keycloak-realm-template.json
 
       # 렌더한 이미지 태그가 Docker Hub 에 있는지(값 파일 오타 · 없는 태그, tools/cmd/image-check)
