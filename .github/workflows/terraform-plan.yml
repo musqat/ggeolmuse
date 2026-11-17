@@ -36,17 +36,17 @@ jobs:
             echo "::notice::TERRAFORM_PLAN_ROLE_ARN · TERRAFORM_TFVARS 시크릿이 없어 plan 을 건너뜀"
           fi
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         if: steps.secrets.outputs.ready == 'true'
 
-      - uses: aws-actions/configure-aws-credentials@v5
+      - uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
         if: steps.secrets.outputs.ready == 'true'
         with:
           role-to-assume: ${{ env.ROLE_ARN }}
           role-session-name: terraform-plan-${{ github.run_id }}
           aws-region: ap-northeast-2
 
-      - uses: hashicorp/setup-terraform@v4
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
         if: steps.secrets.outputs.ready == 'true'
         with:
           terraform_version: 1.10.5

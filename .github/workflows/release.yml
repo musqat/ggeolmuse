@@ -45,11 +45,11 @@ jobs:
       tags: ${{ steps.plan.outputs.tags || '{}' }}
       sha: ${{ steps.plan.outputs.sha }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: tools/go.mod
           cache: false
@@ -175,7 +175,7 @@ jobs:
             *) echo "muscathan/$SERVICE:$TAG 확인 실패(응답 $code)"; exit 1 ;;
           esac
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         if: steps.hub.outputs.skip != 'true'
         with:
           ref: ${{ needs.plan.outputs.sha }}
@@ -191,16 +191,16 @@ jobs:
           esac >> "$GITHUB_OUTPUT"
 
       # Docker Hub 쓰기 토큰
-      - uses: docker/login-action@v4
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         if: steps.hub.outputs.skip != 'true'
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PUSH_TOKEN }}
-      - uses: docker/setup-buildx-action@v4
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
         if: steps.hub.outputs.skip != 'true'
 
       # 푸시 전에 스캔(고친 버전이 나온 CRITICAL 이면 Hub 에 올리지 않음)
-      - uses: docker/build-push-action@v7
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         if: steps.hub.outputs.skip != 'true'
         with:
           context: ${{ steps.ctx.outputs.context }}
@@ -247,16 +247,16 @@ jobs:
           fi
 
       # 쓰기 배포 키로 받기 · 푸시(master 규칙의 우회 대상)
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: master
           fetch-depth: 0
           ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: tools/go.mod
           cache: false
-      - uses: azure/setup-helm@v5
+      - uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5
 
       # 최신 master 에서 다시 고른 뒤 태그를 바꿈(동시에 돈 다른 릴리스가 먼저 커밋했으면 새 master 에서 다시, 더 새 커밋이 배포된 서비스는 뺌,
       # 그사이 올라간 운영 버전 이하면 실패), 커밋 직전에 Hub 이미지 레이블이 릴리스할 커밋인지 대조
@@ -317,10 +317,10 @@ jobs:
     env:
       SERVICES: ${{ needs.deploy.outputs.services }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.deploy.outputs.commit }}
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: tools/go.mod
           cache: false

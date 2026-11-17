@@ -1,0 +1,107 @@
+# 의존성 올리기 PR(주 1회 월요일 09시, 생태계마다 부 · 수 버전은 PR 하나로 묶고 주 버전은 따로)
+version: 2
+updates:
+
+  - package-ecosystem: maven
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore(deps)
+
+  - package-ecosystem: npm
+    directories: [/frontend-web, /tests/e2e]
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore(deps)
+
+  - package-ecosystem: pip
+    directory: /backend/chat-service
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore(deps)
+
+  - package-ecosystem: gomod
+    directory: /tools
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: chore(deps)
+
+  # Dockerfile 베이스 이미지 digest
+  - package-ecosystem: docker
+    directories:
+      - /backend/backtest-service
+      - /backend/chat-service
+      - /backend/config-server
+      - /backend/gateway-server
+      - /backend/market-data-service
+      - /backend/trade-service
+      - /backend/user-service
+      - /frontend-web
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: chore(deps)
+
+  # 워크플로 · 저장소 안 액션의 커밋 고정
+  - package-ecosystem: github-actions
+    directories: [/, /.github/actions/install-trivy, /.github/actions/trivy-image-scan]
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: chore(deps)
+
+  - package-ecosystem: terraform
+    directories: [/terraform, /k8s/terraform/modules/k8s-cluster]
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: chore(deps)
