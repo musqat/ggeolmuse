@@ -5,10 +5,11 @@ import { stockApi } from '../services/api';
 import type { OHLCData } from '../types/ohlc';
 import { getTodayString, subtractDays } from '../utils/dateUtils';
 import { formatPercent, formatUsd, NO_VALUE } from '../utils/format';
+import { LoadError } from '../components/common/LoadError';
 
 const Home: React.FC = () => {
   // 시총 상위 5개
-  const { data: topStocksRaw } = useQuery({
+  const { data: topStocksRaw, isError: topStocksFailed, refetch: refetchTopStocks } = useQuery({
     queryKey: ['home', 'topStocks'],
     queryFn: async () => {
       const res = await stockApi.getAllStocksWithPrices(0, 5);
@@ -148,6 +149,10 @@ const Home: React.FC = () => {
                 {topChange !== null ? `${topUp ? '▲' : '▼'} ${formatPercent(Math.abs(topChange))}` : NO_VALUE}
               </span>
             </div>
+
+            {topStocksFailed && (
+              <LoadError className="mb-3" message="시세를 불러오지 못했습니다" onRetry={() => void refetchTopStocks()} />
+            )}
 
             {/* 스파크라인 */}
             <svg viewBox="0 0 320 64" className="w-full mb-4" preserveAspectRatio="none">

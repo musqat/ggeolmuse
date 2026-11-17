@@ -160,6 +160,19 @@ describe('Portfolio', () => {
     expect(screen.queryByText(/$-/)).toBeNull()
   })
 
+  it('보유를 못 받으면 빈 포트폴리오 대신 실패와 다시 시도를 보이고 다시 시도하면 다시 받는다', async () => {
+    vi.mocked(portfolioApi.getAccountPortfolio).mockRejectedValue(new Error('down'))
+    renderPage()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('포트폴리오를 불러오지 못했습니다')
+    expect(screen.queryByText('보유 종목이 없습니다')).toBeNull()
+
+    vi.mocked(portfolioApi.getAccountPortfolio).mockResolvedValue({ data: [HOLDING] } as never)
+    await userEvent.click(screen.getByRole('button', { name: '다시 시도' }))
+
+    expect(await screen.findByText('$400.00')).toBeInTheDocument()
+  })
+
   it('요약 카드 · 총 자산은 이 계좌 보유로 셈하고 다른 계좌가 섞인 전체 요약은 받지 않는다', async () => {
     vi.mocked(portfolioApi.getPortfolioSummary).mockResolvedValue({
       data: { totalCurrentValue: 9_999, totalUnrealizedPnL: 999, totalReturnRate: 99 },

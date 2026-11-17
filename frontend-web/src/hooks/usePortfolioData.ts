@@ -38,5 +38,11 @@ export const usePortfolioData = (accountId: string | null, enabled: boolean) => 
     balance,
     exchangeRate: balance?.currentExchangeRate ? Number(balance.currentExchangeRate) : DEFAULT_EXCHANGE_RATE,
     loading: holdingsQuery.isLoading || balanceQuery.isLoading,
+    // 보유나 잔액을 못 받음(빈 보유와 구분)
+    failed: holdingsQuery.isError || balanceQuery.isError,
+    retry: () => {
+      void holdingsQuery.refetch();
+      void balanceQuery.refetch();
+    },
   };
 };
