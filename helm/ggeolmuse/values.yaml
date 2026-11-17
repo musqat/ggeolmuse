@@ -544,6 +544,8 @@ monitoring:
     enabled: true
   prometheusRule:
     enabled: true
+    # 알림마다 다는 대응 문서 주소(뒤에 #알림 이름 소문자)
+    runbookUrl: https://github.com/musqat/ggeolmuse/blob/master/helm/monitoring/RUNBOOK.md
   # dashboards/*.json 을 파일마다 Grafana 대시보드 ConfigMap 으로
   dashboards:
     enabled: false
