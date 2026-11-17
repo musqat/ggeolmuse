@@ -13,5 +13,8 @@
         # JGit 설정을 쓸 HOME(UID 10001 은 홈이 없어 / 로 잡힘)
         - name: HOME
           value: /tmp
+        # 서비스가 라벨 없이 받는 설정의 리포 커밋 · 브랜치
+        - name: CONFIG_GIT_LABEL
+          value: {{ .Values.configServer.gitLabel | default "main" | quote }}
 {{- include "ggeolmuse.javaPodTail" $ctx }}
 {{- end }}

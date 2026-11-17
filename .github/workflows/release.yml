@@ -254,6 +254,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # config-server 가 읽을 설정 리포 커밋(main 끝, 못 읽으면 운영 값 그대로)
+          config=$(git ls-remote https://github.com/musqat/ggeolmuse-config.git refs/heads/main | cut -f1)
+          [ -n "$config" ] || echo "::warning title=설정 리포::main 끝 커밋을 못 읽어 config-server 커밋을 그대로 둠"
           for i in 1 2 3 4 5; do
             git fetch -q origin master
             git reset -q --hard origin/master
@@ -263,7 +266,7 @@ jobs:
               exit 0
             fi
             names=$(jq -r '.[]' <<<"$still")
-            subject=$(cd tools && go run ./cmd/set-image-tag -tags "$TAGS" -built "$SHA" ../helm/ggeolmuse/values-prod.yaml $names | sed -n 's/^subject=//p')
+            subject=$(cd tools && go run ./cmd/set-image-tag -tags "$TAGS" -built "$SHA" -config-label "$config" ../helm/ggeolmuse/values-prod.yaml $names | sed -n 's/^subject=//p')
             rendered=$(helm template ggeolmuse helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml)
             for s in $names; do
               tag=$(jq -r --arg s "$s" '.[$s]' <<<"$TAGS")
@@ -277,6 +280,7 @@ jobs:
             git commit -qam "$subject" -m "[skip ci]"
             if out=$(git push -q origin HEAD:master 2>&1); then
               echo "### 릴리스 — $subject" >> "$GITHUB_STEP_SUMMARY"
+              [ -z "$config" ] || echo "설정 리포 커밋 ${config::7}" >> "$GITHUB_STEP_SUMMARY"
               printf 'commit=%s\nservices=%s\n' "$(git rev-parse HEAD)" "$still" >> "$GITHUB_OUTPUT"
               exit 0
             fi

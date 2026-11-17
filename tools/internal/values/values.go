@@ -1,4 +1,4 @@
-// Package values 는 운영 값 파일의 이미지 태그 줄을 찾고 바꾼다
+// Package values 는 운영 값 파일의 이미지 태그 · 설정 리포 커밋 줄을 찾고 바꾼다
 package values
 
 import (
@@ -23,6 +23,9 @@ var Keys = map[string][]string{
 var TagPattern = regexp.MustCompile(`^([0-9a-f]{7}|[0-9]+\.[0-9]+\.[0-9]+)$`)
 
 var tagLine = regexp.MustCompile(`^(\s+)tag:\s*(\S.*)$`)
+
+// ConfigLabelPattern 은 설정 리포 커밋 SHA 40자리
+var ConfigLabelPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
 // Entry 는 지금 태그와 줄 번호(1부터)
 type Entry struct {
@@ -71,6 +74,30 @@ func SetTags(text, tag string, services []string) (string, error) {
 		lines[i] = m[1] + `tag: "` + tag + `"` + cr
 	}
 	return strings.Join(lines, "\n"), nil
+}
+
+// SetConfigLabel 은 configServer.gitLabel 줄만 설정 리포 커밋으로 바꾼 값 파일
+func SetConfigLabel(text, label string) (string, error) {
+	if !ConfigLabelPattern.MatchString(label) {
+		return "", fmt.Errorf("설정 리포 커밋 모양 아님: %q", label)
+	}
+	lines := strings.Split(text, "\n")
+	for i, l := range lines {
+		if strings.TrimRight(l, "\r") != "configServer:" {
+			continue
+		}
+		for j := i + 1; j < blockEnd(lines, i, 0); j++ {
+			if strings.HasPrefix(lines[j], "  gitLabel:") {
+				cr := ""
+				if strings.HasSuffix(lines[j], "\r") {
+					cr = "\r"
+				}
+				lines[j] = "  gitLabel: " + label + cr
+				return strings.Join(lines, "\n"), nil
+			}
+		}
+	}
+	return "", fmt.Errorf("configServer.gitLabel 없음")
 }
 
 // 키 경로 아래 image.tag 줄 번호
