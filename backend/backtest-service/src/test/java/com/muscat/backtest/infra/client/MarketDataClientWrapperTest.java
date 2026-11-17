@@ -23,7 +23,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-// 서킷 브레이커 대체 메서드(private)의 동작 — 단건 시세는 예외, 배당 목록은 null, 여러 날짜 환율은 빈 값, 환율은 설정한 기본 환율
+// 서킷 브레이커 대체 메서드(private)의 동작 — 시세 · 환율은 예외(그날 환율 없음 404 는 null), 배당 목록은 null
 @DisplayName("시세 서비스 호출과 대체 동작")
 class MarketDataClientWrapperTest {
 
@@ -96,27 +96,42 @@ class MarketDataClientWrapperTest {
   }
 
   @Test
-  @DisplayName("배당 목록을 못 받으면 null, 여러 날짜 환율은 빈 값")
-  void listFallbacks_DividendsNullFxEmpty() {
+  @DisplayName("배당 목록을 못 받으면 null")
+  void dividendFallback_Null() {
     List<DividendDto> dividends = ReflectionTestUtils.invokeMethod(wrapper, "getDividendHistoryFallback", "AAPL",
       "2024-01-01", "2024-12-31", down);
-    Map<String, java.math.BigDecimal> fxRates = fallback("getBulkFxRatesFallback", List.of("2024-03-04"), down);
 
     assertThat(dividends).isNull();
-    assertThat(fxRates).isEmpty();
   }
 
   @Test
-  @DisplayName("환율을 못 받으면 요청한 날짜(최신이면 오늘)에 설정한 기본 환율")
-  void fxFallbacks_DefaultRate() {
-    FxRateDto dated = fallback("getFxRateFallback", "2024-03-04", down);
-    FxRateDto latest = fallback("getLatestFxRateFallback", down);
+  @DisplayName("날짜 환율 · 최신 환율 · 여러 날짜 환율을 못 받으면 고정 환율 대신 시세 서비스 사용 불가 예외가 난다")
+  void fxFallbacks_Throw() {
+    assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getFxRateFallback", "2024-03-04", down))
+      .isInstanceOf(BacktestException.class)
+      .hasCause(down)
+      .extracting("code").isEqualTo(BacktestResponse.MARKET_DATA_UNAVAILABLE);
+    assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getLatestFxRateFallback", down))
+      .isInstanceOf(BacktestException.class)
+      .hasCause(down)
+      .extracting("code").isEqualTo(BacktestResponse.MARKET_DATA_UNAVAILABLE);
+    assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(wrapper, "getBulkFxRatesFallback", List.of("2024-03-04"), down))
+      .isInstanceOf(BacktestException.class)
+      .hasCause(down)
+      .extracting("code").isEqualTo(BacktestResponse.MARKET_DATA_UNAVAILABLE);
+  }
 
-    assertThat(dated.date()).isEqualTo(LocalDate.of(2024, 3, 4));
-    assertThat(dated.rate()).isEqualByComparingTo("1400");
-    assertThat(latest.date()).isEqualTo(LocalDate.now());
-    assertThat(latest.rate()).isEqualByComparingTo("1400");
-    assertThat(dated.defaulted()).isTrue();
-    assertThat(latest.defaulted()).isTrue();
+  @Test
+  @DisplayName("그날 · 최신 환율이 없다는 404 는 null 이라 기본 환율로 채우고 표시한다")
+  void fxFallbacks_NotFoundNull() {
+    Request request = Request.create(Request.HttpMethod.GET, "/api/internal/market/fx/2024-03-04", Map.of(), null,
+      StandardCharsets.UTF_8, null);
+    FeignException.NotFound notFound = new FeignException.NotFound("Not Found", request, null, Map.of());
+
+    FxRateDto dated = ReflectionTestUtils.invokeMethod(wrapper, "getFxRateFallback", "2024-03-04", notFound);
+    FxRateDto latest = ReflectionTestUtils.invokeMethod(wrapper, "getLatestFxRateFallback", notFound);
+
+    assertThat(dated).isNull();
+    assertThat(latest).isNull();
   }
 }

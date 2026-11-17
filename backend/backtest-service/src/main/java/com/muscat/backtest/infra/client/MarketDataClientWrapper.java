@@ -12,8 +12,6 @@ import feign.FeignException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -133,20 +131,30 @@ public class MarketDataClientWrapper implements MarketDataPort {
     return null;
   }
 
+  // 그날 환율이 없다는 404 는 null(호출한 쪽이 기본 환율로 채우고 표시), 그 밖에 못 받으면 서비스 불가
   private FxRateDto getFxRateFallback(String date, Exception ex) {
-    log.error("Fallback triggered for getFxRate. Date: {}, Error: {}. Using default FX rate: {}",
-      date, ex.getMessage(), defaultFxRate);
-    return new FxRateDto(LocalDate.parse(date), defaultFxRate, true);
+    if (ex instanceof FeignException.NotFound) {
+      return null;
+    }
+    rethrowClientError(ex);
+    log.error("Fallback triggered for getFxRate. Date: {}, Error: {}", date, ex.getMessage());
+    throw new BacktestException(BacktestResponse.MARKET_DATA_UNAVAILABLE, ex);
   }
 
+  // 못 받으면 서비스 불가(응답에 없는 날짜만 호출한 쪽이 기본 환율로 채움)
   private Map<String, BigDecimal> getBulkFxRatesFallback(List<String> dates, Exception ex) {
+    rethrowClientError(ex);
     log.error("Fallback triggered for getBulkFxRates. Dates: {}, Error: {}", dates.size(), ex.getMessage());
-    return Collections.emptyMap();
+    throw new BacktestException(BacktestResponse.MARKET_DATA_UNAVAILABLE, ex);
   }
 
+  // 저장된 환율이 없다는 404 는 null, 그 밖에 못 받으면 서비스 불가
   private FxRateDto getLatestFxRateFallback(Exception ex) {
-    log.error("Fallback triggered for getLatestFxRate. Error: {}. Using default FX rate: {}",
-      ex.getMessage(), defaultFxRate);
-    return new FxRateDto(LocalDate.now(), defaultFxRate, true);
+    if (ex instanceof FeignException.NotFound) {
+      return null;
+    }
+    rethrowClientError(ex);
+    log.error("Fallback triggered for getLatestFxRate. Error: {}", ex.getMessage());
+    throw new BacktestException(BacktestResponse.MARKET_DATA_UNAVAILABLE, ex);
   }
 }
