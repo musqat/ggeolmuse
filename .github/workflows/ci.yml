@@ -326,13 +326,16 @@ jobs:
         working-directory: tools
         run: go run ./cmd/netpol-check ../rendered.yaml
 
-      # realm 파일 둘의 클라이언트 흐름 · 역할과 Keycloak 클라이언트 secret 을 받는 워크로드 검사(tools/cmd/keycloak-check)
+      # 두 차트 · compose 의 realm 클라이언트 흐름 · 역할과 Keycloak 클라이언트 secret 을 받는 워크로드 검사(tools/cmd/keycloak-check)
       - name: Keycloak 클라이언트 권한과 secret 을 받는 곳을 본다
         working-directory: tools
-        run: >-
-          go run ./cmd/keycloak-check ../rendered.yaml
-          ../helm/ggeolmuse/config-files/keycloak-realm-template.json
-          ../docker-compose/keycloak/custom-realm.json
+        run: |
+          go run ./cmd/keycloak-check ../rendered.yaml \
+            ../helm/ggeolmuse/config-files/keycloak-realm-template.json \
+            ../docker-compose/keycloak/custom-realm.json
+          helm template ggeolmuse ../k8s/helm/ggeolmuse -f ../k8s/helm/ggeolmuse/values-prod.yaml \
+            -f ../k8s/helm/ggeolmuse/values-k8s.yaml > ../rendered-k8s.yaml
+          go run ./cmd/keycloak-check ../rendered-k8s.yaml ../k8s/helm/ggeolmuse/config-files/keycloak-realm-template.json
 
       # 렌더한 이미지 태그가 Docker Hub 에 있는지(값 파일 오타 · 없는 태그, tools/cmd/image-check)
       - name: Docker Hub 이미지 태그 확인

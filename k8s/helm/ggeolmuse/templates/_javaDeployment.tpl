@@ -137,8 +137,6 @@ keycloakClientEnv(공개 주소 · 클라이언트 ID) · env
           value: {{ $svc.name | quote }}
         {{- include "ggeolmuse.springEnv" . | nindent 8 }}
         {{- if not (include "ggeolmuse.secretFiles" .) }}
-        - name: KEYCLOAK_SECRET
-          {{- include "ggeolmuse.secretRef" (dict "Values" .Values "key" "KEYCLOAK_SECRET") | nindent 10 }}
         {{- range $svc.extraSecrets }}
         - name: {{ . }}
           {{- include "ggeolmuse.secretRef" (dict "Values" $.Values "key" .) | nindent 10 }}
