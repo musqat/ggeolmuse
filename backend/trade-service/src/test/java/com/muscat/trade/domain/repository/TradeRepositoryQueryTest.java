@@ -2,7 +2,7 @@ package com.muscat.trade.domain.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.muscat.jpatest.TradeJpaTestConfig;
+import com.muscat.jpatest.TradePostgresJpaTest;
 import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.domain.dto.TradePosition;
@@ -17,14 +17,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
 
-@DataJpaTest(properties = {"spring.flyway.enabled=false", "spring.jpa.properties.hibernate.generate_statistics=true"})
-@ActiveProfiles("test")
-@ContextConfiguration(classes = TradeJpaTestConfig.class)
+@TradePostgresJpaTest
+@TestPropertySource(properties = "spring.jpa.properties.hibernate.generate_statistics=true")
 @DisplayName("체결 레포지토리 - QueryDSL 조회")
 class TradeRepositoryQueryTest {
 

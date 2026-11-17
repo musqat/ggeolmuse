@@ -2,7 +2,7 @@ package com.muscat.user.domain.account.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.muscat.jpatest.UserJpaTestConfig;
+import com.muscat.jpatest.UserPostgresJpaTest;
 import com.muscat.user.common.enums.type.TransactionType;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.entity.AccountHistory;
@@ -13,14 +13,9 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
 
-@DataJpaTest(properties = "spring.flyway.enabled=false")
-@ActiveProfiles("test")
-@ContextConfiguration(classes = UserJpaTestConfig.class)
+@UserPostgresJpaTest
 @DisplayName("계좌 장부 환전 줄 조회")
 class AccountHistoryRepositoryTest {
 
@@ -77,7 +72,7 @@ class AccountHistoryRepositoryTest {
     return entityManager.persist(Account.builder()
       .user(user)
       .accountNumber(accountNumber)
-      .accountName("연습")
+      .accountName("연습 " + accountNumber)
       .build());
   }
 

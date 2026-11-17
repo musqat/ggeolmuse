@@ -2,7 +2,7 @@ package com.muscat.trade.domain.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.muscat.jpatest.TradeJpaTestConfig;
+import com.muscat.jpatest.TradePostgresJpaTest;
 import com.muscat.trade.domain.entity.AccountProfitDaily;
 import com.muscat.trade.domain.repository.AccountProfitDailyRepository;
 import com.muscat.trade.domain.service.ProfitFlowCalculator.DailyProfit;
@@ -13,13 +13,8 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
 
-@DataJpaTest(properties = "spring.flyway.enabled=false")
-@ActiveProfiles("test")
-@ContextConfiguration(classes = TradeJpaTestConfig.class)
+@TradePostgresJpaTest
 @DisplayName("계좌 수익 흐름 저장")
 class AccountProfitStoreTest {
 
