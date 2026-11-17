@@ -28,6 +28,30 @@ spec:
             instance: "{{ `{{ $labels.instance }}` }}"
             value: "{{ `{{ $value }}` }}"
 
+        - alert: RedisDown
+          # exporter 가 본 Redis 응답 없음, exporter 가 없어 지표가 없는 때도 포함
+          expr: max(redis_up{job="redis"} or vector(0)) < 1
+          for: 10m
+          labels:
+            severity: critical
+            category: availability
+          annotations:
+            summary: "Redis 응답 없음"
+            description: 'redis_up 0 또는 지표 없음 · 10분 지속 · redis 파드 상태 · 메모리 한도 확인'
+            runbook_url: "{{ .Values.monitoring.prometheusRule.runbookUrl }}#redisdown"
+
+        - alert: KafkaBrokerDown
+          # exporter 가 본 브로커 0, exporter 가 브로커에 못 붙어 지표가 없는 때도 포함
+          expr: max(kafka_brokers{job="kafka-exporter"} or vector(0)) < 1
+          for: 10m
+          labels:
+            severity: critical
+            category: availability
+          annotations:
+            summary: "Kafka 브로커 없음"
+            description: 'kafka-exporter 가 보는 브로커 0 또는 지표 없음 · 10분 지속 · kafka · zookeeper 파드 확인'
+            runbook_url: "{{ .Values.monitoring.prometheusRule.runbookUrl }}#kafkabrokerdown"
+
         - alert: ServiceRestarting
           # 부팅 때 1회 재시작은 빼고 크래시 루프만
           expr: increase(kube_pod_container_status_restarts_total{namespace="default", pod=~"(config-server|gateway-server|user-service|trade-service|market-data-service|backtest-service).*"}[15m]) > 2

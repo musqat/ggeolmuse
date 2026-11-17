@@ -554,3 +554,77 @@ tests:
       - eval_time: 26h
         alertname: CandleCollectionMissing
         exp_alerts: []
+
+  # Redis · Kafka 브로커 응답 없음(exporter 값 0)
+  - interval: 1m
+    input_series:
+      - series: 'redis_up{job="redis", instance="10.42.0.30:9121"}'
+        values: '0x20'
+      - series: 'kafka_brokers{job="kafka-exporter", instance="10.42.0.31:9308"}'
+        values: '0x20'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: RedisDown
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: RedisDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              category: availability
+            exp_annotations:
+              summary: "Redis 응답 없음"
+              description: "redis_up 0 또는 지표 없음 · 10분 지속 · redis 파드 상태 · 메모리 한도 확인"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/helm/monitoring/RUNBOOK.md#redisdown"
+      - eval_time: 15m
+        alertname: KafkaBrokerDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              category: availability
+            exp_annotations:
+              summary: "Kafka 브로커 없음"
+              description: "kafka-exporter 가 보는 브로커 0 또는 지표 없음 · 10분 지속 · kafka · zookeeper 파드 확인"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/helm/monitoring/RUNBOOK.md#kafkabrokerdown"
+
+  # exporter 지표 자체가 없음
+  - interval: 1m
+    input_series:
+      - series: 'up{job="gateway-server", instance="10.42.0.10:9090"}'
+        values: '1x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: RedisDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              category: availability
+            exp_annotations:
+              summary: "Redis 응답 없음"
+              description: "redis_up 0 또는 지표 없음 · 10분 지속 · redis 파드 상태 · 메모리 한도 확인"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/helm/monitoring/RUNBOOK.md#redisdown"
+      - eval_time: 15m
+        alertname: KafkaBrokerDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              category: availability
+            exp_annotations:
+              summary: "Kafka 브로커 없음"
+              description: "kafka-exporter 가 보는 브로커 0 또는 지표 없음 · 10분 지속 · kafka · zookeeper 파드 확인"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/helm/monitoring/RUNBOOK.md#kafkabrokerdown"
+
+  # 둘 다 정상
+  - interval: 1m
+    input_series:
+      - series: 'redis_up{job="redis", instance="10.42.0.30:9121"}'
+        values: '1x20'
+      - series: 'kafka_brokers{job="kafka-exporter", instance="10.42.0.31:9308"}'
+        values: '1x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: RedisDown
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: KafkaBrokerDown
+        exp_alerts: []

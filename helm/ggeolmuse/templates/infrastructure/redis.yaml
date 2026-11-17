@@ -52,6 +52,30 @@ spec:
           mountPath: /etc/secrets
           readOnly: true
         {{- end }}
+      {{- with .Values.infrastructure.redis.exporter }}
+      {{- if .enabled }}
+      # 지표 내보내기(응답 · 메모리 · 키 수 · 명령 수)
+      - name: redis-exporter
+        image: {{ .image }}
+        imagePullPolicy: {{ $.Values.global.imagePullPolicy }}
+        ports:
+        - containerPort: {{ .port }}
+          name: metrics
+        {{- if (include "ggeolmuse.secretFiles" $) }}
+        # 이미지에 셸이 없어 비밀번호는 환경변수로
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ggeolmuse-secrets
+              key: REDIS_PASSWORD
+        {{- end }}
+        resources:
+          {{- toYaml .resources | nindent 10 }}
+        securityContext:
+          {{- include "ggeolmuse.securityContext" $ | nindent 10 }}
+      {{- end }}
+      {{- end }}
       volumes:
       - name: data
         emptyDir: {}
@@ -74,9 +98,16 @@ metadata:
 spec:
   type: {{ .Values.infrastructure.redis.service.type }}
   ports:
-  - port: {{ .Values.infrastructure.redis.port }}
+  - name: redis
+    port: {{ .Values.infrastructure.redis.port }}
     targetPort: {{ .Values.infrastructure.redis.port }}
     protocol: TCP
+  {{- if .Values.infrastructure.redis.exporter.enabled }}
+  - name: metrics
+    port: {{ .Values.infrastructure.redis.exporter.port }}
+    targetPort: metrics
+    protocol: TCP
+  {{- end }}
   selector:
     app: redis
 {{- end }}

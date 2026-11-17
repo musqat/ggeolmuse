@@ -108,6 +108,18 @@ infrastructure:
     # 이 크기를 넘으면 만료 시간이 있는 키(캐시)부터 오래 안 쓴 것을 지움
     maxmemory: 256mb
     maxmemoryPolicy: volatile-lru
+    # 같은 파드의 지표 내보내기(localhost 로 붙음)
+    exporter:
+      enabled: true
+      image: oliver006/redis_exporter:v1.96.0@sha256:3d57b9eb142a62ffc600063606a41cd471cd53d81bed10be5b56b3a8918f2c26
+      port: 9121
+      resources:
+        limits:
+          memory: 64Mi
+          cpu: 100m
+        requests:
+          memory: 16Mi
+          cpu: 10m
     service:
       type: ClusterIP
 
@@ -183,6 +195,21 @@ infrastructure:
         limits:
           memory: 256Mi
           cpu: 1000m
+
+  # 브로커 · 토픽 · 소비자 그룹 지표 내보내기
+  kafkaExporter:
+    enabled: true
+    image: danielqsj/kafka-exporter:v1.11.0@sha256:54d4296c5b8ce01232f6762e06cbc3eec25887c0b5c5940ccb9e891ac7fc51d8
+    port: 9308
+    # 브로커 버전(cp-kafka 7.6 = Kafka 3.6)
+    kafkaVersion: 3.6.0
+    resources:
+      limits:
+        memory: 128Mi
+        cpu: 100m
+      requests:
+        memory: 32Mi
+        cpu: 10m
 
   kafkaUi:
     enabled: true
