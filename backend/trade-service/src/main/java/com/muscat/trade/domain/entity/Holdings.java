@@ -44,7 +44,7 @@ public class Holdings {
   @Column(nullable = false)
   private Long accountId; // 계좌 ID
 
-  @Column(nullable = false, length = 10)
+  @Column(nullable = false, length = 16)
   private String symbol; // 주식 심볼 (AAPL, MSFT)
 
   @Column(nullable = false, precision = 15, scale = 6)

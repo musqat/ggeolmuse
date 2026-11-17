@@ -2,6 +2,7 @@ package com.muscat.trade.domain.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
@@ -41,4 +42,8 @@ public class PortfolioSummary {
 
   @Schema(description = "종목별 평가손익", example = "{\"AAPL\": 2500.00, \"GOOGL\": 1200.00}")
   private Map<String, BigDecimal> symbolUnrealizedPnL; // 종목별 평가손익
+
+  @Schema(description = "현재가가 없어 평가금액 · 손익 · 수익률에서 뺀 종목", example = "[\"MSFT\"]")
+  @Builder.Default
+  private List<String> unpricedSymbols = new ArrayList<>();
 }

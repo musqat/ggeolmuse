@@ -50,7 +50,7 @@ public class Trade {
   @Column(nullable = false)
   private Long accountId; // 계좌 ID (수수료 정보 참조)
 
-  @Column(nullable = false, length = 10)
+  @Column(nullable = false, length = 16)
   private String symbol; // 주식 심볼 (AAPL, MSFT)
 
   @Enumerated(EnumType.STRING)
