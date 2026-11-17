@@ -9,6 +9,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.domain.repository.TradeRepository;
@@ -56,11 +57,13 @@ class StockSplitBackfillServiceTest {
 
   private final List<Runnable> queued = new ArrayList<>();
   private StockSplitBackfillService service;
+  private SimpleMeterRegistry registry;
 
   @BeforeEach
   void setUp() {
+    registry = new SimpleMeterRegistry();
     service = new StockSplitBackfillService(tradeRepository, marketServiceClientWrapper, stockSplitService,
-      queued::add, Clock.fixed(Instant.parse("2026-11-13T03:00:00Z"), ZoneId.of("Asia/Seoul")));
+      queued::add, Clock.fixed(Instant.parse("2026-11-13T03:00:00Z"), ZoneId.of("Asia/Seoul")), registry);
     ReflectionTestUtils.setField(service, "self", service);
   }
 
@@ -104,6 +107,8 @@ class StockSplitBackfillServiceTest {
     given(stockSplitService.apply(eq("TSLA"), any())).willReturn(new Outcome(2, 0));
 
     assertThat(service.applyAll()).isEqualTo(new Result(2, 1, 0, NOW));
+    assertThat(registry.get("trade.split.backfill.trades").counter().count()).isEqualTo(2);
+    assertThat(registry.get("trade.split.backfill.failures").tag("kind", "symbol").counter().count()).isEqualTo(1);
   }
 
   @Test
@@ -119,6 +124,7 @@ class StockSplitBackfillServiceTest {
     given(stockSplitService.apply(eq("TSLA"), any())).willReturn(new Outcome(1, 1));
 
     assertThat(service.applyAll()).isEqualTo(new Result(4, 0, 3, NOW));
+    assertThat(registry.get("trade.split.backfill.failures").tag("kind", "reconcile").counter().count()).isEqualTo(3);
   }
 
   @Test

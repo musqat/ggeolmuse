@@ -229,6 +229,24 @@ variable "rds_backup_window" {
   }
 }
 
+variable "rds_alarm_cpu_percent" {
+  description = "RDS CPU 알람 기준(5분 평균 %, 15분 지속)"
+  type        = number
+  default     = 80
+}
+
+variable "rds_alarm_free_storage_gib" {
+  description = "RDS 남은 저장 공간 알람 기준(GiB)"
+  type        = number
+  default     = 2
+}
+
+variable "rds_alarm_connections" {
+  description = "RDS 연결 수 알람 기준(5분 최댓값, 10분 지속, 최대 연결 수는 인스턴스 메모리로 정해짐)"
+  type        = number
+  default     = 70
+}
+
 # --- PR 의 읽기 전용 plan (ci-plan-role.tf) ---
 
 variable "ci_plan_role_enabled" {

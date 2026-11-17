@@ -2,11 +2,14 @@ package com.muscat.marketdata.domain.service;
 
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-// 수집 결과를 모아 1분마다 한 줄로 남기는 집계(종목마다 찍으면 긴 수집의 앞부분이 로그 회전으로 사라짐)
+// 수집 결과를 모아 1분마다 한 줄로 남기고 같은 값을 지표로 내는 집계(종목마다 찍으면 긴 수집의 앞부분이 로그 회전으로 사라짐)
 @Slf4j
 @Component
 public class CollectionStats {
@@ -28,6 +31,37 @@ public class CollectionStats {
 
   private final AtomicLong startedAt = new AtomicLong();
 
+  // 마지막으로 완료로 본 수집의 시각(epoch 초, 아직 없으면 0)
+  private final AtomicLong lastCompletedEpochSeconds = new AtomicLong();
+
+  private final Counter okCounter;
+  private final Counter emptyCounter;
+  private final Counter failedCounter;
+  private final Counter splitResyncCounter;
+  private final Counter insertedCounter;
+  private final Counter updatedCounter;
+  private final Counter dividendCounter;
+  private final Counter notFoundCounter;
+  private final Counter httpErrorCounter;
+  private final Counter unreachableCounter;
+
+  public CollectionStats(MeterRegistry registry) {
+    okCounter = registry.counter("marketdata.collection.symbols", "result", "ok");
+    emptyCounter = registry.counter("marketdata.collection.symbols", "result", "empty");
+    failedCounter = registry.counter("marketdata.collection.symbols", "result", "failed");
+    splitResyncCounter = registry.counter("marketdata.collection.symbols", "result", "split_resync");
+    insertedCounter = registry.counter("marketdata.collection.candles", "change", "inserted");
+    updatedCounter = registry.counter("marketdata.collection.candles", "change", "updated");
+    dividendCounter = registry.counter("marketdata.collection.dividends");
+    notFoundCounter = registry.counter("marketdata.collection.requests.failed", "reason", "not_found");
+    httpErrorCounter = registry.counter("marketdata.collection.requests.failed", "reason", "http_error");
+    unreachableCounter = registry.counter("marketdata.collection.requests.failed", "reason", "unreachable");
+    Gauge.builder("marketdata.collection.last.completed", lastCompletedEpochSeconds, AtomicLong::get)
+      .baseUnit("seconds")
+      .description("마지막으로 끝난 시세 수집 시각(epoch 초)")
+      .register(registry);
+  }
+
   // 보고 스레드만 읽고 씀
   private long lastReportedSymbols;
 
@@ -36,37 +70,47 @@ public class CollectionStats {
     symbolsOk.incrementAndGet();
     candlesInserted.addAndGet(inserted);
     candlesUpdated.addAndGet(updated);
+    okCounter.increment();
+    insertedCounter.increment(inserted);
+    updatedCounter.increment(updated);
   }
 
   public void recordSymbolEmpty() {
     begin();
     symbolsEmpty.incrementAndGet();
+    emptyCounter.increment();
   }
 
   public void recordSymbolFailed() {
     begin();
     symbolsFailed.incrementAndGet();
+    failedCounter.increment();
   }
 
   public void recordSplitResync() {
     begin();
     splitResyncs.incrementAndGet();
+    splitResyncCounter.increment();
   }
 
   public void recordDividends(int saved) {
     dividendsSaved.addAndGet(saved);
+    dividendCounter.increment(saved);
   }
 
   public void recordRequestNotFound() {
     requestsNotFound.incrementAndGet();
+    notFoundCounter.increment();
   }
 
   public void recordRequestHttpError() {
     requestsHttpError.incrementAndGet();
+    httpErrorCounter.increment();
   }
 
   public void recordRequestUnreachable() {
     requestsUnreachable.incrementAndGet();
+    unreachableCounter.increment();
   }
 
   /**
@@ -86,6 +130,7 @@ public class CollectionStats {
     }
 
     log.info("{}", summary("완료", symbols));
+    lastCompletedEpochSeconds.set(System.currentTimeMillis() / 1000);
     reset();
   }
 

@@ -1,4 +1,42 @@
 {{- if .Values.monitoring.serviceMonitor.enabled }}
+{{- if and .Values.infrastructure.redis.enabled .Values.infrastructure.redis.exporter.enabled }}
+---
+# Redis exporter ServiceMonitor
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: redis
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: redis
+  endpoints:
+    - port: metrics
+      interval: 30s
+{{- end }}
+{{- if and .Values.infrastructure.kafka.enabled .Values.infrastructure.kafkaExporter.enabled }}
+---
+# Kafka exporter ServiceMonitor
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kafka-exporter
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: kafka-exporter
+  endpoints:
+    - port: metrics
+      interval: 30s
+{{- end }}
 ---
 # Gateway Server ServiceMonitor
 apiVersion: monitoring.coreos.com/v1

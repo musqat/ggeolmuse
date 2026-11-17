@@ -1,0 +1,107 @@
+# RDS 알람(CPU · 남은 저장 공간 · 연결 수) → SNS 이메일 · 슬랙
+# 꺼져 있는 밤 · 주말은 지표가 없어 treat_missing_data 는 notBreaching
+
+locals {
+  rds_alarms = local.rds_enabled ? {
+    cpu = {
+      metric      = "CPUUtilization"
+      statistic   = "Average"
+      comparison  = "GreaterThanThreshold"
+      threshold   = var.rds_alarm_cpu_percent
+      periods     = 3
+      description = "RDS CPU ${var.rds_alarm_cpu_percent}% 초과 · 15분 지속"
+    }
+    storage = {
+      metric      = "FreeStorageSpace"
+      statistic   = "Minimum"
+      comparison  = "LessThanThreshold"
+      threshold   = var.rds_alarm_free_storage_gib * 1024 * 1024 * 1024
+      periods     = 1
+      description = "RDS 남은 저장 공간 ${var.rds_alarm_free_storage_gib}GiB 미만"
+    }
+    connections = {
+      metric      = "DatabaseConnections"
+      statistic   = "Maximum"
+      comparison  = "GreaterThanThreshold"
+      threshold   = var.rds_alarm_connections
+      periods     = 2
+      description = "RDS 연결 ${var.rds_alarm_connections}개 초과 · 10분 지속"
+    }
+  } : {}
+
+  # 알람 상태 변화별 슬랙 문구(<desc> · <name> 은 이벤트 값, 웹훅이 있는지만 쓰므로 민감 값 아님)
+  rds_alarm_notices = local.rds_enabled && nonsensitive(local.stop_alert_enabled) ? {
+    alarm = { state = ["ALARM"], previous = ["OK", "INSUFFICIENT_DATA"], text = ":rotating_light: <desc>" }
+    ok    = { state = ["OK"], previous = ["ALARM"], text = ":white_check_mark: RDS 알람 복구 · <name>" }
+  } : {}
+}
+
+resource "aws_cloudwatch_metric_alarm" "rds" {
+  for_each = local.rds_alarms
+
+  alarm_name        = "${var.project_name}-rds-${each.key}"
+  alarm_description = each.value.description
+
+  namespace   = "AWS/RDS"
+  metric_name = each.value.metric
+
+  dimensions = {
+    DBInstanceIdentifier = var.rds_instance_id
+  }
+
+  statistic           = each.value.statistic
+  period              = 300
+  evaluation_periods  = each.value.periods
+  threshold           = each.value.threshold
+  comparison_operator = each.value.comparison
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = [aws_sns_topic.alarms.arn]
+
+  tags = {
+    Name        = "${var.project_name}-rds-${each.key}"
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
+
+# RDS 알람의 상태 변화 → 기존 슬랙 API Destination
+resource "aws_cloudwatch_event_rule" "rds_alarm_notice" {
+  for_each = local.rds_alarm_notices
+
+  name        = "${var.project_name}-rds-alarm-notice-${each.key}"
+  description = "RDS 알람 ${join(" · ", each.value.state)}"
+
+  event_pattern = jsonencode({
+    source        = ["aws.cloudwatch"]
+    "detail-type" = ["CloudWatch Alarm State Change"]
+    detail = {
+      alarmName     = [for a in aws_cloudwatch_metric_alarm.rds : a.alarm_name]
+      state         = { value = each.value.state }
+      previousState = { value = each.value.previous }
+    }
+  })
+
+  tags = {
+    Name        = "${var.project_name}-rds-alarm-notice-${each.key}"
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
+
+resource "aws_cloudwatch_event_target" "rds_alarm_notice" {
+  for_each = local.rds_alarm_notices
+
+  rule      = aws_cloudwatch_event_rule.rds_alarm_notice[each.key].name
+  target_id = "slack"
+  arn       = aws_cloudwatch_event_api_destination.slack[0].arn
+  role_arn  = aws_iam_role.ec2_stop_alert[0].arn
+
+  input_transformer {
+    input_paths = {
+      name = "$.detail.alarmName"
+      desc = "$.detail.configuration.description"
+    }
+    input_template = "{\"text\": \"${each.value.text}\"}"
+  }
+}

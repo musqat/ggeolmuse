@@ -27,6 +27,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Collectors;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -49,6 +50,8 @@ public class StockSplitService {
   private final DividendReconcileProducer dividendReconcileProducer;
   private final TransactionTemplate transactionTemplate;
   private final Clock clock;
+  // 분할 전후를 못 가린 체결 수(사유: 시세 없음 · 체결가가 어느 쪽에도 안 맞음)
+  private final MeterRegistry meterRegistry;
 
   // 분할이 반영된 첫 거래일과 분할 전 1주가 분할 뒤 몇 주인지
   public record Split(LocalDate date, BigDecimal ratio) {
@@ -115,6 +118,7 @@ public class StockSplitService {
       if (range == null) {
         log.warn("체결일 시세가 없어 분할 반영을 멈춤: tradeId={}, symbol={}, tradeDate={}",
           trade.getId(), symbol, trade.getTradeDate());
+        meterRegistry.counter("trade.split.unresolved", "reason", "no_price").increment();
         throw new TradeException(TradeResponse.PRICE_DATA_UNAVAILABLE);
       }
       OptionalInt count = SplitPricing.pendingCount(trade.getPrice(), range.low(), range.high(),
@@ -122,6 +126,7 @@ public class StockSplitService {
       if (count.isEmpty()) {
         log.warn("체결가로 분할 전후를 가리지 못해 맞추지 않음: tradeId={}, symbol={}, tradeDate={}, price={}",
           trade.getId(), symbol, trade.getTradeDate(), trade.getPrice());
+        meterRegistry.counter("trade.split.unresolved", "reason", "ambiguous").increment();
         continue;
       }
       if (count.getAsInt() == 0) {

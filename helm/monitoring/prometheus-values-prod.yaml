@@ -20,6 +20,15 @@ prometheus:
     # 서비스 그래프 · 스팬 지표를 remote write 로 받음
     enableRemoteWriteReceiver: true
 
+    # 15일 보관 · 수집 대상 열 남짓 기준
+    resources:
+      limits:
+        memory: 2Gi
+        cpu: 1000m
+      requests:
+        memory: 256Mi
+        cpu: 100m
+
     # 스토리지 설정
     storageSpec:
       volumeClaimTemplate:
@@ -125,6 +134,13 @@ alertmanager:
     # 알림 네임스페이스와 무관한 라우팅
     alertmanagerConfigMatcherStrategy:
       type: None
+    resources:
+      limits:
+        memory: 128Mi
+        cpu: 100m
+      requests:
+        memory: 32Mi
+        cpu: 10m
     storage:
       volumeClaimTemplate:
         spec:
@@ -140,11 +156,36 @@ alertmanager:
 kubeStateMetrics:
   enabled: true
 
+kube-state-metrics:
+  resources:
+    limits:
+      memory: 128Mi
+      cpu: 100m
+    requests:
+      memory: 32Mi
+      cpu: 10m
+
 nodeExporter:
   enabled: true
 
+prometheus-node-exporter:
+  resources:
+    limits:
+      memory: 64Mi
+      cpu: 100m
+    requests:
+      memory: 16Mi
+      cpu: 10m
+
 prometheusOperator:
   enabled: true
+  resources:
+    limits:
+      memory: 256Mi
+      cpu: 200m
+    requests:
+      memory: 64Mi
+      cpu: 20m
 
 kubeProxy:
   enabled: false

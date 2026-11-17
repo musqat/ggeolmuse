@@ -76,6 +76,16 @@ spec:
     ports:
     - protocol: TCP
       port: {{ .Values.infrastructure.redis.port }}
+  {{- if .Values.infrastructure.redis.exporter.enabled }}
+  # 지표 수집
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: {{ .Values.infrastructure.redis.exporter.port }}
+  {{- end }}
 {{- end }}
 {{- with .Values.networkPolicy.instanceMetadata }}
 {{- if and $.Values.networkPolicy.enabled .block }}
@@ -284,9 +294,36 @@ spec:
     - podSelector:
         matchLabels:
           app: kafka
+    - podSelector:
+        matchLabels:
+          app: kafka-exporter
     ports:
     - protocol: TCP
       port: {{ $infra.kafka.ports.internal }}
+{{- end }}
+{{- if and $infra.kafka.enabled $infra.kafkaExporter.enabled }}
+---
+# Kafka exporter: 지표 수집
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kafka-exporter
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: kafka-exporter
+  policyTypes:
+    - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: {{ $infra.kafkaExporter.port }}
 {{- end }}
 {{- if $infra.zookeeper.enabled }}
 ---

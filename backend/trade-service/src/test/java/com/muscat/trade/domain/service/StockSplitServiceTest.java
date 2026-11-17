@@ -14,6 +14,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.enums.type.TradeStatus;
@@ -74,12 +75,14 @@ class StockSplitServiceTest {
   private DividendReconcileProducer dividendReconcileProducer;
 
   private StockSplitService service;
+  private SimpleMeterRegistry registry;
 
   @BeforeEach
   void setUp() {
+    registry = new SimpleMeterRegistry();
     service = new StockSplitService(tradeRepository, stockSplitRepository, marketServiceClientWrapper,
       holdingsRebuilder, dividendReconcileProducer, new TransactionTemplate(mock(PlatformTransactionManager.class)),
-      Clock.fixed(Instant.parse("2026-11-13T00:00:00Z"), ZoneId.of("Asia/Seoul")));
+      Clock.fixed(Instant.parse("2026-11-13T00:00:00Z"), ZoneId.of("Asia/Seoul")), registry);
   }
 
   private static Trade trade(long id, long accountId, TradeType type, String quantity, String price,
@@ -238,6 +241,7 @@ class StockSplitServiceTest {
       .isEqualTo(new Outcome(0, 0));
 
     assertThat(ambiguous.getSplitRatio()).isNull();
+    assertThat(registry.get("trade.split.unresolved").tag("reason", "ambiguous").counter().count()).isEqualTo(1);
     verifyNoInteractions(holdingsRebuilder, dividendReconcileProducer);
   }
 
