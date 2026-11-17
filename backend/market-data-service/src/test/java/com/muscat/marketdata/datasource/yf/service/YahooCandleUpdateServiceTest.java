@@ -34,6 +34,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.junit.jupiter.api.Nested;
 import org.mockito.ArgumentCaptor;
 
@@ -67,6 +68,7 @@ class YahooCandleUpdateServiceTest {
 
   @BeforeEach
   void setUp() {
+    ReflectionTestUtils.setField(service, "self", service);
     given(assetRepository.findById(SYMBOL)).willReturn(Optional.of(asset));
   }
 

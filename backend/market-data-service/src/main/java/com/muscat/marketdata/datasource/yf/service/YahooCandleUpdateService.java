@@ -78,16 +78,34 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
     @Autowired
     private YahooCandleUpdateService self;
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    // 봉(분할이 있으면 분할 기준 배당까지)을 트랜잭션 밖에서 받은 뒤 종목 하나의 저장 트랜잭션으로 넘김
     public int saveCandles(String symbol, LocalDate from, LocalDate to) {
+        List<Candle> candles;
+        List<DividendDto> dividends;
         try {
-            List<Candle> candles = candleSource.fetchDailyAdjusted(symbol, from, to);
+            candles = candleSource.fetchDailyAdjusted(symbol, from, to);
             if (candles == null || candles.isEmpty()) {
                 collectionStats.recordSymbolEmpty();
                 log.debug("[YF-캔들저장] 데이터 없음: symbol={}", symbol);
                 return 0;
             }
+            // 받은 봉에 처음 보는 분할이 있을 때만 분할 기준 배당도 받음
+            boolean newSplit = candles.stream().anyMatch(candle -> isSplit(candle.getSplitCoefficient()))
+                && !newSplits(loadExisting(symbol, from, to), candles).isEmpty();
+            dividends = newSplit ? dividendSource.fetchDividends(symbol, from, to) : List.of();
+        } catch (Exception e) {
+            collectionStats.recordSymbolFailed();
+            log.warn("[YF-캔들저장] 실패: symbol={}, error={}", symbol, e.getMessage());
+            return 0;
+        }
+        return self.storeCandles(symbol, from, to, candles, dividends);
+    }
 
+    // 받은 봉 · 분할 기준 배당을 종목 하나의 트랜잭션으로 저장(실패하면 그 종목만 롤백)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public int storeCandles(String symbol, LocalDate from, LocalDate to, List<Candle> candles,
+        List<DividendDto> dividends) {
+        try {
             Map<String, Candle> existing = loadExisting(symbol, from, to);
             List<Candle> newSplits = newSplits(existing, candles);
             if ((scaleChanged(existing, candles) || !newSplits.isEmpty()) && isPartialWindow(symbol, from)) {
@@ -122,7 +140,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
                 }));
 
             if (!newSplits.isEmpty()) {
-                saveDividendsWithSplits(symbol, from, to, newSplits);
+                saveDividendsWithSplits(dividends, newSplits);
             }
             newSplits.forEach(split ->
                 splitEventProducer.publishSplitDetected(symbol, split.getDate(), split.getSplitCoefficient()));
@@ -139,15 +157,26 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
         }
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    // 배당을 트랜잭션 밖에서 받은 뒤 종목 하나의 저장 트랜잭션으로 넘김
     public int saveDividends(String symbol, LocalDate from, LocalDate to) {
+        List<DividendDto> dtos;
         try {
-            List<DividendDto> dtos = dividendSource.fetchDividends(symbol, from, to);
-            if (dtos == null || dtos.isEmpty()) {
-                log.debug("[YF-배당저장] 데이터 없음: symbol={}", symbol);
-                return 0;
-            }
+            dtos = dividendSource.fetchDividends(symbol, from, to);
+        } catch (Exception e) {
+            log.warn("[YF-배당저장] 실패: symbol={}, error={}", symbol, e.getMessage());
+            return 0;
+        }
+        if (dtos == null || dtos.isEmpty()) {
+            log.debug("[YF-배당저장] 데이터 없음: symbol={}", symbol);
+            return 0;
+        }
+        return self.storeDividends(symbol, dtos);
+    }
 
+    // 받은 배당 가운데 바뀐 것만 종목 하나의 트랜잭션으로 저장(실패하면 그 종목만 롤백)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public int storeDividends(String symbol, List<DividendDto> dtos) {
+        try {
             var rows = DividendMerge.changedRows(dividendRepository, dtos);
             if (rows.isEmpty()) {
                 log.debug("[YF-배당저장] 바뀐 배당 없음, 저장 스킵: symbol={}", symbol);
@@ -231,9 +260,8 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
     }
 
     // 분할 기준으로 바뀐 주당 배당을 캔들과 같은 트랜잭션에 저장
-    private void saveDividendsWithSplits(String symbol, LocalDate from, LocalDate to, List<Candle> splits) {
-        List<DividendMerge.Change> changes = DividendMerge.changes(dividendRepository,
-            dividendSource.fetchDividends(symbol, from, to));
+    private void saveDividendsWithSplits(List<DividendDto> dividends, List<Candle> splits) {
+        List<DividendMerge.Change> changes = DividendMerge.changes(dividendRepository, dividends);
         if (changes.isEmpty()) {
             return;
         }

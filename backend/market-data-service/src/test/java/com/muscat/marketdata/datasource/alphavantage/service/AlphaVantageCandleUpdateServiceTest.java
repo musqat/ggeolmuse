@@ -3,6 +3,7 @@ package com.muscat.marketdata.datasource.alphavantage.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -24,6 +25,10 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
 
 // 저장된 마지막 날 다음부터 받기(이미 있는 날짜 · 배당은 다시 저장 안 함)
 @DisplayName("AlphaVantage 캔들 · 배당 저장")
@@ -41,11 +46,33 @@ class AlphaVantageCandleUpdateServiceTest {
   private final DividendRepository dividendRepository = mock(DividendRepository.class);
   private final AssetRepository assetRepository = mock(AssetRepository.class);
   private final DividendEventProducer producer = mock(DividendEventProducer.class);
+  private final PlatformTransactionManager transactionManager = mock(PlatformTransactionManager.class);
   private final AlphaVantageCandleUpdateService service = new AlphaVantageCandleUpdateService(candleSource, dividendSource,
-    candleRepository, dividendRepository, assetRepository, producer);
+    candleRepository, dividendRepository, assetRepository, producer, new TransactionTemplate(transactionManager));
 
   private static Candle candle(LocalDate date) {
     return Candle.builder().symbol(SYMBOL).date(date).close(BigDecimal.TEN).build();
+  }
+
+  @Test
+  @DisplayName("캔들 · 배당을 외부에서 받은 뒤 트랜잭션을 열어 저장한다")
+  void fetchesBeforeTransaction() {
+    given(transactionManager.getTransaction(any())).willReturn(mock(TransactionStatus.class));
+    given(candleRepository.findFirstBySymbolOrderByDateDesc(SYMBOL)).willReturn(Optional.empty());
+    given(candleSource.fetchDailyAdjusted(SYMBOL, FROM, SUNDAY)).willReturn(List.of(candle(FRIDAY)));
+    given(dividendSource.fetchDividends(SYMBOL, FROM, SUNDAY)).willReturn(List.of(dividend(FRIDAY)));
+
+    assertThat(service.saveBoth(SYMBOL, FROM, SUNDAY)).isEqualTo(2);
+
+    InOrder order = inOrder(candleSource, dividendSource, transactionManager, candleRepository, dividendRepository);
+    order.verify(candleSource).fetchDailyAdjusted(SYMBOL, FROM, SUNDAY);
+    order.verify(transactionManager).getTransaction(any());
+    order.verify(candleRepository).saveAll(any());
+    order.verify(transactionManager).commit(any());
+    order.verify(dividendSource).fetchDividends(SYMBOL, FROM, SUNDAY);
+    order.verify(transactionManager).getTransaction(any());
+    order.verify(dividendRepository).saveAll(any());
+    order.verify(transactionManager).commit(any());
   }
 
   private static DividendDto dividend(LocalDate exDate) {

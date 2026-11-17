@@ -13,7 +13,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 @EnableAsync
 public class AsyncConfig implements AsyncConfigurer {
 
-  // DB 커넥션 풀(20)보다 작게(스레드가 커넥션을 다 쥐면 새 커넥션을 못 만듦)
+  // DB 커넥션 풀(20)보다 작게(스레드가 커넥션을 다 점유하면 새 커넥션을 못 만듦)
   @Value("${marketdata.async.pool-size:6}")
   private int poolSize;
 
