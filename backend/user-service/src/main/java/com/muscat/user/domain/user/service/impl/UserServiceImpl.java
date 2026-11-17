@@ -449,8 +449,6 @@ public class UserServiceImpl implements UserService {
     log.info("비밀번호 재설정 완료: {}", user.getEmail());
   }
 
-  // ========== 내부 Methods ==========
-
   // 탈퇴 · 강제 탈퇴의 DB 삭제(잔액은 가상 머니라 안 봄, 계좌마다 삭제 이벤트, 계좌 내역은 ON DELETE CASCADE)
   private void removeLocalUser(User user) {
     emailTokenRepository.deleteByUser(user);
@@ -514,7 +512,7 @@ public class UserServiceImpl implements UserService {
     }
   }
 
-  // ==================== ADMIN API ====================
+  // 관리자 API
 
   @Override
   @Transactional(readOnly = true)

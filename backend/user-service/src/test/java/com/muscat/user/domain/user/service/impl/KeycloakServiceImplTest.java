@@ -17,6 +17,7 @@ import com.muscat.commonlib.config.KeycloakProperties;
 import com.muscat.user.common.enums.response.KeycloakResponse;
 import com.muscat.user.common.exception.KeycloakException;
 import com.muscat.user.config.AppProperties;
+import com.muscat.user.config.KeycloakAdminClientProperties;
 import com.muscat.user.domain.user.dto.response.LoginResponseDto;
 import com.muscat.user.domain.user.dto.response.TokenResponseDto;
 import java.nio.charset.StandardCharsets;
@@ -55,6 +56,7 @@ class KeycloakServiceImplTest {
 
   private KeycloakProperties keycloakProperties;
   private AppProperties appProperties;
+  private KeycloakAdminClientProperties adminClientProperties;
 
   private static final String TEST_EMAIL = "test@example.com";
   private static final String TEST_PASSWORD = "password123";
@@ -78,9 +80,10 @@ class KeycloakServiceImplTest {
     keycloakProperties.setCredentials(credentials);
 
     appProperties = new AppProperties();
+    adminClientProperties = new KeycloakAdminClientProperties();
 
     // KeycloakService 인스턴스 생성
-    keycloakService = new KeycloakServiceImpl(keycloakProperties, appProperties);
+    keycloakService = new KeycloakServiceImpl(keycloakProperties, appProperties, adminClientProperties);
 
     // RestTemplate을 Mock으로 교체 (리플렉션 사용)
     ReflectionTestUtils.setField(keycloakService, "restTemplate", restTemplate);
@@ -91,7 +94,7 @@ class KeycloakServiceImplTest {
   class WarmUpTests {
 
     @Test
-    @DisplayName("웜업은 서비스 토큰을 한 번 받아 토큰 발급 경로를 열어 둔다")
+    @DisplayName("웜업은 토큰 주소에 관리 API 토큰을 한 번 요청한다")
     @SuppressWarnings("unchecked")
     void warmUp_RequestsServiceToken() {
       given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
@@ -103,6 +106,41 @@ class KeycloakServiceImplTest {
       verify(restTemplate).postForEntity(endsWith("/protocol/openid-connect/token"), request.capture(), eq(Map.class));
       MultiValueMap<String, String> body = (MultiValueMap<String, String>) request.getValue().getBody();
       assertThat(body.getFirst("grant_type")).isEqualTo("client_credentials");
+    }
+
+    @Test
+    @DisplayName("관리 API 토큰은 사용자 관리 클라이언트로 받는다")
+    @SuppressWarnings("unchecked")
+    void adminToken_UsesUserAdminClient() {
+      adminClientProperties.setId("ggeolmuse-user-admin");
+      adminClientProperties.setSecret("admin-secret");
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(Map.class)))
+        .willReturn(ResponseEntity.ok(Map.of("access_token", "admin_access_token")));
+
+      keycloakService.warmUp();
+
+      ArgumentCaptor<HttpEntity> request = ArgumentCaptor.forClass(HttpEntity.class);
+      verify(restTemplate).postForEntity(anyString(), request.capture(), eq(Map.class));
+      MultiValueMap<String, String> body = (MultiValueMap<String, String>) request.getValue().getBody();
+      assertThat(body.getFirst("client_id")).isEqualTo("ggeolmuse-user-admin");
+      assertThat(body.getFirst("client_secret")).isEqualTo("admin-secret");
+    }
+
+    @Test
+    @DisplayName("이메일 로그인은 사용자 관리 클라이언트가 있어도 로그인 클라이언트로 한다")
+    @SuppressWarnings("unchecked")
+    void login_UsesLoginClientEvenWithUserAdminClient() {
+      adminClientProperties.setSecret("admin-secret");
+      given(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(LoginResponseDto.class)))
+        .willReturn(ResponseEntity.ok(new LoginResponseDto(TEST_TOKEN, "refresh_token", 300, "Bearer", 1800)));
+
+      keycloakService.login(TEST_EMAIL, TEST_PASSWORD);
+
+      ArgumentCaptor<HttpEntity> request = ArgumentCaptor.forClass(HttpEntity.class);
+      verify(restTemplate).postForEntity(anyString(), request.capture(), eq(LoginResponseDto.class));
+      MultiValueMap<String, String> body = (MultiValueMap<String, String>) request.getValue().getBody();
+      assertThat(body.getFirst("client_id")).isEqualTo(CLIENT_ID);
+      assertThat(body.getFirst("client_secret")).isEqualTo(CLIENT_SECRET);
     }
   }
 
@@ -560,7 +598,7 @@ class KeycloakServiceImplTest {
   class AdminApiTests {
 
     @Test
-    @DisplayName("비밀번호 재설정은 관리자 토큰으로 그 사용자의 reset-password 에 영구 비밀번호를 보낸다")
+    @DisplayName("비밀번호 재설정은 관리자 토큰으로 Keycloak ID 의 사용자 reset-password 에 영구 비밀번호를 보낸다")
     @SuppressWarnings("unchecked")
     void resetPassword_PutsPermanentPassword() {
       adminTokenOk();
@@ -578,7 +616,7 @@ class KeycloakServiceImplTest {
     }
 
     @Test
-    @DisplayName("활성 상태 변경은 관리자 토큰으로 그 사용자에 enabled 만 보낸다")
+    @DisplayName("활성 상태 변경은 관리자 토큰으로 Keycloak ID 의 사용자에 enabled 만 보낸다")
     @SuppressWarnings("unchecked")
     void setEnabled_PutsEnabledFlag() {
       adminTokenOk();

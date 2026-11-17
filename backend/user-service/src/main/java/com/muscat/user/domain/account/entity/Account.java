@@ -105,10 +105,6 @@ public class Account {
         id, accountNumber, accountName, balanceKrw, balanceUsd);
   }
 
-  // ============================================
-  // 도메인 메서드 (Domain Methods)
-  // ============================================
-
   // 잔액 검증
   public void validateSufficientKrwBalance(BigDecimal amount) {
     if (this.balanceKrw.compareTo(amount) < 0) {

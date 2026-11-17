@@ -429,39 +429,33 @@ public class AccountServiceImpl implements AccountService {
     return new ExchangeRateRangeDto(low.setScale(0, RoundingMode.FLOOR), high.setScale(0, RoundingMode.CEILING));
   }
 
-  /**
-   * Kafka 이벤트로부터 거래 완료 정보를 받아 계좌 잔액 업데이트
-   */
+  // 거래 완료 이벤트의 체결 금액만큼 계좌 USD 잔액 반영
   @Override
   @Transactional
   public void processTradeEvent(TradeCompletedEvent event) {
     log.info("처리 시작: TradeCompletedEvent - tradeId={}, userId={}, tradeType={}, totalAmount={}",
       event.getTradeId(), event.getUserId(), event.getTradeType(), event.getTotalAmount());
 
-    // 1. 사용자 ID 조회
     Long userId = resolveUserId(event.getUserId());
 
-    // 2. 거래한 계좌(소유자 확인은 updateUsdBalance)
     Long accountId = event.getAccountId();
     if (accountId == null) {
       log.error("계좌 ID 가 없는 거래 이벤트: tradeId={}, userId={}", event.getTradeId(), userId);
       throw new AccountException(AccountResponse.ACCOUNT_NOT_FOUND);
     }
 
-    // 3. 거래 타입에 따라 잔액 변경 금액 계산
-    // BUY: 사용자가 USD를 지불하고 주식을 구매 -> USD 잔액 감소 (음수)
-    // SELL: 사용자가 주식을 팔고 USD를 받음 -> USD 잔액 증가 (양수)
+    // 매수는 USD 잔액 감소(음수), 매도는 증가(양수)
     BigDecimal balanceChange;
     TransactionType type;
     String description;
 
     if (event.getTradeType() == TradeCompletedEvent.TradeType.BUY) {
-      balanceChange = event.getTotalAmount().negate(); // 음수
+      balanceChange = event.getTotalAmount().negate();
       type = TransactionType.TRADE_BUY;
       description = String.format("주식 매수: %s %s주 @ $%s (거래ID: %s)",
         event.getSymbol(), event.getQuantity(), event.getPrice(), event.getTradeId());
     } else if (event.getTradeType() == TradeCompletedEvent.TradeType.SELL) {
-      balanceChange = event.getTotalAmount(); // 양수
+      balanceChange = event.getTotalAmount();
       type = TransactionType.TRADE_SELL;
       description = String.format("주식 매도: %s %s주 @ $%s (거래ID: %s)",
         event.getSymbol(), event.getQuantity(), event.getPrice(), event.getTradeId());
@@ -472,7 +466,6 @@ public class AccountServiceImpl implements AccountService {
 
     log.debug("잔액 변경 계산: tradeType={}, balanceChange={}", event.getTradeType(), balanceChange);
 
-    // 4. 기존 updateUsdBalance 메서드 재사용
     updateUsdBalance(accountId, userId, balanceChange, type, description);
     log.info("거래 이벤트 처리 완료: tradeId={}, userId={}, accountId={}, balanceChange={}",
       event.getTradeId(), userId, accountId, balanceChange);
@@ -515,8 +508,6 @@ public class AccountServiceImpl implements AccountService {
     log.info("배당 몫 반영: accountId={}, symbol={}, exDate={}, 목표={}, 차이={}",
       account.getId(), event.getSymbol(), exDate, target, delta);
   }
-
-  // ================== 내부 메서드 ================ //
 
   // 환전 환율의 허용 범위 검사
   private void validateExchangeRate(BigDecimal exchangeRate) {
@@ -610,7 +601,7 @@ public class AccountServiceImpl implements AccountService {
       });
   }
 
-  // ==================== ADMIN API ==================== //
+  // 관리자 API
 
   @Override
   @Transactional(readOnly = true)

@@ -32,7 +32,7 @@ public interface UserRepository extends JpaRepository<User, Long>, UserRepositor
   @Query("update User u set u.lastLoginAt = :at where u.id = :id")
   int updateLastLoginAt(@Param("id") Long id, @Param("at") LocalDateTime at);
 
-  // ==================== ADMIN API ====================
+  // 관리자 API
 
   // 활성화된 사용자 수
   long countByEnabled(boolean enabled);

@@ -7,6 +7,7 @@ CI · 릴리스 · 운영 확인에 쓰는 Go 명령이다.
 | `cmd/release-plan` | 릴리스할 서비스와 태그를 고른다. PR 본문 "빌드할 서비스" 에서 체크했고 운영 태그 뒤로 바뀐 서비스만 내고, 태그는 적은 버전이나 커밋 SHA 7자리 |
 | `cmd/set-image-tag` | 운영 값 파일의 이미지 태그를 바꾸고 봇 커밋 제목을 낸다 |
 | `cmd/netpol-check` | NetworkPolicy 에 네임스페이스 기본 거부가 있는지, 포트가 있는 워크로드마다 여는 정책이 있는지, 게이트웨이에서 서비스 포트로 가는 길이 열려 있는지 본다 |
+| `cmd/keycloak-check` | realm 파일(운영 템플릿 · compose)의 로그인 · 사용자 관리 · 서비스 클라이언트가 가진 흐름과 역할, 렌더 결과에서 Keycloak 클라이언트 secret 을 받는 워크로드와 Keycloak 이 사용자 관리 · 서비스 클라이언트 secret 없이도 뜨는지 본다 |
 | `cmd/ci-changes` | 바뀐 폴더로 CI 가 빌드 · 테스트할 대상을 고른다 |
 | `cmd/chat-coverage` | chat 테스트의 줄 · 분기 커버리지를 최소치와 비교하고 표를 잡 요약에 남긴다 |
 | `cmd/image-check` | 렌더한 이미지 태그가 Docker Hub 에 있는지 본다 |
@@ -23,6 +24,7 @@ go run ./cmd/release-plan -head HEAD -body pr-body.md
 go run ./cmd/release-plan -head "$(git rev-parse HEAD)" -picks 'backtest-service 1.8.0, frontend-web'
 go run ./cmd/set-image-tag -tags '{"user-service":"1.8.0"}' -built "$(git rev-parse HEAD)" ../helm/ggeolmuse/values-prod.yaml user-service
 helm template ggeolmuse ../helm/ggeolmuse -f ../helm/ggeolmuse/values-prod.yaml > /tmp/rendered.yaml && go run ./cmd/netpol-check /tmp/rendered.yaml
+go run ./cmd/keycloak-check /tmp/rendered.yaml ../helm/ggeolmuse/config-files/keycloak-realm-template.json ../docker-compose/keycloak/custom-realm.json
 go run ./cmd/image-check /tmp/rendered.yaml
 go run ./cmd/ci-changes -event pull_request -base origin/master
 go run ./cmd/chat-coverage ../backend/chat-service/coverage.json 90 80

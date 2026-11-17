@@ -86,6 +86,12 @@ spec:
               name: {{ .Values.secrets.name }}
               key: KEYCLOAK_SERVICE_CLIENT_SECRET
               optional: true
+        - name: KEYCLOAK_ADMIN_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.name }}
+              key: KEYCLOAK_ADMIN_CLIENT_SECRET
+              optional: true
         {{- end }}
         command: ["sh", "-c"]
         args:
@@ -108,10 +114,12 @@ spec:
           EOF
           sed -e "s/\${KEYCLOAK_CLIENT_SECRET}/$(cat /etc/secrets/KEYCLOAK_CLIENT_SECRET)/g" \
               -e "$(sub KEYCLOAK_SERVICE_CLIENT_SECRET "$(cat /etc/keycloak-clients/KEYCLOAK_SERVICE_CLIENT_SECRET 2>/dev/null)")" \
+              -e "$(sub KEYCLOAK_ADMIN_CLIENT_SECRET "$(cat /etc/keycloak-clients/KEYCLOAK_ADMIN_CLIENT_SECRET 2>/dev/null)")" \
               /opt/keycloak/data/import-template/muscathan-realm.json > /opt/keycloak/data/import/muscathan-realm.json
           {{- else }}
           sed -e "s/\${KEYCLOAK_CLIENT_SECRET}/${KEYCLOAK_CLIENT_SECRET}/g" \
               -e "$(sub KEYCLOAK_SERVICE_CLIENT_SECRET "${KEYCLOAK_SERVICE_CLIENT_SECRET:-}")" \
+              -e "$(sub KEYCLOAK_ADMIN_CLIENT_SECRET "${KEYCLOAK_ADMIN_CLIENT_SECRET:-}")" \
               /opt/keycloak/data/import-template/muscathan-realm.json > /opt/keycloak/data/import/muscathan-realm.json
           {{- end }}
           {{- if eq .Values.infrastructure.keycloak.env.kcDbVendor "postgres" }}
@@ -180,7 +188,7 @@ spec:
           secretName: {{ .Values.secrets.name }}
           optional: true
           items:
-          {{- range list "KEYCLOAK_SERVICE_CLIENT_SECRET" }}
+          {{- range list "KEYCLOAK_SERVICE_CLIENT_SECRET" "KEYCLOAK_ADMIN_CLIENT_SECRET" }}
           - key: {{ . }}
             path: {{ . }}
           {{- end }}

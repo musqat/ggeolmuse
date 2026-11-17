@@ -47,6 +47,6 @@ public interface KeycloakService {
   // Refresh token 이 속한 Keycloak 세션 종료(이미 끝난 세션이면 무시)
   void logout(String refreshToken);
 
-  // 서비스 토큰을 한 번 받아 토큰 발급 경로 · 연결을 열어 둠
+  // 관리 API 토큰을 한 번 받아 토큰 발급 경로 · 연결을 열어 둠
   void warmUp();
 }
