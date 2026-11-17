@@ -65,7 +65,7 @@ class TradeEventRetryLockTest {
   }
 
   @Test
-  @DisplayName("다른 파드가 잠금을 쥐고 있으면 이번 회차를 건너뛴다")
+  @DisplayName("다른 파드가 잠금을 가지고 있으면 이번 회차를 건너뛴다")
   void skipsWhileAnotherPodHoldsLock() {
     jdbc.update("INSERT INTO shedlock (name, lock_until, locked_at, locked_by) "
       + "VALUES (?, DATEADD('DAY', 1, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, ?)", TradeEventRetryScheduler.LOCK_NAME, "other-pod");
