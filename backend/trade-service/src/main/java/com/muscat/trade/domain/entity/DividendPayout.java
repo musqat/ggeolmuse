@@ -35,7 +35,7 @@ public class DividendPayout {
   @Column(nullable = false)
   private Long accountId;
 
-  @Column(nullable = false, length = 10)
+  @Column(nullable = false, length = 16)
   private String symbol;
 
   @Column(nullable = false)

@@ -404,7 +404,7 @@ class HoldingsServiceImplTest {
     }
 
     @Test
-    @DisplayName("현재가 없는 종목은 평가액 계산에서 제외된다")
+    @DisplayName("현재가 없는 종목은 평가액 · 손익 · 수익률에서 빼고 현재가 없는 종목으로 알린다")
     void getPortfolioSummary_NoPriceAvailable_ExcludesFromCalculation() {
       // given
       List<Holdings> portfolio = List.of(testHolding);
@@ -426,8 +426,32 @@ class HoldingsServiceImplTest {
 
       // then
       assertThat(result.getTotalCurrentValue()).isEqualByComparingTo(BigDecimal.ZERO);
-      assertThat(result.getTotalUnrealizedPnL())
-        .isEqualByComparingTo(BigDecimal.ZERO.subtract(TEST_QUANTITY.multiply(TEST_AVG_PRICE)));
+      assertThat(result.getTotalUnrealizedPnL()).isEqualByComparingTo(BigDecimal.ZERO);
+      assertThat(result.getTotalReturnRate()).isEqualByComparingTo(BigDecimal.ZERO);
+      assertThat(result.getTotalInvestedAmount()).isEqualByComparingTo(TEST_QUANTITY.multiply(TEST_AVG_PRICE));
+      assertThat(result.getUnpricedSymbols()).containsExactly(TEST_SYMBOL);
+    }
+
+    @Test
+    @DisplayName("현재가 있는 종목만으로 손익 · 수익률을 내고 총 투자금액은 모든 종목")
+    void getPortfolioSummary_MixedPrices_PnLFromPricedOnly() {
+      Holdings msft = Holdings.builder().userId(TEST_USER_ID).accountId(TEST_ACCOUNT_ID).symbol("MSFT")
+        .totalQuantity(new BigDecimal("5")).avgPurchasePrice(new BigDecimal("400"))
+        .totalInvestedAmount(new BigDecimal("2000")).build();
+      given(holdingsRepository.findByUserId(TEST_USER_ID)).willReturn(List.of(testHolding, msft));
+      given(holdingsRepository.calculatePortfolioSummary(TEST_USER_ID))
+        .willReturn(new PortfolioSummaryProjection(TEST_QUANTITY.multiply(TEST_AVG_PRICE).add(new BigDecimal("2000")), 2));
+      given(marketServiceClientWrapper.getCurrentPrices(List.of(TEST_SYMBOL, "MSFT")))
+        .willReturn(Map.of(TEST_SYMBOL, currentPrice(TEST_CURRENT_PRICE)));
+
+      PortfolioSummary result = holdingsService.getPortfolioSummary(TEST_USER_ID);
+
+      // 평가 1600 - 현재가 있는 종목 투자 1500 = 100, 수익률 100 / 1500
+      assertThat(result.getTotalInvestedAmount()).isEqualByComparingTo("3500");
+      assertThat(result.getTotalCurrentValue()).isEqualByComparingTo("1600");
+      assertThat(result.getTotalUnrealizedPnL()).isEqualByComparingTo("100");
+      assertThat(result.getTotalReturnRate()).isEqualByComparingTo("6.67");
+      assertThat(result.getUnpricedSymbols()).containsExactly("MSFT");
     }
 
     @Test

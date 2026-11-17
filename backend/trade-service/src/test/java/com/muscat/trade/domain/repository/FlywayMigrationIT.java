@@ -36,6 +36,26 @@ class FlywayMigrationIT {
   }
 
   @Test
+  @DisplayName("종목 코드 칸은 주문이 받는 종목 코드 길이(16)까지 받는다")
+  void migrate_SymbolColumnsFitSymbolPattern() throws Exception {
+    migrate();
+
+    try (Connection connection = connect();
+         PreparedStatement statement = connection.prepareStatement(
+           "SELECT table_name, character_maximum_length FROM information_schema.columns "
+             + "WHERE table_schema = 'public' AND column_name = 'symbol' ORDER BY table_name");
+         ResultSet columns = statement.executeQuery()) {
+      java.util.Map<String, Integer> lengths = new java.util.TreeMap<>();
+      while (columns.next()) {
+        lengths.put(columns.getString("table_name"), columns.getInt("character_maximum_length"));
+      }
+      assertThat(lengths).containsOnly(
+        java.util.Map.entry("dividend_payouts", 16), java.util.Map.entry("holdings", 16),
+        java.util.Map.entry("stock_splits", 16), java.util.Map.entry("trades", 16));
+    }
+  }
+
+  @Test
   @DisplayName("배당 몫 테이블로 옮긴 옛 dividends 테이블을 지운다")
   void migrate_DropsOldDividendsTable() throws Exception {
     migrate();

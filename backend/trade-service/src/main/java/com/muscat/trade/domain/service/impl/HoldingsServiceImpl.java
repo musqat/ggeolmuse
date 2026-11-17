@@ -148,6 +148,8 @@ public class HoldingsServiceImpl implements HoldingsService {
     int holdingCount = summaryProjection != null ? summaryProjection.holdingCount() : 0;
 
     BigDecimal totalCurrentValue = BigDecimal.ZERO;
+    BigDecimal pricedInvested = BigDecimal.ZERO;
+    List<String> unpricedSymbols = new ArrayList<>();
 
     // 보유 종목별 상세 정보 및 계산
     List<HoldingResponseDto> holdings = new ArrayList<>();
@@ -162,6 +164,7 @@ public class HoldingsServiceImpl implements HoldingsService {
         // 평가액 계산
         BigDecimal holdingValue = holding.getTotalQuantity().multiply(currentPrice);
         totalCurrentValue = totalCurrentValue.add(holdingValue);
+        pricedInvested = pricedInvested.add(holding.getTotalInvestedAmount());
 
         // 종목별 평가손익 · 수익률(총 투자금액 기준)
         BigDecimal pnl = holdingValue.subtract(holding.getTotalInvestedAmount());
@@ -175,15 +178,19 @@ public class HoldingsServiceImpl implements HoldingsService {
         holdings.add(HoldingResponseDto.of(holding, currentPrice));
       } else {
         log.warn("현재가 정보 없음: symbol={}", holding.getSymbol());
+        if (!unpricedSymbols.contains(holding.getSymbol())) {
+          unpricedSymbols.add(holding.getSymbol());
+        }
         holdings.add(HoldingResponseDto.from(holding));
       }
     }
 
-    // 총 수익률 계산
+    // 총 손익 · 수익률은 현재가 있는 종목의 투자금 기준(현재가 없는 종목을 손실로 세지 않음)
+    BigDecimal totalUnrealizedPnL = totalCurrentValue.subtract(pricedInvested);
     BigDecimal totalReturnRate = BigDecimal.ZERO;
-    if (totalInvested.compareTo(BigDecimal.ZERO) > 0) {
-      totalReturnRate = totalCurrentValue.subtract(totalInvested)
-        .divide(totalInvested, 4, RoundingMode.HALF_UP)
+    if (pricedInvested.compareTo(BigDecimal.ZERO) > 0) {
+      totalReturnRate = totalUnrealizedPnL
+        .divide(pricedInvested, 4, RoundingMode.HALF_UP)
         .multiply(TradeConstants.PERCENTAGE_MULTIPLIER);
     }
 
@@ -191,16 +198,17 @@ public class HoldingsServiceImpl implements HoldingsService {
     PortfolioSummary summary = PortfolioSummary.builder()
       .totalInvestedAmount(totalInvested)
       .totalCurrentValue(totalCurrentValue)
-      .totalUnrealizedPnL(totalCurrentValue.subtract(totalInvested))
+      .totalUnrealizedPnL(totalUnrealizedPnL)
       .totalReturnRate(totalReturnRate)
       .holdingCount(holdingCount) // QueryDSL 결과 사용
       .holdings(holdings)
       .symbolReturnRates(symbolReturnRates)
       .symbolUnrealizedPnL(symbolUnrealizedPnL)
+      .unpricedSymbols(unpricedSymbols)
       .build();
 
     log.info("포트폴리오 종합 정보: userId={}, 투자={}, 평가={}, 손익={}, 수익률={}%, 종목수={}",
-      userId, totalInvested, totalCurrentValue, totalCurrentValue.subtract(totalInvested),
+      userId, totalInvested, totalCurrentValue, totalUnrealizedPnL,
       totalReturnRate, portfolio.size());
 
     // 포트폴리오 요약 조회 로깅
