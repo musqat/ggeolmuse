@@ -297,6 +297,10 @@ EC2 는 Cloudflare 대역에서 온 요청만 받아서 밖에서 이 헤더를 
 
 **브라우저** — nginx 가 CSP · X-Frame-Options · X-Content-Type-Options(nosniff) · Referrer-Policy 를 응답에 넣는다.
 
+**공급망** — 외부 액션은 커밋 SHA, 베이스 이미지는 digest 로 고정하고 Dependabot 이 주 1회 올리기 PR 을 연다.
+이미지 스캔은 고친 버전이 나온 CRITICAL 이 있으면 PR · 릴리스를 막고(예외는 `.trivyignore`), 운영 이미지도 주 1회 다시 스캔한다.
+PR 커밋의 secret 은 gitleaks, 코드는 CodeQL 이 본다.
+
 **운영 도구** — Kafka UI · Keycloak 관리 콘솔 · Grafana · ArgoCD 는 Cloudflare Access 뒤에 있어 허용한 계정만 들어간다.
 Kafka UI 는 그 안에서 로그인 폼을 한 번 더 거치고, 읽기 전용이라 토픽 · 메시지 · 클러스터 설정을 바꾸지 못한다.
 

@@ -277,10 +277,10 @@ jobs:
               echo "### 릴리스 ${SHA::7} — 바꿀 서비스 없음(더 새 커밋이 이미 배포됨)" >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
-            names=$(jq -r '.[]' <<<"$still")
-            subject=$(cd tools && go run ./cmd/set-image-tag -tags "$TAGS" -built "$SHA" -config-label "$config" ../helm/ggeolmuse/values-prod.yaml $names | sed -n 's/^subject=//p')
+            mapfile -t names < <(jq -r '.[]' <<<"$still")
+            subject=$(cd tools && go run ./cmd/set-image-tag -tags "$TAGS" -built "$SHA" -config-label "$config" ../helm/ggeolmuse/values-prod.yaml "${names[@]}" | sed -n 's/^subject=//p')
             rendered=$(helm template ggeolmuse helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml)
-            for s in $names; do
+            for s in "${names[@]}"; do
               tag=$(jq -r --arg s "$s" '.[$s]' <<<"$TAGS")
               grep -q "image: muscathan/$s:$tag" <<<"$rendered" || { echo "$s 렌더 결과에 $tag 없음"; exit 1; }
               built=$(docker buildx imagetools inspect "muscathan/$s:$tag" --format '{{ index .Image.Config.Labels "org.opencontainers.image.revision" }}')
