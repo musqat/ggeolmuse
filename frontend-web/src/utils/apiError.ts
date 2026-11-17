@@ -6,6 +6,7 @@ interface ServerErrorBody {
   detail?: string;
   message?: string;
   code?: string;
+  errorCode?: string;
 }
 
 /** 서버가 준 메시지(없으면 fallback) */
@@ -27,11 +28,11 @@ export function getServerMessage(error: unknown): string | undefined {
   return body?.detail || body?.message || undefined;
 }
 
-/** 서버가 준 오류 코드(chat-service 의 code, 없으면 undefined) */
+/** 서버가 준 오류 코드(chat-service 의 code · 자바 서비스 ProblemDetail 의 errorCode, 없으면 undefined) */
 export function getApiErrorCode(error: unknown): string | undefined {
   if (!isAxiosError<ServerErrorBody>(error)) return undefined;
   const body = error.response?.data;
-  return typeof body === 'object' && body !== null ? body.code : undefined;
+  return typeof body === 'object' && body !== null ? body.code ?? body.errorCode : undefined;
 }
 
 /** HTTP 상태 코드(axios 오류가 아니거나 응답이 없으면 undefined) */

@@ -16,6 +16,7 @@ import { useTradeOrder } from '@/hooks/useTradeOrder';
 import OrderTypeToggle from '@/components/trading/OrderTypeToggle';
 import AccountSelector from '@/components/trading/AccountSelector';
 import TradeDatePicker from '@/components/trading/TradeDatePicker';
+import FirstOrderGuide from '@/components/trading/FirstOrderGuide';
 import PriceTypeSelector from '@/components/trading/PriceTypeSelector';
 import OrderSummaryPanel from '@/components/trading/OrderSummaryPanel';
 import StockSelectionPanel from '@/components/trading/StockSelectionPanel';
@@ -199,6 +200,12 @@ const Trading: React.FC = () => {
               accounts={accounts}
               selectedAccountId={selectedAccountId}
               onAccountChange={setSelectedAccountId}
+            />
+
+            <FirstOrderGuide
+              accounts={accounts}
+              selectedAccountId={selectedAccountId}
+              orderType={orderType}
             />
 
             <TradeDatePicker

@@ -3,7 +3,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { tradeApi } from '../services/api';
 import { calculateExecutionPrice, toBackendPriceType, validatePriceRange, type OHLCData, type PriceType } from '../utils/priceUtils';
 import { formatTradeResult } from '../utils/tradeResult';
-import { getApiErrorMessage } from '../utils/apiError';
+import { getApiErrorCode, getApiErrorMessage } from '../utils/apiError';
+import { TRADE_ERROR_GUIDES } from '../utils/tradeErrors';
 import { createIdempotencyKeys } from '../utils/idempotencyKey';
 import { cancelReasonLabel } from '../utils/tradeStatus';
 import { notify } from '@/components/common/notify';
@@ -100,7 +101,8 @@ export const useTradeOrder = ({
       notify.success(formatTradeResult(trade));
       return true;
     } catch (error: unknown) {
-      notify.error(`주문 실패: ${getApiErrorMessage(error, '알 수 없는 오류')}`);
+      const guide = TRADE_ERROR_GUIDES[getApiErrorCode(error) ?? ''];
+      notify.error(`주문 실패: ${guide ?? getApiErrorMessage(error, '알 수 없는 오류')}`);
       return false;
     }
   };
