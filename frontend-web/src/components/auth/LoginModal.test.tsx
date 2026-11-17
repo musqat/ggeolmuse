@@ -12,6 +12,7 @@ const httpError = (status: number, data: object = {}) =>
 
 let forgotPassword: ReturnType<typeof vi.fn>
 let loginWithGoogle: ReturnType<typeof vi.fn>
+let resendVerificationEmail: ReturnType<typeof vi.fn>
 
 function renderModal(onLogin = vi.fn().mockResolvedValue(undefined)) {
   const onClose = vi.fn()
@@ -30,7 +31,8 @@ beforeEach(() => {
   vi.clearAllMocks()
   forgotPassword = vi.fn().mockResolvedValue(undefined)
   loginWithGoogle = vi.fn().mockResolvedValue(undefined)
-  vi.mocked(useAuth).mockReturnValue({ forgotPassword, loginWithGoogle } as never)
+  resendVerificationEmail = vi.fn().mockResolvedValue(undefined)
+  vi.mocked(useAuth).mockReturnValue({ forgotPassword, loginWithGoogle, resendVerificationEmail } as never)
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -83,6 +85,47 @@ describe('LoginModal', () => {
     expect(await screen.findByText('비활성화된 계정입니다. 관리자에게 문의해 주세요.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '로그인' }))
     expect(await screen.findByText('로그인 시도가 많습니다. 잠시 뒤 다시 시도해 주세요.')).toBeInTheDocument()
+  })
+
+  it('인증 전 계정이면 인증 메일 다시 받기로 입력한 이메일에 다시 보내고 보냈다고 보인다', async () => {
+    const user = userEvent.setup()
+    renderModal(vi.fn().mockRejectedValue(httpError(400, { errorCode: 'EMAIL_NOT_VERIFIED' })))
+
+    await login(user)
+    await user.click(await screen.findByRole('button', { name: '인증 메일 다시 받기' }))
+
+    expect(resendVerificationEmail).toHaveBeenCalledWith('u@example.local')
+    expect(await screen.findByRole('status')).toHaveTextContent('u@example.local 로 인증 메일을 다시 보냈습니다.')
+    expect(screen.queryByRole('button', { name: '인증 메일 다시 받기' })).not.toBeInTheDocument()
+  })
+
+  it('다시 보내기가 실패하면 서버 문구를 보이고 다시 누를 수 있다', async () => {
+    const user = userEvent.setup()
+    resendVerificationEmail.mockRejectedValueOnce(httpError(429, { detail: '잠시 뒤 다시 시도해 주세요.' }))
+    renderModal(vi.fn().mockRejectedValue(httpError(400, { errorCode: 'EMAIL_NOT_VERIFIED' })))
+
+    await login(user)
+    await user.click(await screen.findByRole('button', { name: '인증 메일 다시 받기' }))
+
+    expect(await screen.findByText('잠시 뒤 다시 시도해 주세요.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '인증 메일 다시 받기' })).toBeEnabled()
+  })
+
+  it('비밀번호가 틀린 오류에는 다시 받기가 없고, 인증 전 오류 뒤 이메일을 고치면 사라진다', async () => {
+    const user = userEvent.setup()
+    const onLogin = vi.fn()
+      .mockRejectedValueOnce(httpError(401, { errorCode: 'INVALID_CREDENTIALS' }))
+      .mockRejectedValueOnce(httpError(400, { errorCode: 'EMAIL_NOT_VERIFIED' }))
+    renderModal(onLogin)
+
+    await login(user)
+    await screen.findByText('이메일 또는 비밀번호가 올바르지 않습니다.')
+    expect(screen.queryByRole('button', { name: '인증 메일 다시 받기' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '로그인' }))
+    await screen.findByRole('button', { name: '인증 메일 다시 받기' })
+    await user.type(screen.getByLabelText('이메일'), 'x')
+    expect(screen.queryByRole('button', { name: '인증 메일 다시 받기' })).not.toBeInTheDocument()
   })
 
   it('코드도 상태도 모르는 오류는 서버 문구를 보인다', async () => {
