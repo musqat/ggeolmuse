@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { accountsApi, portfolioApi, type HoldingResponse } from '../services/api';
+import { queryKeys } from '../services/queryKeys';
 import { summarizeHoldings } from '../utils/accountSummary';
 
 const DEFAULT_EXCHANGE_RATE = 1400;
@@ -13,7 +14,7 @@ export const usePortfolioData = (accountId: string | null, enabled: boolean) => 
   const ready = enabled && !!accountId;
 
   const holdingsQuery = useQuery({
-    queryKey: ['portfolio', 'holdings', accountId],
+    queryKey: queryKeys.portfolio.holdings(accountId),
     queryFn: async () => (await portfolioApi.getAccountPortfolio(parseInt(accountId!))).data,
     enabled: ready,
     staleTime: STALE_TIME,
@@ -24,7 +25,7 @@ export const usePortfolioData = (accountId: string | null, enabled: boolean) => 
   const summary = useMemo(() => (holdings.length > 0 ? summarizeHoldings(holdings) : undefined), [holdings]);
 
   const balanceQuery = useQuery({
-    queryKey: ['account', 'balance', accountId],
+    queryKey: queryKeys.account.balance(accountId),
     queryFn: async () => (await accountsApi.getAccountBalance(parseInt(accountId!))).data,
     enabled: ready,
     staleTime: STALE_TIME,

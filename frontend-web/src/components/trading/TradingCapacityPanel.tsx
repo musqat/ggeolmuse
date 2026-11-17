@@ -5,6 +5,7 @@ import { tradeApi } from "../../services/api";
 import { toBackendPriceType, type PriceType } from "@/utils/priceUtils";
 import { Spinner } from "../common/Spinner";
 import { formatShares, formatUsd } from "@/utils/format";
+import { queryKeys } from "@/services/queryKeys";
 
 interface TradingCapacityPanelProps {
   accountId: number | null;
@@ -27,10 +28,7 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
 
   // 거래 가능 수량(매수 수량은 주문과 같은 가격 유형으로 셈)
   const { data: capacity = null, isLoading: loading } = useQuery({
-    queryKey: [
-      "trade", "capacity", accountId, symbol, tradeDate, orderType, priceType,
-      isLimit ? currentPrice : null,
-    ],
+    queryKey: queryKeys.trade.capacity(accountId, symbol, tradeDate, orderType, priceType, isLimit ? currentPrice : null),
     queryFn: async () => {
       const payload = {
         accountId: String(accountId),

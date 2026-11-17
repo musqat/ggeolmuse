@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { accountsApi, type AccountSummary } from '../services/api';
+import { queryKeys } from '../services/queryKeys';
 
 export interface Account {
   accountId: number;
@@ -20,7 +21,7 @@ const EMPTY_ACCOUNTS: AccountSummary[] = [];
 
 // 계좌 목록 조회(응답이 배열이 아니면 빈 목록)
 export const accountListQuery = queryOptions({
-  queryKey: ['accounts', 'list'],
+  queryKey: queryKeys.accounts.list,
   queryFn: async (): Promise<AccountSummary[]> => {
     const response = await accountsApi.getAccounts();
     return Array.isArray(response.data) ? response.data : EMPTY_ACCOUNTS;

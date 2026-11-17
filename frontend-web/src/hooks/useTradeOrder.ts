@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { tradeApi } from '../services/api';
+import { invalidateAfterTrade, refreshAfterSettlement } from '../services/queryKeys';
 import { calculateExecutionPrice, toBackendPriceType, validatePriceRange, type OHLCData, type PriceType } from '../utils/priceUtils';
 import { formatTradeResult } from '../utils/tradeResult';
 import { getApiErrorCode, getApiErrorMessage } from '../utils/apiError';
@@ -80,11 +81,8 @@ export const useTradeOrder = ({
         ? await tradeApi.buy(order, key)
         : await tradeApi.sell(order, key);
       keys.reset();
-      // 잔고와 보유가 바뀌어 매수·매도 가능 수량 · 거래 내역 · 계좌 잔액과 총자산을 다시 받음
-      void queryClient.invalidateQueries({ queryKey: ['trade'] });
-      void queryClient.invalidateQueries({ queryKey: ['account'] });
-      // 진행 중인 계좌 목록 요청은 취소하지 않고 같이 씀
-      void queryClient.invalidateQueries({ queryKey: ['accounts'] }, { cancelRefetch: false });
+      // 잔고와 보유가 바뀌어 매수 · 매도 가능 수량 · 거래 내역 · 보유 · 계좌 잔액과 총자산을 다시 받음
+      invalidateAfterTrade(queryClient);
       // 같은 키로 다시 받은 체결이 그새 잔액 반영 실패로 취소된 경우
       if (trade.status === 'CANCELLED') {
         notify.error(`주문 실패: 체결이 취소되었습니다(${cancelReasonLabel(trade.cancelReason)})`);
@@ -92,11 +90,7 @@ export const useTradeOrder = ({
       }
       // 정산 전 매수는 정산이 끝나야 보유에 들어가 잠시 뒤 한 번 더 받음
       if (trade.status === 'PENDING') {
-        setTimeout(() => {
-          void queryClient.invalidateQueries({ queryKey: ['trade'] });
-          void queryClient.invalidateQueries({ queryKey: ['portfolio'] });
-          void queryClient.invalidateQueries({ queryKey: ['account'] });
-        }, SETTLE_REFRESH_MS);
+        setTimeout(() => refreshAfterSettlement(queryClient), SETTLE_REFRESH_MS);
       }
       notify.success(formatTradeResult(trade));
       return true;
