@@ -34,6 +34,8 @@ spec:
       labels:
         app: kafka-ui
     spec:
+      securityContext:
+        {{- include "ggeolmuse.podSecurityContext" . | nindent 8 }}
       containers:
         - name: kafka-ui
           image: {{ .Values.infrastructure.kafkaUi.image }}
@@ -63,8 +65,7 @@ spec:
               cpu: {{ .Values.infrastructure.kafkaUi.resources.limits.cpu }}
           # 루트에 쓰는 게 JVM 성능 데이터뿐이라 읽기전용으로
           securityContext:
-            {{- include "ggeolmuse.baseSecurityContext" . | nindent 12 }}
-            readOnlyRootFilesystem: true
+            {{- include "ggeolmuse.securityContext" . | nindent 12 }}
           volumeMounts:
             {{- include "ggeolmuse.tmpVolumeMount" . | nindent 12 }}
           startupProbe:

@@ -32,10 +32,8 @@ spec:
       {{- if .Values.global.aws.serviceAccount.create }}
       serviceAccountName: {{ $svc.name }}
       {{- end }}
-      {{- with $svc.podSecurityContext }}
       securityContext:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- include "ggeolmuse.podSecurityContext" . | nindent 8 }}
       {{- if .Values.global.topologySpread.enabled }}
       {{- include "ggeolmuse.topologySpread" (dict "name" $svc.name "Values" .Values) | nindent 6 }}
       {{- end }}

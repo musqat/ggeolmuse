@@ -214,6 +214,16 @@ seccompProfile:
   type: RuntimeDefault
 {{- end }}
 
+{{/* 파드 보안 컨텍스트(10001 · 볼륨 그룹 10001) */}}
+{{- define "ggeolmuse.podSecurityContext" -}}
+runAsNonRoot: true
+runAsUser: 10001
+runAsGroup: 10001
+fsGroup: 10001
+seccompProfile:
+  type: RuntimeDefault
+{{- end }}
+
 {{/* 컨테이너 보안 컨텍스트(비root · 읽기 전용 루트 파일시스템, JVM 이 /tmp 에 써서 ggeolmuse.tmpVolume 과 짝) */}}
 {{- define "ggeolmuse.securityContext" -}}
 runAsNonRoot: true

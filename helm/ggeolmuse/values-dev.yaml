@@ -85,11 +85,6 @@ ingress:
             service: tempo
             port: 3200
 
-# ConfigMap - dev URL
-configMap:
-  data:
-    appBaseUrl: "http://app.localhost"
-
 # 로컬은 Prometheus Operator(ServiceMonitor · PrometheusRule CRD) 없으므로 비활성화
 monitoring:
   serviceMonitor:

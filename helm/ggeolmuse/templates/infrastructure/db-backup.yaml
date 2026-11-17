@@ -26,6 +26,8 @@ spec:
             app: db-backup
         spec:
           restartPolicy: Never
+          securityContext:
+            {{- include "ggeolmuse.podSecurityContext" . | nindent 12 }}
           volumes:
             - name: dump
               emptyDir: {}

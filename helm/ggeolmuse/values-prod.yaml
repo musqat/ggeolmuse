@@ -275,11 +275,6 @@ ingress:
 secrets:
   data: {}
 
-# ConfigMap 설정
-configMap:
-  data:
-    appBaseUrl: "https://ggeolmuse.com"
-
 # DB 백업
 dbBackup:
   enabled: true

@@ -241,8 +241,6 @@ configServer:
     CONFIG_SERVER_USERNAME: CONFIG_SERVER_USERNAME
     CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
   # 앱(10001)이 설정 리포를 받아 둘 수 있게 fsGroup(emptyDir /tmp 는 root 소유로 생김)
-  podSecurityContext:
-    fsGroup: 10001
   # 환경별 파일(dev · prod)이 덮어씀
   env:
     springProfiles: git
@@ -614,14 +612,3 @@ dbBackup:
       limits:
         cpu: 200m
         memory: 256Mi
-
-# ConfigMap 설정
-configMap:
-  enabled: true
-  data:
-    # appBaseUrl: 환경별 (dev/prod)
-    emailExpiryHours: "24"
-    exchangeRateMin: "0"
-    exchangeRateMax: "3000"
-    redisHost: "redis"
-    redisPort: "6379"

@@ -46,10 +46,6 @@ frontend:
     apiUrl: http://ggeolmuse.localhost:18080/api
     keycloakUrl: http://ggeolmuse.localhost:18080/auth
 
-configMap:
-  data:
-    appBaseUrl: http://ggeolmuse.localhost:18080
-
 monitoring:
   serviceMonitor:
     enabled: false

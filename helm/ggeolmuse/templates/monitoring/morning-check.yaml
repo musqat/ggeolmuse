@@ -26,6 +26,8 @@ spec:
             app: morning-check
         spec:
           restartPolicy: Never
+          securityContext:
+            {{- include "ggeolmuse.podSecurityContext" . | nindent 12 }}
           automountServiceAccountToken: false
           containers:
             - name: check

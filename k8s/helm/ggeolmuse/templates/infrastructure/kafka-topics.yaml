@@ -19,6 +19,8 @@ spec:
         app: kafka-topics-init
     spec:
       restartPolicy: OnFailure
+      securityContext:
+        {{- include "ggeolmuse.podSecurityContext" . | nindent 8 }}
       containers:
         - name: kafka-topics-creator
           image: {{ .Values.infrastructure.kafka.image }}
@@ -139,5 +141,9 @@ spec:
           resources:
             {{- toYaml .Values.infrastructure.kafka.topicsInit.resources | nindent 12 }}
           securityContext:
-            {{- include "ggeolmuse.baseSecurityContext" . | nindent 12 }}
+            {{- include "ggeolmuse.securityContext" . | nindent 12 }}
+          volumeMounts:
+            {{- include "ggeolmuse.tmpVolumeMount" . | nindent 12 }}
+      volumes:
+        {{- include "ggeolmuse.tmpVolume" . | nindent 8 }}
 {{- end }}
