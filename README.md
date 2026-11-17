@@ -165,17 +165,17 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 ## 테스트
 
-백엔드 **2,946 개**, 프론트 **1,727 개**, E2E **72 개**.
+백엔드 **2,954 개**, 프론트 **1,727 개**, E2E **72 개**.
 
 | 서비스 | 테스트 |
 |---|---|
 | market-data-service | 602 |
 | user-service | 478 |
 | backtest-service | 1,116 |
-| trade-service | 472 |
+| trade-service | 473 |
 | gateway-server | 22 |
 | config-server | 5 |
-| ggeolmuse-common | 58 |
+| ggeolmuse-common | 65 |
 | messaging | 26 |
 | chat-service | 167 |
 | frontend-web | 1,727 |
@@ -293,7 +293,7 @@ EC2 는 Cloudflare 대역에서 온 요청만 받아서 밖에서 이 헤더를 
 [같은 문서](docs/problem-solving.md#레이트-리밋-버킷이-운영에서는-여전히-하나였다) 에 있다.
 
 **응답 · 로그** — 로그인 실패는 가입 여부와 상관없이 같은 401 이다([가입 여부 노출](docs/problem-solving.md#로그인-응답이-가입-여부를-드러냈다)).
-로그의 이메일은 가린다.
+로그의 이메일은 가린다. 관리자 쓰기 요청은 토큰 사용자(sub) · 메서드 · 경로 · 응답 코드를 한 줄로 남긴다(실패는 경고).
 
 **브라우저** — nginx 가 CSP · X-Frame-Options · X-Content-Type-Options(nosniff) · Referrer-Policy 를 응답에 넣는다.
 
