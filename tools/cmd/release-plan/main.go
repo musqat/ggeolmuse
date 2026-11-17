@@ -31,7 +31,16 @@ func main() {
 	body := flag.String("body", "", "머지한 PR 본문 파일")
 	tags := flag.String("tags", "", "서비스별 태그(JSON 객체)")
 	list := flag.String("picks", "", "수동 실행 때 배포할 서비스와 버전(쉼표로 구분)")
+	checked := flag.String("checked", "", "머지한 PR 본문 파일(체크한 서비스가 있으면 release=true 만 출력)")
 	flag.Parse()
+	if *checked != "" {
+		raw, err := os.ReadFile(*checked)
+		if err != nil {
+			fail(fmt.Errorf("PR 본문 파일 못 읽음: %w", err))
+		}
+		fmt.Printf("release=%t\n", wantsRelease(string(raw)))
+		return
+	}
 	// 비어 있는 -picks 도 수동 실행으로 처리(목록 검사에서 실패)
 	picksSet := false
 	flag.Visit(func(f *flag.Flag) { picksSet = picksSet || f.Name == "picks" })

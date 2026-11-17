@@ -1,59 +1,70 @@
-# 의존성 올리기 PR(주 1회 월요일 09시, 생태계마다 부 · 수 버전은 PR 하나로 묶고 주 버전은 따로)
+# 의존성 올리기 PR(월 1회 1일 09시, 생태계마다 부 · 수 버전을 PR 하나로 묶음, 주 버전은 계획해서 따로 올려 무시)
 version: 2
 updates:
 
   - package-ecosystem: maven
     directory: /backend
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: "09:00"
       timezone: Asia/Seoul
     groups:
       minor-and-patch:
         update-types: [minor, patch]
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
+      # 2025.1 부터는 Boot 4 용 판이라 Boot 3.5 에서 앱이 안 뜸(Boot 4 로 올릴 때 같이)
+      - dependency-name: org.springframework.cloud:spring-cloud-dependencies
+        versions: [">= 2025.1.0"]
     commit-message:
       prefix: chore(deps)
 
   - package-ecosystem: npm
     directories: [/frontend-web, /tests/e2e]
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: "09:00"
       timezone: Asia/Seoul
     groups:
       minor-and-patch:
         update-types: [minor, patch]
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
     commit-message:
       prefix: chore(deps)
 
   - package-ecosystem: pip
     directory: /backend/chat-service
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: "09:00"
       timezone: Asia/Seoul
     groups:
       minor-and-patch:
         update-types: [minor, patch]
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
     commit-message:
       prefix: chore(deps)
 
   - package-ecosystem: gomod
     directory: /tools
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: "09:00"
       timezone: Asia/Seoul
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
     commit-message:
       prefix: chore(deps)
 
@@ -69,13 +80,16 @@ updates:
       - /backend/user-service
       - /frontend-web
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: "09:00"
       timezone: Asia/Seoul
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    # 태그 끝의 JDK · 파이썬 판이 바뀌어도 부 버전으로 잡혀 수 버전 · digest 만
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major, version-update:semver-minor]
     commit-message:
       prefix: chore(deps)
 
@@ -83,25 +97,29 @@ updates:
   - package-ecosystem: github-actions
     directories: [/, /.github/actions/install-trivy, /.github/actions/trivy-image-scan]
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: "09:00"
       timezone: Asia/Seoul
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
     commit-message:
       prefix: chore(deps)
 
   - package-ecosystem: terraform
     directories: [/terraform, /k8s/terraform/modules/k8s-cluster]
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       time: "09:00"
       timezone: Asia/Seoul
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
     commit-message:
       prefix: chore(deps)
