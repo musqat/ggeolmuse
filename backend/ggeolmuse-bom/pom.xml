@@ -30,7 +30,7 @@
         <!-- 보안 패치.  Spring Boot BOM 의 버전은 프로퍼티로 못 바꿔 아래 dependencyManagement 항목과 짝으로 둠 -->
         <netty.version>4.1.139.Final</netty.version>
         <jackson-bom.version>2.18.11</jackson-bom.version>
-        <tomcat.version>10.1.61</tomcat.version>
+        <tomcat.version>11.0.29</tomcat.version>
         <httpclient5.version>5.6.5</httpclient5.version>
         <httpcore5.version>5.4.4</httpcore5.version>
         <postgresql.version>42.7.12</postgresql.version>
