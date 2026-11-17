@@ -144,10 +144,9 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
-      # 스캔은 결과로 막지 않으니 설치 · DB 받기 실패도 빌드를 막지 않음
+      # 고친 버전이 나온 CRITICAL 이면 실패(설치 · DB 받기 실패는 경고만)
       - name: Trivy 이미지 스캔
         uses: ./.github/actions/trivy-image-scan
-        continue-on-error: true
         with:
           image: ${{ matrix.service }}:ci-${{ github.sha }}
           name: ${{ matrix.service }}
@@ -196,10 +195,9 @@ jobs:
           cache-from: type=gha,scope=frontend-web
           cache-to: type=gha,mode=max,scope=frontend-web
 
-      # 스캔은 결과로 막지 않으니 설치 · DB 받기 실패도 빌드를 막지 않음
+      # 고친 버전이 나온 CRITICAL 이면 실패(설치 · DB 받기 실패는 경고만)
       - name: Trivy 이미지 스캔
         uses: ./.github/actions/trivy-image-scan
-        continue-on-error: true
         with:
           image: frontend-web:ci-${{ github.sha }}
           name: frontend-web
@@ -262,10 +260,9 @@ jobs:
           cache-from: type=gha,scope=chat-service
           cache-to: type=gha,mode=max,scope=chat-service
 
-      # 스캔은 결과로 막지 않으니 설치 · DB 받기 실패도 빌드를 막지 않음
+      # 고친 버전이 나온 CRITICAL 이면 실패(설치 · DB 받기 실패는 경고만)
       - name: Trivy 이미지 스캔
         uses: ./.github/actions/trivy-image-scan
-        continue-on-error: true
         with:
           image: chat-service:ci-${{ github.sha }}
           name: chat-service
@@ -401,6 +398,7 @@ jobs:
         run: |
           shellcheck helm/k3s-node/*.sh
           bash helm/k3s-node/bootstrap_test.sh
+          python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 
   # terraform 형식 · 문법 · 가짜 프로바이더 테스트(AWS 에 닿지 않음, 운영 루트와 멀티 노드 루트)
   terraform:

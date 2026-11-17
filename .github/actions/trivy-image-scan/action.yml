@@ -1,5 +1,5 @@
 name: Trivy image scan
-description: 컨테이너 이미지를 스캔해 결과를 GitHub Security 탭에 올린다
+description: 컨테이너 이미지를 스캔해 결과를 GitHub Security 탭에 올리고, 고친 버전이 나온 CRITICAL 이 있으면 실패한다
 
 inputs:
   image:
@@ -12,10 +12,13 @@ inputs:
 runs:
   using: composite
   steps:
+    # 설치 · DB 받기 실패는 판정 단계에서 경고만(리포트가 없음)
     - uses: ./.github/actions/install-trivy
+      continue-on-error: true
 
     # JSON 으로 한 번 스캔, convert 로 SARIF · 표 출력(재스캔 없음)
     - name: ${{ inputs.name }} 스캔
+      continue-on-error: true
       uses: aquasecurity/trivy-action@v0.36.0
       env:
         GITHUB_TOKEN: ${{ github.token }}
@@ -26,10 +29,12 @@ runs:
         severity: CRITICAL,HIGH
         exit-code: '0'
         ignore-unfixed: true
+        trivyignores: .trivyignore
         cache: false
         skip-setup-trivy: true
 
     - name: SARIF 와 표로 변환
+      continue-on-error: true
       shell: bash
       # 리포트 위치를 워크스페이스 루트로 고정
       working-directory: ${{ github.workspace }}
@@ -46,3 +51,14 @@ runs:
       with:
         sarif_file: trivy-results-${{ inputs.name }}.sarif
         category: trivy-${{ inputs.name }}
+
+    # 고친 버전이 있는 CRITICAL 이면 실패(예외는 저장소 루트의 .trivyignore)
+    - name: 고친 버전이 나온 CRITICAL 판정
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        if [ ! -f trivy-${{ inputs.name }}.json ]; then
+          echo "::warning title=Trivy::${{ inputs.name }} 스캔 리포트 없음(설치 · DB 받기 실패), 판정 건너뜀"
+          exit 0
+        fi
+        python3 .github/scripts/trivy_gate.py trivy-${{ inputs.name }}.json
