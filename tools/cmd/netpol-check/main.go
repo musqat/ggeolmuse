@@ -1,4 +1,5 @@
-// netpol-check 는 NetworkPolicy 가 게이트웨이에서 business 서비스의 containerPort 로 오는 트래픽을 여는지 대조한다
+// netpol-check 는 NetworkPolicy 에 네임스페이스 기본 거부가 있는지, 포트를 선언한 워크로드마다 여는 허용 정책이 있는지,
+// 게이트웨이에서 business 서비스의 containerPort 로 오는 트래픽을 여는지 대조한다
 package main
 
 import (
@@ -7,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -57,6 +59,36 @@ func run(r io.Reader, w io.Writer) int {
 		fmt.Fprintln(w, "FAIL  읽기 실패:", err)
 		return 1
 	}
+
+	code := 0
+	if hasDefaultDeny(policies) {
+		fmt.Fprintln(w, "ok    기본 거부(Ingress)")
+	} else {
+		fmt.Fprintln(w, "FAIL  네임스페이스 기본 거부(Ingress) NetworkPolicy 없음")
+		code = 1
+	}
+	for _, wl := range workloads {
+		ports := containerPorts(wl)
+		if len(ports) == 0 {
+			continue
+		}
+		ranges, _, named, err := allowed(policies, wl.labels, anySource)
+		if err != nil {
+			fmt.Fprintln(w, "FAIL  선택자 읽기 실패:", err)
+			return 1
+		}
+		if len(named) > 0 {
+			fmt.Fprintf(w, "FAIL  이름으로 적은 포트 %v · 숫자 포트만 대조함\n", named)
+			return 1
+		}
+		if coversAny(ranges, ports) {
+			fmt.Fprintf(w, "ok    %s 허용 정책\n", wl.name)
+		} else {
+			fmt.Fprintf(w, "FAIL  %s · 어느 포트도 여는 허용 정책 없음\n", wl.name)
+			code = 1
+		}
+	}
+
 	var gateway map[string]string
 	var business []workload
 	for _, wl := range workloads {
@@ -79,7 +111,9 @@ func run(r io.Reader, w io.Writer) int {
 	opened := make([][]portRange, len(business))
 	anyPolicy := false
 	for i, wl := range business {
-		ranges, matched, named, err := allowed(policies, wl.labels, gateway)
+		ranges, matched, named, err := allowed(policies, wl.labels, func(peers []networkingv1.NetworkPolicyPeer) (bool, error) {
+			return fromGateway(peers, gateway)
+		})
 		if err != nil {
 			fmt.Fprintln(w, "FAIL  선택자 읽기 실패:", err)
 			return 1
@@ -95,7 +129,6 @@ func run(r io.Reader, w io.Writer) int {
 		return 1
 	}
 
-	code := 0
 	for i, wl := range business {
 		for _, c := range wl.containers {
 			for _, p := range c.Ports {
@@ -167,8 +200,36 @@ func newWorkload(name string, tmpl corev1.PodTemplateSpec) workload {
 	return workload{name, tmpl.Labels, containers}
 }
 
-// 파드 라벨을 고르는 정책 가운데 게이트웨이에서 오는 규칙의 포트 구간 · 그런 규칙이 있었는지 · 이름으로 적은 포트
-func allowed(policies []networkingv1.NetworkPolicy, pod, gateway map[string]string) ([]portRange, bool, []string, error) {
+// podSelector 가 비고 허용 규칙 없이 Ingress 를 막는 정책이 있는지(policyTypes 를 비우면 Ingress)
+func hasDefaultDeny(policies []networkingv1.NetworkPolicy) bool {
+	for _, np := range policies {
+		sel := np.Spec.PodSelector
+		if len(sel.MatchLabels) > 0 || len(sel.MatchExpressions) > 0 || len(np.Spec.Ingress) > 0 {
+			continue
+		}
+		if len(np.Spec.PolicyTypes) == 0 || slices.Contains(np.Spec.PolicyTypes, networkingv1.PolicyTypeIngress) {
+			return true
+		}
+	}
+	return false
+}
+
+func containerPorts(wl workload) []corev1.ContainerPort {
+	var ports []corev1.ContainerPort
+	for _, c := range wl.containers {
+		ports = append(ports, c.Ports...)
+	}
+	return ports
+}
+
+// 출처와 상관없는 허용 규칙
+func anySource([]networkingv1.NetworkPolicyPeer) (bool, error) {
+	return true, nil
+}
+
+// 파드 라벨을 고르는 정책 가운데 출처 조건에 맞는 규칙의 포트 구간 · 맞는 규칙 유무 · 이름으로 적은 포트
+func allowed(policies []networkingv1.NetworkPolicy, pod map[string]string,
+	from func([]networkingv1.NetworkPolicyPeer) (bool, error)) ([]portRange, bool, []string, error) {
 	var ranges []portRange
 	var named []string
 	matched := false
@@ -181,7 +242,7 @@ func allowed(policies []networkingv1.NetworkPolicy, pod, gateway map[string]stri
 			continue
 		}
 		for _, rule := range np.Spec.Ingress {
-			ok, err := fromGateway(rule.From, gateway)
+			ok, err := from(rule.From)
 			if err != nil {
 				return nil, false, nil, err
 			}
@@ -248,6 +309,16 @@ func selects(sel *metav1.LabelSelector, set map[string]string) (bool, error) {
 func covers(ranges []portRange, proto corev1.Protocol, port int) bool {
 	for _, r := range ranges {
 		if (r.proto == "" || r.proto == proto) && r.from <= port && port <= r.to {
+			return true
+		}
+	}
+	return false
+}
+
+// 포트 가운데 하나라도 구간 안인지
+func coversAny(ranges []portRange, ports []corev1.ContainerPort) bool {
+	for _, p := range ports {
+		if covers(ranges, protocolOf(p.Protocol), int(p.ContainerPort)) {
 			return true
 		}
 	}

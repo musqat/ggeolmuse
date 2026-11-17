@@ -52,7 +52,7 @@ public interface UserService {
   // 회원 탈퇴(본인 확인은 비밀번호, 없으면 구글 토큰의 로그인 시각 authTime 이 최근인지)
   void deleteAccount(String keycloakId, String password, Instant authTime);
 
-  // ==================== ADMIN APIs ====================
+  // 관리자 API
 
   // 전체 사용자 목록 조회 (페이징)
   Page<User> getAllUsers(Pageable pageable);

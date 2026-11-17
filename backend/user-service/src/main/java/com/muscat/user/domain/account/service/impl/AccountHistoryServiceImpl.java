@@ -107,8 +107,6 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
       .toList();
   }
 
-  // ========== 내부 메서드들 ==========
-
   // 계좌 조회
   private Account getAccountByIdInternal(Long accountId) {
     return accountRepository.findById(accountId)

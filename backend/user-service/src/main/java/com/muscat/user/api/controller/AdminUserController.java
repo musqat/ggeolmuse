@@ -54,9 +54,7 @@ public class AdminUserController {
   private final UserService userService;
   private final AccountService accountService;
 
-  /**
-   * 전체 사용자 목록 조회 (페이징)
-   */
+  // 전체 사용자 목록 조회 (페이징)
   @GetMapping
   public ResponseEntity<Page<UserSummary>> getAllUsers(
     @RequestParam(defaultValue = "0") @Min(0) int page,
@@ -79,9 +77,7 @@ public class AdminUserController {
     return ResponseEntity.ok(userSummaries);
   }
 
-  /**
-   * 특정 사용자 상세 조회
-   */
+  // 특정 사용자 상세 조회
   @GetMapping("/{userId}")
   public ResponseEntity<UserDetail> getUser(@PathVariable Long userId) {
     log.info("사용자 상세 조회: userId={}", userId);
@@ -113,9 +109,7 @@ public class AdminUserController {
     return ResponseEntity.ok(detail);
   }
 
-  /**
-   * 사용자 역할 변경
-   */
+  // 사용자 역할 변경
   @PatchMapping("/{userId}/role")
   public ResponseEntity<UserSummary> updateUserRole(
     @PathVariable Long userId,
@@ -129,9 +123,7 @@ public class AdminUserController {
     return ResponseEntity.ok(UserSummary.from(updatedUser));
   }
 
-  /**
-   * 사용자 활성화/비활성화
-   */
+  // 사용자 활성화/비활성화
   @PatchMapping("/{userId}/enabled")
   public ResponseEntity<UserSummary> updateUserEnabled(
     @PathVariable Long userId,
@@ -154,9 +146,7 @@ public class AdminUserController {
       settlements.map(DividendSettlementResponse::from).getContent(), settlements.isLast()));
   }
 
-  /**
-   * 사용자 통계 조회
-   */
+  // 사용자 통계 조회
   @GetMapping("/stats")
   public ResponseEntity<UserStats> getUserStats() {
     log.info("사용자 통계 조회");
@@ -175,9 +165,7 @@ public class AdminUserController {
     return ResponseEntity.ok(stats);
   }
 
-  /**
-   * 강제 닉네임 변경
-   */
+  // 강제 닉네임 변경
   @PatchMapping("/{userId}/nickname")
   public ResponseEntity<UserSummary> updateNickname(
     @PathVariable Long userId,
@@ -190,9 +178,7 @@ public class AdminUserController {
     return ResponseEntity.ok(UserSummary.from(updatedUser));
   }
 
-  /**
-   * 강제 비밀번호 변경
-   */
+  // 강제 비밀번호 변경
   @PatchMapping("/{userId}/password")
   public ResponseEntity<Void> updatePassword(
     @PathVariable Long userId,
@@ -205,9 +191,7 @@ public class AdminUserController {
     return ResponseEntity.ok().build();
   }
 
-  /**
-   * 이메일 강제 인증
-   */
+  // 이메일 강제 인증
   @PatchMapping("/{userId}/verify-email")
   public ResponseEntity<UserSummary> verifyEmail(@PathVariable Long userId) {
     log.info("Admin이 사용자 이메일 강제 인증: userId={}", userId);
@@ -217,9 +201,7 @@ public class AdminUserController {
     return ResponseEntity.ok(UserSummary.from(updatedUser));
   }
 
-  /**
-   * 강제 탈퇴
-   */
+  // 강제 탈퇴
   @DeleteMapping("/{userId}")
   public ResponseEntity<Void> deleteUser(@PathVariable Long userId) {
     log.info("Admin이 사용자 강제 탈퇴: userId={}", userId);
@@ -228,8 +210,6 @@ public class AdminUserController {
 
     return ResponseEntity.ok().build();
   }
-
-  // ==================== DTO ====================
 
   @Data
   @Builder

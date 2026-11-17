@@ -18,15 +18,18 @@ for a in "${apps[@]}"; do
   [ "$nodes" -eq 2 ] && ok "$a 노드 $nodes" || bad "$a 노드 $nodes"
 done
 
-echo "== NetworkPolicy(업무 서비스 포트는 게이트웨이 · 업무 서비스만)"
+echo "== NetworkPolicy(기본 거부, 업무 서비스 · Keycloak 은 정한 출처만)"
 probe() {
   kubectl run "np-$1" --rm -i --restart=Never --quiet --image=curlimages/curl:8.11.1 --labels="$2" -- \
-    curl -s -o /dev/null -w '%{http_code}' --max-time 3 http://user-service:8080/ 2>/dev/null | tr -dc '0-9'
+    curl -s -o /dev/null -w '%{http_code}' --max-time 3 "$3" 2>/dev/null | tr -dc '0-9'
 }
-c="$(probe deny role=probe)"
-[ "${c:-000}" = 000 ] && ok "레이블 없는 파드 → user-service 막힘" || bad "레이블 없는 파드 → user-service $c"
-c="$(probe allow tier=business-service)"
-[ "${c:-000}" != 000 ] && ok "업무 서비스 레이블 파드 → user-service $c" || bad "업무 서비스 레이블 파드 → user-service 막힘"
+for target in user-service=http://user-service:8080/ keycloak=http://keycloak:8080/auth/realms/master; do
+  name="${target%%=*}"; url="${target#*=}"
+  c="$(probe "deny-$name" role=probe "$url")"
+  [ "${c:-000}" = 000 ] && ok "레이블 없는 파드 → $name 막힘" || bad "레이블 없는 파드 → $name $c"
+  c="$(probe "allow-$name" tier=business-service "$url")"
+  [ "${c:-000}" != 000 ] && ok "업무 서비스 레이블 파드 → $name $c" || bad "업무 서비스 레이블 파드 → $name 막힘"
+done
 
 echo "== 게이트웨이 응답(Envoy 노드 포트)"
 c="$(code /)"; [ "$c" = 200 ] && ok "/ $c" || bad "/ $c"

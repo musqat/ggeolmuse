@@ -17,15 +17,16 @@ infrastructure:
     storage:
       storageClassName: gp3
 
+# 외부 요청은 envoy-gateway-system 의 Envoy 프록시가 넘김
+networkPolicy:
+  ingressNamespace: envoy-gateway-system
+
 # 상태 없는 앱은 워커마다 하나씩
 configServer:
   replicaCount: 2
 
-# LoadBalancer 를 줄 컨트롤러 없음(입구 Envoy 가 클러스터 IP 로 받음)
 gatewayServer:
   replicaCount: 2
-  service:
-    type: ClusterIP
 
 services:
   userService:
@@ -41,8 +42,6 @@ services:
 
 frontend:
   replicaCount: 2
-  service:
-    type: ClusterIP
 
 # 외부 진입은 Gateway API(컨트롤러는 Envoy Gateway)
 ingress:

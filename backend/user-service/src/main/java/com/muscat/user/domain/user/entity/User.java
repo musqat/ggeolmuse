@@ -80,10 +80,6 @@ public class User {
   private List<Account> accounts = new ArrayList<>();
 
 
-  // ============================================
-  // 도메인 메서드 (Domain Methods)
-  // ============================================
-
   // 비밀번호 변경
   public void changePassword(String encodedPassword) {
     this.passwordHash = encodedPassword;

@@ -6,6 +6,7 @@ import com.muscat.commonlib.config.KeycloakProperties;
 import com.muscat.user.common.enums.response.KeycloakResponse;
 import com.muscat.user.common.exception.KeycloakException;
 import com.muscat.user.config.AppProperties;
+import com.muscat.user.config.KeycloakAdminClientProperties;
 import com.muscat.user.domain.user.dto.response.LoginResponseDto;
 import com.muscat.user.domain.user.dto.response.TokenResponseDto;
 import com.muscat.user.domain.user.service.KeycloakService;
@@ -33,12 +34,15 @@ public class KeycloakServiceImpl implements KeycloakService {
 
   private final KeycloakProperties keycloakProperties;
   private final AppProperties appProperties;
+  private final KeycloakAdminClientProperties adminClientProperties;
   private final RestTemplate restTemplate;
   private static final ObjectMapper JSON = new ObjectMapper();
 
-  public KeycloakServiceImpl(KeycloakProperties keycloakProperties, AppProperties appProperties) {
+  public KeycloakServiceImpl(KeycloakProperties keycloakProperties, AppProperties appProperties,
+    KeycloakAdminClientProperties adminClientProperties) {
     this.keycloakProperties = keycloakProperties;
     this.appProperties = appProperties;
+    this.adminClientProperties = adminClientProperties;
 
     // RestTemplate을 타임아웃과 함께 설정
     RestTemplateBuilder builder = new RestTemplateBuilder()
@@ -410,8 +414,8 @@ public class KeycloakServiceImpl implements KeycloakService {
 
       MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
       body.add("grant_type", "client_credentials");
-      body.add("client_id", keycloakProperties.getResource());
-      body.add("client_secret", keycloakProperties.getCredentials().getSecret());
+      body.add("client_id", adminClientProperties.getId());
+      body.add("client_secret", adminClientProperties.getSecret());
 
       HttpEntity<MultiValueMap<String, String>> request = createFormRequest(body);
       ResponseEntity<Map> response = restTemplate.postForEntity(getTokenUrl(), request, Map.class);

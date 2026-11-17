@@ -165,12 +165,12 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 ## 테스트
 
-백엔드 **2,936 개**, 프론트 **1,727 개**, E2E **72 개**.
+백엔드 **2,943 개**, 프론트 **1,727 개**, E2E **72 개**.
 
 | 서비스 | 테스트 |
 |---|---|
 | market-data-service | 599 |
-| user-service | 471 |
+| user-service | 478 |
 | backtest-service | 1,116 |
 | trade-service | 472 |
 | gateway-server | 22 |
@@ -195,7 +195,7 @@ CI 에서 그 아래면 빌드를 실패시킨다(자바 JaCoCo · chat `tools/c
 
 | 서비스 | 라인 | 분기 |
 |---|---|---|
-| user | 98.6% | 87.7% |
+| user | 98.4% | 87.9% |
 | trade | 99.5% | 96.8% |
 | backtest | 98.9% | 95.2% |
 | market-data | 97.9% | 88.4% |
@@ -300,9 +300,12 @@ EC2 는 Cloudflare 대역에서 온 요청만 받아서 밖에서 이 헤더를 
 **운영 도구** — Kafka UI · Keycloak 관리 콘솔 · Grafana · ArgoCD 는 Cloudflare Access 뒤에 있어 허용한 계정만 들어간다.
 Kafka UI 는 그 안에서 로그인 폼을 한 번 더 거치고, 읽기 전용이라 토픽 · 메시지 · 클러스터 설정을 바꾸지 못한다.
 
-**파드 · 비밀값** — 앱 파드는 공용 securityContext 로 비root(10001) · 읽기 전용 루트 · 권한 상승 금지 · capabilities 전부 제거로 돈다.
-비밀값은 AWS Secrets Manager 에서 ExternalSecret 으로 받아 파드마다 자기 키만 `/etc/secrets` 파일로 넣는다. 환경변수에는 비밀값이 없다.
+**파드 · secret** — 앱 파드는 공용 securityContext 로 비root(10001) · 읽기 전용 루트 · 권한 상승 금지 · capabilities 전부 제거로 돈다.
+secret 은 AWS Secrets Manager 에서 ExternalSecret 으로 받아 파드마다 자기 키만 `/etc/secrets` 파일로 넣는다. 환경변수에는 secret 이 없다.
+Keycloak 은 로그인 클라이언트와 사용자 관리 클라이언트(사용자 관리 권한 하나)를 나누고, 사용자 관리 클라이언트 secret 은 Keycloak 과 user-service 만 받는다.
 노드 IAM 역할은 시크릿 둘(앱 · Origin 인증서)의 읽기만 갖고, 앱 파드는 NetworkPolicy 로 인스턴스 메타데이터(노드 역할 자격증명)에 닿지 않는다.
+네임스페이스로 들어오는 요청은 기본 거부이고, 파드마다 받을 출처 · 포트만 연다. Kafka 는 business 서비스 · Kafka UI · 토픽 초기화 Job 에서,
+Keycloak · 설정 서버는 게이트웨이 · business 서비스와 인그레스 컨트롤러(Keycloak 만)에서 받는다.
 Redis 에는 비밀번호를 건다.
 
 **공급망** — CI 가 이미지와 매니페스트를 Trivy 로 검사해 CRITICAL · HIGH 를 GitHub Security 탭에 올린다. 빌드를 막지는 않고 보고만 한다.

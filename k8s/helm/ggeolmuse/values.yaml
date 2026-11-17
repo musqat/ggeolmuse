@@ -265,7 +265,7 @@ gatewayServer:
   image:
     repository: gateway-server
   service:
-    type: LoadBalancer
+    type: ClusterIP
     port: 8070
   xmx: 192m
   secretFiles:
@@ -308,6 +308,9 @@ services:
       - MAIL_USERNAME
       - MAIL_PASSWORD
       - MAIL_FROM
+      - KEYCLOAK_SERVICE_CLIENT_SECRET
+      - KEYCLOAK_SECRET
+      - KEYCLOAK_ADMIN_CLIENT_SECRET
     # 시드 관리자 비밀번호
     secretEnv:
       ADMIN_PASSWORD: KEYCLOAK_ADMIN_USER_PASSWORD
@@ -319,6 +322,8 @@ services:
       DB_PASSWORD: DB_PASSWORD
       DB_URL_USER: DB_URL_USER
       KEYCLOAK_SECRET: KEYCLOAK_SECRET
+      KEYCLOAK_SERVICE_CLIENT_SECRET: KEYCLOAK_SERVICE_CLIENT_SECRET
+      KEYCLOAK_ADMIN_CLIENT_SECRET: KEYCLOAK_ADMIN_CLIENT_SECRET
       MAIL_USERNAME: MAIL_USERNAME
       MAIL_PASSWORD: MAIL_PASSWORD
       MAIL_FROM: MAIL_FROM
@@ -353,6 +358,8 @@ services:
     labels:
       tier: business-service
     env: {}
+    extraSecrets:
+      - KEYCLOAK_SERVICE_CLIENT_SECRET
     secretFiles:
       CONFIG_SERVER_USERNAME: CONFIG_SERVER_USERNAME
       CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
@@ -360,7 +367,7 @@ services:
       DB_USERNAME: DB_USERNAME
       DB_PASSWORD: DB_PASSWORD
       DB_URL_TRADE: DB_URL_TRADE
-      KEYCLOAK_SECRET: KEYCLOAK_SECRET
+      KEYCLOAK_SERVICE_CLIENT_SECRET: KEYCLOAK_SERVICE_CLIENT_SECRET
     strategy:
       rollingUpdate:
         maxUnavailable: 0
@@ -399,7 +406,6 @@ services:
       DB_USERNAME: DB_USERNAME
       DB_PASSWORD: DB_PASSWORD
       DB_URL_MARKET: DB_URL_MARKET
-      KEYCLOAK_SECRET: KEYCLOAK_SECRET
       KOREAEXIM_API_KEY: KOREAEXIM_API_KEY
       ALPHAVANTAGE_API_KEY: ALPHAVANTAGE_API_KEY
     strategy:
@@ -431,13 +437,15 @@ services:
     labels:
       tier: business-service
     env: {}
+    extraSecrets:
+      - KEYCLOAK_SERVICE_CLIENT_SECRET
     secretFiles:
       CONFIG_SERVER_USERNAME: CONFIG_SERVER_USERNAME
       CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
       DB_USERNAME: DB_USERNAME
       DB_PASSWORD: DB_PASSWORD
       DB_URL_BACKTEST: DB_URL_BACKTEST
-      KEYCLOAK_SECRET: KEYCLOAK_SECRET
+      KEYCLOAK_SERVICE_CLIENT_SECRET: KEYCLOAK_SERVICE_CLIENT_SECRET
     probes:
       readiness:
         initialDelaySeconds: 60
@@ -462,6 +470,7 @@ services:
     secretFiles:
       OPENAI_API_KEY: OPENAI_API_KEY
       REDIS_PASSWORD: REDIS_PASSWORD
+      KEYCLOAK_SERVICE_CLIENT_SECRET: KEYCLOAK_SERVICE_CLIENT_SECRET
     # /metrics 수집(ServiceMonitor · monitoring 에서 서비스 포트 접근)
     metrics:
       enabled: false
@@ -483,7 +492,7 @@ frontend:
   image:
     repository: frontend-web
   service:
-    type: LoadBalancer
+    type: ClusterIP
     port: 3000
     targetPort: 8080
   env:
@@ -504,6 +513,10 @@ networkPolicy:
     - 8081
     - 8082
     - 8083
+  # 네임스페이스로 들어오는 요청 기본 거부(허용 정책에 적은 출처 · 포트만 받음)
+  defaultDeny: true
+  # 외부 요청을 넘기는 인그레스 컨트롤러의 네임스페이스(k3s 번들 Traefik 은 kube-system)
+  ingressNamespace: kube-system
   # 노드 IAM 역할(인스턴스 메타데이터)로 가는 egress 차단(역할로 S3 에 올리는 파드만 예외)
   instanceMetadata:
     block: true
@@ -521,6 +534,8 @@ secrets:
     keycloakAdminUsername: ""
     keycloakAdminPassword: ""
     keycloakClientSecret: ""
+    keycloakServiceClientSecret: ""
+    keycloakAdminClientSecret: ""
     keycloakTestUserPassword: ""
     mailUsername: ""
     mailPassword: ""

@@ -68,7 +68,7 @@ public interface AccountService {
   // 배당 몫 목표 금액을 정산 행과 견줘 차이만 반영
   void applyDividendPayout(DividendPayoutEvent event);
 
-  // ==================== ADMIN API ==================== //
+  // 관리자 API
 
   // 사용자 ID로 계좌 목록 조회 (관리자용)
   List<Account> findAccountsByUserId(Long userId);

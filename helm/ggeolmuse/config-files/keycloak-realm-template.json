@@ -33,29 +33,28 @@
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
       "secret": "${KEYCLOAK_CLIENT_SECRET}",
-      "redirectUris": [
-        "http://localhost:*",
-        "https://ggeolmuse.com/*",
-        "http://gateway-server:8070/*",
-        "http://user-service:8080/*",
-        "http://trade-service:8081/*",
-        "http://market-data-service:8083/*",
-        "http://backtest-service:8082/*"
-      ],
-      "webOrigins": [
-        "http://localhost:*",
-        "https://ggeolmuse.com",
-        "http://gateway-server:8070",
-        "http://user-service:8080",
-        "http://trade-service:8081",
-        "http://market-data-service:8083",
-        "http://backtest-service:8082"
-      ],
+      "redirectUris": [],
+      "webOrigins": [],
       "protocol": "openid-connect",
       "publicClient": false,
       "bearerOnly": false,
-      "standardFlowEnabled": true,
+      "standardFlowEnabled": false,
       "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": true
+    },
+    {
+      "clientId": "ggeolmuse-user-admin",
+      "name": "GGeolmuse User Admin Client",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${KEYCLOAK_ADMIN_CLIENT_SECRET}",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
       "fullScopeAllowed": true
     },
@@ -105,11 +104,9 @@
   "clientScopeMappings": {
     "realm-management": [
       {
-        "client": "ggeolmuse-client",
+        "client": "ggeolmuse-user-admin",
         "roles": [
-          "manage-users",
-          "create-client",
-          "manage-clients"
+          "manage-users"
         ]
       }
     ]
@@ -132,14 +129,12 @@
   },
   "users": [
     {
-      "username": "service-account-ggeolmuse-client",
+      "username": "service-account-ggeolmuse-user-admin",
       "enabled": true,
-      "serviceAccountClientId": "ggeolmuse-client",
+      "serviceAccountClientId": "ggeolmuse-user-admin",
       "clientRoles": {
         "realm-management": [
-          "manage-users",
-          "create-client",
-          "manage-clients"
+          "manage-users"
         ]
       }
     },

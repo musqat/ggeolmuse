@@ -2,10 +2,18 @@
   "realm": "muscathan",
   "enabled": true,
   "sslRequired": "external",
-  "registrationAllowed": true,
+  "registrationAllowed": false,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "failureFactor": 10,
+  "waitIncrementSeconds": 60,
+  "maxFailureWaitSeconds": 900,
+  "maxDeltaTimeSeconds": 43200,
+  "quickLoginCheckMilliSeconds": 1000,
+  "minimumQuickLoginWaitSeconds": 60,
   "editUsernameAllowed": false,
   "accessTokenLifespan": 900,
   "accessTokenLifespanForImplicitFlow": 900,
@@ -25,29 +33,28 @@
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
       "secret": "${KEYCLOAK_CLIENT_SECRET}",
-      "redirectUris": [
-        "http://localhost:*",
-        "https://ggeolmuse.com/*",
-        "http://gateway-server:8070/*",
-        "http://user-service:8080/*",
-        "http://trade-service:8081/*",
-        "http://market-data-service:8083/*",
-        "http://backtest-service:8082/*"
-      ],
-      "webOrigins": [
-        "http://localhost:*",
-        "https://ggeolmuse.com",
-        "http://gateway-server:8070",
-        "http://user-service:8080",
-        "http://trade-service:8081",
-        "http://market-data-service:8083",
-        "http://backtest-service:8082"
-      ],
+      "redirectUris": [],
+      "webOrigins": [],
       "protocol": "openid-connect",
       "publicClient": false,
       "bearerOnly": false,
-      "standardFlowEnabled": true,
+      "standardFlowEnabled": false,
       "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": true
+    },
+    {
+      "clientId": "ggeolmuse-user-admin",
+      "name": "GGeolmuse User Admin Client",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${KEYCLOAK_ADMIN_CLIENT_SECRET}",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
       "fullScopeAllowed": true
     },
@@ -77,16 +84,29 @@
       "attributes": {
         "pkce.code.challenge.method": "S256"
       }
+    },
+    {
+      "clientId": "ggeolmuse-service",
+      "name": "GGeolmuse Service-to-Service Client",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${KEYCLOAK_SERVICE_CLIENT_SECRET}",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "fullScopeAllowed": true
     }
   ],
   "clientScopeMappings": {
     "realm-management": [
       {
-        "client": "ggeolmuse-client",
+        "client": "ggeolmuse-user-admin",
         "roles": [
-          "manage-users",
-          "create-client",
-          "manage-clients"
+          "manage-users"
         ]
       }
     ]
@@ -100,21 +120,31 @@
       {
         "name": "admin",
         "description": "Administrator role"
+      },
+      {
+        "name": "service",
+        "description": "Service-to-service token role"
       }
     ]
   },
   "users": [
     {
-      "username": "service-account-ggeolmuse-client",
+      "username": "service-account-ggeolmuse-user-admin",
       "enabled": true,
-      "serviceAccountClientId": "ggeolmuse-client",
+      "serviceAccountClientId": "ggeolmuse-user-admin",
       "clientRoles": {
         "realm-management": [
-          "manage-users",
-          "create-client",
-          "manage-clients"
+          "manage-users"
         ]
       }
+    },
+    {
+      "username": "service-account-ggeolmuse-service",
+      "enabled": true,
+      "serviceAccountClientId": "ggeolmuse-service",
+      "realmRoles": [
+        "service"
+      ]
     }
   ],
   "components": {

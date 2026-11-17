@@ -1,6 +1,7 @@
 package com.muscat.user;
 
 import com.muscat.user.config.AppProperties;
+import com.muscat.user.config.KeycloakAdminClientProperties;
 import com.muscat.commonlib.config.KeycloakProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -12,7 +13,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableFeignClients
 @EnableScheduling
-@EnableConfigurationProperties({KeycloakProperties.class, AppProperties.class})
+@EnableConfigurationProperties({KeycloakProperties.class, AppProperties.class, KeycloakAdminClientProperties.class})
 @ComponentScan(basePackages = {"com.muscat.user", "com.muscat.commonlib"})
 public class UserApplication {
 

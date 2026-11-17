@@ -80,3 +80,28 @@ spec:
   ports:
     - port: 5432
       targetPort: 5432
+---
+# 앱 차트의 기본 거부 아래에서 DB 를 쓰는 파드(business 서비스 · Keycloak)만 받음
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-postgres
+  labels:
+    app: postgres
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              tier: business-service
+        - podSelector:
+            matchLabels:
+              app: keycloak
+      ports:
+        - protocol: TCP
+          port: 5432

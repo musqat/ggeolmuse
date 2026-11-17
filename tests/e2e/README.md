@@ -91,7 +91,7 @@ market-data 를 여러 번 부른다. 여기가 초록이면 시스템이 살아
 손으로 돌리려면 Actions 에서 workflow_dispatch 로 실행한다(손으로 돌린 실행은 릴리스로 이어지지 않음).
 
 **시크릿이 필요 없다.** `.env.example` 의 기본값만으로 뜬다.
-시세와 환율은 고정 데이터라 외부 키를 쓰지 않고, Keycloak 클라이언트 secret(KEYCLOAK_SECRET · KEYCLOAK_SERVICE_CLIENT_SECRET)은 compose 에 박혀 있다.
+시세와 환율은 고정 데이터라 외부 키를 쓰지 않고, Keycloak 클라이언트 secret(KEYCLOAK_SECRET · KEYCLOAK_ADMIN_CLIENT_SECRET · KEYCLOAK_SERVICE_CLIENT_SECRET)은 compose 에 박혀 있다.
 
 **실패하면 로그를 남긴다.** 컨테이너마다 마지막 200줄, market-data 기동 구간, 게이트웨이 경로별 서킷 상태와
 성공 · 실패 · 거절 수를 찍는다. 게이트웨이가 서킷 때문에 돌려주는 503 은 따로 로그가 없어 서킷 수치로 본다.

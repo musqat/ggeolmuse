@@ -18,3 +18,9 @@ logging:
     json:
       # JSON 로그 문자열 값 속 이메일 가리기
       customizer: com.muscat.user.common.logging.MaskedEmailJsonCustomizer
+
+# Keycloak 사용자 관리 클라이언트 이름 · secret
+keycloak:
+  admin-client:
+    id: ggeolmuse-user-admin
+    secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:}
