@@ -21,26 +21,26 @@
         <spring-cloud.version>2025.0.3</spring-cloud.version>
 
         <!-- Dependency versions -->
-        <querydsl.version>5.0.0</querydsl.version>
-        <lombok.version>1.18.34</lombok.version>
-        <springdoc.version>2.8.17</springdoc.version>
-        <testcontainers.version>1.20.4</testcontainers.version>
-        <resilience4j.version>2.2.0</resilience4j.version>
+        <querydsl.version>5.1.0</querydsl.version>
+        <lombok.version>1.18.48</lombok.version>
+        <springdoc.version>2.10.0</springdoc.version>
+        <testcontainers.version>1.21.4</testcontainers.version>
+        <resilience4j.version>2.4.0</resilience4j.version>
 
         <!-- 보안 패치.  Spring Boot BOM 의 버전은 프로퍼티로 못 바꿔 아래 dependencyManagement 항목과 짝으로 둠 -->
-        <netty.version>4.1.139.Final</netty.version>
-        <jackson-bom.version>2.18.11</jackson-bom.version>
-        <tomcat.version>10.1.61</tomcat.version>
+        <netty.version>4.2.20.Final</netty.version>
+        <jackson-bom.version>2.23.0</jackson-bom.version>
+        <tomcat.version>10.1.62</tomcat.version>
         <httpclient5.version>5.6.5</httpclient5.version>
         <httpcore5.version>5.4.4</httpcore5.version>
-        <postgresql.version>42.7.12</postgresql.version>
-        <commons-io.version>2.14.0</commons-io.version>
+        <postgresql.version>42.7.14</postgresql.version>
+        <commons-io.version>2.22.0</commons-io.version>
         <commons-fileupload.version>1.6.0</commons-fileupload.version>
-        <lz4.version>1.11.4</lz4.version>
+        <lz4.version>1.14.0</lz4.version>
         <snappy.version>1.1.10.9</snappy.version>
 
         <!-- spring-security-rsa 가 끌어온다. 직접 쓰는 곳은 없고 config 암복호화용이다 -->
-        <bouncycastle.version>1.86</bouncycastle.version>
+        <bouncycastle.version>1.87</bouncycastle.version>
 
     </properties>
 
