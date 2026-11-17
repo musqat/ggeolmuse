@@ -1,0 +1,11 @@
+# gitleaks 가 빼는 찾음(줄마다 커밋:파일:규칙:줄 지문 하나와 까닭)
+
+# 테스트용 중복 요청 키(UUID 모양 값)
+538c3843c4e2cc808c2478c2e9f3752e0c49f707:backend/trade-service/src/test/java/com/muscat/trade/api/controller/TradingControllerSimpleTest.java:generic-api-key:154
+51fa004814cd744952de8cd20b0864d205f0af95:backend/user-service/src/test/java/com/muscat/user/domain/account/controller/AccountControllerTest.java:generic-api-key:173
+
+# 테스트용 거부된 비밀번호 입력 값
+c63775ae4c59ac6d070db9e0d0c6a3def1823403:backend/ggeolmuse-common/src/test/java/com/muscat/commonlib/exception/BaseExceptionHandlerTest.java:generic-api-key:185
+
+# 2025-09-18 에 커밋되고 09-23 에 지운 빌드 산출물 속 로컬 개발용 클라이언트(muscat-user-cc, realm master) secret, 운영 Keycloak 에 그 클라이언트가 없는지는 2026-11-18 아침 확인
+610d3ecc91889c3cd187badfcc3b8ff84cb59f75:user-service/BOOT-INF/classes/application.yml:generic-api-key:43
