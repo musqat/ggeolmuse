@@ -26,8 +26,8 @@ const OHLC = [
   { symbol: 'AAPL', date: '2026-10-09', openPrice: 106, highPrice: 112, lowPrice: 101, closePrice: 108, adjustedClose: 108, volume: 1 },
 ]
 const TRADE = { tradeType: 'BUY', symbol: 'AAPL', quantity: 10, price: 108, fee: 1.08, totalAmount: 1081.08, tradeDate: '2026-10-09' }
-const httpError = (detail: string) =>
-  new AxiosError('fail', 'ERR', undefined, undefined, { status: 400, data: { detail }, statusText: '', headers: {}, config: {} } as AxiosResponse)
+const httpError = (detail: string, errorCode?: string) =>
+  new AxiosError('fail', 'ERR', undefined, undefined, { status: 400, data: { detail, errorCode }, statusText: '', headers: {}, config: {} } as AxiosResponse)
 
 let alertSpy: ReturnType<typeof vi.spyOn>
 let errorSpy: ReturnType<typeof vi.spyOn>
@@ -208,6 +208,47 @@ describe('Trading 주문', () => {
     await waitForChart()
 
     expect(submitButton()).toBeDisabled()
+  })
+
+  it('달러 잔액이 부족하다는 오류 코드면 입금 · 환전 안내로 실패를 알린다', async () => {
+    vi.mocked(tradeApi.buy).mockRejectedValue(httpError('USD 잔액이 부족합니다.', 'INSUFFICIENT_USD_BALANCE'))
+    renderPage()
+    await waitForChart()
+
+    await userEvent.click(submitButton())
+
+    await waitFor(() => expect(errorSpy).toHaveBeenCalledWith(
+      '주문 실패: 달러 잔액이 부족합니다. 계좌 화면에서 원화를 입금하고 달러로 환전한 뒤 다시 주문하세요'))
+  })
+
+  it('계좌가 없으면 첫 주문까지 할 일과 계좌 화면 바로 가기를 보인다', async () => {
+    renderPage({ accounts: [] })
+    await waitForChart()
+
+    const guide = screen.getByRole('note')
+    expect(guide).toHaveTextContent('계좌 만들기')
+    expect(guide).toHaveTextContent('원화 입금')
+    expect(guide).toHaveTextContent('달러로 환전')
+    expect(within(guide).getByRole('link', { name: '계좌 만들러 가기' })).toHaveAttribute('href', '/account')
+  })
+
+  it('달러가 없는 계좌로 매수하면 입금 · 환전 바로 가기를 보이고 매도로 바꾸면 숨긴다', async () => {
+    renderPage({ accounts: [{ accountId: 3, accountName: '연습', usdBalance: 0 }] as never })
+    await waitForChart()
+
+    expect(screen.getByRole('note')).toHaveTextContent('달러가 없어 매수할 수 없습니다')
+    expect(screen.getByRole('link', { name: '입금 · 환전하러 가기' })).toHaveAttribute('href', '/account')
+
+    await userEvent.click(screen.getAllByRole('button', { name: '매도' })[0])
+
+    expect(screen.queryByRole('note')).toBeNull()
+  })
+
+  it('달러가 있는 계좌면 첫 주문 안내를 보이지 않는다', async () => {
+    renderPage({ accounts: [{ accountId: 3, accountName: '연습', usdBalance: 100 }] as never })
+    await waitForChart()
+
+    expect(screen.queryByRole('note')).toBeNull()
   })
 
   it('주문 · 거래내역은 탭 목록이고 화살표로 옮기거나 누르면 그 탭 내용을 보인다', async () => {

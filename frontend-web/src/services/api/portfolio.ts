@@ -26,6 +26,7 @@ export type PortfolioSummaryResponse = {
   holdings: HoldingResponse[];
   symbolReturnRates: { [symbol: string]: number };      // 종목별 수익률
   symbolUnrealizedPnL: { [symbol: string]: number };    // 종목별 미실현 손익
+  unpricedSymbols?: string[];         // 현재가가 없어 평가 · 손익 · 수익률에서 뺀 종목
 };
 
 // 수익 흐름 기간(1M 은 30일 · 3M 은 90일 · 1Y 는 365일 전부터, ALL 은 첫 거래일부터)

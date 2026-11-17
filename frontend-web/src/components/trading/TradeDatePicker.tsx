@@ -7,6 +7,8 @@ import { formatUsd } from '@/utils/format';
 interface TradeDatePickerProps {
   tradeDate: string;
   onTradeDateChange: (date: string) => void;
+  // 고르지 못한 날의 안내(시세 없는 날)
+  notice?: string | null;
   chartData: CandlestickChartData[];
   selectedDateOHLC: CandlestickChartData | null;
   onFindClosestPastDate: (targetDate: string) => CandlestickChartData | null;
@@ -15,6 +17,7 @@ interface TradeDatePickerProps {
 const TradeDatePicker: React.FC<TradeDatePickerProps> = ({
   tradeDate,
   onTradeDateChange,
+  notice = null,
   chartData,
   selectedDateOHLC,
   onFindClosestPastDate,
@@ -62,6 +65,10 @@ const TradeDatePicker: React.FC<TradeDatePickerProps> = ({
         label="거래일"
         testId="trade-date"
       />
+
+      {notice && (
+        <p role="status" className="mt-1 text-xs text-loss">{notice}</p>
+      )}
 
       {/* 고른 날 시가 · 고가 · 저가 · 종가 */}
       {selectedDateOHLC && (

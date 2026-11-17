@@ -16,6 +16,7 @@ import { useTradeOrder } from '@/hooks/useTradeOrder';
 import OrderTypeToggle from '@/components/trading/OrderTypeToggle';
 import AccountSelector from '@/components/trading/AccountSelector';
 import TradeDatePicker from '@/components/trading/TradeDatePicker';
+import FirstOrderGuide from '@/components/trading/FirstOrderGuide';
 import PriceTypeSelector from '@/components/trading/PriceTypeSelector';
 import OrderSummaryPanel from '@/components/trading/OrderSummaryPanel';
 import StockSelectionPanel from '@/components/trading/StockSelectionPanel';
@@ -65,7 +66,8 @@ const Trading: React.FC = () => {
     loading: chartLoading,
     latestOHLC,
     tradeDate,
-    setTradeDate,
+    selectTradeDate,
+    tradeDateNotice,
     selectedDateOHLC,
     findClosestPastDate,
   } = useTradingChart({ symbol: selectedStock, timeframe, customStartDate, customEndDate });
@@ -78,7 +80,7 @@ const Trading: React.FC = () => {
     quantity,
     limitPrice,
     tradeDate,
-    ohlc: selectedDateOHLC || latestOHLC,
+    ohlc: selectedDateOHLC,
   });
 
   const handleStockSelect = (symbol: string) => {
@@ -200,9 +202,16 @@ const Trading: React.FC = () => {
               onAccountChange={setSelectedAccountId}
             />
 
+            <FirstOrderGuide
+              accounts={accounts}
+              selectedAccountId={selectedAccountId}
+              orderType={orderType}
+            />
+
             <TradeDatePicker
               tradeDate={tradeDate}
-              onTradeDateChange={setTradeDate}
+              onTradeDateChange={(date) => { void selectTradeDate(date); }}
+              notice={tradeDateNotice}
               selectedDateOHLC={selectedDateOHLC}
               chartData={chartData}
               onFindClosestPastDate={findClosestPastDate}
@@ -213,7 +222,7 @@ const Trading: React.FC = () => {
               onPriceTypeChange={setPriceType}
               limitPrice={limitPrice}
               onLimitPriceChange={setLimitPrice}
-              ohlcData={selectedDateOHLC || latestOHLC}
+              ohlcData={selectedDateOHLC}
             />
 
             <div className="mb-4">
