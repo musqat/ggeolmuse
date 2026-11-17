@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { getApiErrorMessage, getApiErrorStatus } from '../../utils/apiError';
+import { getApiErrorMessage } from '../../utils/apiError';
+import { isEmailNotVerified, loginErrorMessage } from '../../utils/authErrors';
 import { Modal } from '../common/Modal';
 import {
   AuthTextField,
@@ -20,13 +21,16 @@ interface LoginModalProps {
 }
 
 const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSignup, onLogin }) => {
-  const { forgotPassword } = useAuth();
+  const { forgotPassword, resendVerificationEmail } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false);
+  // 인증 전 계정으로 막힌 로그인 뒤의 인증 메일 다시 받기
+  const [unverified, setUnverified] = useState(false);
+  const [resend, setResend] = useState<'idle' | 'sending' | 'sent'>('idle');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,22 +41,28 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
       await onLogin(email, password);
       onClose();
     } catch (err: unknown) {
-      // 백엔드 에러 메시지 파싱
-      const status = getApiErrorStatus(err);
-      let errorMessage = '로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.';
-
-      if (status === 403) {
-        errorMessage = '이메일 인증이 완료되지 않았습니다. 이메일을 확인해주세요.';
-      } else if (status === 401 || status === 400) {
-        errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
-      } else {
-        errorMessage = getApiErrorMessage(err, errorMessage);
-      }
-
-      setError(errorMessage);
+      setError(loginErrorMessage(err));
+      setUnverified(isEmailNotVerified(err));
+      setResend('idle');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleResendVerification = async () => {
+    setResend('sending');
+    try {
+      await resendVerificationEmail(email);
+      setResend('sent');
+    } catch (err: unknown) {
+      setResend('idle');
+      setError(getApiErrorMessage(err, '인증 메일을 다시 보내지 못했습니다.'));
+    }
+  };
+
+  const handleLoginEmailChange = (value: string) => {
+    setEmail(value);
+    setUnverified(false);
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
@@ -121,7 +131,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
         // 로그인 모드
         <>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <AuthTextField id="email" label="이메일" type="email" value={email} onChange={setEmail} placeholder="your@email.com" />
+            <AuthTextField id="email" label="이메일" type="email" value={email} onChange={handleLoginEmailChange} placeholder="your@email.com" />
             <PasswordField id="password" label="비밀번호" value={password} onChange={setPassword} placeholder="비밀번호를 입력하세요" />
 
             {/* 비밀번호 찾기 링크 */}
@@ -136,6 +146,18 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
             </div>
 
             <FormError message={error} />
+            {unverified && (resend === 'sent' ? (
+              <p role="status" className="text-sm text-tx-2">{email} 로 인증 메일을 다시 보냈습니다.</p>
+            ) : (
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={resend === 'sending'}
+                className="text-sm text-brand hover:text-brand disabled:opacity-60"
+              >
+                {resend === 'sending' ? '보내는 중...' : '인증 메일 다시 받기'}
+              </button>
+            ))}
             <SubmitButton loading={isLoading} loadingText="로그인 중...">로그인</SubmitButton>
           </form>
 
