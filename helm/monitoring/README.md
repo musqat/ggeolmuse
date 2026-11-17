@@ -202,6 +202,8 @@ AlertmanagerConfig 가 `secretKeyRef` 로 참조한다.
 ## 로그
 
 promtail 이 파드 로그를 Loki 로 보낸다. Loki 는 노드 디스크(local-path 5Gi)에 7일 두고, 지난 로그는 compactor 가 지운다.
+브라우저 화면 오류는 운영 빌드가 `/client-error` 로 보낸 출처 · 메시지 · 경로를 frontend-web nginx 가 `"type":"client_error"` JSON 한 줄로 남겨,
+같은 길로 Loki 에 모인다(frontend-web 파드 로그에서 `client_error` 로 찾는다).
 영구 저장을 켜거나 끌 때는 아래 트레이싱 절의 Tempo 와 같은 절차로 StatefulSet 을 바꾼다.
 
 ```bash

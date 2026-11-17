@@ -165,7 +165,7 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 ## 테스트
 
-백엔드 **2,956 개**, 프론트 **1,740 개**, E2E **72 개**.
+백엔드 **2,956 개**, 프론트 **1,748 개**, E2E **72 개**.
 
 | 서비스 | 테스트 |
 |---|---|
@@ -178,7 +178,7 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 | ggeolmuse-common | 65 |
 | messaging | 26 |
 | chat-service | 167 |
-| frontend-web | 1,740 |
+| frontend-web | 1,748 |
 | E2E (Playwright) | 72 |
 
 E2E 는 `docker compose` 로 스택 전체를 띄우고 PR 과 `master` push 마다 돈다.

@@ -14,6 +14,11 @@ function Flaky() {
   return <p>페이지 내용</p>
 }
 
+// 받은 오류를 그대로 냄
+function Throw({ error }: { error: Error }): never {
+  throw error
+}
+
 describe('ErrorBoundary', () => {
   beforeEach(() => {
     shouldThrow = true
@@ -34,6 +39,19 @@ describe('ErrorBoundary', () => {
     expect(screen.getByRole('heading', { name: '제목' })).toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent('문제가 생겼습니다')
     expect(screen.getByRole('button', { name: '다시 시도' })).toBeInTheDocument()
+  })
+
+  it('화면 조각을 못 받은 오류면 새 버전 안내와 새로고침 버튼을 보인다', async () => {
+    const reload = vi.fn()
+    render(
+      <ErrorBoundary reload={reload}>
+        <Throw error={new Error('Failed to fetch dynamically imported module: /assets/Portfolio-abc.js')} />
+      </ErrorBoundary>
+    )
+
+    expect(screen.getByRole('alert')).toHaveTextContent('새 버전이 나왔습니다')
+    await userEvent.click(screen.getByRole('button', { name: '새로고침' }))
+    expect(reload).toHaveBeenCalledOnce()
   })
 
   it('다시 시도를 누르면 자식을 다시 그린다', async () => {
