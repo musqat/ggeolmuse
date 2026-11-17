@@ -2,7 +2,7 @@ package com.muscat.user.domain.user.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.muscat.jpatest.UserJpaTestConfig;
+import com.muscat.jpatest.UserPostgresJpaTest;
 import com.muscat.user.common.enums.type.AuthType;
 import com.muscat.user.common.enums.type.UserRole;
 import com.muscat.user.domain.user.entity.User;
@@ -10,14 +10,9 @@ import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
 
-@DataJpaTest(properties = "spring.flyway.enabled=false")
-@ActiveProfiles("test")
-@ContextConfiguration(classes = UserJpaTestConfig.class)
+@UserPostgresJpaTest
 @DisplayName("사용자 마지막 로그인 시각 갱신")
 class UserRepositoryLastLoginTest {
 

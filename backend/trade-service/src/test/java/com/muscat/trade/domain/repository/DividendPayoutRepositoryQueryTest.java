@@ -3,7 +3,7 @@ package com.muscat.trade.domain.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 
-import com.muscat.jpatest.TradeJpaTestConfig;
+import com.muscat.jpatest.TradePostgresJpaTest;
 import com.muscat.trade.domain.dto.TradePosition;
 import com.muscat.trade.domain.entity.DividendPayout;
 import com.muscat.trade.domain.service.DividendAmounts;
@@ -14,13 +14,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
 
-@DataJpaTest(properties = "spring.flyway.enabled=false")
-@ActiveProfiles("test")
-@ContextConfiguration(classes = TradeJpaTestConfig.class)
+@TradePostgresJpaTest
 @DisplayName("배당 몫 레포지토리")
 class DividendPayoutRepositoryQueryTest {
 

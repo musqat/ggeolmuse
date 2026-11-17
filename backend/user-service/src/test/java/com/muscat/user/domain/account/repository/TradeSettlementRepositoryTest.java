@@ -3,21 +3,16 @@ package com.muscat.user.domain.account.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.muscat.jpatest.UserJpaTestConfig;
+import com.muscat.jpatest.UserPostgresJpaTest;
 import com.muscat.user.domain.account.entity.TradeSettlement;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
 
-@DataJpaTest(properties = "spring.flyway.enabled=false")
-@ActiveProfiles("test")
-@ContextConfiguration(classes = UserJpaTestConfig.class)
+@UserPostgresJpaTest
 @DisplayName("체결 정산 기록 레포지토리")
 class TradeSettlementRepositoryTest {
 
