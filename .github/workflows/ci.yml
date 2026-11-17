@@ -364,6 +364,17 @@ jobs:
           go vet ./...
           go test ./...
 
+  # 운영 노드 부트스트랩 스크립트 정적 검사 · --dry-run 출력 테스트
+  node-scripts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: shellcheck · 테스트
+        run: |
+          shellcheck helm/k3s-node/*.sh
+          bash helm/k3s-node/bootstrap_test.sh
+
   # terraform 형식 · 문법 · 가짜 프로바이더 테스트(AWS 에 닿지 않음, 운영 루트와 멀티 노드 루트)
   terraform:
     runs-on: ubuntu-latest
@@ -417,6 +428,7 @@ jobs:
       - scan-images
       - scan-manifests
       - tools
+      - node-scripts
       - terraform
     if: always()
     steps:

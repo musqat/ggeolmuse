@@ -1,0 +1,10 @@
+# k3s 서버 설정(노드의 /etc/rancher/k3s/config.yaml, 비밀 없음)
+# 번들 Traefik · ServiceLB · local-path · metrics-server 는 켠 채(disable 없음)
+
+# 파드 · 서비스 대역(설치 기본값)
+cluster-cidr: 10.42.0.0/16
+service-cidr: 10.43.0.0/16
+
+# 관리자 kubeconfig 는 root 와 ec2-user 그룹만 읽음(ec2-user 는 sudo 없이 kubectl)
+write-kubeconfig-mode: "0640"
+write-kubeconfig-group: ec2-user
