@@ -1,4 +1,4 @@
-// ci-changes 는 CI 가 빌드 · 테스트할 대상을 고른다(master push 는 전부, PR 은 바뀐 폴더만)
+// ci-changes 는 CI 가 빌드 · 테스트할 대상과 E2E 를 돌릴지 고른다(master push 는 전부, PR 은 바뀐 폴더만)
 package main
 
 import (
@@ -24,12 +24,16 @@ var sharedJava = []string{"backend/ggeolmuse-bom/", "backend/ggeolmuse-common/",
 // 바뀌면 채팅 테스트 · 이미지(chat-service · chat-coverage)
 var chatPaths = []string{"backend/chat-service/", "tools/cmd/chat-coverage/"}
 
-// changes 는 빌드할 자바 서비스 · 프론트 · 채팅과 전부 빌드하는지
+// E2E 스택(docker-compose)에 들어가지 않는 문서 · 운영 차트 · 인프라 · 검사 도구(위 전부 빌드 경로는 제외)
+var noE2E = []string{"docs/", "helm/", "k8s/", "terraform/", ".github/", "tools/"}
+
+// changes 는 빌드할 자바 서비스 · 프론트 · 채팅, 전부 빌드하는지, E2E 를 돌리는지
 type changes struct {
 	services []string
 	frontend bool
 	chat     bool
 	all      bool
+	e2e      bool
 }
 
 func main() {
@@ -48,7 +52,7 @@ func main() {
 	}
 	c := pick(*event != "pull_request", files)
 	write(os.Stdout, c)
-	fmt.Fprintf(os.Stderr, "event=%s all=%t services=%v frontend=%t chat=%t\n", *event, c.all, c.services, c.frontend, c.chat)
+	fmt.Fprintf(os.Stderr, "event=%s all=%t services=%v frontend=%t chat=%t e2e=%t\n", *event, c.all, c.services, c.frontend, c.chat, c.e2e)
 }
 
 // pick 은 push 면 전부, PR 이면 바뀐 파일로 고른 빌드 대상
@@ -63,6 +67,7 @@ func pick(push bool, files []string) changes {
 	}
 	c.frontend = all || slices.ContainsFunc(files, func(f string) bool { return strings.HasPrefix(f, "frontend-web/") })
 	c.chat = all || slices.ContainsFunc(files, func(f string) bool { return under(f, chatPaths) })
+	c.e2e = all || slices.ContainsFunc(files, func(f string) bool { return !under(f, noE2E) && !strings.HasSuffix(f, ".md") })
 	return c
 }
 
@@ -76,10 +81,10 @@ func under(file string, paths []string) bool {
 	})
 }
 
-// write 는 GITHUB_OUTPUT 에 services(JSON 배열) · frontend · chat 세 줄
+// write 는 GITHUB_OUTPUT 에 services(JSON 배열) · frontend · chat · e2e 네 줄
 func write(w io.Writer, c changes) {
 	services, _ := json.Marshal(c.services)
-	fmt.Fprintf(w, "services=%s\nfrontend=%t\nchat=%t\n", services, c.frontend, c.chat)
+	fmt.Fprintf(w, "services=%s\nfrontend=%t\nchat=%t\ne2e=%t\n", services, c.frontend, c.chat, c.e2e)
 }
 
 // changedFiles 는 base 에서 갈라진 뒤 head 쪽에서 바뀐 파일(옮긴 파일은 두 경로, 한글 경로는 따옴표 없이)

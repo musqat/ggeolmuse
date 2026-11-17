@@ -15,7 +15,7 @@ concurrency:
 
 # 잡마다 시간 제한(최근 실행의 세 배 안팎)
 jobs:
-  # PR 은 바뀐 서비스 이미지만, master push 는 전부 빌드(기준은 tools/cmd/ci-changes)
+  # PR 은 바뀐 서비스 이미지만, master push 는 전부 빌드 · 문서와 인프라만 바뀐 PR 은 E2E 건너뜀(기준은 tools/cmd/ci-changes)
   changes:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -23,6 +23,7 @@ jobs:
       services: ${{ steps.pick.outputs.services }}
       frontend: ${{ steps.pick.outputs.frontend }}
       chat: ${{ steps.pick.outputs.chat }}
+      e2e: ${{ steps.pick.outputs.e2e }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -457,38 +458,12 @@ jobs:
           terraform init -backend=false -input=false
           terraform test
 
-  # 문서만 바뀐 PR 은 E2E 건너뜀(조건으로 건너뛴 잡은 필수 체크에서 통과)
-  e2e-changes:
-    name: e2e-changes
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      run: ${{ steps.pick.outputs.run }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
-      - id: pick
-        env:
-          BASE: ${{ github.event.pull_request.base.sha }}
-        run: |
-          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          files=$(git diff --name-only "$BASE" HEAD)
-          if grep -qvE '(\.md$|^docs/)' <<<"$files"; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          fi
-
   # 스택 전체를 고정 시세로 띄운 브라우저 테스트(docker-compose.e2e.yml, 필수 체크 E2E)
   e2e:
     name: E2E
-    needs: e2e-changes
-    # 문서만 바뀐 PR 만 건너뜀(고르기가 실패해도 E2E 는 돎)
-    if: ${{ !cancelled() && needs.e2e-changes.outputs.run != 'false' }}
+    needs: changes
+    # 문서와 인프라만 바뀐 PR 만 건너뜀(고르기가 실패해도 E2E 는 돎, 조건으로 건너뛴 잡은 필수 체크에서 통과)
+    if: ${{ !cancelled() && needs.changes.outputs.e2e != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     # docker compose 명령마다 기본 파일 위에 E2E 덮어쓰기

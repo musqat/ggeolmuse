@@ -24,6 +24,14 @@ class WorkflowsTest(unittest.TestCase):
         self.assertFalse((WORKFLOWS / "e2e.yml").exists())
         self.assertIn("    name: E2E\n", job(text("ci.yml"), "e2e"))
 
+    def test_e2e_follows_the_changes_pick(self):
+        ci = text("ci.yml")
+        e2e = job(ci, "e2e")
+        self.assertIn("    needs: changes\n", e2e)
+        self.assertIn("needs.changes.outputs.e2e != 'false'", e2e)
+        self.assertIn("e2e: ${{ steps.pick.outputs.e2e }}", job(ci, "changes"))
+        self.assertNotIn("e2e-changes:", ci)
+
     def test_ci_calls_release_after_checks_and_e2e_on_push(self):
         release = job(text("ci.yml"), "release")
         self.assertIn("uses: ./.github/workflows/release.yml", release)
