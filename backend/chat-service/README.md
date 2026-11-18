@@ -78,4 +78,4 @@ pytest -q
 
 ## 기술 스택
 
-Python 3.12 · FastAPI · OpenAI SDK(gpt-4o / gpt-4o-mini) · Redis · python-jose(JWT) · httpx
+Python 3.12 · FastAPI · OpenAI SDK(gpt-4o / gpt-4o-mini) · Redis · PyJWT · httpx

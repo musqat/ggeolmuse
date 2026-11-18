@@ -5,8 +5,7 @@ import time
 from typing import Callable, Iterable
 
 import httpx
-from jose import jwt
-from jose.exceptions import JWTError
+import jwt
 
 from app.core.models import AuthUnavailable
 
@@ -26,9 +25,9 @@ class JwksVerifier:
         """서명 · 만료 · 발급자(iss) · 받은 클라이언트(azp) · 이메일 인증을 확인한 클레임(틀린 토큰은 ValueError)"""
         try:
             kid = jwt.get_unverified_header(token).get("kid")
-            claims = jwt.decode(token, self._keys_for(kid), algorithms=["RS256"], issuer=self._issuers,
+            claims = jwt.decode(token, self._signing_key(kid), algorithms=["RS256"], issuer=self._issuers,
                                 options={"verify_aud": False})
-        except JWTError as e:
+        except jwt.PyJWTError as e:
             raise ValueError(str(e)) from e
         # aud 에는 Keycloak 기본값(account)만 실려 받은 클라이언트는 azp 로 봄
         if claims.get("azp") not in self._client_ids:
@@ -36,6 +35,13 @@ class JwksVerifier:
         if claims.get("email_verified") is not True:
             raise ValueError("이메일 인증 전 사용자의 토큰")
         return claims
+
+    # JWKS 에서 키 ID 가 같은 RS256 공개키
+    def _signing_key(self, kid: str | None) -> jwt.PyJWK:
+        for key in self._keys_for(kid).get("keys", []):
+            if key.get("kid") == kid:
+                return jwt.PyJWK(key, algorithm="RS256")
+        raise ValueError(f"JWKS 에 없는 키 ID: {kid}")
 
     # 처음이거나, 모르는 키 ID 인데 받은 지 refresh_seconds 가 지났으면 다시 받는다(키 교체)
     def _keys_for(self, kid: str | None) -> dict:
