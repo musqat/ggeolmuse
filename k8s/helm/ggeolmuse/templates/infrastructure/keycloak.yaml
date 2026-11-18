@@ -25,6 +25,21 @@ spec:
       {{- if .Values.global.topologySpread.enabled }}
       {{- include "ggeolmuse.topologySpread" (dict "name" "keycloak" "Values" .Values) | nindent 6 }}
       {{- end }}
+      securityContext:
+        {{- include "ggeolmuse.podSecurityContext" . | nindent 8 }}
+      # 기동 때 빌드가 다시 쓰는 Quarkus 산출물을 쓰기 가능한 볼륨으로 복사
+      initContainers:
+      - name: copy-quarkus
+        image: {{ .Values.infrastructure.keycloak.image }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        command: ["sh", "-c", "cp -R /opt/keycloak/lib/quarkus/. /quarkus/"]
+        resources:
+          {{- toYaml .Values.global.initContainer.resources | nindent 10 }}
+        securityContext:
+          {{- include "ggeolmuse.securityContext" . | nindent 10 }}
+        volumeMounts:
+        - name: keycloak-quarkus
+          mountPath: /quarkus
       containers:
       - name: keycloak
         image: {{ .Values.infrastructure.keycloak.image }}
@@ -32,6 +47,9 @@ spec:
         ports:
         - containerPort: {{ .Values.infrastructure.keycloak.port }}
         env:
+        # kcadm 설정 파일을 쓸 HOME(UID 10001 은 홈이 없어 / 로 잡힘)
+        - name: HOME
+          value: /tmp
         {{- if not $secretFiles }}
         - name: KC_BOOTSTRAP_ADMIN_USERNAME
           valueFrom:
@@ -106,7 +124,7 @@ spec:
           sub() { if [ -n "$2" ]; then echo "s/\${$1}/$2/g"; else echo "/\${$1}/d"; fi; }
           {{- if $secretFiles }}
           # 시크릿은 파일에서 읽어 메모리 볼륨의 설정 파일로(환경변수 · 프로세스 인자에 안 남음)
-          # 설정 파일이 값을 그대로 읽게 하는 이스케이프
+          # 역슬래시 · $ 앞에 역슬래시를 하나 더 넣어 설정 파일이 값을 글자 그대로 읽게 하는 치환
           v() { sed -e 's/\\/\\\\/g' -e 's/\$/\\\\$/g' "/etc/secrets/$1"; }
           umask 077
           cat > /run/keycloak/keycloak.conf <<EOF
@@ -131,6 +149,11 @@ spec:
           /opt/keycloak/bin/kc.sh {{ if $secretFiles }}--config-file=/run/keycloak/keycloak.conf {{ end }}start-dev --import-realm
           {{- end }}
         volumeMounts:
+        - name: keycloak-quarkus
+          mountPath: /opt/keycloak/lib/quarkus
+        - name: keycloak-data
+          mountPath: /opt/keycloak/data
+        {{- include "ggeolmuse.tmpVolumeMount" . | nindent 8 }}
         - name: keycloak-realm-template
           mountPath: /opt/keycloak/data/import-template
           readOnly: true
@@ -149,7 +172,7 @@ spec:
         resources:
           {{- toYaml .Values.infrastructure.keycloak.resources | nindent 10 }}
         securityContext:
-          {{- include "ggeolmuse.baseSecurityContext" . | nindent 10 }}
+          {{- include "ggeolmuse.securityContext" . | nindent 10 }}
         # 기동 때 빌드 · 버전을 올린 첫 기동의 DB 이전이 끝날 때까지 liveness 를 미룸(최대 10분)
         startupProbe:
           httpGet:
@@ -170,6 +193,11 @@ spec:
           initialDelaySeconds: 120
           periodSeconds: 30
       volumes:
+      - name: keycloak-quarkus
+        emptyDir: {}
+      - name: keycloak-data
+        emptyDir: {}
+      {{- include "ggeolmuse.tmpVolume" . | nindent 6 }}
       - name: keycloak-realm-template
         configMap:
           name: keycloak-realm-config
