@@ -1,6 +1,7 @@
 package com.muscat.marketdata.datasource.yf.provider;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -19,7 +20,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-// 야후 응답을 받아 파서로 넘기는 provider 셋(실패는 모두 빈 값 또는 null, 수집 루프는 다음 종목으로)
+// 야후 응답을 받아 파서로 넘기는 provider 셋(응답 · 파싱 실패는 빈 값 또는 null, 수집 루프는 다음 종목으로)
 @DisplayName("야후 provider")
 class YahooSourcesTest {
 
@@ -62,6 +63,15 @@ class YahooSourcesTest {
       assertThat(source.fetchDailyAdjusted("NEW", FROM, TO)).isEmpty();
       assertThat(source.fetchDailyAdjusted("GONE", FROM, TO)).isEmpty();
     }
+
+    @Test
+    @DisplayName("야후 응답 · 파싱 밖의 오류는 그대로 던진다")
+    void otherErrorsPropagate() {
+      given(yahooClient.getDailyChartRaw("AAPL", FROM, TO)).willThrow(new IllegalStateException("bug"));
+
+      assertThatThrownBy(() -> source.fetchDailyAdjusted("AAPL", FROM, TO))
+        .isInstanceOf(IllegalStateException.class);
+    }
   }
 
   @Nested
@@ -81,6 +91,14 @@ class YahooSourcesTest {
 
       assertThat(source.fetchDividends("AAPL", FROM, TO)).isSameAs(dividends);
       assertThat(source.fetchDividends("GONE", FROM, TO)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("야후 응답 · 파싱 밖의 오류는 그대로 던진다")
+    void otherErrorsPropagate() {
+      given(yahooClient.getDailyChartRaw("AAPL", FROM, TO)).willThrow(new IllegalStateException("bug"));
+
+      assertThatThrownBy(() -> source.fetchDividends("AAPL", FROM, TO)).isInstanceOf(IllegalStateException.class);
     }
   }
 
