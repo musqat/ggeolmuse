@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.endsWith;
 import static org.mockito.ArgumentMatchers.eq;
@@ -20,6 +21,7 @@ import com.muscat.user.config.AppProperties;
 import com.muscat.user.config.KeycloakAdminClientProperties;
 import com.muscat.user.domain.user.dto.response.LoginResponseDto;
 import com.muscat.user.domain.user.dto.response.TokenResponseDto;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
@@ -808,17 +810,35 @@ class KeycloakServiceImplTest {
     @DisplayName("사용자 이름이 정확히 같은 Keycloak 사용자의 ID 를 돌려주고, 없으면 null, 조회가 실패하면 Keycloak 오류다")
     void findUserIdByUsername() {
       givenAdminToken();
-      given(restTemplate.exchange(contains("username=found@example.com&exact=true"), eq(HttpMethod.GET), any(HttpEntity.class),
-        eq(List.class))).willReturn(ResponseEntity.ok(List.of(Map.of("id", TEST_KEYCLOAK_ID, "username", "found@example.com"))));
-      given(restTemplate.exchange(contains("username=none@example.com"), eq(HttpMethod.GET), any(HttpEntity.class),
-        eq(List.class))).willReturn(ResponseEntity.ok(List.of()));
-      given(restTemplate.exchange(contains("username=down@example.com"), eq(HttpMethod.GET), any(HttpEntity.class),
-        eq(List.class))).willThrow(new ResourceAccessException("down"));
+      given(restTemplate.exchange(usersQuery("username=found%40example.com&exact=true"), eq(HttpMethod.GET),
+        any(HttpEntity.class), eq(List.class)))
+        .willReturn(ResponseEntity.ok(List.of(Map.of("id", TEST_KEYCLOAK_ID, "username", "found@example.com"))));
+      given(restTemplate.exchange(usersQuery("username=none%40example.com&exact=true"), eq(HttpMethod.GET),
+        any(HttpEntity.class), eq(List.class))).willReturn(ResponseEntity.ok(List.of()));
+      given(restTemplate.exchange(usersQuery("username=down%40example.com&exact=true"), eq(HttpMethod.GET),
+        any(HttpEntity.class), eq(List.class))).willThrow(new ResourceAccessException("down"));
 
       assertThat(keycloakService.findUserIdByUsername("found@example.com")).isEqualTo(TEST_KEYCLOAK_ID);
       assertThat(keycloakService.findUserIdByUsername("none@example.com")).isNull();
       assertThatThrownBy(() -> keycloakService.findUserIdByUsername("down@example.com"))
         .isInstanceOf(KeycloakException.class);
+    }
+
+    @Test
+    @DisplayName("사용자 이름의 예약 문자까지 인코딩해 사용자 목록 주소의 쿼리 값 하나로 보낸다")
+    void findUserIdByUsername_EncodesUsername() {
+      givenAdminToken();
+      given(restTemplate.exchange(usersQuery("username=admin%2Bops%26exact%3Dfalse%40example.com&exact=true"),
+        eq(HttpMethod.GET), any(HttpEntity.class), eq(List.class)))
+        .willReturn(ResponseEntity.ok(List.of(Map.of("id", TEST_KEYCLOAK_ID))));
+
+      assertThat(keycloakService.findUserIdByUsername("admin+ops&exact=false@example.com")).isEqualTo(TEST_KEYCLOAK_ID);
+    }
+
+    // 사용자 목록 주소이고 인코딩된 쿼리가 같은 URI
+    private URI usersQuery(String rawQuery) {
+      return argThat(uri -> uri != null && uri.getRawPath().equals("/admin/realms/" + REALM + "/users")
+        && rawQuery.equals(uri.getRawQuery()));
     }
 
     @Test

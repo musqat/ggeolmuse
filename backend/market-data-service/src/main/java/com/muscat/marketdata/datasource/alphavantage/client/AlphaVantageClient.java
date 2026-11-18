@@ -8,7 +8,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriUtils;
 
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**
@@ -29,10 +32,10 @@ public class AlphaVantageClient {
     private String apiKey;
 
     public JsonNode get(String function, Map<String, String> params) {
-        String url = buildUrl(function, params);
+        URI uri = buildUri(function, params);
 
         try {
-            String response = restTemplate.getForObject(url, String.class);
+            String response = restTemplate.getForObject(uri, String.class);
             if (response == null || response.isEmpty()) {
                 throw new AlphaVantageException("Empty response");
             }
@@ -61,10 +64,10 @@ public class AlphaVantageClient {
      * CSV 응답을 받는 API 호출 (LISTING_STATUS)
      */
     public String getCsv(String function, Map<String, String> params) {
-        String url = buildUrl(function, params);
+        URI uri = buildUri(function, params);
 
         try {
-            String response = restTemplate.getForObject(url, String.class);
+            String response = restTemplate.getForObject(uri, String.class);
             if (response == null || response.isEmpty()) {
                 throw new AlphaVantageException("Empty CSV response");
             }
@@ -90,15 +93,17 @@ public class AlphaVantageClient {
         }
     }
 
-    private String buildUrl(String function, Map<String, String> params) {
-        StringBuilder url = new StringBuilder()
-            .append(baseUrl)
-            .append("?function=").append(function)
-            .append("&apikey=").append(apiKey);
+    // 값마다 예약 문자까지 인코딩한 쿼리를 ? 뒤에 둔 요청 주소
+    private URI buildUri(String function, Map<String, String> params) {
+        StringBuilder query = new StringBuilder("function=").append(encode(function))
+            .append("&apikey=").append(encode(apiKey));
 
-        params.forEach((key, value) ->
-            url.append("&").append(key).append("=").append(value));
+        params.forEach((key, value) -> query.append('&').append(encode(key)).append('=').append(encode(value)));
 
-        return url.toString();
+        return URI.create(baseUrl + "?" + query);
+    }
+
+    private static String encode(String value) {
+        return UriUtils.encode(value, StandardCharsets.UTF_8);
     }
 }

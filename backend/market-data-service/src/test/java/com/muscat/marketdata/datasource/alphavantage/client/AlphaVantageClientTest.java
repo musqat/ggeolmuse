@@ -17,7 +17,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 // 종목 목록(LISTING_STATUS)이 쓰는 클라이언트(오류 · 한도 초과는 200 본문으로 와서 본문을 보고 예외로)
 @DisplayName("AlphaVantage 클라이언트 · 호출 간격")
@@ -59,6 +61,19 @@ class AlphaVantageClientTest {
       respond(URL, "{\"Meta Data\":{\"2. Symbol\":\"AAPL\"}}");
 
       assertThat(client.get("TIME_SERIES_DAILY", params()).path("Meta Data").path("2. Symbol").asText()).isEqualTo("AAPL");
+      server.verify();
+    }
+
+    @Test
+    @DisplayName("값의 & · = · # · + · 공백은 한 번만 인코딩해 다른 쿼리 값을 덮지 않는다")
+    void encodesParamValues() {
+      server.expect(request -> {
+        MultiValueMap<String, String> query = UriComponentsBuilder.fromUri(request.getURI()).build().getQueryParams();
+        assertThat(query.get("apikey")).containsExactly("test-key");
+        assertThat(query.get("symbol")).containsExactly("A%20B%2BC%26apikey%3Devil%23x");
+      }).andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+      client.get("OVERVIEW", Map.of("symbol", "A B+C&apikey=evil#x"));
       server.verify();
     }
 

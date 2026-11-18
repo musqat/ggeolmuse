@@ -23,6 +23,8 @@ import com.muscat.marketdata.domain.service.FxCollectionService;
 import com.muscat.marketdata.domain.service.UnadjustedScanService;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -65,7 +67,7 @@ public class AdminMarketController {
     }
 
     @GetMapping("/assets/preview/{symbol}")
-    public ResponseEntity<Asset> previewSymbol(@PathVariable String symbol) {
+    public ResponseEntity<Asset> previewSymbol(@PathVariable @NotBlank @Pattern(regexp = CommonConstants.SYMBOL_PATTERN) String symbol) {
         log.info("심볼 미리보기 요청: symbol={}", symbol);
         return assetService.previewSymbol(symbol)
                 .map(ResponseEntity::ok)
@@ -92,7 +94,7 @@ public class AdminMarketController {
     }
 
     @GetMapping("/assets/{symbol}")
-    public ResponseEntity<Asset> getAsset(@PathVariable String symbol) {
+    public ResponseEntity<Asset> getAsset(@PathVariable @NotBlank @Pattern(regexp = CommonConstants.SYMBOL_PATTERN) String symbol) {
         log.info("심볼 조회: symbol={}", symbol);
         return assetService.getAsset(symbol)
                 .map(ResponseEntity::ok)
@@ -123,7 +125,7 @@ public class AdminMarketController {
     // 종목 이름 수정(잘못 수집된 회사명 교정)
     @PutMapping("/assets/{symbol}")
     public ResponseEntity<AssetResponse> updateAsset(
-            @PathVariable String symbol,
+            @PathVariable @NotBlank @Pattern(regexp = CommonConstants.SYMBOL_PATTERN) String symbol,
             @RequestBody UpdateAssetRequest request) {
         log.info("종목 이름 수정 요청: symbol={}, name={}", symbol, request.getName());
 
@@ -133,7 +135,7 @@ public class AdminMarketController {
 
     // 비활성으로 돌림(soft delete)
     @DeleteMapping("/assets/{symbol}")
-    public ResponseEntity<Void> deleteAsset(@PathVariable String symbol) {
+    public ResponseEntity<Void> deleteAsset(@PathVariable @NotBlank @Pattern(regexp = CommonConstants.SYMBOL_PATTERN) String symbol) {
         log.info("심볼 삭제 요청: symbol={}", symbol);
 
         assetService.deleteAsset(symbol);
@@ -141,7 +143,7 @@ public class AdminMarketController {
     }
 
     @PostMapping("/assets/{symbol}/restore")
-    public ResponseEntity<Void> restoreAsset(@PathVariable String symbol) {
+    public ResponseEntity<Void> restoreAsset(@PathVariable @NotBlank @Pattern(regexp = CommonConstants.SYMBOL_PATTERN) String symbol) {
         log.info("심볼 복구 요청: symbol={}", symbol);
 
         assetService.restoreAsset(symbol);
@@ -163,7 +165,7 @@ public class AdminMarketController {
     }
 
     @PostMapping("/assets/{symbol}/update-price")
-    public ResponseEntity<UpdateResponse> updateAssetPrice(@PathVariable String symbol) {
+    public ResponseEntity<UpdateResponse> updateAssetPrice(@PathVariable @NotBlank @Pattern(regexp = CommonConstants.SYMBOL_PATTERN) String symbol) {
         log.info("종목 가격 업데이트 요청: symbol={}", symbol);
 
         assetService.updateAssetPrice(symbol);
@@ -171,7 +173,7 @@ public class AdminMarketController {
     }
 
     @PostMapping("/assets/{symbol}/update-market-cap")
-    public ResponseEntity<UpdateResponse> updateAssetMarketCap(@PathVariable String symbol) {
+    public ResponseEntity<UpdateResponse> updateAssetMarketCap(@PathVariable @NotBlank @Pattern(regexp = CommonConstants.SYMBOL_PATTERN) String symbol) {
         log.info("종목 시가총액 업데이트 요청: symbol={}", symbol);
 
         assetService.updateAssetMarketCap(symbol);

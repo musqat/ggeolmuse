@@ -9,10 +9,12 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -48,6 +50,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -134,6 +137,18 @@ class AdminMarketControllerWebTest {
       .header(HttpHeaders.AUTHORIZATION, "Bearer user-token")).andExpect(status().isForbidden());
 
     verify(assetService, never()).searchSymbols("Apple");
+  }
+
+  @ParameterizedTest
+  @CsvSource({"GET, /assets/preview/{symbol}", "GET, /assets/{symbol}", "PUT, /assets/{symbol}", "DELETE, /assets/{symbol}",
+    "POST, /assets/{symbol}/restore", "POST, /assets/{symbol}/update-price", "POST, /assets/{symbol}/update-market-cap"})
+  @DisplayName("경로의 종목 코드가 형식에 안 맞으면 400 이고 서비스까지 가지 않는다")
+  void rejectsMalformedSymbol(String method, String path) throws Exception {
+    asAdminJson(request(HttpMethod.valueOf(method), BASE + path, "a b&apikey=evil"), "{\"name\":\"X\"}")
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.errorCode").value("INVALID_PARAMETER"));
+
+    verifyNoInteractions(assetService);
   }
 
   @Nested

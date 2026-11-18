@@ -1,11 +1,18 @@
+import subprocess
+import sys
+import time
+from pathlib import Path
+
 import httpx
 import pytest
 import respx
+from cryptography.hazmat.primitives import serialization
 
 from app.core.models import AuthUnavailable
 from app.infra.jwks import JwksVerifier
-from tests.tokens import CLIENT_ID, ISSUER, rsa_key, token
+from tests.tokens import CLIENT_ID, ISSUER, forged_token, public_key_bytes, rsa_key, token
 
+CHAT_SERVICE = Path(__file__).resolve().parents[2]
 URL = "http://keycloak:8080/realms/test/protocol/openid-connect/certs"
 PUBLIC_ISSUER = "https://example.test/auth/realms/test"
 FRONTEND_CLIENT_ID = "ggeolmuse-frontend"
@@ -40,6 +47,55 @@ def test_only_rs256_is_accepted():
         assert verifier(token(pem, "k1"))["sub"] == "user-1"
         with pytest.raises(ValueError):
             verifier(token(pem, "k1", "RS512"))
+
+
+def test_signing_key_is_chosen_by_kid():
+    # JWKS 의 여러 키 가운데 토큰의 kid 와 같은 키로만 검증
+    _, other_jwk = rsa_key("k0")
+    pem, public_jwk = rsa_key("k1")
+    with respx.mock:
+        respx.get(URL).mock(return_value=httpx.Response(200, json={"keys": [other_jwk, public_jwk]}))
+        verifier = _verifier()
+        assert verifier(token(pem, "k1"))["sub"] == "user-1"
+        with pytest.raises(ValueError):
+            verifier(token(pem, "k0"))
+
+
+@pytest.mark.parametrize("encoding", [serialization.Encoding.PEM, serialization.Encoding.DER], ids=["PEM", "DER"])
+def test_hs256_signed_with_public_key_is_rejected(encoding):
+    # 공개키를 HMAC secret 으로 쓴 토큰(알고리즘 혼동)
+    pem, public_jwk = rsa_key("k1")
+    with respx.mock:
+        respx.get(URL).mock(return_value=httpx.Response(200, json={"keys": [public_jwk]}))
+        with pytest.raises(ValueError):
+            _verifier()(forged_token("k1", "HS256", public_key_bytes(pem, encoding)))
+
+
+def test_alg_none_is_rejected():
+    _, public_jwk = rsa_key("k1")
+    with respx.mock:
+        respx.get(URL).mock(return_value=httpx.Response(200, json={"keys": [public_jwk]}))
+        with pytest.raises(ValueError):
+            _verifier()(forged_token("k1", "none"))
+
+
+def test_expired_token_is_rejected():
+    pem, public_jwk = rsa_key("k1")
+    now = int(time.time())
+    with respx.mock:
+        respx.get(URL).mock(return_value=httpx.Response(200, json={"keys": [public_jwk]}))
+        verifier = _verifier()
+        assert verifier(token(pem, "k1", exp=now + 60))["sub"] == "user-1"
+        with pytest.raises(ValueError):
+            verifier(token(pem, "k1", exp=now - 60))
+
+
+def test_verifier_does_not_import_jose():
+    # 다른 테스트가 불러온 모듈이 섞이지 않게 새 프로세스에서 확인
+    code = "import sys, app.infra.jwks; print(sorted(m for m in sys.modules if m.split('.')[0] == 'jose'))"
+    result = subprocess.run([sys.executable, "-c", code], cwd=CHAT_SERVICE, capture_output=True, text=True,
+                            check=True)
+    assert result.stdout.strip() == "[]"
 
 
 def test_issuer_must_be_allowed():
