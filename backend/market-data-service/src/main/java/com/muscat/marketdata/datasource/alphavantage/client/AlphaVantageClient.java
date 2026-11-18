@@ -8,7 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.util.UriUtils;
 
 import java.net.URI;
@@ -94,15 +93,14 @@ public class AlphaVantageClient {
         }
     }
 
-    // 쿼리 값마다 예약 문자까지 인코딩한 URI
+    // 값마다 예약 문자까지 인코딩한 쿼리를 ? 뒤에 둔 요청 주소
     private URI buildUri(String function, Map<String, String> params) {
-        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(baseUrl)
-            .queryParam("function", encode(function))
-            .queryParam("apikey", encode(apiKey));
+        StringBuilder query = new StringBuilder("function=").append(encode(function))
+            .append("&apikey=").append(encode(apiKey));
 
-        params.forEach((key, value) -> builder.queryParam(key, encode(value)));
+        params.forEach((key, value) -> query.append('&').append(encode(key)).append('=').append(encode(value)));
 
-        return builder.build(true).toUri();
+        return URI.create(baseUrl + "?" + query);
     }
 
     private static String encode(String value) {
