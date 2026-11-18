@@ -209,13 +209,13 @@ export const useConditionalMode = (shared: SharedModeProps): ModeController => {
         sellRules: sellRulesOf(built.request),
       });
     },
-    renderResult: (result) =>
+    renderResult: (result, inputs) =>
       result.mode === 'conditional' ? (
         <DcaConditionalResult
           kind="conditional"
           result={result}
-          symbol={symbol}
-          startDate={period.start}
+          symbol={inputs.symbol}
+          startDate={inputs.start}
           budget={result.budget}
           sellRules={result.sellRules}
         />

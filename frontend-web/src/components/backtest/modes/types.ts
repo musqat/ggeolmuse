@@ -29,6 +29,13 @@ export interface PreparedRun {
 
 export type Prepared = PreparedRun | { error: string };
 
+// 실행할 때의 종목 · 시작일 · 종료일(비우면 오늘)
+export interface RunInputs {
+  symbol: string;
+  start: string;
+  end: string;
+}
+
 // 모드가 같이 쓰는 종목(종목 비교는 담을 때만) · 기간 · 세부 설정
 export interface SharedModeProps {
   symbol: string;
@@ -67,6 +74,6 @@ export interface ModeController {
   // 이 모드로 바꿀 때
   onEnter?: () => void;
   prepare: (ctx: RunContext) => Prepared;
-  // 다른 모드 결과면 null
-  renderResult: (result: BacktestResult) => ReactNode;
+  // 다른 모드 결과면 null(종목 · 기간은 실행할 때 값)
+  renderResult: (result: BacktestResult, inputs: RunInputs) => ReactNode;
 }

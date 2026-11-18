@@ -22,12 +22,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.dao.DataAccessException;
+import org.springframework.kafka.KafkaException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.client.RestClientException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -93,7 +96,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
             boolean newSplit = candles.stream().anyMatch(candle -> isSplit(candle.getSplitCoefficient()))
                 && !newSplits(loadExisting(symbol, from, to), candles).isEmpty();
             dividends = newSplit ? dividendSource.fetchDividends(symbol, from, to) : List.of();
-        } catch (Exception e) {
+        } catch (RestClientException | DataAccessException e) {
             collectionStats.recordSymbolFailed();
             log.warn("[YF-캔들저장] 실패: symbol={}, error={}", symbol, e.getMessage());
             return 0;
@@ -149,7 +152,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
             log.debug("[YF-캔들저장] 완료: symbol={}, 받음={}, 신규={}, 갱신={}",
                 symbol, candles.size(), merged.inserted(), merged.updatedDates().size());
             return candles.size();
-        } catch (Exception e) {
+        } catch (DataAccessException | KafkaException e) {
             rollbackThisSymbol();
             collectionStats.recordSymbolFailed();
             log.warn("[YF-캔들저장] 실패: symbol={}, error={}", symbol, e.getMessage());
@@ -162,7 +165,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
         List<DividendDto> dtos;
         try {
             dtos = dividendSource.fetchDividends(symbol, from, to);
-        } catch (Exception e) {
+        } catch (RestClientException e) {
             log.warn("[YF-배당저장] 실패: symbol={}, error={}", symbol, e.getMessage());
             return 0;
         }
@@ -192,7 +195,7 @@ public class YahooCandleUpdateService implements com.muscat.marketdata.domain.se
             log.debug("[YF-배당저장] 완료: symbol={}, count={}", symbol, rows.size());
 
             return rows.size();
-        } catch (Exception e) {
+        } catch (DataAccessException | KafkaException e) {
             rollbackThisSymbol();
             log.warn("[YF-배당저장] 실패: symbol={}, error={}", symbol, e.getMessage());
             return 0;

@@ -1,5 +1,6 @@
 package com.muscat.marketdata.datasource.yf.provider;
 
+import com.muscat.marketdata.common.exception.YahooFinanceException;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.CandleSource;
 import com.muscat.marketdata.datasource.yf.client.YahooFinanceClient;
 import com.muscat.marketdata.datasource.yf.client.YahooParser;
@@ -48,7 +49,7 @@ public class YahooCandleSource implements CandleSource {
 
       return candles;
 
-    } catch (Exception e) {
+    } catch (YahooFinanceException e) {
       // 건수만 CollectionStats 에(상장폐지 종목이 대부분)
       log.debug("Yahoo 일봉 데이터 수집 실패: symbol={}, period=[{}~{}], error={}",
         symbol, fromDate, toDate, e.getMessage());

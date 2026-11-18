@@ -130,13 +130,13 @@ export const useMaCrossMode = (shared: SharedModeProps): ModeController => {
         sellRules: sellRulesOf(built.request),
       });
     },
-    renderResult: (result) =>
+    renderResult: (result, inputs) =>
       result.mode === 'ma-cross' ? (
         <DcaConditionalResult
           kind="ma-cross"
           result={result}
-          symbol={symbol}
-          startDate={period.start}
+          symbol={inputs.symbol}
+          startDate={inputs.start}
           windows={result.windows}
           sellRules={result.sellRules}
         />

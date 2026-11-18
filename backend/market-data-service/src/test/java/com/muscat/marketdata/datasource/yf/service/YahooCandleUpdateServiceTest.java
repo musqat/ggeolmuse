@@ -1,6 +1,7 @@
 package com.muscat.marketdata.datasource.yf.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.BDDMockito.given;
@@ -34,7 +35,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.client.ResourceAccessException;
 import org.junit.jupiter.api.Nested;
 import org.mockito.ArgumentCaptor;
 
@@ -322,10 +325,24 @@ class YahooCandleUpdateServiceTest {
     @DisplayName("저장이 실패하면 이벤트 없음")
     void 저장_실패면_이벤트_없음() {
       stub(FULL_FROM, List.of(), List.of(split(D2, "101", "4")));
-      given(candleRepository.saveAll(any())).willThrow(new IllegalStateException("db down"));
+      given(candleRepository.saveAll(any())).willThrow(new DataAccessResourceFailureException("db down"));
 
-      service.saveCandles(SYMBOL, FULL_FROM, TO);
+      assertThat(service.saveCandles(SYMBOL, FULL_FROM, TO)).isZero();
 
+      verify(collectionStats).recordSymbolFailed();
+      verify(splitEventProducer, never()).publishSplitDetected(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("저장 중 DB · Kafka 밖의 오류는 실패로 세지 않고 그대로 던진다")
+    void 저장_중_코드_오류는_던짐() {
+      stub(FULL_FROM, List.of(), List.of(split(D2, "101", "4")));
+      given(candleRepository.saveAll(any())).willThrow(new IllegalStateException("bug"));
+
+      assertThatThrownBy(() -> service.saveCandles(SYMBOL, FULL_FROM, TO))
+        .isInstanceOf(IllegalStateException.class);
+
+      verify(collectionStats, never()).recordSymbolFailed();
       verify(splitEventProducer, never()).publishSplitDetected(any(), any(), any());
     }
 
@@ -390,7 +407,7 @@ class YahooCandleUpdateServiceTest {
     @DisplayName("새 분할과 같이 받는 배당이 실패하면 0 과 실패 집계, 분할 이벤트 없음")
     void 배당_받기가_실패하면_분할_이벤트_없음() {
       stub(FULL_FROM, List.of(), List.of(split(D2, "101", "4")));
-      given(dividendSource.fetchDividends(SYMBOL, FULL_FROM, TO)).willThrow(new IllegalStateException("yahoo down"));
+      given(dividendSource.fetchDividends(SYMBOL, FULL_FROM, TO)).willThrow(new ResourceAccessException("yahoo down"));
 
       assertThat(service.saveCandles(SYMBOL, FULL_FROM, TO)).isZero();
 
@@ -442,10 +459,19 @@ class YahooCandleUpdateServiceTest {
     @DisplayName("캔들 받기가 실패하면 0 을 돌려주고 실패로 센다")
     void candleFailure() {
       given(candleRepository.findBySymbolAndDateBetweenOrderByDateAsc(SYMBOL, FROM, TO)).willReturn(List.of());
-      given(candleSource.fetchDailyAdjusted(SYMBOL, FROM, TO)).willThrow(new IllegalStateException("yahoo down"));
+      given(candleSource.fetchDailyAdjusted(SYMBOL, FROM, TO)).willThrow(new ResourceAccessException("yahoo down"));
 
       assertThat(service.saveCandles(SYMBOL, FROM, TO)).isZero();
       verify(collectionStats).recordSymbolFailed();
+    }
+
+    @Test
+    @DisplayName("캔들 받기 중 외부 장애가 아닌 오류는 실패로 세지 않고 그대로 던진다")
+    void candleBug() {
+      given(candleSource.fetchDailyAdjusted(SYMBOL, FROM, TO)).willThrow(new IllegalStateException("bug"));
+
+      assertThatThrownBy(() -> service.saveCandles(SYMBOL, FROM, TO)).isInstanceOf(IllegalStateException.class);
+      verify(collectionStats, never()).recordSymbolFailed();
     }
 
     private void givenStored(LocalDate exDate, String amount) {
@@ -483,7 +509,7 @@ class YahooCandleUpdateServiceTest {
       given(dividendSource.fetchDividends(SYMBOL, FROM, TO))
         .willReturn(List.of())
         .willReturn(List.of(dividend(D1)))
-        .willThrow(new IllegalStateException("yahoo down"));
+        .willThrow(new ResourceAccessException("yahoo down"));
       givenStored(D1, "0.24000000");
 
       for (int i = 0; i < 3; i++) {
@@ -491,6 +517,29 @@ class YahooCandleUpdateServiceTest {
       }
       verify(dividendRepository, never()).saveAll(any());
       verify(candleService, never()).evictDividendYieldOrder();
+    }
+
+    @Test
+    @DisplayName("배당 받기 중 외부 장애가 아닌 오류는 그대로 던진다")
+    void dividendBug() {
+      given(dividendSource.fetchDividends(SYMBOL, FROM, TO)).willThrow(new IllegalStateException("bug"));
+
+      assertThatThrownBy(() -> service.saveDividends(SYMBOL, FROM, TO)).isInstanceOf(IllegalStateException.class);
+      verify(dividendRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("배당 저장 중 DB 장애면 0 이고 DB · Kafka 밖의 오류는 그대로 던진다")
+    void dividendStoreFailures() {
+      given(dividendSource.fetchDividends(SYMBOL, FROM, TO)).willReturn(List.of(dividend(D1)));
+      given(dividendRepository.findBySymbolAndExDate(SYMBOL, D1)).willReturn(Optional.empty());
+      given(dividendRepository.saveAll(any()))
+        .willThrow(new DataAccessResourceFailureException("db down"))
+        .willThrow(new IllegalStateException("bug"));
+
+      assertThat(service.saveDividends(SYMBOL, FROM, TO)).isZero();
+      assertThatThrownBy(() -> service.saveDividends(SYMBOL, FROM, TO)).isInstanceOf(IllegalStateException.class);
+      verify(dividendEventProducer, never()).publishBatch(any());
     }
 
     @Test

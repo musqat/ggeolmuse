@@ -89,9 +89,9 @@ export const useSimpleMode = (shared: SharedModeProps): ModeController => {
         failureMessage: '백테스트 실행에 실패했습니다.',
       };
     },
-    renderResult: (result) =>
+    renderResult: (result, inputs) =>
       result.mode === 'simple' ? (
-        <SimpleResult result={result} symbol={symbol} purchaseDate={period.start} />
+        <SimpleResult result={result} symbol={inputs.symbol} purchaseDate={inputs.start} />
       ) : null,
   };
 };

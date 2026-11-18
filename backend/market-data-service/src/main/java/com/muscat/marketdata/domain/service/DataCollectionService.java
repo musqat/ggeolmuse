@@ -59,7 +59,7 @@ public class DataCollectionService {
         } catch (Exception e) {
             log.error("수집 실패: symbol={}, error={}", event.getSymbol(), e.getMessage(), e);
 
-            // 예상 밖 실패는 재시도 · .DLT 로(종목 하나의 실패는 saveCandles · saveDividends 가 예외를 내지 않음)
+            // 예상 밖 실패는 재시도 · .DLT 로(외부 호출 · DB · Kafka 장애는 saveCandles · saveDividends 가 0 으로 돌림)
             throw e;
         }
     }
