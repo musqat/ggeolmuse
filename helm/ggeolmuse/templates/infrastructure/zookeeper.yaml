@@ -35,6 +35,8 @@ spec:
       labels:
         app: zookeeper
     spec:
+      securityContext:
+        {{- include "ggeolmuse.podSecurityContext" . | nindent 8 }}
       containers:
         - name: zookeeper
           image: {{ .Values.infrastructure.zookeeper.image }}
@@ -52,15 +54,19 @@ spec:
           resources:
             {{- toYaml .Values.infrastructure.zookeeper.resources | nindent 12 }}
           securityContext:
-            {{- include "ggeolmuse.baseSecurityContext" . | nindent 12 }}
-            readOnlyRootFilesystem: true
+            {{- include "ggeolmuse.securityContext" . | nindent 12 }}
           volumeMounts:
+            # 데이터 볼륨의 상위 폴더(이미지 폴더는 appuser · root 그룹만 들어감)
+            - name: var-lib-zookeeper
+              mountPath: /var/lib/zookeeper
             - name: zookeeper-data
               mountPath: /var/lib/zookeeper/data
             - name: zookeeper-log
               mountPath: /var/lib/zookeeper/log
             {{- include "ggeolmuse.confluentWritableMounts" . | nindent 12 }}
       volumes:
+        - name: var-lib-zookeeper
+          emptyDir: {}
         {{- include "ggeolmuse.confluentWritableVolumes" . | nindent 8 }}
   volumeClaimTemplates:
     - metadata:

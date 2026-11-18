@@ -213,16 +213,6 @@ topologySpreadConstraints:
 {{- end }}
 {{- end }}
 
-{{/* 서드파티 이미지용(이미지의 비root 사용자 그대로, PVC 안 파일이 그 uid 소유라 10001 로 바꾸면 기존 데이터에 못 씀) */}}
-{{- define "ggeolmuse.baseSecurityContext" -}}
-allowPrivilegeEscalation: false
-capabilities:
-  drop:
-    - ALL
-seccompProfile:
-  type: RuntimeDefault
-{{- end }}
-
 {{/* 파드 보안 컨텍스트(10001 · 볼륨 그룹 10001) */}}
 {{- define "ggeolmuse.podSecurityContext" -}}
 runAsNonRoot: true

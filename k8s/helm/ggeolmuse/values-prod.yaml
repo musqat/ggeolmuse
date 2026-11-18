@@ -64,7 +64,6 @@ infrastructure:
     env:
       logRetentionHours: 120
       logSegmentBytes: "536870912"
-      heapOpts: "-Xms512m -Xmx896m"
     storage:
       data: 10Gi
     resources:

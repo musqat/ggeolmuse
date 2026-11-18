@@ -171,6 +171,7 @@ infrastructure:
       autoCreateTopicsEnable: true
       logRetentionHours: 168
       logSegmentBytes: "1073741824"
+      heapOpts: "-Xmx512m -Xms512m"
     service:
       internal:
         type: ClusterIP
