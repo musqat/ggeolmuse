@@ -138,13 +138,13 @@ export const useMaBandMode = (shared: SharedModeProps): ModeController => {
         sellRules: sellRulesOf(built.request),
       });
     },
-    renderResult: (result) =>
+    renderResult: (result, inputs) =>
       result.mode === 'ma-band' ? (
         <DcaConditionalResult
           kind="ma-band"
           result={result}
-          symbol={symbol}
-          startDate={period.start}
+          symbol={inputs.symbol}
+          startDate={inputs.start}
           band={result.band}
           sellRules={result.sellRules}
         />

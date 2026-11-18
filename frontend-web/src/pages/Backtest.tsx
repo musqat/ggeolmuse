@@ -80,7 +80,7 @@ const Backtest: React.FC = () => {
     });
 
   const runner = useBacktestRunner(isAuthenticated);
-  const { isRunning, result, error } = runner;
+  const { isRunning, result, inputs, error } = runner;
 
   // 그린 뒤 고른 칸으로 포커스
   const focusLater = (selector: string) =>
@@ -103,6 +103,7 @@ const Backtest: React.FC = () => {
   const strategyComparison = useStrategyComparisonMode(shared);
   const modes = [simple, dca, conditional, maCross, maBand, portfolio, symbolComparison, strategyComparison];
   const current = modes.find((m) => m.id === mode) ?? simple;
+  const resultMode = result ? modes.find((m) => m.id === result.mode) : undefined;
   const detailMessages = detailIssues(options);
   const detailErrors = countErrors(Object.values(detailMessages));
   const errorCount = current.errorCount + detailErrors;
@@ -188,7 +189,7 @@ const Backtest: React.FC = () => {
       return;
     }
     saveLastSettings(snapshot());
-    await runner.run(prepared);
+    await runner.run(prepared, { symbol, start: period.start, end: period.end });
   };
 
   // 모드를 바꾸면 이전 결과 · 오류를 지움
@@ -223,7 +224,7 @@ const Backtest: React.FC = () => {
           tools={
             <div className="flex flex-wrap items-center gap-1">
               {current.showsChartLink && symbol && (
-                <Link to={`/charts?symbol=${symbol}`} className={`${TOOL} text-brand hover:text-brand-dark`}>
+                <Link to={`/charts/${symbol}`} className={`${TOOL} text-brand hover:text-brand-dark`}>
                   <span>상세 차트 보기</span>
                   <ExternalLink aria-hidden className="w-4 h-4" />
                 </Link>
@@ -289,8 +290,23 @@ const Backtest: React.FC = () => {
         </div>
       )}
 
-      {/* 결과 */}
-      {result && modes.find((m) => m.id === result.mode)?.renderResult(result)}
+      {/* 결과(한 종목 모드는 실행한 종목의 차트 링크와 함께) */}
+      {result && inputs && resultMode && (
+        <>
+          {resultMode.showsChartLink && (
+            <div className="mb-3 flex justify-end">
+              <Link
+                to={`/charts/${inputs.symbol}`}
+                className="inline-flex items-center gap-1 text-sm text-brand hover:text-brand-dark"
+              >
+                {inputs.symbol} 차트 보기
+                <ExternalLink aria-hidden className="w-4 h-4" />
+              </Link>
+            </div>
+          )}
+          {resultMode.renderResult(result, inputs)}
+        </>
+      )}
 
       {/* 결과 없음 */}
       {!result && !error && !isRunning && (

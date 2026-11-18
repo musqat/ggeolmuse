@@ -92,9 +92,9 @@ export const useSymbolComparisonMode = (shared: SharedModeProps): ModeController
         failureMessage: '종목 비교 실행에 실패했습니다.',
       };
     },
-    renderResult: (result) =>
+    renderResult: (result, inputs) =>
       result.mode === 'compare-symbols' ? (
-        <SymbolComparisonResult result={result} comparePurchaseDate={period.start} compareSaleDate={period.end} />
+        <SymbolComparisonResult result={result} comparePurchaseDate={inputs.start} compareSaleDate={inputs.end} />
       ) : null,
   };
 };

@@ -150,13 +150,13 @@ export const useDcaMode = (shared: SharedModeProps): ModeController => {
         budget: built.request.totalInvestmentLimit,
       });
     },
-    renderResult: (result) =>
+    renderResult: (result, inputs) =>
       result.mode === 'dca' ? (
         <DcaConditionalResult
           kind="dca"
           result={result}
-          symbol={symbol}
-          startDate={period.start}
+          symbol={inputs.symbol}
+          startDate={inputs.start}
           budget={result.budget}
         />
       ) : null,

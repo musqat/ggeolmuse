@@ -35,19 +35,28 @@ vi.mock('../utils/localBacktestHistory', () => ({
   getLocalBacktestHistory: vi.fn(() => []),
 }))
 
-// 결과 화면 대역(차트 대신 어느 결과가 떴는지만)
+// 결과 화면 대역(차트 대신 어느 결과가 떴는지 · 받은 종목 · 날짜만)
 vi.mock('@components/backtest/results/SimpleResult', () => ({
-  SimpleResult: () => <div>결과: simple</div>,
+  SimpleResult: ({ symbol, purchaseDate }: { symbol: string; purchaseDate: string }) => (
+    <>
+      <div>결과: simple</div>
+      <div>결과 기준: {`${symbol} · ${purchaseDate}`}</div>
+    </>
+  ),
 }))
 vi.mock('@components/backtest/results/DcaConditionalResult', () => ({
   DcaConditionalResult: ({
     result,
+    symbol,
+    startDate,
     budget,
     windows,
     band,
     sellRules,
   }: {
     result: { mode: string };
+    symbol: string;
+    startDate: string;
     budget?: number;
     windows?: { short: number; long: number };
     band?: { window: number; upperRate: number; lowerRate: number };
@@ -55,6 +64,7 @@ vi.mock('@components/backtest/results/DcaConditionalResult', () => ({
   }) => (
     <>
       <div>결과: {result.mode}</div>
+      <div>결과 기준: {`${symbol} · ${startDate}`}</div>
       {budget !== undefined && <div>예산: {budget}</div>}
       {windows && <div>이동평균 기간: {`${windows.short} · ${windows.long}`}</div>}
       {band && <div>밴드: {`${band.window} · ${band.upperRate} · ${band.lowerRate}`}</div>}
@@ -70,7 +80,12 @@ vi.mock('@components/backtest/results/portfolio/PortfolioResult', () => ({
   ),
 }))
 vi.mock('@components/backtest/results/SymbolComparisonResult', () => ({
-  SymbolComparisonResult: () => <div>결과: compare-symbols</div>,
+  SymbolComparisonResult: ({ comparePurchaseDate, compareSaleDate }: { comparePurchaseDate: string; compareSaleDate: string }) => (
+    <>
+      <div>결과: compare-symbols</div>
+      <div>결과 기준: {`${comparePurchaseDate} · ${compareSaleDate}`}</div>
+    </>
+  ),
 }))
 vi.mock('@components/backtest/results/StrategyComparisonResult', () => ({
   StrategyComparisonResult: () => <div>결과: compare-strategies</div>,
@@ -1012,6 +1027,98 @@ describe('Backtest 페이지 칸 오류 · 요약', () => {
 
     expect(screen.getByText('3 / 10')).toBeInTheDocument()
     expect(summary()).toHaveTextContent('NVDA, AAPL, MSFT · 2025.10.08')
+  })
+})
+
+describe('Backtest 페이지 결과 기준 · 차트 링크', () => {
+  const pickSymbol = async (typed: string, name: RegExp) => {
+    const symbol = screen.getByRole('combobox', { name: '종목' })
+    await userEvent.clear(symbol)
+    await userEvent.type(symbol, typed)
+    await userEvent.click(await screen.findByRole('option', { name }))
+  }
+
+  it.each([
+    ['단순', '결과: simple'],
+    ['적립식', '결과: dca'],
+    ['조건부', '결과: conditional'],
+    ['이동평균 교차', '결과: ma-cross'],
+    ['이동평균 밴드', '결과: ma-band'],
+  ])('%s: 결과는 실행할 때의 종목 · 시작일을 읽어 실행 뒤 폼을 바꿔도 그대로다', async (mode, shown) => {
+    renderPage()
+    await selectMode(mode)
+    await runBacktest()
+    expect(await screen.findByText(shown)).toBeInTheDocument()
+
+    await pickSymbol('nv', /NVDA/)
+    await setYearsAgo('2')
+
+    expect(screen.getByText(`결과 기준: AAPL · ${START}`)).toBeInTheDocument()
+  })
+
+  it('종목 비교: 결과는 실행할 때의 시작일 · 끝 날짜를 읽는다', async () => {
+    renderPage()
+    await selectMode('종목 비교')
+    await runBacktest()
+    expect(await screen.findByText('결과: compare-symbols')).toBeInTheDocument()
+    const shown = screen.getByText(/^결과 기준:/).textContent
+    expect(shown).toContain(START)
+
+    await userEvent.click(screen.getByTestId('date-end'))
+    await userEvent.click(
+      within(screen.getByRole('dialog'))
+        .getAllByRole('button')
+        .find((b) => b.textContent === '1')!
+    )
+
+    expect(screen.getByTestId('date-end')).toHaveTextContent('2026. 10. 01.')
+    expect(screen.getByText(/^결과 기준:/).textContent).toBe(shown)
+  })
+
+  type Settle = { resolve: (value: unknown) => void; reject: (reason: unknown) => void }
+
+  it.each([
+    ['응답', (done: Settle) => done.resolve({ data: {} })],
+    ['오류', (done: Settle) => done.reject(new Error('늦은 실패'))],
+  ])('실행 중에 모드를 바꾸면 늦게 온 결과(%s)를 버리고 바로 다시 실행할 수 있다', async (_kind, settle) => {
+    const done: Settle = { resolve: () => {}, reject: () => {} }
+    vi.mocked(backtestApi.runSimulation).mockReturnValue(
+      new Promise((resolve, reject) => Object.assign(done, { resolve, reject })) as never
+    )
+    renderPage()
+    await runBacktest()
+    expect(screen.getByTestId('backtest-run')).toHaveTextContent('실행 중...')
+
+    await selectMode('적립식')
+    expect(screen.getByTestId('backtest-run')).toHaveTextContent('백테스트 실행')
+    await act(async () => settle(done))
+
+    expect(screen.queryByText('결과: simple')).toBeNull()
+    expect(screen.queryByText('오류 발생')).toBeNull()
+    expect(screen.getByTestId('backtest-empty')).toBeInTheDocument()
+  })
+
+  it('상세 차트 보기는 고른 종목의 차트 주소로 간다', async () => {
+    renderPage()
+    expect(screen.getByRole('link', { name: '상세 차트 보기' })).toHaveAttribute('href', '/charts/AAPL')
+
+    await pickSymbol('nv', /NVDA/)
+
+    expect(screen.getByRole('link', { name: '상세 차트 보기' })).toHaveAttribute('href', '/charts/NVDA')
+  })
+
+  it('한 종목 결과 위에는 실행한 종목의 차트 링크를 두고 종목 비교 결과에는 두지 않는다', async () => {
+    renderPage()
+    await runBacktest()
+    await screen.findByText('결과: simple')
+    await pickSymbol('nv', /NVDA/)
+
+    expect(screen.getByRole('link', { name: 'AAPL 차트 보기' })).toHaveAttribute('href', '/charts/AAPL')
+
+    await selectMode('종목 비교')
+    await runBacktest()
+    await screen.findByText('결과: compare-symbols')
+    expect(screen.queryByRole('link', { name: /차트 보기$/ })).toBeNull()
   })
 })
 
