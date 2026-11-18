@@ -95,6 +95,22 @@ class AuthControllerRequestTest {
   }
 
   @Test
+  @DisplayName("이메일 인증 실패 페이지는 예외 문구 대신 응답 코드의 문구를 넣는다")
+  void verifyEmail_UsesCodeMessage() throws Exception {
+    given(userService.verifyEmail("bad")).willThrow(new UserException(UserResponse.EMAIL_TOKEN_INVALID) {
+      @Override
+      public String getMessage() {
+        return "<script>alert(1)</script>";
+      }
+    });
+
+    mockMvc.perform(get(BASE + "/verify-email").param("token", "bad"))
+      .andExpect(status().isBadRequest())
+      .andExpect(content().string(Matchers.containsString(UserResponse.EMAIL_TOKEN_INVALID.getMessage())))
+      .andExpect(content().string(Matchers.not(Matchers.containsString("script"))));
+  }
+
+  @Test
   @DisplayName("인증 메일 재발송 · 비밀번호 재설정 메일 · 재설정은 입력값으로 부른다")
   void resendForgotReset() throws Exception {
     mockMvc.perform(json("/resend-verification", """

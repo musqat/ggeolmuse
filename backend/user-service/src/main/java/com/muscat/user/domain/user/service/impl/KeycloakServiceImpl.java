@@ -10,6 +10,7 @@ import com.muscat.user.config.KeycloakAdminClientProperties;
 import com.muscat.user.domain.user.dto.response.LoginResponseDto;
 import com.muscat.user.domain.user.dto.response.TokenResponseDto;
 import com.muscat.user.domain.user.service.KeycloakService;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
@@ -27,6 +28,8 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
 @Service
 @Slf4j
@@ -269,9 +272,11 @@ public class KeycloakServiceImpl implements KeycloakService {
     try {
       HttpHeaders headers = new HttpHeaders();
       headers.setBearerAuth(getAdminToken());
-      ResponseEntity<List> response = restTemplate.exchange(
-        getAdminRealmUrl() + "/users?username=" + username + "&exact=true", HttpMethod.GET,
-        new HttpEntity<>(headers), List.class);
+      URI uri = UriComponentsBuilder.fromUriString(getAdminRealmUrl() + "/users")
+        .queryParam("username", UriUtils.encode(username, StandardCharsets.UTF_8))
+        .queryParam("exact", true)
+        .build(true).toUri();
+      ResponseEntity<List> response = restTemplate.exchange(uri, HttpMethod.GET, new HttpEntity<>(headers), List.class);
       List<?> users = response.getBody() == null ? List.of() : response.getBody();
       return users.isEmpty() ? null : (String) ((Map<?, ?>) users.getFirst()).get("id");
 

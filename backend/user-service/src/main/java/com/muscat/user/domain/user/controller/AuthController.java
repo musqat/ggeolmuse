@@ -34,6 +34,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.HtmlUtils;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -164,7 +165,7 @@ public class AuthController {
           <p>%s</p>
         </body>
         </html>
-        """.formatted(e.getMessage());
+        """.formatted(HtmlUtils.htmlEscape(e.getCode().getMessage()));
 
       return ResponseEntity.badRequest()
         .header("Content-Type", "text/html; charset=UTF-8")
