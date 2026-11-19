@@ -1,10 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render as baseRender, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactElement } from 'react'
 import userEvent from '@testing-library/user-event'
 import { stockApi } from '../../services/api'
 import StockSearchInput from './StockSearchInput'
 
 vi.mock('../../services/api', () => ({ stockApi: { searchSymbols: vi.fn() } }))
+
+// 검색 결과를 담는 조회 캐시(테스트마다 새로)
+function render(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return baseRender(ui, {
+    wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+  })
+}
 
 const SYMBOLS = ['AAPL', 'MSFT', 'NVDA']
 const search = vi.mocked(stockApi.searchSymbols)

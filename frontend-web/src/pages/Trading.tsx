@@ -22,6 +22,7 @@ import OrderSummaryPanel from '@/components/trading/OrderSummaryPanel';
 import StockSelectionPanel from '@/components/trading/StockSelectionPanel';
 import TradingChartSection from '@/components/trading/TradingChartSection';
 import { SOLID_BUTTON } from '@/styles/buttons';
+import { staleTimes } from '@services/queryKeys';
 
 const TABS = [
   { key: 'order', label: '주문' },
@@ -58,7 +59,7 @@ const Trading: React.FC = () => {
         .map((a) => String(a.symbol).toUpperCase());
       return allSymbols;
     },
-    staleTime: 10 * 60 * 1000,
+    staleTime: staleTimes.reference,
   });
 
   const {

@@ -6,6 +6,7 @@ import { accountsApi, type AccountBalance } from '@/services/api';
 import { notify } from '@/components/common/notify';
 import { DialogActions } from '@/components/common/DialogActions';
 import { formatUsd, formatFxRate, formatKrw } from '../../../utils/format';
+import { staleTimes } from '@services/queryKeys';
 
 interface ExchangeModalProps {
   isOpen: boolean;
@@ -38,7 +39,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
     queryKey: ['exchange-rate', 'current'],
     queryFn: async () => (await accountsApi.getCurrentExchangeRate()).data,
     enabled: isOpen,
-    staleTime: 60 * 1000,
+    staleTime: staleTimes.balance,
     retry: false,
   });
   const currentExchangeRate = rateQuery.data;
@@ -48,7 +49,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
     queryKey: ['exchange-rate-range'],
     queryFn: async () => (await accountsApi.getExchangeRateRange()).data,
     enabled: isOpen,
-    staleTime: 10 * 60 * 1000,
+    staleTime: staleTimes.reference,
   });
 
   const handleClose = () => {

@@ -7,6 +7,7 @@ import { accountListQuery } from '../hooks/useAccounts';
 import { TradeHistoryList } from '../components/trading/history/TradeHistoryList';
 import { historyRefetchInterval } from '../components/trading/history/tradeHistory';
 import { LoadError } from '../components/common/LoadError';
+import { staleTimes } from '@services/queryKeys';
 
 const TradeHistory: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -23,7 +24,7 @@ const TradeHistory: React.FC = () => {
       return response.data || [];
     },
     enabled: isAuthenticated,
-    staleTime: 2 * 60 * 1000,
+    staleTime: staleTimes.recent,
     refetchInterval: (query) => historyRefetchInterval(query.state.data),
   });
 

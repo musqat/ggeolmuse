@@ -11,6 +11,7 @@ import { priceSummary } from '../components/charts/stock/priceSummary';
 import { convertOHLCToCandlestick, type CandlestickChartData } from '../types/ohlc';
 import { useAiChat } from '../hooks/useAiChat';
 import { Spinner } from '../components/common/Spinner';
+import { staleTimes } from '@services/queryKeys';
 
 // 데이터가 없을 때 넘기는 빈 배열(렌더마다 새 배열이 되지 않게 하나)
 const NO_CANDLES: CandlestickChartData[] = [];
@@ -40,7 +41,7 @@ const Charts: React.FC = () => {
         .map((a) => String(a.symbol).toUpperCase());
       return symbols;
     },
-    staleTime: 10 * 60 * 1000,
+    staleTime: staleTimes.reference,
   });
 
   // 차트 데이터(받은 배열을 그대로 넘겨 렌더마다 다시 그리지 않음)
@@ -56,7 +57,7 @@ const Charts: React.FC = () => {
       return convertOHLCToCandlestick(response.data || []);
     },
     enabled: !!symbol && !!ready,
-    staleTime: 5 * 60 * 1000,
+    staleTime: staleTimes.chart,
     // 같은 종목에서 기간만 바꾸면 새 데이터까지 이전 차트 유지(켜 둔 지표가 남음)
     placeholderData: (previous, previousQuery) =>
       previousQuery?.queryKey[2] === symbol ? previous : undefined,
@@ -74,7 +75,7 @@ const Charts: React.FC = () => {
       }
     },
     enabled: !!symbol,
-    staleTime: 30 * 60 * 1000,
+    staleTime: staleTimes.comparison,
   });
 
   const summary = useMemo(() => priceSummary(ohlcData), [ohlcData]);

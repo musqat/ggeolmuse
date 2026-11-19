@@ -20,8 +20,25 @@ export const queryKeys = {
   },
   stock: {
     ohlc: (symbol: string, range: unknown) => ['stock', 'ohlc', symbol, range] as const,
+    search: (term: string, limit: number) => ['stock', 'search', term, limit] as const,
   },
 };
+
+// 조회 종류별 신선 시간(ms), 지나면 화면에 다시 들어올 때 다시 받음
+export const staleTimes = {
+  // 주문 가능 금액
+  capacity: 30 * 1000,
+  // 환율 · 계좌 잔고
+  balance: 60 * 1000,
+  // 시세 목록 · 거래 내역 · 보유
+  recent: 2 * 60 * 1000,
+  // 일봉 차트(조회 기본값)
+  chart: 5 * 60 * 1000,
+  // 지원 종목 · 환전 가능 범위 · 종목 검색
+  reference: 10 * 60 * 1000,
+  // 종목 비교
+  comparison: 30 * 60 * 1000,
+} as const;
 
 // 주문 뒤 다시 받을 범위(거래 · 보유 · 잔고, 진행 중인 계좌 목록 요청은 취소하지 않고 같이 씀)
 export const invalidateAfterTrade = (client: QueryClient) => {

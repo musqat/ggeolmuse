@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
+import { QueryClient, QueryClientProvider, notifyManager } from '@tanstack/react-query'
+import { createElement, type ReactNode } from 'react'
 import { stockApi } from '../services/api'
 import { SYMBOL_SEARCH_DELAY_MS, SYMBOL_SEARCH_MAX_LENGTH, useSymbolSearch } from './useSymbolSearch'
 
@@ -19,19 +21,27 @@ function deferred() {
 
 const reply = (...matches: { symbol: string; name: string }[]) => ({ data: matches })
 
+// 가짜 타이머에서도 조회 결과를 바로 알림
+notifyManager.setScheduler((callback) => callback())
+
+let client: QueryClient
+const wrapper = ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client }, children)
+
 beforeEach(() => {
   vi.useFakeTimers()
   search.mockReset()
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 })
 
 afterEach(() => {
+  client.clear()
   vi.useRealTimers()
 })
 
 describe('useSymbolSearch', () => {
   it('입력이 멈추고 250ms 가 지나기 전에는 서버 검색 호출 없음', async () => {
     search.mockReturnValue(new Promise(() => {}) as never)
-    const { rerender } = renderHook(({ term }) => useSymbolSearch(term, LOCAL, 20), { initialProps: { term: 'c' } })
+    const { rerender } = renderHook(({ term }) => useSymbolSearch(term, LOCAL, 20), { wrapper, initialProps: { term: 'c' } })
 
     rerender({ term: 'co' })
     await act(async () => {
@@ -50,7 +60,7 @@ describe('useSymbolSearch', () => {
     const first = deferred()
     const second = deferred()
     search.mockReturnValueOnce(first.promise as never).mockReturnValueOnce(second.promise as never)
-    const { result, rerender } = renderHook(({ term }) => useSymbolSearch(term, LOCAL, 20), { initialProps: { term: 'co' } })
+    const { result, rerender } = renderHook(({ term }) => useSymbolSearch(term, LOCAL, 20), { wrapper, initialProps: { term: 'co' } })
 
     await act(async () => {
       vi.advanceTimersByTime(SYMBOL_SEARCH_DELAY_MS)
@@ -72,14 +82,14 @@ describe('useSymbolSearch', () => {
 
   it('서버 응답 전에는 받은 종목 목록에서 찾은 결과', () => {
     search.mockReturnValue(new Promise(() => {}) as never)
-    const { result } = renderHook(() => useSymbolSearch('ms', LOCAL, 20))
+    const { result } = renderHook(() => useSymbolSearch('ms', LOCAL, 20), { wrapper })
 
     expect(result.current.matches.map((match) => match.symbol)).toEqual(['MSFT'])
   })
 
   it('받은 종목 목록에 없는 서버 결과는 뺌', async () => {
     search.mockResolvedValue(reply({ symbol: 'KO', name: 'Coca-Cola Co' }, { symbol: 'KOF', name: 'Coca-Cola FEMSA' }) as never)
-    const { result } = renderHook(() => useSymbolSearch('coca', LOCAL, 20))
+    const { result } = renderHook(() => useSymbolSearch('coca', LOCAL, 20), { wrapper })
 
     await act(async () => {
       vi.advanceTimersByTime(SYMBOL_SEARCH_DELAY_MS)
@@ -90,7 +100,7 @@ describe('useSymbolSearch', () => {
 
   it('서버 검색이 실패하면 받은 종목 목록에서 찾은 결과와 실패 표시', async () => {
     search.mockRejectedValue(new Error('network'))
-    const { result } = renderHook(() => useSymbolSearch('ms', LOCAL, 20))
+    const { result } = renderHook(() => useSymbolSearch('ms', LOCAL, 20), { wrapper })
 
     await act(async () => {
       vi.advanceTimersByTime(SYMBOL_SEARCH_DELAY_MS)
@@ -102,7 +112,7 @@ describe('useSymbolSearch', () => {
 
   it('검색어가 바뀌거나 지웠다 다시 쳐도 앞 검색어의 실패 표시 없음', async () => {
     search.mockRejectedValueOnce(new Error('network')).mockReturnValue(new Promise(() => {}) as never)
-    const { result, rerender } = renderHook(({ term }) => useSymbolSearch(term, LOCAL, 20), { initialProps: { term: 'ms' } })
+    const { result, rerender } = renderHook(({ term }) => useSymbolSearch(term, LOCAL, 20), { wrapper, initialProps: { term: 'ms' } })
 
     await act(async () => {
       vi.advanceTimersByTime(SYMBOL_SEARCH_DELAY_MS)
@@ -118,7 +128,7 @@ describe('useSymbolSearch', () => {
 
   it('50자 넘는 검색어는 서버 검색 없이 받은 종목 목록에서 찾은 결과, 실패 표시 없음', async () => {
     search.mockRejectedValue(new Error('400'))
-    const { result } = renderHook(() => useSymbolSearch('m'.repeat(51), LOCAL, 20))
+    const { result } = renderHook(() => useSymbolSearch('m'.repeat(51), LOCAL, 20), { wrapper })
 
     await act(async () => {
       vi.advanceTimersByTime(SYMBOL_SEARCH_DELAY_MS)
@@ -130,8 +140,29 @@ describe('useSymbolSearch', () => {
     expect(SYMBOL_SEARCH_MAX_LENGTH).toBe(50)
   })
 
+  it('받은 검색어로 돌아오면 서버를 다시 부르지 않고 받은 결과', async () => {
+    search.mockResolvedValueOnce(reply({ symbol: 'KO', name: 'Coca-Cola Co' }) as never)
+      .mockReturnValue(new Promise(() => {}) as never)
+    const { result, rerender } = renderHook(({ term }) => useSymbolSearch(term, LOCAL, 20), { wrapper, initialProps: { term: 'ko' } })
+
+    await act(async () => {
+      vi.advanceTimersByTime(SYMBOL_SEARCH_DELAY_MS)
+    })
+    rerender({ term: 'kos' })
+    await act(async () => {
+      vi.advanceTimersByTime(SYMBOL_SEARCH_DELAY_MS)
+    })
+    rerender({ term: 'ko' })
+    await act(async () => {
+      vi.advanceTimersByTime(SYMBOL_SEARCH_DELAY_MS)
+    })
+
+    expect(search).toHaveBeenCalledTimes(2)
+    expect(result.current.matches).toEqual([{ symbol: 'KO', name: 'Coca-Cola Co' }])
+  })
+
   it('빈 검색어는 서버 검색 없이 받은 목록 앞부분', () => {
-    const { result } = renderHook(() => useSymbolSearch('  ', LOCAL, 2))
+    const { result } = renderHook(() => useSymbolSearch('  ', LOCAL, 2), { wrapper })
 
     act(() => {
       vi.advanceTimersByTime(SYMBOL_SEARCH_DELAY_MS)

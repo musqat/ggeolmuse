@@ -9,6 +9,7 @@ import { stockApi } from '../../services/api';
 import SearchModal from './SearchModal';
 import ThemeToggle from './ThemeToggle';
 import { formatKrw } from '../../utils/format';
+import { staleTimes } from '@services/queryKeys';
 
 const Header: React.FC = () => {
   const { isAuthenticated, user, logout } = useAuth();
@@ -35,7 +36,7 @@ const Header: React.FC = () => {
       return (Array.isArray(response.data) ? response.data : [])
         .map((a) => String(a.symbol).toUpperCase());
     },
-    staleTime: 10 * 60 * 1000,
+    staleTime: staleTimes.reference,
   });
 
   const { cashKrw, loading: isLoadingAssets } = useAccountData(isAuthenticated);
