@@ -11,9 +11,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UpdateResponse {
-    private String message;
+  private String message;
 
-    public static UpdateResponse of(String message) {
-        return new UpdateResponse(message);
-    }
+  public static UpdateResponse of(String message) {
+    return new UpdateResponse(message);
+  }
 }

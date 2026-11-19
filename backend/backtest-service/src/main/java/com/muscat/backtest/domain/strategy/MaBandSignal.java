@@ -9,7 +9,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 // 이동평균 밴드 신호: 수정 종가가 평균 × (1 + 위 비율) 보다 높은 날 사고 평균 × (1 - 아래 비율) 보다 낮은 날 팜(사이는 그대로)
-record MaBandSignal(SignalPrices prices, int window, BigDecimal upperRate, BigDecimal lowerRate) implements TradeSignal {
+record MaBandSignal(SignalPrices prices, int window, BigDecimal upperRate,
+                    BigDecimal lowerRate) implements TradeSignal {
 
   // 신호 값 × 기간과 합 × (1 ± 비율)을 견줌(나눗셈 없이)
   @Override

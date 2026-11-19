@@ -178,7 +178,7 @@ class BaseExceptionHandlerTest {
     Method method = SampleController.class.getDeclaredMethod("list", int.class, int.class);
     try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
       return new ConstraintViolationException(factory.getValidator().forExecutables()
-        .validateParameters(new SampleController(), method, new Object[] {page, size}));
+        .validateParameters(new SampleController(), method, new Object[]{page, size}));
     }
   }
 

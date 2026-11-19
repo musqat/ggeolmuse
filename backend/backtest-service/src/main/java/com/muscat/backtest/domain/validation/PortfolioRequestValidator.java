@@ -89,9 +89,9 @@ public final class PortfolioRequestValidator {
     boolean valid = PortfolioAllocation.orAmount(request.getAllocation()) == PortfolioAllocation.AMOUNT
       ? assets.stream().allMatch(asset -> positiveWon(asset.amount()) && asset.weightPercent() == null)
       : positiveWon(request.getTotalAmount())
-        && assets.stream().allMatch(asset -> positive(asset.weightPercent()) && positive(request.amountOf(asset)))
-        && assets.stream().map(PortfolioAsset::weightPercent).reduce(BigDecimal.ZERO, BigDecimal::add)
-          .subtract(HUNDRED).abs().compareTo(Portfolio.WEIGHT_TOLERANCE) <= 0;
+      && assets.stream().allMatch(asset -> positive(asset.weightPercent()) && positive(request.amountOf(asset)))
+      && assets.stream().map(PortfolioAsset::weightPercent).reduce(BigDecimal.ZERO, BigDecimal::add)
+      .subtract(HUNDRED).abs().compareTo(Portfolio.WEIGHT_TOLERANCE) <= 0;
     if (!valid) {
       throw new BacktestException(BacktestResponse.INVALID_PORTFOLIO_AMOUNT);
     }

@@ -20,78 +20,78 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
-    name = "marketdata.provider",
-    havingValue = "alphavantage"
+  name = "marketdata.provider",
+  havingValue = "alphavantage"
 )
 @RequiredArgsConstructor
 public class AlphaVantageFxSource implements MarketDataProvider.FxSource {
 
-    private final AlphaVantageClient client;
-    private final AlphaVantageRateLimiter rateLimiter;
+  private final AlphaVantageClient client;
+  private final AlphaVantageRateLimiter rateLimiter;
 
-    @Override
-    public Optional<BigDecimal> fetchFx(LocalDate date) {
-        return Optional.ofNullable(fetchFxRate(date)).filter(rate -> isInRange(date, rate));
+  @Override
+  public Optional<BigDecimal> fetchFx(LocalDate date) {
+    return Optional.ofNullable(fetchFxRate(date)).filter(rate -> isInRange(date, rate));
+  }
+
+  // 정상 범위 밖 환율은 버림
+  private static boolean isInRange(LocalDate date, BigDecimal rate) {
+    if (MoneyUtils.isExchangeRateInRange(rate)) {
+      return true;
+    }
+    log.warn("[환율] 정상 범위 밖이라 버림: date={}, rate={}", date, rate);
+    return false;
+  }
+
+  public BigDecimal fetchFxRate(LocalDate date) {
+    rateLimiter.waitIfNeeded();
+
+    JsonNode response = client.get("FX_DAILY",
+      Map.of("from_symbol", "USD", "to_symbol", "KRW", "outputsize", "full"));
+
+    JsonNode timeSeries = response.get("Time Series FX (Daily)");
+    if (timeSeries == null) {
+      log.warn("No FX data available");
+      return null;
     }
 
-    // 정상 범위 밖 환율은 버림
-    private static boolean isInRange(LocalDate date, BigDecimal rate) {
-        if (MoneyUtils.isExchangeRateInRange(rate)) {
-            return true;
-        }
-        log.warn("[환율] 정상 범위 밖이라 버림: date={}, rate={}", date, rate);
-        return false;
+    JsonNode dayData = timeSeries.get(date.toString());
+    if (dayData == null) {
+      return null;
     }
 
-    public BigDecimal fetchFxRate(LocalDate date) {
-        rateLimiter.waitIfNeeded();
+    String closeValue = dayData.get("4. close").asText();
+    return new BigDecimal(closeValue);
+  }
 
-        JsonNode response = client.get("FX_DAILY",
-            Map.of("from_symbol", "USD", "to_symbol", "KRW", "outputsize", "full"));
+  // outputsize=full 로 20년치를 한 번에 받음(초기 수집용)
+  public Map<LocalDate, BigDecimal> fetchAllFxRates() {
+    log.info("=== 전체 환율 데이터 수집 시작 (outputsize=full) ===");
+    rateLimiter.waitIfNeeded();
 
-        JsonNode timeSeries = response.get("Time Series FX (Daily)");
-        if (timeSeries == null) {
-            log.warn("No FX data available");
-            return null;
-        }
+    JsonNode response = client.get("FX_DAILY",
+      Map.of("from_symbol", "USD", "to_symbol", "KRW", "outputsize", "full"));
 
-        JsonNode dayData = timeSeries.get(date.toString());
-        if (dayData == null) {
-            return null;
-        }
-
-        String closeValue = dayData.get("4. close").asText();
-        return new BigDecimal(closeValue);
+    JsonNode timeSeries = response.get("Time Series FX (Daily)");
+    if (timeSeries == null) {
+      log.warn("환율데이터가 없습니다.");
+      return Map.of();
     }
 
-    // outputsize=full 로 20년치를 한 번에 받음(초기 수집용)
-    public Map<LocalDate, BigDecimal> fetchAllFxRates() {
-        log.info("=== 전체 환율 데이터 수집 시작 (outputsize=full) ===");
-        rateLimiter.waitIfNeeded();
-
-        JsonNode response = client.get("FX_DAILY",
-            Map.of("from_symbol", "USD", "to_symbol", "KRW", "outputsize", "full"));
-
-        JsonNode timeSeries = response.get("Time Series FX (Daily)");
-        if (timeSeries == null) {
-            log.warn("환율데이터가 없습니다.");
-            return Map.of();
+    Map<LocalDate, BigDecimal> rates = new HashMap<>();
+    timeSeries.fields().forEachRemaining(entry -> {
+      try {
+        LocalDate date = LocalDate.parse(entry.getKey());
+        BigDecimal rate = new BigDecimal(entry.getValue().get("4. close").asText());
+        if (isInRange(date, rate)) {
+          rates.put(date, rate);
         }
+      } catch (Exception e) {
+        log.warn("환율 데이터를 파싱에 실패했습니다. : {}", entry.getKey(), e);
+      }
+    });
 
-        Map<LocalDate, BigDecimal> rates = new HashMap<>();
-        timeSeries.fields().forEachRemaining(entry -> {
-            try {
-                LocalDate date = LocalDate.parse(entry.getKey());
-                BigDecimal rate = new BigDecimal(entry.getValue().get("4. close").asText());
-                if (isInRange(date, rate)) {
-                    rates.put(date, rate);
-                }
-            } catch (Exception e) {
-                log.warn("환율 데이터를 파싱에 실패했습니다. : {}", entry.getKey(), e);
-            }
-        });
-
-        log.info("=== 전체 환율 데이터 수집 완료: {}개 ===", rates.size());
-        return rates;
-    }
+    log.info("=== 전체 환율 데이터 수집 완료: {}개 ===", rates.size());
+    return rates;
+  }
 }

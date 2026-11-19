@@ -997,7 +997,7 @@ class MaCrossStrategyTest {
 
   // 요청 하나를 바꾼 경우 · 기대 오류 코드
   private static Arguments invalid(String label, UnaryOperator<MaCrossStrategyRequest.MaCrossStrategyRequestBuilder<?, ?>> change,
-    BacktestResponse code) {
+                                   BacktestResponse code) {
     return Arguments.of(label, change, code);
   }
 
@@ -1027,7 +1027,7 @@ class MaCrossStrategyTest {
   @MethodSource("invalidRequests")
   @DisplayName("종목 · 기간 · 원금 · 이동평균 기간 · 트레일링 스탑 · 부분 익절이 맞지 않거나 배당 재투자를 켜면 시세를 받기 전에 막는다")
   void rejects(String label, UnaryOperator<MaCrossStrategyRequest.MaCrossStrategyRequestBuilder<?, ?>> change,
-    BacktestResponse code) {
+               BacktestResponse code) {
     MaCrossStrategyRequest request = change.apply(request(7)).build();
 
     assertThatThrownBy(() -> strategy.execute(request))

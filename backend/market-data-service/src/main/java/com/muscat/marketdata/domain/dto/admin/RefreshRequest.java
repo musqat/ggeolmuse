@@ -11,6 +11,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RefreshRequest {
-    private List<String> symbols;
-    private LocalDate from;
+  private List<String> symbols;
+  private LocalDate from;
 }

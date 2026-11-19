@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 // 비밀번호 재설정 토큰 Repository
 @Repository
 public interface PasswordResetTokenRepository extends JpaRepository<PasswordResetToken, Long>,
-    PasswordResetTokenRepositoryCustom {
+  PasswordResetTokenRepositoryCustom {
 
   // 사용자별 토큰 전체 삭제
   void deleteByUser(User user);

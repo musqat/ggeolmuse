@@ -43,18 +43,18 @@ public class CandleDto {
 
   public Candle toEntity() {
     return Candle.builder()
-        .symbol(symbol)
-        .date(date)
-        .currency(currency != null ? currency : "USD")
-        .open(open)
-        .high(high)
-        .low(low)
-        .close(close)
-        .adjustedClose(adjustedClose != null ? adjustedClose : close)
-        .volume(volume != null ? volume : 0L)
-        .dividendAmount(dividendAmount != null ? dividendAmount : BigDecimal.ZERO)
-        .splitCoefficient(splitCoefficient != null ? splitCoefficient : BigDecimal.ONE)
-        .build();
+      .symbol(symbol)
+      .date(date)
+      .currency(currency != null ? currency : "USD")
+      .open(open)
+      .high(high)
+      .low(low)
+      .close(close)
+      .adjustedClose(adjustedClose != null ? adjustedClose : close)
+      .volume(volume != null ? volume : 0L)
+      .dividendAmount(dividendAmount != null ? dividendAmount : BigDecimal.ZERO)
+      .splitCoefficient(splitCoefficient != null ? splitCoefficient : BigDecimal.ONE)
+      .build();
   }
 
 }

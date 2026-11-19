@@ -12,50 +12,50 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class BacktestHistoryUtils {
 
-    private final BacktestHistoryRepository backtestHistoryRepository;
-    private final ObjectMapper objectMapper;
+  private final BacktestHistoryRepository backtestHistoryRepository;
+  private final ObjectMapper objectMapper;
 
-    public BacktestHistoryUtils(BacktestHistoryRepository backtestHistoryRepository, ObjectMapper objectMapper) {
-        this.backtestHistoryRepository = backtestHistoryRepository;
-        this.objectMapper = objectMapper;
+  public BacktestHistoryUtils(BacktestHistoryRepository backtestHistoryRepository, ObjectMapper objectMapper) {
+    this.backtestHistoryRepository = backtestHistoryRepository;
+    this.objectMapper = objectMapper;
+  }
+
+  // 저장이 실패해도 예외를 내지 않음(백테스트 결과는 그대로)
+  public void saveBacktestHistory(String userId, BacktestType backtestType, Object requestParams) {
+    if (userId == null || userId.isBlank()) {
+      log.debug("이력 주인이 없어 저장하지 않음: type={}", backtestType);
+      return;
     }
+    try {
+      String paramsJson = objectMapper.writeValueAsString(requestParams);
+      String fxRateMode = determineFxRateMode(requestParams);
 
-    // 저장이 실패해도 예외를 내지 않음(백테스트 결과는 그대로)
-    public void saveBacktestHistory(String userId, BacktestType backtestType, Object requestParams) {
-        if (userId == null || userId.isBlank()) {
-            log.debug("이력 주인이 없어 저장하지 않음: type={}", backtestType);
-            return;
-        }
-        try {
-            String paramsJson = objectMapper.writeValueAsString(requestParams);
-            String fxRateMode = determineFxRateMode(requestParams);
-
-            BacktestHistory history = BacktestHistory.builder()
-                .userId(userId)
-                .backtestType(backtestType)
-                .requestParams(paramsJson)
-                .fxRateMode(fxRateMode)
-                .build();
-            backtestHistoryRepository.save(history);
-            log.debug("백테스트 히스토리 저장 완료: userId={}, type={}, fxMode={}", userId, backtestType, fxRateMode);
-        } catch (JsonProcessingException e) {
-            log.warn("JSON 변환 오류: userId={}, error={}", userId, e.getMessage());
-        } catch (RuntimeException e) {
-            log.warn("백테스트 히스토리 저장 실패: userId={}, error={}", userId, e.getMessage());
-        }
+      BacktestHistory history = BacktestHistory.builder()
+        .userId(userId)
+        .backtestType(backtestType)
+        .requestParams(paramsJson)
+        .fxRateMode(fxRateMode)
+        .build();
+      backtestHistoryRepository.save(history);
+      log.debug("백테스트 히스토리 저장 완료: userId={}, type={}, fxMode={}", userId, backtestType, fxRateMode);
+    } catch (JsonProcessingException e) {
+      log.warn("JSON 변환 오류: userId={}, error={}", userId, e.getMessage());
+    } catch (RuntimeException e) {
+      log.warn("백테스트 히스토리 저장 실패: userId={}, error={}", userId, e.getMessage());
     }
+  }
 
-    // 매수 · 현재 환율 중 하나라도 있으면 manual, 없으면 auto
-    private String determineFxRateMode(Object requestParams) {
-        try {
-            var jsonNode = objectMapper.valueToTree(requestParams);
-            boolean hasPurchaseFxRate = jsonNode.has("purchaseFxRate") && !jsonNode.get("purchaseFxRate").isNull();
-            boolean hasCurrentFxRate = jsonNode.has("currentFxRate") && !jsonNode.get("currentFxRate").isNull();
+  // 매수 · 현재 환율 중 하나라도 있으면 manual, 없으면 auto
+  private String determineFxRateMode(Object requestParams) {
+    try {
+      var jsonNode = objectMapper.valueToTree(requestParams);
+      boolean hasPurchaseFxRate = jsonNode.has("purchaseFxRate") && !jsonNode.get("purchaseFxRate").isNull();
+      boolean hasCurrentFxRate = jsonNode.has("currentFxRate") && !jsonNode.get("currentFxRate").isNull();
 
-            return (hasPurchaseFxRate || hasCurrentFxRate) ? "manual" : "auto";
-        } catch (Exception e) {
-            log.warn("환율 모드 판단 실패, 기본값(auto) 사용: {}", e.getMessage());
-            return "auto";
-        }
+      return (hasPurchaseFxRate || hasCurrentFxRate) ? "manual" : "auto";
+    } catch (Exception e) {
+      log.warn("환율 모드 판단 실패, 기본값(auto) 사용: {}", e.getMessage());
+      return "auto";
     }
+  }
 }

@@ -33,7 +33,7 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
   @Override
   @Transactional
   public HistoryResponseDto createDepositHistory(Long accountId, BigDecimal amount,
-    String currency, String description, String referenceId) {
+                                                 String currency, String description, String referenceId) {
 
     validateAmount(amount);
     validateCurrency(currency);
@@ -65,8 +65,8 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
   @Override
   @Transactional
   public HistoryResponseDto createExchangeHistory(Long accountId, String fromCurrency,
-    String toCurrency, BigDecimal originalAmount, BigDecimal exchangedAmount,
-    BigDecimal exchangeRate, String description, String referenceId) {
+                                                  String toCurrency, BigDecimal originalAmount, BigDecimal exchangedAmount,
+                                                  BigDecimal exchangeRate, String description, String referenceId) {
 
     validateExchangeInputs(fromCurrency, toCurrency, originalAmount, exchangedAmount, exchangeRate);
 
@@ -127,8 +127,8 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
 
   // 환전 입력값 검증
   private void validateExchangeInputs(String fromCurrency, String toCurrency,
-    BigDecimal originalAmount, BigDecimal exchangedAmount,
-    BigDecimal exchangeRate) {
+                                      BigDecimal originalAmount, BigDecimal exchangedAmount,
+                                      BigDecimal exchangeRate) {
     validateCurrency(fromCurrency);
     validateCurrency(toCurrency);
 

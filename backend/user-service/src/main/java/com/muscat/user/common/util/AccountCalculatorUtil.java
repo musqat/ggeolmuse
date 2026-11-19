@@ -38,10 +38,10 @@ public class AccountCalculatorUtil {
   public void validateExchangeRequest(Account account, BigDecimal amount, String fromCurrency) {
     MoneyUtils.validatePositiveAmount(amount, fromCurrency + " 환전 금액");
     MoneyUtils.validateMinimumExchangeAmount(amount, fromCurrency);
-    
+
     BigDecimal currentBalance = getBalanceByCurrency(account, fromCurrency);
     MoneyUtils.validateSufficientBalance(currentBalance, amount, fromCurrency);
-    
+
     if ("KRW".equals(fromCurrency)) {
       MoneyUtils.validateMaximumExchangeAmount(amount);
     }
@@ -49,8 +49,8 @@ public class AccountCalculatorUtil {
 
   // 환전 계산
   public ExchangeCalculationResult calculateExchangeWithCommission(
-      Account account, BigDecimal amount, String fromCurrency, String toCurrency,
-      BigDecimal exchangeRate) {
+    Account account, BigDecimal amount, String fromCurrency, String toCurrency,
+    BigDecimal exchangeRate) {
 
     return switch (fromCurrency + "_TO_" + toCurrency) {
       case "KRW_TO_USD" -> ExchangeCalculationResult.ofKrwToUsd(amount, exchangeRate);
@@ -62,9 +62,9 @@ public class AccountCalculatorUtil {
   // 평균 환율 계산(환전한 원화 누계 / 환전으로 받은 달러 누계)
   public BigDecimal calculateNewAverageRate(Account account, BigDecimal newKrwAmount, BigDecimal newExchangeRate) {
     BigDecimal currentTotalKrw = account.getTotalExchangedKrw() != null ?
-        account.getTotalExchangedKrw() : BigDecimal.ZERO;
+      account.getTotalExchangedKrw() : BigDecimal.ZERO;
     BigDecimal currentTotalUsd = account.getTotalExchangedUsd() != null ?
-        account.getTotalExchangedUsd() : BigDecimal.ZERO;
+      account.getTotalExchangedUsd() : BigDecimal.ZERO;
 
     BigDecimal newTotalKrw = currentTotalKrw.add(newKrwAmount);
     BigDecimal additionalUsd = MoneyUtils.calculateKrwToUsd(newKrwAmount, newExchangeRate);
@@ -87,5 +87,5 @@ public class AccountCalculatorUtil {
     };
   }
 
-  
+
 }

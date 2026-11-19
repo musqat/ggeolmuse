@@ -33,7 +33,7 @@ public class ServiceTokenProvider {
   private Instant retryAt = Instant.MIN;
 
   public ServiceTokenProvider(RestClient.Builder builder, String tokenUrl, String clientId, String clientSecret,
-    Clock clock) {
+                              Clock clock) {
     this.restClient = builder.build();
     this.tokenUrl = tokenUrl;
     this.clientId = clientId;

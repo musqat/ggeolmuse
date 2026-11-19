@@ -70,7 +70,7 @@ public class TradeUtils {
 
   // 매수 잔액 검증
   public void validateBuyBalance(String userId, String accountId,
-    BigDecimal totalAmount, AccountBalanceDto accountBalance) {
+                                 BigDecimal totalAmount, AccountBalanceDto accountBalance) {
     if (accountBalance.getBalanceUsd().compareTo(totalAmount) < 0) {
       tradeLogger.logBalanceCheck(userId, accountId, totalAmount,
         accountBalance.getBalanceUsd(), false);

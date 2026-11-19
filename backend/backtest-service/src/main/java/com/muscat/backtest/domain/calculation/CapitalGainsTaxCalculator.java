@@ -110,7 +110,7 @@ public final class CapitalGainsTaxCalculator {
 
   // 결제된 해마다 이익 합(같은 해 안에서만 상계) · 공제 · 세금 · 납부와 세후 총 평가(총 자산 - 남은 양도세) · 현금(총 자산 - 주식 평가)
   public static CapitalGainsTax of(List<Gain> gains, Payments payments, BigDecimal totalAssetKrw, BigDecimal stockKrw,
-    BigDecimal basisKrw) {
+                                   BigDecimal basisKrw) {
     List<CapitalGainsTax.Year> years = new ArrayList<>();
     BigDecimal totalTax = BigDecimal.ZERO;
     BigDecimal paidTax = BigDecimal.ZERO;

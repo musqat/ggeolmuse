@@ -16,31 +16,31 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DividendEventProducer {
 
-    private static final String DIVIDEND_UPDATED_TOPIC = "market.dividend.updated";
+  private static final String DIVIDEND_UPDATED_TOPIC = "market.dividend.updated";
 
-    private final KafkaTemplate<String, DividendUpdatedEvent> kafkaTemplate;
+  private final KafkaTemplate<String, DividendUpdatedEvent> kafkaTemplate;
 
-    public void publishDividendUpdated(Dividend dividend) {
-        DividendUpdatedEvent event = DividendUpdatedEvent.builder()
-                .symbol(dividend.getSymbol())
-                .exDate(dividend.getExDate())
-                .amount(dividend.getAmount())
-                .currency(dividend.getCurrency())
-                .build();
-        EventPublishing.stamp(event, "DIVIDEND_UPDATED", "market-data-service");
+  public void publishDividendUpdated(Dividend dividend) {
+    DividendUpdatedEvent event = DividendUpdatedEvent.builder()
+      .symbol(dividend.getSymbol())
+      .exDate(dividend.getExDate())
+      .amount(dividend.getAmount())
+      .currency(dividend.getCurrency())
+      .build();
+    EventPublishing.stamp(event, "DIVIDEND_UPDATED", "market-data-service");
 
-        log.debug("배당 업데이트 이벤트 발행 중: symbol={}, exDate={}, amount={}",
-                dividend.getSymbol(), dividend.getExDate(), dividend.getAmount());
+    log.debug("배당 업데이트 이벤트 발행 중: symbol={}, exDate={}, amount={}",
+      dividend.getSymbol(), dividend.getExDate(), dividend.getAmount());
 
-        EventPublishing.send(kafkaTemplate, DIVIDEND_UPDATED_TOPIC, dividend.getSymbol(), event);
+    EventPublishing.send(kafkaTemplate, DIVIDEND_UPDATED_TOPIC, dividend.getSymbol(), event);
+  }
+
+  public void publishBatch(List<Dividend> dividends) {
+    if (dividends == null || dividends.isEmpty()) {
+      return;
     }
 
-    public void publishBatch(List<Dividend> dividends) {
-        if (dividends == null || dividends.isEmpty()) {
-            return;
-        }
-
-        log.debug("배당 이벤트 일괄 발행 중: {}건", dividends.size());
-        dividends.forEach(this::publishDividendUpdated);
-    }
+    log.debug("배당 이벤트 일괄 발행 중: {}건", dividends.size());
+    dividends.forEach(this::publishDividendUpdated);
+  }
 }

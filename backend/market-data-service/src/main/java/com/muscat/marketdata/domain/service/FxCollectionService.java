@@ -44,7 +44,7 @@ public class FxCollectionService {
   @Autowired
   private FxCollectionService self;
 
-  public enum Mode { MISSING, ALL }
+  public enum Mode {MISSING, ALL}
 
   // 진행 중이거나 마지막 실행(상태 행이 없으면 기록 테이블의 끝난 시각 · 채운 수만)
   @Getter
@@ -83,8 +83,8 @@ public class FxCollectionService {
       LocalDate today = LocalDate.now(KST);
       LocalDate start = properties.getFxIngest().getStartDate();
       List<LocalDate> dates = mode == Mode.MISSING
-          ? collector.missingWeekdays(start, today)
-          : FxDataCollector.weekdays(start, today);
+        ? collector.missingWeekdays(start, today)
+        : FxDataCollector.weekdays(start, today);
       current = current.toBuilder().total(dates.size()).build();
       jobState.save(JOB_NAME, current);
       log.info("[환율수집] 관리자 {} 시작: {}일", mode, dates.size());
@@ -94,14 +94,14 @@ public class FxCollectionService {
         boolean filled = fetchAndSave(date);
         consecutiveFailures = filled ? 0 : consecutiveFailures + 1;
         current = current.toBuilder()
-            .processed(current.getProcessed() + 1)
-            .filled(current.getFilled() + (filled ? 1 : 0))
-            .failed(current.getFailed() + (filled ? 0 : 1))
-            .lastDate(date)
-            .build();
+          .processed(current.getProcessed() + 1)
+          .filled(current.getFilled() + (filled ? 1 : 0))
+          .failed(current.getFailed() + (filled ? 0 : 1))
+          .lastDate(date)
+          .build();
         if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
           current = current.toBuilder().stoppedReason(String.format(
-              "원천이 연속 %d 영업일 환율을 주지 않아 멈춤(마지막 처리일 %s)", MAX_CONSECUTIVE_FAILURES, date)).build();
+            "원천이 연속 %d 영업일 환율을 주지 않아 멈춤(마지막 처리일 %s)", MAX_CONSECUTIVE_FAILURES, date)).build();
           log.warn("[환율수집] 관리자 {} 멈춤: {}", mode, current.getStoppedReason());
           break;
         }
@@ -111,7 +111,7 @@ public class FxCollectionService {
       current = current.toBuilder().finishedAt(LocalDateTime.now(KST)).build();
       adminJobRunRepository.save(new AdminJobRun(JOB_NAME, current.getFinishedAt(), current.getFilled()));
       log.info("[환율수집] 관리자 {} 끝: 처리 {} · 채움 {} · 실패 {}",
-          mode, current.getProcessed(), current.getFilled(), current.getFailed());
+        mode, current.getProcessed(), current.getFilled(), current.getFailed());
     } catch (Exception e) {
       log.error("[환율수집] 관리자 {} 실패", mode, e);
       current = current.toBuilder().finishedAt(LocalDateTime.now(KST)).stoppedReason(e.getMessage()).build();
@@ -145,8 +145,8 @@ public class FxCollectionService {
     Progress last = lastProgress();
     if (last == null) {
       last = adminJobRunRepository.findById(JOB_NAME)
-          .map(run -> Progress.builder().finishedAt(run.getLastRunAt()).filled(run.getPublished()).build())
-          .orElse(null);
+        .map(run -> Progress.builder().finishedAt(run.getLastRunAt()).filled(run.getPublished()).build())
+        .orElse(null);
     }
     return new Status(missing.size(), missing.reversed().stream().limit(RECENT_MISSING).toList(), isRunning(), last);
   }

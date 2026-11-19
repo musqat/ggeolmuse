@@ -25,8 +25,8 @@ class AccountProfitStoreTest {
 
   private static AccountProfitDaily row(long accountId, LocalDate date, long profitKrw) {
     return AccountProfitDaily.of("user-1", accountId, new DailyProfit(date, new BigDecimal("1.00"),
-      new BigDecimal("2.00"), new BigDecimal("3.00"), new BigDecimal("0.50"), new BigDecimal("1300.5"),
-      BigDecimal.valueOf(profitKrw), new BigDecimal("10.00"), new BigDecimal("13005")),
+        new BigDecimal("2.00"), new BigDecimal("3.00"), new BigDecimal("0.50"), new BigDecimal("1300.5"),
+        BigDecimal.valueOf(profitKrw), new BigDecimal("10.00"), new BigDecimal("13005")),
       LocalDateTime.of(2024, 1, 5, 9, 0));
   }
 

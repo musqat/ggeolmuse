@@ -32,358 +32,358 @@ import org.springframework.data.domain.Pageable;
 @Service
 public class AssetServiceImpl implements AssetService {
 
-    private final AssetRepository assetRepository;
-    private final CandleRepository candleRepository;
-    private final AssetEventProducer assetEventProducer;
+  private final AssetRepository assetRepository;
+  private final CandleRepository candleRepository;
+  private final AssetEventProducer assetEventProducer;
 
-    // capability 인터페이스: @ConditionalOnProperty 로 활성 provider 1개만 주입됨
-    // (yahoo → YfSymbolSource/YahooMarketCapService, alphavantage → SymbolSource/MarketCapCollectionService)
-    @Autowired(required = false)
-    private AssetInfoSource assetInfoSource;   // 단일 종목 상세 (preview/등록)
+  // capability 인터페이스: @ConditionalOnProperty 로 활성 provider 1개만 주입됨
+  // (yahoo → YfSymbolSource/YahooMarketCapService, alphavantage → SymbolSource/MarketCapCollectionService)
+  @Autowired(required = false)
+  private AssetInfoSource assetInfoSource;   // 단일 종목 상세 (preview/등록)
 
-    @Autowired(required = false)
-    private MarketCapSource marketCapSource;   // 시가총액 갱신
+  @Autowired(required = false)
+  private MarketCapSource marketCapSource;   // 시가총액 갱신
 
-    @Autowired(required = false)
-    private CandleSource candleSource;         // 단일 가격 갱신 (updateAssetPrice)
+  @Autowired(required = false)
+  private CandleSource candleSource;         // 단일 가격 갱신 (updateAssetPrice)
 
-    public AssetServiceImpl(
-            AssetRepository assetRepository,
-            CandleRepository candleRepository,
-            AssetEventProducer assetEventProducer) {
-        this.assetRepository = assetRepository;
-        this.candleRepository = candleRepository;
-        this.assetEventProducer = assetEventProducer;
+  public AssetServiceImpl(
+    AssetRepository assetRepository,
+    CandleRepository candleRepository,
+    AssetEventProducer assetEventProducer) {
+    this.assetRepository = assetRepository;
+    this.candleRepository = candleRepository;
+    this.assetEventProducer = assetEventProducer;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<Asset> previewSymbol(String symbol) {
+    log.debug("심볼 미리보기 요청: symbol={}", symbol);
+
+    if (assetInfoSource == null) {
+      log.warn("AssetInfoSource가 활성화되지 않음");
+      return Optional.empty();
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public Optional<Asset> previewSymbol(String symbol) {
-        log.debug("심볼 미리보기 요청: symbol={}", symbol);
-
-        if (assetInfoSource == null) {
-            log.warn("AssetInfoSource가 활성화되지 않음");
-            return Optional.empty();
-        }
-
-        Asset asset = assetInfoSource.getAsset(symbol.toUpperCase());
-        if (asset != null) {
-            log.debug("심볼 미리보기 성공: symbol={}, name={}", symbol, asset.getName());
-        } else {
-            log.warn("심볼 미리보기 실패: symbol={}", symbol);
-        }
-
-        return Optional.ofNullable(asset);
+    Asset asset = assetInfoSource.getAsset(symbol.toUpperCase());
+    if (asset != null) {
+      log.debug("심볼 미리보기 성공: symbol={}, name={}", symbol, asset.getName());
+    } else {
+      log.warn("심볼 미리보기 실패: symbol={}", symbol);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<Asset> searchSymbols(String keyword) {
-        log.debug("심볼 검색 요청: keyword={}", keyword);
+    return Optional.ofNullable(asset);
+  }
 
-        List<Asset> results = assetRepository.searchByKeyword(keyword, 20);
+  @Override
+  @Transactional(readOnly = true)
+  public List<Asset> searchSymbols(String keyword) {
+    log.debug("심볼 검색 요청: keyword={}", keyword);
 
-        log.debug("심볼 검색 성공: keyword={}, count={}", keyword, results.size());
-        return results;
+    List<Asset> results = assetRepository.searchByKeyword(keyword, 20);
+
+    log.debug("심볼 검색 성공: keyword={}, count={}", keyword, results.size());
+    return results;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<Asset> searchListedSymbols(String keyword, int limit) {
+    return assetRepository.searchListedByKeyword(keyword.trim(), limit);
+  }
+
+  @Override
+  @Transactional
+  public Asset createAsset(String symbol, String name, String country,
+                           String currency, String assetType,
+                           boolean collectData, LocalDate fromDate,
+                           LocalDate toDate, boolean includeDividends) {
+    log.info("종목 추가 요청: symbol={}, collectData={}", symbol, collectData);
+
+    String finalSymbol = symbol.toUpperCase();
+
+    if (assetRepository.findById(finalSymbol).isPresent()) {
+      throw new MarketDataException(MarketDataResponse.ASSET_ALREADY_EXISTS, finalSymbol);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<Asset> searchListedSymbols(String keyword, int limit) {
-        return assetRepository.searchListedByKeyword(keyword.trim(), limit);
+    // 정보가 부족하면 SymbolSource에서 조회
+    if (name == null || country == null || currency == null || assetType == null) {
+      if (assetInfoSource == null) {
+        throw new MarketDataException(MarketDataResponse.DATA_SOURCE_UNAVAILABLE);
+      }
+
+      Asset fetched = assetInfoSource.getAsset(finalSymbol);
+      if (fetched == null) {
+        throw new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, finalSymbol);
+      }
+
+      name = name != null ? name : fetched.getName();
+      country = country != null ? country : fetched.getCountry();
+      currency = currency != null ? currency : fetched.getCurrency();
+      assetType = assetType != null ? assetType : fetched.getAssetType();
     }
 
-    @Override
-    @Transactional
-    public Asset createAsset(String symbol, String name, String country,
-                              String currency, String assetType,
-                              boolean collectData, LocalDate fromDate,
-                              LocalDate toDate, boolean includeDividends) {
-        log.info("종목 추가 요청: symbol={}, collectData={}", symbol, collectData);
+    Asset asset = Asset.builder()
+      .symbol(finalSymbol)
+      .name(name)
+      .country(country)
+      .currency(currency)
+      .assetType(assetType)
+      .build();
 
-        String finalSymbol = symbol.toUpperCase();
+    Asset saved = assetRepository.save(asset);
+    log.info("종목 추가 성공: symbol={}", finalSymbol);
 
-        if (assetRepository.findById(finalSymbol).isPresent()) {
-            throw new MarketDataException(MarketDataResponse.ASSET_ALREADY_EXISTS, finalSymbol);
-        }
+    // Kafka 이벤트 발행 (비동기 데이터 수집)
+    assetEventProducer.publishAssetCreated(
+      saved, collectData, fromDate, toDate, includeDividends);
 
-        // 정보가 부족하면 SymbolSource에서 조회
-        if (name == null || country == null || currency == null || assetType == null) {
-            if (assetInfoSource == null) {
-                throw new MarketDataException(MarketDataResponse.DATA_SOURCE_UNAVAILABLE);
-            }
+    return saved;
+  }
 
-            Asset fetched = assetInfoSource.getAsset(finalSymbol);
-            if (fetched == null) {
-                throw new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, finalSymbol);
-            }
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<Asset> getAsset(String symbol) {
+    log.debug("종목 조회 요청: symbol={}", symbol);
 
-            name = name != null ? name : fetched.getName();
-            country = country != null ? country : fetched.getCountry();
-            currency = currency != null ? currency : fetched.getCurrency();
-            assetType = assetType != null ? assetType : fetched.getAssetType();
-        }
-
-        Asset asset = Asset.builder()
-                .symbol(finalSymbol)
-                .name(name)
-                .country(country)
-                .currency(currency)
-                .assetType(assetType)
-                .build();
-
-        Asset saved = assetRepository.save(asset);
-        log.info("종목 추가 성공: symbol={}", finalSymbol);
-
-        // Kafka 이벤트 발행 (비동기 데이터 수집)
-        assetEventProducer.publishAssetCreated(
-                saved, collectData, fromDate, toDate, includeDividends);
-
-        return saved;
+    Optional<Asset> asset = assetRepository.findById(symbol.toUpperCase());
+    if (asset.isPresent()) {
+      log.debug("종목 조회 성공: symbol={}", symbol);
+    } else {
+      log.warn("종목 조회 실패: symbol={} (존재하지 않음)", symbol);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public Optional<Asset> getAsset(String symbol) {
-        log.debug("종목 조회 요청: symbol={}", symbol);
+    return asset;
+  }
 
-        Optional<Asset> asset = assetRepository.findById(symbol.toUpperCase());
-        if (asset.isPresent()) {
-            log.debug("종목 조회 성공: symbol={}", symbol);
-        } else {
-            log.warn("종목 조회 실패: symbol={} (존재하지 않음)", symbol);
-        }
+  @Override
+  @Transactional(readOnly = true)
+  public List<Asset> getAllAssets() {
+    log.debug("전체 종목 조회 요청");
 
-        return asset;
+    List<Asset> assets = assetRepository.findAll();
+    log.debug("전체 종목 조회 성공: count={}", assets.size());
+
+    return assets;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<String> getActiveSymbols() {
+    log.debug("활성 티커 조회 요청");
+
+    List<String> symbols = assetRepository.findActiveSymbols();
+    log.debug("활성 티커 조회 성공: count={}", symbols.size());
+
+    return symbols;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Page<AssetSummaryDto> getAllAssetSummaries(Pageable pageable, boolean active) {
+    log.debug("전체 종목 요약 정보 조회 요청 (페이지: {}, 크기: {})",
+      pageable.getPageNumber(), pageable.getPageSize());
+
+    // 최신가/최신날짜가 asset에 비정규화되어 있어 candle 조회 없이 DB에서 직접 정렬+페이징
+    // (candle 2967만 행을 매 요청마다 조회하던 병목 제거)
+    Pageable dbPageable = remapSort(pageable);
+    Page<Asset> page = assetRepository.findSorted(dbPageable, active);
+
+    List<AssetSummaryDto> content = page.getContent().stream()
+      .map(AssetSummaryDto::from)
+      .collect(Collectors.toList());
+
+    log.debug("종목 요약 조회 완료: active={}, page={}, totalElements={}",
+      active, pageable.getPageNumber(), page.getTotalElements());
+    return new PageImpl<>(content, pageable, page.getTotalElements());
+  }
+
+  // 요청의 정렬 필드 → 엔티티 필드(currentPrice → latestClose, latestDataDate → latestDate, NULL 순서는 저장소 몫)
+  private Pageable remapSort(Pageable pageable) {
+    Sort sort = pageable.getSort();
+    if (sort.isUnsorted()) {
+      return pageable;
+    }
+    Sort mapped = Sort.by(sort.stream()
+      .map(order -> {
+        String prop = switch (order.getProperty()) {
+          case "currentPrice" -> "latestClose";
+          case "latestDataDate" -> "latestDate";
+          default -> order.getProperty();
+        };
+        return new Sort.Order(order.getDirection(), prop);
+      })
+      .collect(Collectors.toList()));
+    return org.springframework.data.domain.PageRequest.of(
+      pageable.getPageNumber(), pageable.getPageSize(), mapped);
+  }
+
+  @Override
+  @Transactional
+  @CacheEvict(cacheNames = "dividendYieldOrder", allEntries = true)
+  public void updateAssetPrice(String symbol) {
+    log.info("종목 가격 업데이트 요청: symbol={}", symbol);
+
+    String upperSymbol = symbol.toUpperCase();
+
+    // Asset 존재 확인
+    Asset asset = assetRepository.findById(upperSymbol)
+      .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, upperSymbol));
+
+    if (candleSource == null) {
+      log.warn("CandleSource가 활성화되지 않음");
+      throw new MarketDataException(MarketDataResponse.DATA_SOURCE_UNAVAILABLE);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<Asset> getAllAssets() {
-        log.debug("전체 종목 조회 요청");
+    // 최근 1개월치 캔들 데이터 수집
+    LocalDate to = LocalDate.now();
+    LocalDate from = to.minusMonths(1);
 
-        List<Asset> assets = assetRepository.findAll();
-        log.debug("전체 종목 조회 성공: count={}", assets.size());
+    List<Candle> candles = candleSource.fetchDailyAdjusted(upperSymbol, from, to);
 
-        return assets;
+    // 야후 404 로그는 YahooFinanceClient 에
+    if (candles.isEmpty()) {
+      throw new MarketDataException(MarketDataResponse.PRICE_DATA_NOT_FOUND, upperSymbol);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<String> getActiveSymbols() {
-        log.debug("활성 티커 조회 요청");
-
-        List<String> symbols = assetRepository.findActiveSymbols();
-        log.debug("활성 티커 조회 성공: count={}", symbols.size());
-
-        return symbols;
+    // 기존 데이터와 중복 확인하여 저장
+    int savedCount = 0;
+    for (Candle candle : candles) {
+      if (!candleRepository.existsBySymbolAndDate(candle.getSymbol(), candle.getDate())) {
+        candleRepository.save(candle);
+        savedCount++;
+      }
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public Page<AssetSummaryDto> getAllAssetSummaries(Pageable pageable, boolean active) {
-        log.debug("전체 종목 요약 정보 조회 요청 (페이지: {}, 크기: {})",
-                pageable.getPageNumber(), pageable.getPageSize());
-
-        // 최신가/최신날짜가 asset에 비정규화되어 있어 candle 조회 없이 DB에서 직접 정렬+페이징
-        // (candle 2967만 행을 매 요청마다 조회하던 병목 제거)
-        Pageable dbPageable = remapSort(pageable);
-        Page<Asset> page = assetRepository.findSorted(dbPageable, active);
-
-        List<AssetSummaryDto> content = page.getContent().stream()
-                .map(AssetSummaryDto::from)
-                .collect(Collectors.toList());
-
-        log.debug("종목 요약 조회 완료: active={}, page={}, totalElements={}",
-                active, pageable.getPageNumber(), page.getTotalElements());
-        return new PageImpl<>(content, pageable, page.getTotalElements());
-    }
-
-    // 요청의 정렬 필드 → 엔티티 필드(currentPrice → latestClose, latestDataDate → latestDate, NULL 순서는 저장소 몫)
-    private Pageable remapSort(Pageable pageable) {
-        Sort sort = pageable.getSort();
-        if (sort.isUnsorted()) {
-            return pageable;
-        }
-        Sort mapped = Sort.by(sort.stream()
-                .map(order -> {
-                    String prop = switch (order.getProperty()) {
-                        case "currentPrice" -> "latestClose";
-                        case "latestDataDate" -> "latestDate";
-                        default -> order.getProperty();
-                    };
-                    return new Sort.Order(order.getDirection(), prop);
-                })
-                .collect(Collectors.toList()));
-        return org.springframework.data.domain.PageRequest.of(
-                pageable.getPageNumber(), pageable.getPageSize(), mapped);
-    }
-
-    @Override
-    @Transactional
-    @CacheEvict(cacheNames = "dividendYieldOrder", allEntries = true)
-    public void updateAssetPrice(String symbol) {
-        log.info("종목 가격 업데이트 요청: symbol={}", symbol);
-
-        String upperSymbol = symbol.toUpperCase();
-
-        // Asset 존재 확인
-        Asset asset = assetRepository.findById(upperSymbol)
-                .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, upperSymbol));
-
-        if (candleSource == null) {
-            log.warn("CandleSource가 활성화되지 않음");
-            throw new MarketDataException(MarketDataResponse.DATA_SOURCE_UNAVAILABLE);
-        }
-
-        // 최근 1개월치 캔들 데이터 수집
-        LocalDate to = LocalDate.now();
-        LocalDate from = to.minusMonths(1);
-
-        List<Candle> candles = candleSource.fetchDailyAdjusted(upperSymbol, from, to);
-
-        // 야후 404 로그는 YahooFinanceClient 에
-        if (candles.isEmpty()) {
-            throw new MarketDataException(MarketDataResponse.PRICE_DATA_NOT_FOUND, upperSymbol);
-        }
-
-        // 기존 데이터와 중복 확인하여 저장
-        int savedCount = 0;
-        for (Candle candle : candles) {
-            if (!candleRepository.existsBySymbolAndDate(candle.getSymbol(), candle.getDate())) {
-                candleRepository.save(candle);
-                savedCount++;
-            }
-        }
-
-        // 받은 최신 봉으로 최신 종가 · 날짜 갱신 (비활성 종목 포함)
-        candles.stream()
-                .max(Comparator.comparing(Candle::getDate))
-                .filter(latest -> asset.getLatestDate() == null || !latest.getDate().isBefore(asset.getLatestDate()))
-                .ifPresent(latest -> {
-                    asset.setLatestClose(latest.getClose());
-                    asset.setLatestDate(latest.getDate());
-                    assetRepository.save(asset);
-                });
-
-        log.info("종목 가격 업데이트 완료: symbol={}, 저장된 캔들 개수={}", upperSymbol, savedCount);
-    }
-
-    @Override
-    @Transactional
-    public void updateAssetMarketCap(String symbol) {
-        log.info("종목 시가총액 업데이트 요청: symbol={}", symbol);
-
-        String upperSymbol = symbol.toUpperCase();
-
-        // Asset 존재 확인
-        assetRepository.findById(upperSymbol)
-                .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, upperSymbol));
-
-        if (marketCapSource == null) {
-            log.warn("시가총액 소스가 활성화되지 않음");
-            throw new MarketDataException(MarketDataResponse.DATA_SOURCE_UNAVAILABLE);
-        }
-
-        // 활성 provider(Yahoo/AlphaVantage)에 위임
-        boolean ok = marketCapSource.updateMarketCap(upperSymbol);
-        if (!ok) {
-            throw new MarketDataException(MarketDataResponse.MARKET_CAP_UNAVAILABLE, upperSymbol);
-        }
-    }
-
-    @Override
-    @Transactional
-    public int updateAllMarketCaps() {
-        log.info("전체 종목 시가총액 일괄 업데이트 요청");
-
-        if (marketCapSource == null) {
-            throw new MarketDataException(MarketDataResponse.DATA_SOURCE_UNAVAILABLE);
-        }
-        return marketCapSource.updateAllMarketCaps(assetRepository.findByActiveTrueAndAssetTypeNot(Asset.INDEX_TYPE));
-    }
-
-    @Override
-    @Transactional
-    public Asset updateAssetName(String symbol, String name) {
-        log.info("종목 이름 수정 요청: symbol={}, name={}", symbol, name);
-
-        if (name == null || name.isBlank()) {
-            throw new MarketDataException(MarketDataResponse.ASSET_NAME_REQUIRED);
-        }
-
-        String upperSymbol = symbol.toUpperCase();
-        Asset asset = assetRepository.findById(upperSymbol)
-                .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, upperSymbol));
-
-        asset.setName(name.trim());
-        Asset saved = assetRepository.save(asset);
-
-        log.info("종목 이름 수정 성공: symbol={}, name={}", upperSymbol, saved.getName());
-        return saved;
-    }
-
-    @Override
-    @Transactional
-    @CacheEvict(cacheNames = "dividendYieldOrder", allEntries = true)
-    public void deleteAsset(String symbol) {
-        log.info("종목 삭제 요청 (soft delete): symbol={}", symbol);
-
-        String upperSymbol = symbol.toUpperCase();
-
-        Asset asset = assetRepository.findById(upperSymbol)
-                .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, upperSymbol));
-
-        // Soft delete: active를 false로 설정하고 delistedDate 기록
-        asset.setActive(false);
-        asset.setDelistedDate(LocalDate.now());
+    // 받은 최신 봉으로 최신 종가 · 날짜 갱신 (비활성 종목 포함)
+    candles.stream()
+      .max(Comparator.comparing(Candle::getDate))
+      .filter(latest -> asset.getLatestDate() == null || !latest.getDate().isBefore(asset.getLatestDate()))
+      .ifPresent(latest -> {
+        asset.setLatestClose(latest.getClose());
+        asset.setLatestDate(latest.getDate());
         assetRepository.save(asset);
+      });
 
-        log.info("종목 삭제 성공 (soft delete): symbol={}, delistedDate={}",
-                upperSymbol, asset.getDelistedDate());
+    log.info("종목 가격 업데이트 완료: symbol={}, 저장된 캔들 개수={}", upperSymbol, savedCount);
+  }
+
+  @Override
+  @Transactional
+  public void updateAssetMarketCap(String symbol) {
+    log.info("종목 시가총액 업데이트 요청: symbol={}", symbol);
+
+    String upperSymbol = symbol.toUpperCase();
+
+    // Asset 존재 확인
+    assetRepository.findById(upperSymbol)
+      .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, upperSymbol));
+
+    if (marketCapSource == null) {
+      log.warn("시가총액 소스가 활성화되지 않음");
+      throw new MarketDataException(MarketDataResponse.DATA_SOURCE_UNAVAILABLE);
     }
 
-    @Override
-    @Transactional
-    @CacheEvict(cacheNames = "dividendYieldOrder", allEntries = true)
-    public void restoreAsset(String symbol) {
-        String upperSymbol = symbol.toUpperCase();
+    // 활성 provider(Yahoo/AlphaVantage)에 위임
+    boolean ok = marketCapSource.updateMarketCap(upperSymbol);
+    if (!ok) {
+      throw new MarketDataException(MarketDataResponse.MARKET_CAP_UNAVAILABLE, upperSymbol);
+    }
+  }
 
-        Asset asset = assetRepository.findById(upperSymbol)
-                .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, upperSymbol));
+  @Override
+  @Transactional
+  public int updateAllMarketCaps() {
+    log.info("전체 종목 시가총액 일괄 업데이트 요청");
 
-        asset.setActive(true);
-        asset.setDelistedDate(null);
-        assetRepository.save(asset);
+    if (marketCapSource == null) {
+      throw new MarketDataException(MarketDataResponse.DATA_SOURCE_UNAVAILABLE);
+    }
+    return marketCapSource.updateAllMarketCaps(assetRepository.findByActiveTrueAndAssetTypeNot(Asset.INDEX_TYPE));
+  }
 
-        log.info("종목 복구: symbol={}", upperSymbol);
+  @Override
+  @Transactional
+  public Asset updateAssetName(String symbol, String name) {
+    log.info("종목 이름 수정 요청: symbol={}, name={}", symbol, name);
+
+    if (name == null || name.isBlank()) {
+      throw new MarketDataException(MarketDataResponse.ASSET_NAME_REQUIRED);
     }
 
-    @Override
-    @Transactional
-    @CacheEvict(cacheNames = "dividendYieldOrder", allEntries = true)
-    public int deleteAssets(List<String> symbols) {
-        if (symbols == null || symbols.isEmpty()) {
-            return 0;
-        }
-        log.info("종목 일괄 삭제 요청 (soft delete): {}개", symbols.size());
+    String upperSymbol = symbol.toUpperCase();
+    Asset asset = assetRepository.findById(upperSymbol)
+      .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, upperSymbol));
 
-        List<String> upper = symbols.stream()
-                .filter(s -> s != null && !s.isBlank())
-                .map(String::toUpperCase)
-                .distinct()
-                .collect(Collectors.toList());
+    asset.setName(name.trim());
+    Asset saved = assetRepository.save(asset);
 
-        List<Asset> assets = assetRepository.findAllById(upper);
-        LocalDate now = LocalDate.now();
-        for (Asset asset : assets) {
-            asset.setActive(false);
-            asset.setDelistedDate(now);
-        }
-        assetRepository.saveAll(assets);
+    log.info("종목 이름 수정 성공: symbol={}, name={}", upperSymbol, saved.getName());
+    return saved;
+  }
 
-        log.info("종목 일괄 삭제 완료 (soft delete): 요청 {}개, 처리 {}개", upper.size(), assets.size());
-        return assets.size();
+  @Override
+  @Transactional
+  @CacheEvict(cacheNames = "dividendYieldOrder", allEntries = true)
+  public void deleteAsset(String symbol) {
+    log.info("종목 삭제 요청 (soft delete): symbol={}", symbol);
+
+    String upperSymbol = symbol.toUpperCase();
+
+    Asset asset = assetRepository.findById(upperSymbol)
+      .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, upperSymbol));
+
+    // Soft delete: active를 false로 설정하고 delistedDate 기록
+    asset.setActive(false);
+    asset.setDelistedDate(LocalDate.now());
+    assetRepository.save(asset);
+
+    log.info("종목 삭제 성공 (soft delete): symbol={}, delistedDate={}",
+      upperSymbol, asset.getDelistedDate());
+  }
+
+  @Override
+  @Transactional
+  @CacheEvict(cacheNames = "dividendYieldOrder", allEntries = true)
+  public void restoreAsset(String symbol) {
+    String upperSymbol = symbol.toUpperCase();
+
+    Asset asset = assetRepository.findById(upperSymbol)
+      .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, upperSymbol));
+
+    asset.setActive(true);
+    asset.setDelistedDate(null);
+    assetRepository.save(asset);
+
+    log.info("종목 복구: symbol={}", upperSymbol);
+  }
+
+  @Override
+  @Transactional
+  @CacheEvict(cacheNames = "dividendYieldOrder", allEntries = true)
+  public int deleteAssets(List<String> symbols) {
+    if (symbols == null || symbols.isEmpty()) {
+      return 0;
     }
+    log.info("종목 일괄 삭제 요청 (soft delete): {}개", symbols.size());
+
+    List<String> upper = symbols.stream()
+      .filter(s -> s != null && !s.isBlank())
+      .map(String::toUpperCase)
+      .distinct()
+      .collect(Collectors.toList());
+
+    List<Asset> assets = assetRepository.findAllById(upper);
+    LocalDate now = LocalDate.now();
+    for (Asset asset : assets) {
+      asset.setActive(false);
+      asset.setDelistedDate(now);
+    }
+    assetRepository.saveAll(assets);
+
+    log.info("종목 일괄 삭제 완료 (soft delete): 요청 {}개, 처리 {}개", upper.size(), assets.size());
+    return assets.size();
+  }
 
 }

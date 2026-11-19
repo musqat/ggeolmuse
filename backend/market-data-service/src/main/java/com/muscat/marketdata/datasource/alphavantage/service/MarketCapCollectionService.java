@@ -20,213 +20,213 @@ import java.util.Map;
 @Slf4j
 @Service
 @ConditionalOnProperty(
-    name = "marketdata.provider",
-    havingValue = "alphavantage"
+  name = "marketdata.provider",
+  havingValue = "alphavantage"
 )
 @RequiredArgsConstructor
 public class MarketCapCollectionService implements
-    com.muscat.marketdata.datasource.common.MarketDataProvider.MarketCapSource {
+  com.muscat.marketdata.datasource.common.MarketDataProvider.MarketCapSource {
 
-    private final AlphaVantageClient client;
-    private final AlphaVantageRateLimiter rateLimiter;
-    private final AssetRepository assetRepository;
+  private final AlphaVantageClient client;
+  private final AlphaVantageRateLimiter rateLimiter;
+  private final AssetRepository assetRepository;
 
-    @Value("${marketdata.market-cap-collection.enabled:true}")
-    private boolean enabled;
+  @Value("${marketdata.market-cap-collection.enabled:true}")
+  private boolean enabled;
 
-    @Value("${marketdata.market-cap-collection.batch-size:100}")
-    private int batchSize;
+  @Value("${marketdata.market-cap-collection.batch-size:100}")
+  private int batchSize;
 
-    @Value("${marketdata.market-cap-collection.log-interval:10}")
-    private int logInterval;
+  @Value("${marketdata.market-cap-collection.log-interval:10}")
+  private int logInterval;
 
-    // 시가총액이 빈 종목만 채움(지수 뺌)
-    @Async
-    @Transactional
-    public void collectMarketCaps() {
-        if (!enabled) {
-            log.info("[AV-MarketCap] 비활성화됨 (marketdata.market-cap-collection.enabled=false)");
-            return;
-        }
-
-        List<Asset> assetsWithoutMarketCap = assetRepository.findByMarketCapIsNullAndAssetTypeNot(Asset.INDEX_TYPE);
-
-        if (assetsWithoutMarketCap.isEmpty()) {
-            log.info("[AV-MarketCap] 시가총액 수집 필요 없음 (모든 종목에 시가총액 존재)");
-            return;
-        }
-
-        int totalCount = assetsWithoutMarketCap.size();
-        int processCount = Math.min(totalCount, batchSize);
-
-        log.info("[AV-MarketCap] 시가총액 수집 시작: 대상 {}개 / 이번 배치 {}개",
-                 totalCount, processCount);
-
-        int successCount = 0;
-        int failCount = 0;
-
-        for (int i = 0; i < processCount; i++) {
-            Asset asset = assetsWithoutMarketCap.get(i);
-
-            try {
-                Long marketCap = fetchMarketCap(asset.getSymbol());
-
-                if (marketCap != null) {
-                    asset.setMarketCap(marketCap);
-                    assetRepository.save(asset);
-                    successCount++;
-                } else {
-                    failCount++;
-                }
-
-                // 진행 상황 로깅
-                if ((i + 1) % logInterval == 0) {
-                    log.info("[AV-MarketCap] 진행: {}/{} (성공: {}, 실패: {})",
-                             i + 1, processCount, successCount, failCount);
-                }
-
-            } catch (Exception e) {
-                log.error("[AV-MarketCap] 실패: symbol={}", asset.getSymbol(), e);
-                failCount++;
-            }
-        }
-
-        log.info("[AV-MarketCap] 완료: {}/{} 성공, {} 실패, 남은 종목: {}",
-                 successCount, processCount, failCount, totalCount - processCount);
-
-        if (totalCount > processCount) {
-            log.info("[AV-MarketCap] 다음 배치에서 계속 수집 예정 (남은 {}개)",
-                     totalCount - processCount);
-        }
+  // 시가총액이 빈 종목만 채움(지수 뺌)
+  @Async
+  @Transactional
+  public void collectMarketCaps() {
+    if (!enabled) {
+      log.info("[AV-MarketCap] 비활성화됨 (marketdata.market-cap-collection.enabled=false)");
+      return;
     }
 
-    /**
-     * OVERVIEW API를 통해 특정 종목의 시가총액 조회
-     */
-    private Long fetchMarketCap(String symbol) {
-        rateLimiter.waitIfNeeded();
+    List<Asset> assetsWithoutMarketCap = assetRepository.findByMarketCapIsNullAndAssetTypeNot(Asset.INDEX_TYPE);
 
+    if (assetsWithoutMarketCap.isEmpty()) {
+      log.info("[AV-MarketCap] 시가총액 수집 필요 없음 (모든 종목에 시가총액 존재)");
+      return;
+    }
+
+    int totalCount = assetsWithoutMarketCap.size();
+    int processCount = Math.min(totalCount, batchSize);
+
+    log.info("[AV-MarketCap] 시가총액 수집 시작: 대상 {}개 / 이번 배치 {}개",
+      totalCount, processCount);
+
+    int successCount = 0;
+    int failCount = 0;
+
+    for (int i = 0; i < processCount; i++) {
+      Asset asset = assetsWithoutMarketCap.get(i);
+
+      try {
+        Long marketCap = fetchMarketCap(asset.getSymbol());
+
+        if (marketCap != null) {
+          asset.setMarketCap(marketCap);
+          assetRepository.save(asset);
+          successCount++;
+        } else {
+          failCount++;
+        }
+
+        // 진행 상황 로깅
+        if ((i + 1) % logInterval == 0) {
+          log.info("[AV-MarketCap] 진행: {}/{} (성공: {}, 실패: {})",
+            i + 1, processCount, successCount, failCount);
+        }
+
+      } catch (Exception e) {
+        log.error("[AV-MarketCap] 실패: symbol={}", asset.getSymbol(), e);
+        failCount++;
+      }
+    }
+
+    log.info("[AV-MarketCap] 완료: {}/{} 성공, {} 실패, 남은 종목: {}",
+      successCount, processCount, failCount, totalCount - processCount);
+
+    if (totalCount > processCount) {
+      log.info("[AV-MarketCap] 다음 배치에서 계속 수집 예정 (남은 {}개)",
+        totalCount - processCount);
+    }
+  }
+
+  /**
+   * OVERVIEW API를 통해 특정 종목의 시가총액 조회
+   */
+  private Long fetchMarketCap(String symbol) {
+    rateLimiter.waitIfNeeded();
+
+    try {
+      JsonNode response = client.get("OVERVIEW", Map.of("symbol", symbol));
+
+      if (!response.has("Symbol")) {
+        log.warn("[AV-MarketCap] 종목 정보 없음: {}", symbol);
+        return null;
+      }
+
+      if (response.has("MarketCapitalization")) {
+        String marketCapStr = response.get("MarketCapitalization").asText();
         try {
-            JsonNode response = client.get("OVERVIEW", Map.of("symbol", symbol));
-
-            if (!response.has("Symbol")) {
-                log.warn("[AV-MarketCap] 종목 정보 없음: {}", symbol);
-                return null;
-            }
-
-            if (response.has("MarketCapitalization")) {
-                String marketCapStr = response.get("MarketCapitalization").asText();
-                try {
-                    return Long.parseLong(marketCapStr);
-                } catch (NumberFormatException e) {
-                    log.warn("[AV-MarketCap] 시가총액 파싱 실패: symbol={}, value={}",
-                             symbol, marketCapStr);
-                    return null;
-                }
-            }
-
-            return null;
-
-        } catch (Exception e) {
-            log.error("[AV-MarketCap] API 호출 실패: symbol={}", symbol, e);
-            throw e;
+          return Long.parseLong(marketCapStr);
+        } catch (NumberFormatException e) {
+          log.warn("[AV-MarketCap] 시가총액 파싱 실패: symbol={}, value={}",
+            symbol, marketCapStr);
+          return null;
         }
+      }
+
+      return null;
+
+    } catch (Exception e) {
+      log.error("[AV-MarketCap] API 호출 실패: symbol={}", symbol, e);
+      throw e;
+    }
+  }
+
+  /**
+   * 특정 종목의 시가총액만 업데이트 (MarketCapSource 구현)
+   */
+  @Override
+  @Transactional
+  public boolean updateMarketCap(String symbol) {
+    Asset asset = assetRepository.findById(symbol).orElse(null);
+    if (asset == null) {
+      log.warn("[AV-MarketCap] 종목을 찾을 수 없음: {}", symbol);
+      return false;
     }
 
-    /**
-     * 특정 종목의 시가총액만 업데이트 (MarketCapSource 구현)
-     */
-    @Override
-    @Transactional
-    public boolean updateMarketCap(String symbol) {
-        Asset asset = assetRepository.findById(symbol).orElse(null);
-        if (asset == null) {
-            log.warn("[AV-MarketCap] 종목을 찾을 수 없음: {}", symbol);
-            return false;
-        }
+    try {
+      Long marketCap = fetchMarketCap(symbol);
+      if (marketCap != null) {
+        asset.setMarketCap(marketCap);
+        assetRepository.save(asset);
+        log.info("[AV-MarketCap] 업데이트 성공: symbol={}, marketCap={}",
+          symbol, marketCap);
+        return true;
+      }
+      return false;
+    } catch (Exception e) {
+      log.error("[AV-MarketCap] 업데이트 실패: symbol={}", symbol, e);
+      return false;
+    }
+  }
 
-        try {
-            Long marketCap = fetchMarketCap(symbol);
-            if (marketCap != null) {
-                asset.setMarketCap(marketCap);
-                assetRepository.save(asset);
-                log.info("[AV-MarketCap] 업데이트 성공: symbol={}, marketCap={}",
-                         symbol, marketCap);
-                return true;
-            }
-            return false;
-        } catch (Exception e) {
-            log.error("[AV-MarketCap] 업데이트 실패: symbol={}", symbol, e);
-            return false;
+  /**
+   * 주어진 종목 리스트의 시가총액 일괄 업데이트 (MarketCapSource 구현)
+   */
+  @Override
+  @Transactional
+  public int updateAllMarketCaps(List<Asset> assets) {
+    int updated = 0;
+    for (Asset asset : assets) {
+      try {
+        Long marketCap = fetchMarketCap(asset.getSymbol());
+        if (marketCap != null && marketCap > 0) {
+          asset.setMarketCap(marketCap);
+          assetRepository.save(asset);
+          updated++;
         }
+      } catch (Exception e) {
+        log.warn("[AV-MarketCap] 업데이트 실패: symbol={}, error={}",
+          asset.getSymbol(), e.getMessage());
+      }
+    }
+    log.info("[AV-MarketCap] 일괄 업데이트 완료: {}/{}개", updated, assets.size());
+    return updated;
+  }
+
+  @Transactional
+  public void updateAllMarketCaps() {
+    List<Asset> assets = assetRepository.findByActiveTrueAndAssetTypeNot(Asset.INDEX_TYPE);
+
+    if (assets.isEmpty()) {
+      log.info("[AV-MarketCap] 업데이트할 활성 종목 없음");
+      return;
     }
 
-    /**
-     * 주어진 종목 리스트의 시가총액 일괄 업데이트 (MarketCapSource 구현)
-     */
-    @Override
-    @Transactional
-    public int updateAllMarketCaps(List<Asset> assets) {
-        int updated = 0;
-        for (Asset asset : assets) {
-            try {
-                Long marketCap = fetchMarketCap(asset.getSymbol());
-                if (marketCap != null && marketCap > 0) {
-                    asset.setMarketCap(marketCap);
-                    assetRepository.save(asset);
-                    updated++;
-                }
-            } catch (Exception e) {
-                log.warn("[AV-MarketCap] 업데이트 실패: symbol={}, error={}",
-                         asset.getSymbol(), e.getMessage());
-            }
+    log.info("[AV-MarketCap] 전체 업데이트 시작: 대상 {}개", assets.size());
+
+    int successCount = 0;
+    int failCount = 0;
+    int skipCount = 0;
+
+    for (Asset asset : assets) {
+      try {
+        Long marketCap = fetchMarketCap(asset.getSymbol());
+
+        if (marketCap != null && marketCap > 0) {
+          asset.setMarketCap(marketCap);
+          assetRepository.save(asset);
+          successCount++;
+
+          if (successCount % logInterval == 0) {
+            log.info("[AV-MarketCap] 진행: {}/{} (성공: {}, 실패: {}, 스킵: {})",
+              successCount + failCount + skipCount, assets.size(),
+              successCount, failCount, skipCount);
+          }
+        } else {
+          skipCount++;
+          log.debug("[AV-MarketCap] 시가총액 정보 없음: {}", asset.getSymbol());
         }
-        log.info("[AV-MarketCap] 일괄 업데이트 완료: {}/{}개", updated, assets.size());
-        return updated;
+
+      } catch (Exception e) {
+        failCount++;
+        log.warn("[AV-MarketCap] 업데이트 실패: symbol={}, error={}",
+          asset.getSymbol(), e.getMessage());
+      }
     }
 
-    @Transactional
-    public void updateAllMarketCaps() {
-        List<Asset> assets = assetRepository.findByActiveTrueAndAssetTypeNot(Asset.INDEX_TYPE);
-
-        if (assets.isEmpty()) {
-            log.info("[AV-MarketCap] 업데이트할 활성 종목 없음");
-            return;
-        }
-
-        log.info("[AV-MarketCap] 전체 업데이트 시작: 대상 {}개", assets.size());
-
-        int successCount = 0;
-        int failCount = 0;
-        int skipCount = 0;
-
-        for (Asset asset : assets) {
-            try {
-                Long marketCap = fetchMarketCap(asset.getSymbol());
-
-                if (marketCap != null && marketCap > 0) {
-                    asset.setMarketCap(marketCap);
-                    assetRepository.save(asset);
-                    successCount++;
-
-                    if (successCount % logInterval == 0) {
-                        log.info("[AV-MarketCap] 진행: {}/{} (성공: {}, 실패: {}, 스킵: {})",
-                                 successCount + failCount + skipCount, assets.size(),
-                                 successCount, failCount, skipCount);
-                    }
-                } else {
-                    skipCount++;
-                    log.debug("[AV-MarketCap] 시가총액 정보 없음: {}", asset.getSymbol());
-                }
-
-            } catch (Exception e) {
-                failCount++;
-                log.warn("[AV-MarketCap] 업데이트 실패: symbol={}, error={}",
-                         asset.getSymbol(), e.getMessage());
-            }
-        }
-
-        log.info("[AV-MarketCap] 전체 업데이트 완료: 성공 {}개, 실패 {}개, 스킵 {}개",
-                 successCount, failCount, skipCount);
-    }
+    log.info("[AV-MarketCap] 전체 업데이트 완료: 성공 {}개, 실패 {}개, 스킵 {}개",
+      successCount, failCount, skipCount);
+  }
 }

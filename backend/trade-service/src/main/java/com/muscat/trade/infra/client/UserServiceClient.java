@@ -14,7 +14,7 @@ public interface UserServiceClient {
 
   @GetMapping("/api/accounts/{accountId}/balance")
   AccountBalanceDto getAccountBalance(
-      @PathVariable("accountId") Long accountId
+    @PathVariable("accountId") Long accountId
   );
 
   // user 관리자 경로라 관리자 토큰으로만 됨

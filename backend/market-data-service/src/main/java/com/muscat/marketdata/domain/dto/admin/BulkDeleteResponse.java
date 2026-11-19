@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BulkDeleteResponse {
-    private int requested;
-    private int deleted;
-    private String message;
+  private int requested;
+  private int deleted;
+  private String message;
 }

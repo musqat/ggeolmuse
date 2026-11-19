@@ -115,7 +115,7 @@ class PortfolioEngineTest {
 
   // 줄 전략 · 익절 비율이 있는 금액 줄
   private static PortfolioAsset planned(String symbol, String amount, String takeProfitRate,
-    PortfolioStrategy strategy) {
+                                        PortfolioStrategy strategy) {
     return new PortfolioAsset(symbol, new BigDecimal(amount), null,
       takeProfitRate == null ? null : new BigDecimal(takeProfitRate), null, strategy, null);
   }
@@ -1094,7 +1094,7 @@ class PortfolioEngineTest {
     // AAA · BBB 는 시작일 10 달러에 100주씩, SIG 는 3월 5일 골든 크로스(12.5)에 80주 · 3월 8일 데드 크로스(50)에 팔아 390만원 이익 · 3월 10일 골든 크로스(80)에 판 돈 전부로 50주
     // 납부일(2025년 5월 1일) 현금 0 · 양도세 30만 8천원 ÷ 1300 = 236.92 달러, SIG 는 납부일 80 달러면 평가 손익 0, BBB 를 비우면 납부일 일봉 없음
     private PortfolioRequest.PortfolioRequestBuilder scenario(PortfolioTaxSale taxSale, String aaa, String bbb, String sig,
-      Integer... orders) {
+                                                              Integer... orders) {
       prices("AAA", candle("AAA", START, "10"), candle("AAA", DUE, aaa));
       if (bbb == null) {
         prices("BBB", candle("BBB", START, "10"));

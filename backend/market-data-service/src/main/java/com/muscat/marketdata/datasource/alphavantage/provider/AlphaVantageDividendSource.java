@@ -20,74 +20,74 @@ import java.util.Map;
 @Slf4j
 @Component
 @ConditionalOnProperty(
-    name = "marketdata.provider",
-    havingValue = "alphavantage"
+  name = "marketdata.provider",
+  havingValue = "alphavantage"
 )
 @RequiredArgsConstructor
 public class AlphaVantageDividendSource implements MarketDataProvider.DividendSource {
 
-    private final AlphaVantageClient client;
-    private final AlphaVantageRateLimiter rateLimiter;
+  private final AlphaVantageClient client;
+  private final AlphaVantageRateLimiter rateLimiter;
 
-    @Override
-    public List<DividendDto> fetchDividends(String symbol, LocalDate fromDate, LocalDate toDate) {
-        log.debug("[AV-배당] 배당 데이터 수집 시작: symbol={}, period=[{}~{}]", symbol, fromDate, toDate);
+  @Override
+  public List<DividendDto> fetchDividends(String symbol, LocalDate fromDate, LocalDate toDate) {
+    log.debug("[AV-배당] 배당 데이터 수집 시작: symbol={}, period=[{}~{}]", symbol, fromDate, toDate);
 
-        rateLimiter.waitIfNeeded();
+    rateLimiter.waitIfNeeded();
 
-        try {
-            JsonNode response = client.get("TIME_SERIES_DAILY_ADJUSTED",
-                Map.of("symbol", symbol, "outputsize", "full"));
+    try {
+      JsonNode response = client.get("TIME_SERIES_DAILY_ADJUSTED",
+        Map.of("symbol", symbol, "outputsize", "full"));
 
-            JsonNode timeSeries = response.get("Time Series (Daily)");
-            if (timeSeries == null) {
-                log.warn("[AV-배당] 데이터 없음: symbol={}", symbol);
-                return List.of();
-            }
+      JsonNode timeSeries = response.get("Time Series (Daily)");
+      if (timeSeries == null) {
+        log.warn("[AV-배당] 데이터 없음: symbol={}", symbol);
+        return List.of();
+      }
 
-            List<DividendDto> dividends = new ArrayList<>();
-            timeSeries.fields().forEachRemaining(entry -> {
-                LocalDate date = LocalDate.parse(entry.getKey());
-                if (!date.isBefore(fromDate) && !date.isAfter(toDate)) {
-                    DividendDto dividend = parseDividend(symbol, date, entry.getValue());
-                    if (dividend != null) {
-                        dividends.add(dividend);
-                    }
-                }
-            });
-
-            log.debug("[AV-배당] 수집 완료: symbol={}, 배당건수={}", symbol, dividends.size());
-            return dividends;
-
-        } catch (Exception e) {
-            log.warn("[AV-배당] 수집 실패: symbol={}, error={}", symbol, e.getMessage());
-            return List.of();
+      List<DividendDto> dividends = new ArrayList<>();
+      timeSeries.fields().forEachRemaining(entry -> {
+        LocalDate date = LocalDate.parse(entry.getKey());
+        if (!date.isBefore(fromDate) && !date.isAfter(toDate)) {
+          DividendDto dividend = parseDividend(symbol, date, entry.getValue());
+          if (dividend != null) {
+            dividends.add(dividend);
+          }
         }
+      });
+
+      log.debug("[AV-배당] 수집 완료: symbol={}, 배당건수={}", symbol, dividends.size());
+      return dividends;
+
+    } catch (Exception e) {
+      log.warn("[AV-배당] 수집 실패: symbol={}, error={}", symbol, e.getMessage());
+      return List.of();
     }
+  }
 
-    private DividendDto parseDividend(String symbol, LocalDate date, JsonNode data) {
-        try {
-            // "7. dividend amount" 필드 확인
-            if (!data.has("7. dividend amount")) {
-                return null;
-            }
+  private DividendDto parseDividend(String symbol, LocalDate date, JsonNode data) {
+    try {
+      // "7. dividend amount" 필드 확인
+      if (!data.has("7. dividend amount")) {
+        return null;
+      }
 
-            BigDecimal dividendAmount = new BigDecimal(data.get("7. dividend amount").asText());
+      BigDecimal dividendAmount = new BigDecimal(data.get("7. dividend amount").asText());
 
-            // 배당금이 0보다 클 때만 반환
-            if (dividendAmount.compareTo(BigDecimal.ZERO) > 0) {
-                return DividendDto.builder()
-                    .symbol(symbol)
-                    .exDate(date)
-                    .amount(dividendAmount)
-                    .currency("USD")
-                    .build();
-            }
+      // 배당금이 0보다 클 때만 반환
+      if (dividendAmount.compareTo(BigDecimal.ZERO) > 0) {
+        return DividendDto.builder()
+          .symbol(symbol)
+          .exDate(date)
+          .amount(dividendAmount)
+          .currency("USD")
+          .build();
+      }
 
-            return null;
-        } catch (Exception e) {
-            log.debug("[AV-배당] 파싱 실패: symbol={}, date={}, error={}", symbol, date, e.getMessage());
-            return null;
-        }
+      return null;
+    } catch (Exception e) {
+      log.debug("[AV-배당] 파싱 실패: symbol={}, date={}, error={}", symbol, date, e.getMessage());
+      return null;
     }
+  }
 }

@@ -127,7 +127,7 @@ public class PortfolioEngine {
 
   // 시작일 전 신호 기간만큼 더 받은 일봉의 이동평균 교차 · 밴드 신호(한 번에 사기 · 적립식 줄은 null)
   private static SignalHolding signal(PortfolioStrategyType type, PortfolioStrategy strategy,
-    Map<LocalDate, OHLCPriceDto> priceMap, LocalDate start) {
+                                      Map<LocalDate, OHLCPriceDto> priceMap, LocalDate start) {
     return switch (type) {
       case MA_CROSS -> SignalHolding.maCross(priceMap, strategy.shortWindowOrDefault(), strategy.longWindowOrDefault(),
         start);
@@ -139,7 +139,7 @@ public class PortfolioEngine {
 
   // 사는 거래일 → 계획일(한 번에 사기 줄은 기간 안 첫 거래일 하나, 적립식 줄은 요청의 주기로 쓸 거래일이 있는 회차)
   private static Map<LocalDate, LocalDate> rounds(PortfolioRequest request, PortfolioStrategyType type,
-    NavigableMap<LocalDate, OHLCPriceDto> candles, LocalDate valuationDate) {
+                                                  NavigableMap<LocalDate, OHLCPriceDto> candles, LocalDate valuationDate) {
     if (type == PortfolioStrategyType.LUMP_SUM) {
       return Map.of(candles.firstKey(), candles.firstKey());
     }

@@ -20,45 +20,45 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class TradeEventProducer {
 
-    private static final String TRADE_COMPLETED_TOPIC = "trading.trade.completed";
-    private static final Duration SEND_TIMEOUT = Duration.ofSeconds(5);
+  private static final String TRADE_COMPLETED_TOPIC = "trading.trade.completed";
+  private static final Duration SEND_TIMEOUT = Duration.ofSeconds(5);
 
-    private final KafkaTemplate<String, TradeCompletedEvent> tradeCompletedKafkaTemplate;
+  private final KafkaTemplate<String, TradeCompletedEvent> tradeCompletedKafkaTemplate;
 
-    // 브로커 확인을 5초까지 기다리고, 받지 못하면 EVENT_PUBLISH_FAILED 예외
-    public void publishTradeCompleted(Trade trade) {
-        TradeCompletedEvent event = TradeCompletedEvent.builder()
-                .userId(trade.getUserId())
-                .tradeId(trade.getId())
-                .accountId(trade.getAccountId())
-                .symbol(trade.getSymbol())
-                .tradeType(toEventType(trade.getTradeType()))
-                .quantity(trade.getQuantity())
-                .price(trade.getPrice())
-                .totalAmount(trade.getTotalAmount())
-                .currency("USD") // 모든 거래는 USD 기준
-                .fee(trade.getFee())
-                .build();
-        EventPublishing.stamp(event, "TRADE_COMPLETED", "trade-service");
+  // 브로커 확인을 5초까지 기다리고, 받지 못하면 EVENT_PUBLISH_FAILED 예외
+  public void publishTradeCompleted(Trade trade) {
+    TradeCompletedEvent event = TradeCompletedEvent.builder()
+      .userId(trade.getUserId())
+      .tradeId(trade.getId())
+      .accountId(trade.getAccountId())
+      .symbol(trade.getSymbol())
+      .tradeType(toEventType(trade.getTradeType()))
+      .quantity(trade.getQuantity())
+      .price(trade.getPrice())
+      .totalAmount(trade.getTotalAmount())
+      .currency("USD") // 모든 거래는 USD 기준
+      .fee(trade.getFee())
+      .build();
+    EventPublishing.stamp(event, "TRADE_COMPLETED", "trade-service");
 
-        log.info("거래 완료 이벤트 발행 중: tradeId={}, userId={}, symbol={}, amount={}",
-                trade.getId(), trade.getUserId(), trade.getSymbol(), trade.getTotalAmount());
+    log.info("거래 완료 이벤트 발행 중: tradeId={}, userId={}, symbol={}, amount={}",
+      trade.getId(), trade.getUserId(), trade.getSymbol(), trade.getTotalAmount());
 
-        SendResult<String, TradeCompletedEvent> result = EventPublishing.sendAndWait(tradeCompletedKafkaTemplate,
-                TRADE_COMPLETED_TOPIC, trade.getUserId(), event, SEND_TIMEOUT,
-                e -> new TradeException(TradeResponse.EVENT_PUBLISH_FAILED, e));
-        log.info("거래 완료 이벤트 발행 성공: topic={}, partition={}, offset={}, tradeId={}",
-                TRADE_COMPLETED_TOPIC,
-                result.getRecordMetadata().partition(),
-                result.getRecordMetadata().offset(),
-                trade.getId());
-    }
+    SendResult<String, TradeCompletedEvent> result = EventPublishing.sendAndWait(tradeCompletedKafkaTemplate,
+      TRADE_COMPLETED_TOPIC, trade.getUserId(), event, SEND_TIMEOUT,
+      e -> new TradeException(TradeResponse.EVENT_PUBLISH_FAILED, e));
+    log.info("거래 완료 이벤트 발행 성공: topic={}, partition={}, offset={}, tradeId={}",
+      TRADE_COMPLETED_TOPIC,
+      result.getRecordMetadata().partition(),
+      result.getRecordMetadata().offset(),
+      trade.getId());
+  }
 
-    // 거래 구분을 이벤트의 구분으로(구분이 늘면 컴파일 오류)
-    private static TradeCompletedEvent.TradeType toEventType(TradeType type) {
-        return switch (type) {
-            case BUY -> TradeCompletedEvent.TradeType.BUY;
-            case SELL -> TradeCompletedEvent.TradeType.SELL;
-        };
-    }
+  // 거래 구분을 이벤트의 구분으로(구분이 늘면 컴파일 오류)
+  private static TradeCompletedEvent.TradeType toEventType(TradeType type) {
+    return switch (type) {
+      case BUY -> TradeCompletedEvent.TradeType.BUY;
+      case SELL -> TradeCompletedEvent.TradeType.SELL;
+    };
+  }
 }

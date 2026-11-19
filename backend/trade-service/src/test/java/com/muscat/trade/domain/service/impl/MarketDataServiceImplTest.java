@@ -52,7 +52,7 @@ class MarketDataServiceImplTest {
   }
 
   private static StockPriceDto ohlcWith(BigDecimal open, BigDecimal high, BigDecimal low,
-    BigDecimal close) {
+                                        BigDecimal close) {
     return new StockPriceDto(
       SYMBOL, "Apple Inc.", close, null, null, null, null,
       TRADE_DATE, null, open, high, low, close, close, "USD", true, "EQUITY", null);

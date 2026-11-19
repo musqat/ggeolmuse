@@ -35,7 +35,7 @@ final class ConditionalRun {
 
   // sells: 익절 · 손절 · 트레일링 스탑 · 부분 익절 가운데 하나라도 켰는지
   ConditionalRun(ConditionalStrategyRequest request, CapitalGainsTaxPayer taxPayer, FxRates fxRates,
-    Set<LocalDate> harvestDates, boolean sells) {
+                 Set<LocalDate> harvestDates, boolean sells) {
     this.request = request;
     this.taxPayer = taxPayer;
     this.harvestDates = harvestDates;
@@ -99,7 +99,7 @@ final class ConditionalRun {
     var purchaseDecision = previousClose == null
       ? NO_BUY
       : evaluatePurchaseCondition(previousClose, priceData, request.getDropPercentage(),
-        PriceDirection.orDrop(request.getDirection()));
+      PriceDirection.orDrop(request.getDirection()));
     boolean roundsUsed = rounds.used();
     StrategyTransaction transaction = purchaseDecision.shouldBuy()
       ? buy(priceData, date, purchaseDecision, roundsUsed)
@@ -140,7 +140,7 @@ final class ConditionalRun {
 
   // 조건 매수가 · 당일 환율로 판 돈 먼저 쓰는 매수 거래(못 사면 null)
   private StrategyTransaction buy(OHLCPriceDto priceData, LocalDate date, PurchaseDecision decision,
-    boolean roundsUsed) {
+                                  boolean roundsUsed) {
     BigDecimal fxRate = ledger.fxOn(date);
     CashFirstPurchase.Fill fill = sizing.fill(decision.price(), fxRate, ledger.cash(), roundsUsed,
       rounds.budgetLeft());
@@ -153,7 +153,7 @@ final class ConditionalRun {
 
   // 방향에 맞는 기준가를 넘은 날 매수, 둘 다 닿은 날은 시가부터 하락 기준가 아래면 하락 · 아니면 상승 기준가
   private static PurchaseDecision evaluatePurchaseCondition(BigDecimal previousClose, OHLCPriceDto price,
-    BigDecimal percentage, PriceDirection direction) {
+                                                            BigDecimal percentage, PriceDirection direction) {
     BigDecimal drop = direction == PriceDirection.RISE
       ? null : IntradayCross.price(previousClose, price, percentage, false);
     BigDecimal rise = direction == PriceDirection.DROP

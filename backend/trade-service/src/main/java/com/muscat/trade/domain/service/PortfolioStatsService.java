@@ -193,7 +193,7 @@ public class PortfolioStatsService {
 
   // 종목마다 종가가 필요한 가장 이른 날짜(closeFrom)부터 to 까지 종가
   private Map<String, NavigableMap<LocalDate, BigDecimal>> closes(List<AccountActivity> activities,
-    Map<String, LocalDate> closeFrom, LocalDate to) {
+                                                                  Map<String, LocalDate> closeFrom, LocalDate to) {
     Map<String, LocalDate> firstTrades = activities.stream()
       .flatMap(activity -> activity.trades().stream())
       .filter(trade -> trade.getStatus() == TradeStatus.COMPLETED)

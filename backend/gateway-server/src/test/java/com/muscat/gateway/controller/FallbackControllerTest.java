@@ -13,12 +13,12 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 
 // 타임아웃 때 원래 메서드 그대로 forward:/fallback 으로 옴(GET 만 받으면 POST 는 503 대신 405)
 @WebFluxTest(
-    controllers = FallbackController.class,
-    excludeAutoConfiguration = {
-        ReactiveSecurityAutoConfiguration.class,
-        ReactiveUserDetailsServiceAutoConfiguration.class,
-        ReactiveOAuth2ResourceServerAutoConfiguration.class
-    })
+  controllers = FallbackController.class,
+  excludeAutoConfiguration = {
+    ReactiveSecurityAutoConfiguration.class,
+    ReactiveUserDetailsServiceAutoConfiguration.class,
+    ReactiveOAuth2ResourceServerAutoConfiguration.class
+  })
 class FallbackControllerTest {
 
   @Autowired
@@ -29,12 +29,12 @@ class FallbackControllerTest {
   @DisplayName("어느 메서드로 와도 503 과 안내 본문을 준다")
   void fallbackAcceptsEveryMethod(String method) {
     client.method(HttpMethod.valueOf(method))
-        .uri("/fallback")
-        .exchange()
-        .expectStatus().isEqualTo(503)
-        .expectBody()
-        .jsonPath("$.status").isEqualTo(503)
-        .jsonPath("$.error").isEqualTo("서비스 사용 불가")
-        .jsonPath("$.timestamp").exists();
+      .uri("/fallback")
+      .exchange()
+      .expectStatus().isEqualTo(503)
+      .expectBody()
+      .jsonPath("$.status").isEqualTo(503)
+      .jsonPath("$.error").isEqualTo("서비스 사용 불가")
+      .jsonPath("$.timestamp").exists();
   }
 }

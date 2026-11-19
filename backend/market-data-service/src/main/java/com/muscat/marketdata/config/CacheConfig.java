@@ -38,44 +38,44 @@ public class CacheConfig {
 
     // 기본 캐시 설정 (TTL 10분)
     RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
-        .entryTtl(Duration.ofMinutes(10))
-        .serializeKeysWith(
-            RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer())
-        )
-        .serializeValuesWith(
-            RedisSerializationContext.SerializationPair.fromSerializer(valueSerializer())
-        )
-        .disableCachingNullValues(); // null 값은 캐싱하지 않음
+      .entryTtl(Duration.ofMinutes(10))
+      .serializeKeysWith(
+        RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer())
+      )
+      .serializeValuesWith(
+        RedisSerializationContext.SerializationPair.fromSerializer(valueSerializer())
+      )
+      .disableCachingNullValues(); // null 값은 캐싱하지 않음
 
     // 캐시별 개별 설정
     Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
 
     // 1. 현재가 조회 - 30초 TTL (실시간성)
     cacheConfigurations.put("currentPrice",
-        defaultConfig.entryTtl(Duration.ofSeconds(30)));
+      defaultConfig.entryTtl(Duration.ofSeconds(30)));
 
     // 2. 최신 환율 조회 - 1시간 TTL (빈번한 조회 최적화)
     cacheConfigurations.put("latestFxRate",
-        defaultConfig.entryTtl(Duration.ofHours(1)));
+      defaultConfig.entryTtl(Duration.ofHours(1)));
 
     // 3. 일자별 캔들 조회 - 12시간 TTL (고친 봉의 날짜만 비움)
     cacheConfigurations.put("ohlc",
-        defaultConfig.entryTtl(Duration.ofHours(12)));
+      defaultConfig.entryTtl(Duration.ofHours(12)));
 
     // 4. 배당수익률 정렬 순서 - 12시간 TTL (배당이 바뀌거나 ETF 를 비활성으로 돌리면 비움)
     cacheConfigurations.put("dividendYieldOrder",
-        defaultConfig.entryTtl(Duration.ofHours(12)));
+      defaultConfig.entryTtl(Duration.ofHours(12)));
 
     log.info("Configured caches: {}", cacheConfigurations.keySet());
 
     // 캐시 비우기는 KEYS 대신 SCAN(KEYS 는 키가 많으면 그동안 Redis 를 막음)
     RedisCacheWriter cacheWriter = RedisCacheWriter.nonLockingRedisCacheWriter(
-        redisConnectionFactory, BatchStrategies.scan(1000));
+      redisConnectionFactory, BatchStrategies.scan(1000));
 
     return RedisCacheManager.builder(cacheWriter)
-        .cacheDefaults(defaultConfig)
-        .withInitialCacheConfigurations(cacheConfigurations)
-        .build();
+      .cacheDefaults(defaultConfig)
+      .withInitialCacheConfigurations(cacheConfigurations)
+      .build();
   }
 
   // 캐시 값 직렬화(값과 함께 타입 정보 저장)
@@ -85,11 +85,11 @@ public class CacheConfig {
     objectMapper.registerModule(new JavaTimeModule());
     objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     objectMapper.activateDefaultTyping(
-        BasicPolymorphicTypeValidator.builder()
-            .allowIfBaseType(Object.class)
-            .build(),
-        ObjectMapper.DefaultTyping.NON_FINAL,
-        JsonTypeInfo.As.PROPERTY
+      BasicPolymorphicTypeValidator.builder()
+        .allowIfBaseType(Object.class)
+        .build(),
+      ObjectMapper.DefaultTyping.NON_FINAL,
+      JsonTypeInfo.As.PROPERTY
     );
     return new GenericJackson2JsonRedisSerializer(objectMapper);
   }

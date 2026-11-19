@@ -188,7 +188,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
   // 기간 일봉(쓸 수 있는 일봉이 없으면 DATA_NOT_FOUND)
   private java.util.Map<LocalDate, OHLCPriceDto> loadPrices(ConditionalStrategyRequest request,
-    LocalDate actualEndDate) {
+                                                            LocalDate actualEndDate) {
     // 기간 일봉을 한 번에 조회
     log.info("조건부 매수 전략 - Bulk 데이터 조회 시작: {} ~ {}", request.getStartDate(), actualEndDate);
     java.util.Map<LocalDate, OHLCPriceDto> priceMap = BacktestDataUtils.buildPriceMap(
@@ -202,7 +202,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
   // 첫 시세일부터 평가일까지 날마다 환율(수동 환율이면 빈 값)
   private FxRates loadFxRates(ConditionalStrategyRequest request, java.util.Map<LocalDate, OHLCPriceDto> priceMap,
-    LocalDate actualEndDate) {
+                              LocalDate actualEndDate) {
     if (request.getPurchaseFxRate() != null) {
       return FxRates.EMPTY;
     }

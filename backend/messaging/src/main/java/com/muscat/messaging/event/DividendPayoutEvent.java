@@ -18,27 +18,27 @@ import java.time.LocalDate;
 @EqualsAndHashCode(callSuper = true)
 public class DividendPayoutEvent extends BaseEvent {
 
-    private String userId;
+  private String userId;
 
-    private Long accountId;
+  private Long accountId;
 
-    private String symbol;
+  private String symbol;
 
-    // yyyy-MM-dd
-    @JsonFormat(pattern = "yyyy-MM-dd")
-    private LocalDate exDate;
+  // yyyy-MM-dd
+  @JsonFormat(pattern = "yyyy-MM-dd")
+  private LocalDate exDate;
 
-    private BigDecimal dividendPerShare;
+  private BigDecimal dividendPerShare;
 
-    // 배당락일 전날 보유 수량
-    private BigDecimal quantity;
+  // 배당락일 전날 보유 수량
+  private BigDecimal quantity;
 
-    private BigDecimal grossAmount;
+  private BigDecimal grossAmount;
 
-    private BigDecimal taxAmount;
+  private BigDecimal taxAmount;
 
-    // 이 배당락일의 세후 몫(받으면 안 되게 되면 0)
-    private BigDecimal netAmount;
+  // 이 배당락일의 세후 몫(받으면 안 되게 되면 0)
+  private BigDecimal netAmount;
 
-    private String currency;
+  private String currency;
 }

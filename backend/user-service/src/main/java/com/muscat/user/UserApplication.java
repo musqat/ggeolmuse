@@ -17,8 +17,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @ComponentScan(basePackages = {"com.muscat.user", "com.muscat.commonlib"})
 public class UserApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(UserApplication.class, args);
-	}
+  public static void main(String[] args) {
+    SpringApplication.run(UserApplication.class, args);
+  }
 
 }

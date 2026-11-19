@@ -78,7 +78,7 @@ class FxCollectionServiceTest {
     properties.getFxIngest().setStartDate(START);
     db = AdminJobStates.database();
     service = new FxCollectionService(collector, fxRateRepository, adminJobRunRepository, properties,
-        AdminJobStates.pod(db));
+      AdminJobStates.pod(db));
   }
 
   @AfterEach
@@ -180,7 +180,7 @@ class FxCollectionServiceTest {
     AdminJobState otherPod = AdminJobStates.pod(db);
     otherPod.tryStart(FxCollectionService.JOB_NAME);
     otherPod.save(FxCollectionService.JOB_NAME,
-        FxCollectionService.Progress.builder().mode(Mode.ALL).total(30).processed(12).build());
+      FxCollectionService.Progress.builder().mode(Mode.ALL).total(30).processed(12).build());
 
     FxCollectionService.Status status = service.status();
 

@@ -13,16 +13,16 @@ import java.util.Map;
 @RequestMapping("/fallback")
 public class FallbackController {
 
-    // fallback 엔드포인트
-    @RequestMapping
-    public ResponseEntity<Map<String, Object>> fallback() {
-        Map<String, Object> response = Map.of(
-            "error", "서비스 사용 불가",
-            "message", "요청하신 서비스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해주세요.",
-            "timestamp", LocalDateTime.now().toString(),
-            "status", HttpStatus.SERVICE_UNAVAILABLE.value()
-        );
+  // fallback 엔드포인트
+  @RequestMapping
+  public ResponseEntity<Map<String, Object>> fallback() {
+    Map<String, Object> response = Map.of(
+      "error", "서비스 사용 불가",
+      "message", "요청하신 서비스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해주세요.",
+      "timestamp", LocalDateTime.now().toString(),
+      "status", HttpStatus.SERVICE_UNAVAILABLE.value()
+    );
 
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
-    }
+    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
+  }
 }

@@ -65,7 +65,7 @@ final class PortfolioRun {
   private int rebalancedPeriod = Integer.MIN_VALUE;
 
   PortfolioRun(PortfolioRequest request, List<Line> lines, FxRates fxRates, LocalDate valuationDate,
-    Set<LocalDate> harvestDates) {
+               Set<LocalDate> harvestDates) {
     this.request = request;
     this.lines = lines;
     this.targets = lines.stream().filter(line -> line.signal == null).toList();
@@ -180,8 +180,8 @@ final class PortfolioRun {
     BigDecimal price = PriceLookup.effectiveClose(candle);
     LocalDate bought = candle.date();
     StrategyTransaction tx = StrategyTransaction.reinvestment(new StrategyTransaction.Order(line.symbol,
-        TradeReason.DIVIDEND_REINVESTMENT, exDate, bought, price, ledger.fxOn(bought), ledger.defaultFxDate(bought),
-        TransactionTrigger.DIVIDEND_REINVESTMENT), usd.divide(price, 8, RoundingMode.HALF_UP), usd);
+      TradeReason.DIVIDEND_REINVESTMENT, exDate, bought, price, ledger.fxOn(bought), ledger.defaultFxDate(bought),
+      TransactionTrigger.DIVIDEND_REINVESTMENT), usd.divide(price, 8, RoundingMode.HALF_UP), usd);
     bought(line, ledger.buy(line.holding, tx));
   }
 
@@ -365,13 +365,13 @@ final class PortfolioRun {
 
   // 정한 주식을 받은 가격에 팔아 매도 수수료를 뺀 판 돈 · 판 몫의 원가 대비 실현 손익을 남기고 판 돈은 현금(신호 줄은 줄 몫)
   private void sell(Line line, BigDecimal shares, BigDecimal soldCost, BigDecimal price, TradeReason reason,
-    String trigger, LocalDate date) {
+                    String trigger, LocalDate date) {
     credit(line, recordSale(line, shares, soldCost, price, reason, trigger, date, date));
   }
 
   // 모의 계좌에 판 거래(계획일은 신호 난 날)를 남기고 매도 수수료를 뺀 판 돈
   private BigDecimal recordSale(Line line, BigDecimal shares, BigDecimal soldCost, BigDecimal price,
-    TradeReason reason, String trigger, LocalDate planned, LocalDate date) {
+                                TradeReason reason, String trigger, LocalDate planned, LocalDate date) {
     return ledger.sell(line.holding, planned, date, price, shares, soldCost, trigger, reason).getProceeds();
   }
 
@@ -515,8 +515,8 @@ final class PortfolioRun {
     private SignalOrder order;
 
     Line(String symbol, PortfolioStrategyType type, BigDecimal plannedKrw,
-      NavigableMap<LocalDate, OHLCPriceDto> candles, Map<LocalDate, LocalDate> rounds, List<DividendPayment> dividends,
-      boolean dividendsUnavailable, TakeProfitStopLoss exits, SignalHolding signal, boolean nextOpen, Integer taxSaleOrder) {
+         NavigableMap<LocalDate, OHLCPriceDto> candles, Map<LocalDate, LocalDate> rounds, List<DividendPayment> dividends,
+         boolean dividendsUnavailable, TakeProfitStopLoss exits, SignalHolding signal, boolean nextOpen, Integer taxSaleOrder) {
       this.symbol = symbol;
       this.type = type;
       this.plannedKrw = plannedKrw;

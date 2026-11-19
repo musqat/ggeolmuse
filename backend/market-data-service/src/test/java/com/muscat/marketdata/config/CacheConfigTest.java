@@ -34,8 +34,8 @@ class CacheConfigTest {
   void readsCachedValueWithUnknownField() {
     GenericJackson2JsonRedisSerializer serializer = CacheConfig.valueSerializer();
     String stored = new String(
-        serializer.serialize(StockPriceDto.builder().symbol("AAPL").available(true).build()),
-        StandardCharsets.UTF_8);
+      serializer.serialize(StockPriceDto.builder().symbol("AAPL").available(true).build()),
+      StandardCharsets.UTF_8);
     // 새 버전 코드가 필드를 하나 더 저장한 값
     String newer = stored.substring(0, stored.lastIndexOf('}')) + ",\"fieldFromNewerVersion\":1}";
 
@@ -61,7 +61,7 @@ class CacheConfigTest {
     manager.afterPropertiesSet();
 
     assertThat(manager.getCacheConfigurations().get("ohlc").getTtlFunction().getTimeToLive("AAPL:2026-01-09", null))
-        .isEqualTo(Duration.ofHours(12));
+      .isEqualTo(Duration.ofHours(12));
   }
 
   @Test
@@ -71,7 +71,7 @@ class CacheConfigTest {
     manager.afterPropertiesSet();
 
     assertThat(manager.getCacheConfigurations().get("dividendYieldOrder").getTtlFunction().getTimeToLive("ALL:false", null))
-        .isEqualTo(Duration.ofHours(12));
+      .isEqualTo(Duration.ofHours(12));
   }
 
   @Test

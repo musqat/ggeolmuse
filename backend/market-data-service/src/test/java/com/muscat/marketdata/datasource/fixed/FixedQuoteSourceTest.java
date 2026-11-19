@@ -21,8 +21,8 @@ class FixedQuoteSourceTest {
 
   private static ApplicationContextRunner withProfiles(String... profiles) {
     return new ApplicationContextRunner()
-        .withInitializer(context -> context.getEnvironment().setActiveProfiles(profiles))
-        .withUserConfiguration(FixedQuoteSource.class);
+      .withInitializer(context -> context.getEnvironment().setActiveProfiles(profiles))
+      .withUserConfiguration(FixedQuoteSource.class);
   }
 
   @Test
@@ -30,7 +30,7 @@ class FixedQuoteSourceTest {
   void notRegisteredWithProd() {
     withProfiles(FixedQuoteSource.PROFILE).run(context -> assertThat(context).hasSingleBean(FixedQuoteSource.class));
     withProfiles("prod", FixedQuoteSource.PROFILE)
-        .run(context -> assertThat(context).doesNotHaveBean(FixedQuoteSource.class));
+      .run(context -> assertThat(context).doesNotHaveBean(FixedQuoteSource.class));
   }
 
   @Test
@@ -39,13 +39,13 @@ class FixedQuoteSourceTest {
     List<Asset> assets = source.fetch();
 
     assertThat(assets)
-        .extracting(Asset::getSymbol, Asset::getName, Asset::getAssetType, Asset::getMarketCap, Asset::getCurrency)
-        .containsExactly(
-            tuple("FQA", "Fixed Quote Alpha Inc.", "EQUITY", 3_000_000_000_000L, "USD"),
-            tuple("FQB", "Fixed Quote Beta Corp.", "EQUITY", 2_000_000_000_000L, "USD"),
-            tuple("SPY", "SPDR S&P 500 ETF Trust", "ETF", 600_000_000_000L, "USD"));
+      .extracting(Asset::getSymbol, Asset::getName, Asset::getAssetType, Asset::getMarketCap, Asset::getCurrency)
+      .containsExactly(
+        tuple("FQA", "Fixed Quote Alpha Inc.", "EQUITY", 3_000_000_000_000L, "USD"),
+        tuple("FQB", "Fixed Quote Beta Corp.", "EQUITY", 2_000_000_000_000L, "USD"),
+        tuple("SPY", "SPDR S&P 500 ETF Trust", "ETF", 600_000_000_000L, "USD"));
     assertThat(assets).extracting(Asset::getSourceName).containsExactly(
-        "Fixed Quote Alpha Inc.", "Fixed Quote Beta Corp.", "SPDR S&P 500 ETF Trust");
+      "Fixed Quote Alpha Inc.", "Fixed Quote Beta Corp.", "SPDR S&P 500 ETF Trust");
     assertThat(source.isCapped()).isFalse();
   }
 
@@ -63,15 +63,15 @@ class FixedQuoteSourceTest {
     List<Candle> candles = source.fetchDailyAdjusted("FQA", LocalDate.of(2023, 7, 1), LocalDate.of(2023, 7, 6));
 
     assertThat(candles)
-        .extracting(Candle::getSymbol, Candle::getDate, Candle::getOpen, Candle::getHigh, Candle::getLow,
-            Candle::getClose, Candle::getAdjustedClose, Candle::getVolume, Candle::getCurrency)
-        .containsExactly(
-            tuple("FQA", LocalDate.of(2023, 7, 3), new BigDecimal("102.11"), new BigDecimal("102.48"),
-                new BigDecimal("101.73"), new BigDecimal("102.09"), new BigDecimal("102.09"), 36_313_981L, "USD"),
-            tuple("FQA", LocalDate.of(2023, 7, 5), new BigDecimal("101.75"), new BigDecimal("104.57"),
-                new BigDecimal("101.38"), new BigDecimal("104.24"), new BigDecimal("104.24"), 29_105_848L, "USD"),
-            tuple("FQA", LocalDate.of(2023, 7, 6), new BigDecimal("104.53"), new BigDecimal("106.00"),
-                new BigDecimal("104.11"), new BigDecimal("105.73"), new BigDecimal("105.73"), 33_267_515L, "USD"));
+      .extracting(Candle::getSymbol, Candle::getDate, Candle::getOpen, Candle::getHigh, Candle::getLow,
+        Candle::getClose, Candle::getAdjustedClose, Candle::getVolume, Candle::getCurrency)
+      .containsExactly(
+        tuple("FQA", LocalDate.of(2023, 7, 3), new BigDecimal("102.11"), new BigDecimal("102.48"),
+          new BigDecimal("101.73"), new BigDecimal("102.09"), new BigDecimal("102.09"), 36_313_981L, "USD"),
+        tuple("FQA", LocalDate.of(2023, 7, 5), new BigDecimal("101.75"), new BigDecimal("104.57"),
+          new BigDecimal("101.38"), new BigDecimal("104.24"), new BigDecimal("104.24"), 29_105_848L, "USD"),
+        tuple("FQA", LocalDate.of(2023, 7, 6), new BigDecimal("104.53"), new BigDecimal("106.00"),
+          new BigDecimal("104.11"), new BigDecimal("105.73"), new BigDecimal("105.73"), 33_267_515L, "USD"));
   }
 
   @Test
@@ -100,10 +100,10 @@ class FixedQuoteSourceTest {
     List<DividendDto> dividends = source.fetchDividends("SPY", LocalDate.of(2023, 1, 1), LocalDate.of(2023, 12, 31));
 
     assertThat(dividends)
-        .extracting(DividendDto::getSymbol, DividendDto::getExDate, DividendDto::getAmount, DividendDto::getCurrency)
-        .containsExactly(
-            tuple("SPY", LocalDate.of(2023, 9, 15), new BigDecimal("1.5800"), "USD"),
-            tuple("SPY", LocalDate.of(2023, 12, 15), new BigDecimal("1.6100"), "USD"));
+      .extracting(DividendDto::getSymbol, DividendDto::getExDate, DividendDto::getAmount, DividendDto::getCurrency)
+      .containsExactly(
+        tuple("SPY", LocalDate.of(2023, 9, 15), new BigDecimal("1.5800"), "USD"),
+        tuple("SPY", LocalDate.of(2023, 12, 15), new BigDecimal("1.6100"), "USD"));
     assertThat(source.fetchDividends("FQB", LocalDate.of(2023, 1, 1), LocalDate.of(2026, 1, 1))).isEmpty();
   }
 
@@ -120,7 +120,7 @@ class FixedQuoteSourceTest {
   @DisplayName("종목 정보는 목록에 있는 종목만 주고 대소문자는 가리지 않는다")
   void assetInfo() {
     assertThat(source.getAsset("fqb")).extracting(Asset::getSymbol, Asset::getName)
-        .containsExactly("FQB", "Fixed Quote Beta Corp.");
+      .containsExactly("FQB", "Fixed Quote Beta Corp.");
     assertThat(source.getAsset("AAPL")).isNull();
   }
 
@@ -132,6 +132,6 @@ class FixedQuoteSourceTest {
     assertThat(source.updateAllMarketCaps(assets)).isZero();
     assertThat(source.updateMarketCap("FQA")).isFalse();
     assertThat(assets).extracting(Asset::getMarketCap)
-        .containsExactly(3_000_000_000_000L, 2_000_000_000_000L, 600_000_000_000L);
+      .containsExactly(3_000_000_000_000L, 2_000_000_000_000L, 600_000_000_000L);
   }
 }

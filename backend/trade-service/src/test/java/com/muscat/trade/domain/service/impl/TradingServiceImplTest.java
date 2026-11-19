@@ -805,7 +805,7 @@ class TradingServiceImplTest {
     }
 
     private TradingCapacityRequestDto capacityRequest(PriceType priceType,
-      BigDecimal manualPrice) {
+                                                      BigDecimal manualPrice) {
       return TradingCapacityRequestDto.builder()
         .accountId(String.valueOf(TEST_ACCOUNT_ID))
         .symbol(TEST_SYMBOL)

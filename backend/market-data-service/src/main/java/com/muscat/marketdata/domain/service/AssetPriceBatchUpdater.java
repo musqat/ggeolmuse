@@ -25,7 +25,7 @@ public class AssetPriceBatchUpdater {
         updated++;
       } catch (MarketDataException e) {
         log.warn("캔들 데이터 업데이트 실패: symbol={}, code={}, message={}",
-            asset.getSymbol(), e.getErrorCode(), e.getErrorMessage());
+          asset.getSymbol(), e.getErrorCode(), e.getErrorMessage());
       } catch (Exception e) {
         log.warn("캔들 데이터 업데이트 실패: symbol={}", asset.getSymbol(), e);
       }

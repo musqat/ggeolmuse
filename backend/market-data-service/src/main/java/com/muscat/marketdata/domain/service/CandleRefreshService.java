@@ -60,7 +60,7 @@ public class CandleRefreshService {
     }
 
     log.info("캔들 재수집 요청: 요청 {}개, 발행 {}개, 상장폐지 {}개, 없는 종목 {}개, from={}",
-        requested.size(), published, delisted, notFound.size(), start);
+      requested.size(), published, delisted, notFound.size(), start);
     return new RefreshResult(requested.size(), published, notFound, start, to);
   }
 

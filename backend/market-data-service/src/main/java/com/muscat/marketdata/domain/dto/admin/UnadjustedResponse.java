@@ -13,11 +13,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UnadjustedResponse {
-    private boolean running;
-    private LocalDate from;
-    private int count;
-    private List<String> symbols;
-    private String finishedAt;
-    private long tookMillis;
-    private String error;
+  private boolean running;
+  private LocalDate from;
+  private int count;
+  private List<String> symbols;
+  private String finishedAt;
+  private long tookMillis;
+  private String error;
 }

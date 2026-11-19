@@ -209,7 +209,7 @@ class ExchangeTotalsMigrationIT {
 
   // 환전 내역(amount 는 받은 금액, original_amount 는 낸 금액)
   private static void exchange(Connection connection, long accountId, String from, String to, String paid,
-    String received, String rate, int dayOffset) throws SQLException {
+                               String received, String rate, int dayOffset) throws SQLException {
     try (PreparedStatement statement = connection.prepareStatement(
       "INSERT INTO account_history (account_id, transaction_type, amount, currency, created_at, from_currency, "
         + "to_currency, exchange_rate, original_amount) VALUES (?, 'EXCHANGE', ?, ?, ?, ?, ?, ?, ?)")) {

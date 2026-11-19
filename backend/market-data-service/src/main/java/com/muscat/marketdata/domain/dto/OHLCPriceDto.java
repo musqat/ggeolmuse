@@ -17,25 +17,25 @@ import java.time.LocalDate;
 @Builder
 public class OHLCPriceDto implements Serializable {
   private static final long serialVersionUID = 1L;
-  
-    @Schema(description = "종목 코드", example = "AAPL")
-    private String symbol;
-    @Schema(description = "거래일", example = "2024-09-18")
-    private LocalDate date;
-    @Schema(description = "시가", example = "237.50")
-    private BigDecimal openPrice;
-    @Schema(description = "고가", example = "242.30")
-    private BigDecimal highPrice;
-    @Schema(description = "저가", example = "235.80")
-    private BigDecimal lowPrice;
-    @Schema(description = "종가", example = "238.15")
-    private BigDecimal closePrice;
-    @Schema(description = "보정 종가 (배당/주식분할 반영, 0 이하로 수집된 날은 비움)", example = "238.15")
-    private BigDecimal adjustedClose;
-    @Schema(description = "거래량", example = "45678900")
-    private Long volume;
-    @Schema(description = "통화 코드", example = "USD")
-    private String currency;
-    @Schema(description = "데이터 유효성", example = "true")
-    private boolean available;
+
+  @Schema(description = "종목 코드", example = "AAPL")
+  private String symbol;
+  @Schema(description = "거래일", example = "2024-09-18")
+  private LocalDate date;
+  @Schema(description = "시가", example = "237.50")
+  private BigDecimal openPrice;
+  @Schema(description = "고가", example = "242.30")
+  private BigDecimal highPrice;
+  @Schema(description = "저가", example = "235.80")
+  private BigDecimal lowPrice;
+  @Schema(description = "종가", example = "238.15")
+  private BigDecimal closePrice;
+  @Schema(description = "보정 종가 (배당/주식분할 반영, 0 이하로 수집된 날은 비움)", example = "238.15")
+  private BigDecimal adjustedClose;
+  @Schema(description = "거래량", example = "45678900")
+  private Long volume;
+  @Schema(description = "통화 코드", example = "USD")
+  private String currency;
+  @Schema(description = "데이터 유효성", example = "true")
+  private boolean available;
 }

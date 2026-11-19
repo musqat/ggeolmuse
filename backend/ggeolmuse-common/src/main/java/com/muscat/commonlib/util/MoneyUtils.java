@@ -105,7 +105,7 @@ public final class MoneyUtils {
 
   // 잔액 충분성 검증
   public static void validateSufficientBalance(BigDecimal currentBalance, BigDecimal requiredAmount,
-    String currency) {
+                                               String currency) {
     validatePositiveAmount(requiredAmount, "필요 금액");
 
     if (currentBalance == null) {
@@ -187,7 +187,7 @@ public final class MoneyUtils {
 
   // 전체 환전 입력값 검증
   private static void validateExchangeInputs(BigDecimal amount, BigDecimal exchangeRate,
-    String fromCurrency, String toCurrency) {
+                                             String fromCurrency, String toCurrency) {
     validatePositiveAmount(amount, fromCurrency + " 금액");
 
     if (exchangeRate == null || exchangeRate.compareTo(BigDecimal.ZERO) <= 0) {

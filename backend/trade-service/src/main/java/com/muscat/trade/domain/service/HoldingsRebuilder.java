@@ -31,7 +31,7 @@ public class HoldingsRebuilder {
   private final Counter uncoveredSells;
 
   public HoldingsRebuilder(TradeRepository tradeRepository, HoldingsRepository holdingsRepository,
-    TradeProperties tradeProperties, TradeLogger tradeLogger, MeterRegistry meterRegistry) {
+                           TradeProperties tradeProperties, TradeLogger tradeLogger, MeterRegistry meterRegistry) {
     this.tradeRepository = tradeRepository;
     this.holdingsRepository = holdingsRepository;
     this.tradeProperties = tradeProperties;
@@ -71,7 +71,7 @@ public class HoldingsRebuilder {
     BigDecimal oldAvgPrice = existing.map(Holdings::getAvgPurchasePrice).orElse(BigDecimal.ZERO);
     boolean changed = rebuilt == null ? existing.isPresent()
       : existing.isEmpty() || oldQuantity.compareTo(rebuilt.getTotalQuantity()) != 0
-        || oldAvgPrice.compareTo(rebuilt.getAvgPurchasePrice().setScale(AVG_PRICE_SCALE, RoundingMode.HALF_UP)) != 0;
+      || oldAvgPrice.compareTo(rebuilt.getAvgPurchasePrice().setScale(AVG_PRICE_SCALE, RoundingMode.HALF_UP)) != 0;
     if (rebuilt == null) {
       existing.ifPresent(holdingsRepository::delete);
     } else if (existing.isPresent()) {

@@ -1,6 +1,7 @@
 package com.muscat.backtest.domain.service.impl;
 
 import com.muscat.backtest.common.enums.type.TransactionKind;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -137,7 +138,7 @@ class BacktestAnalysisServiceImplTest {
       LocalDate start = LocalDate.of(2024, 1, 2);
       given(portfolioEngine.run(request)).willReturn(new PortfolioEngine.Result(start, request.getEndDate(), List.of(),
         List.of(), List.of(new PortfolioEngine.Position("SPY", PortfolioStrategyType.LUMP_SUM, null, BigDecimal.valueOf(1000000),
-          BigDecimal.ZERO, BigDecimal.TEN, BigDecimal.ZERO)), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+        BigDecimal.ZERO, BigDecimal.TEN, BigDecimal.ZERO)), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
         BigDecimal.ZERO, BigDecimal.valueOf(1300), new StrategyPerformance.Result(List.of(), null, null),
         CapitalGainsTaxCalculator.Payments.NONE, List.of(), List.of()));
 
@@ -1302,13 +1303,13 @@ class BacktestAnalysisServiceImplTest {
         PortfolioRequest run = invocation.getArgument(0);
         if (!Boolean.TRUE.equals(run.getYearEndHarvest())) {
           // 1000만원어치를 2000만원에 한 번에 팔아 1000만원 이익
-          return engineResult(List.<String[]>of(new String[] {"2023-12-29", "20000", "1000", "기간 끝 매도"}));
+          return engineResult(List.<String[]>of(new String[]{"2023-12-29", "20000", "1000", "기간 끝 매도"}));
         }
         if (run.getPeriodEnd() == PeriodEnd.SELL_AT_END) {
           // 2021 · 2022 연말에 250만원씩, 끝에 나머지 500만원
-          return engineResult(List.<String[]>of(new String[] {"2021-12-31", "5000", "250", "공제 채우기 매도"},
-            new String[] {"2022-12-30", "5000", "250", "공제 채우기 매도"},
-            new String[] {"2023-12-29", "10000", "500", "기간 끝 매도"}));
+          return engineResult(List.<String[]>of(new String[]{"2021-12-31", "5000", "250", "공제 채우기 매도"},
+            new String[]{"2022-12-30", "5000", "250", "공제 채우기 매도"},
+            new String[]{"2023-12-29", "10000", "500", "기간 끝 매도"}));
         }
         return engineResult(List.of());
       });

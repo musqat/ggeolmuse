@@ -110,7 +110,7 @@ public class CandleServiceImpl implements CandleService {
 
   @Override
   public List<OHLCPriceDto> getOHLCPriceRange(String symbol, LocalDate startDate,
-    LocalDate endDate) {
+                                              LocalDate endDate) {
     log.debug("OHLC 범위 조회 요청: symbol={}, startDate={}, endDate={}", symbol, startDate, endDate);
 
     String upperSymbol = symbol.toUpperCase();
@@ -193,7 +193,7 @@ public class CandleServiceImpl implements CandleService {
 
   @Override
   public List<OHLCPriceDto> getMultipleOHLCPrices(List<String> symbols, LocalDate startDate,
-    LocalDate endDate) {
+                                                  LocalDate endDate) {
     log.debug("다중 OHLC 조회 요청: symbols={}, startDate={}, endDate={}", symbols, startDate, endDate);
 
     // 종목코드 대문자 변환 및 범위 조회
@@ -239,7 +239,7 @@ public class CandleServiceImpl implements CandleService {
 
   // 캐시한 전 종목 순서에서 이 페이지 몫을 잘라 그 순서대로 종목을 받음
   private Page<Asset> pageByDividendYield(Pageable pageable, boolean ascending, String assetType,
-    DividendYieldRule rule) {
+                                          DividendYieldRule rule) {
     String type = assetType == null || "ALL".equalsIgnoreCase(assetType) ? "ALL" : assetType.toUpperCase();
     List<String> order = dividendYieldOrder.symbols(type, ascending, rule);
     int from = (int) Math.min(pageable.getOffset(), order.size());

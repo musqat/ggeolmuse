@@ -18,12 +18,12 @@ import java.time.LocalDate;
 @EqualsAndHashCode(callSuper = true)
 public class StockSplitEvent extends BaseEvent {
 
-    private String symbol;
+  private String symbol;
 
-    // 분할이 반영된 첫 거래일
-    @JsonFormat(pattern = "yyyy-MM-dd")
-    private LocalDate splitDate;
+  // 분할이 반영된 첫 거래일
+  @JsonFormat(pattern = "yyyy-MM-dd")
+  private LocalDate splitDate;
 
-    // 분할 전 1주가 분할 뒤 몇 주인지(4:1 분할은 4, 1:10 병합은 0.1)
-    private BigDecimal ratio;
+  // 분할 전 1주가 분할 뒤 몇 주인지(4:1 분할은 4, 1:10 병합은 0.1)
+  private BigDecimal ratio;
 }

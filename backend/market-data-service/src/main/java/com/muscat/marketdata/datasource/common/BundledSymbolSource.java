@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 public class BundledSymbolSource {
 
   private static final List<String> FILES =
-      List.of("symbols/nyse_stocks.csv", "symbols/nasdaq_stocks.csv");
+    List.of("symbols/nyse_stocks.csv", "symbols/nasdaq_stocks.csv");
 
   private static final int MIN_COLUMNS = 11;
 
@@ -34,7 +34,7 @@ public class BundledSymbolSource {
     List<Asset> assets = new ArrayList<>();
 
     try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-        new ClassPathResource(filePath).getInputStream(), StandardCharsets.UTF_8))) {
+      new ClassPathResource(filePath).getInputStream(), StandardCharsets.UTF_8))) {
 
       String line;
       boolean header = true;
@@ -80,14 +80,14 @@ public class BundledSymbolSource {
       }
 
       return Asset.builder()
-          .symbol(symbol)
-          .name(name)
-          .sourceName(name)
-          .country(country)
-          .currency("USD")
-          .assetType(AssetTypeRule.resolve(false, name))
-          .marketCap(parseMarketCap(parts[5].trim(), symbol))
-          .build();
+        .symbol(symbol)
+        .name(name)
+        .sourceName(name)
+        .country(country)
+        .currency("USD")
+        .assetType(AssetTypeRule.resolve(false, name))
+        .marketCap(parseMarketCap(parts[5].trim(), symbol))
+        .build();
 
     } catch (Exception e) {
       log.debug("[번들목록] 줄을 읽지 못했다: line={}, error={}", line, e.getMessage());

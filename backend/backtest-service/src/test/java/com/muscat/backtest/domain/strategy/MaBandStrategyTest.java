@@ -184,9 +184,9 @@ class MaBandStrategyTest {
 
       assertThat(executed()).extracting(tx -> tuple(tx.getDate(), tx.getActualDate(), plain(tx.getPrice()),
         tx.getTrigger(), plain(tx.getShares()))).containsExactly(
-          tuple(START.plusDays(1), START.plusDays(2), "25", "밴드 위 매수", "40"),
-          tuple(START.plusDays(4), START.plusDays(5), "16", "밴드 아래 매도", "-40"),
-          tuple(START.plusDays(6), START.plusDays(7), "32", "밴드 위 매수", "20"));
+        tuple(START.plusDays(1), START.plusDays(2), "25", "밴드 위 매수", "40"),
+        tuple(START.plusDays(4), START.plusDays(5), "16", "밴드 아래 매도", "-40"),
+        tuple(START.plusDays(6), START.plusDays(7), "32", "밴드 위 매수", "20"));
     }
 
     @Test
@@ -496,7 +496,7 @@ class MaBandStrategyTest {
 
   // 요청 하나를 바꾼 경우 · 기대 오류 코드
   private static Arguments invalid(String label, UnaryOperator<MaBandStrategyRequest.MaBandStrategyRequestBuilder<?, ?>> change,
-    BacktestResponse code) {
+                                   BacktestResponse code) {
     return Arguments.of(label, change, code);
   }
 
@@ -528,7 +528,7 @@ class MaBandStrategyTest {
   @MethodSource("invalidRequests")
   @DisplayName("종목 · 기간 · 원금 · 밴드 기간 · 비율 · 트레일링 스탑 · 부분 익절이 맞지 않거나 배당 재투자를 켜면 시세를 받기 전에 막는다")
   void rejects(String label, UnaryOperator<MaBandStrategyRequest.MaBandStrategyRequestBuilder<?, ?>> change,
-    BacktestResponse code) {
+               BacktestResponse code) {
     MaBandStrategyRequest request = change.apply(request(7)).build();
 
     assertThatThrownBy(() -> strategy.execute(request))

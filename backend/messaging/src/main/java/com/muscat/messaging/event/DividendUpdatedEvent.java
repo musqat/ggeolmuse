@@ -18,16 +18,16 @@ import java.time.LocalDate;
 @EqualsAndHashCode(callSuper = true)
 public class DividendUpdatedEvent extends BaseEvent {
 
-    // 종목 심볼
-    private String symbol;
+  // 종목 심볼
+  private String symbol;
 
-    // 배당락일 (Ex-Dividend Date)
-    @JsonFormat(pattern = "yyyy-MM-dd")
-    private LocalDate exDate;
+  // 배당락일 (Ex-Dividend Date)
+  @JsonFormat(pattern = "yyyy-MM-dd")
+  private LocalDate exDate;
 
-    // 주당 배당금액
-    private BigDecimal amount;
+  // 주당 배당금액
+  private BigDecimal amount;
 
-    // 배당 통화 (기본: USD)
-    private String currency;
+  // 배당 통화 (기본: USD)
+  private String currency;
 }

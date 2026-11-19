@@ -14,15 +14,15 @@ import lombok.experimental.SuperBuilder;
 @EqualsAndHashCode(callSuper = true)
 public class TradeSettledEvent extends BaseEvent {
 
-    // 체결한 사용자 ID (Keycloak UUID)
-    private String userId;
+  // 체결한 사용자 ID (Keycloak UUID)
+  private String userId;
 
-    // 반영한 체결 ID
-    private Long tradeId;
+  // 반영한 체결 ID
+  private Long tradeId;
 
-    // 이벤트에 실린 계좌 ID
-    private Long accountId;
+  // 이벤트에 실린 계좌 ID
+  private Long accountId;
 
-    // 반영한 TradeCompletedEvent 의 eventId
-    private String originalEventId;
+  // 반영한 TradeCompletedEvent 의 eventId
+  private String originalEventId;
 }

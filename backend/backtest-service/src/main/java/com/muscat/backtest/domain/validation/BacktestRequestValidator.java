@@ -131,7 +131,7 @@ public final class BacktestRequestValidator {
     }
     boolean outside = steps.size() > SellRule.MAX_PARTIAL_TAKE_PROFITS
       || steps.stream().anyMatch(step -> step == null || step.gainRate() == null || step.sellRate() == null
-        || step.gainRate().signum() <= 0 || step.sellRate().signum() <= 0 || step.sellRate().compareTo(BigDecimal.ONE) > 0)
+      || step.gainRate().signum() <= 0 || step.sellRate().signum() <= 0 || step.sellRate().compareTo(BigDecimal.ONE) > 0)
       || !PartialTakeProfit.ascending(steps);
     if (outside) {
       throw new BacktestException(BacktestResponse.INVALID_PARTIAL_TAKE_PROFIT);
@@ -140,7 +140,7 @@ public final class BacktestRequestValidator {
 
   /** 첫 매수일 시작일 ~ 종료일 검사(비우면 통과) */
   public static void requireFirstPurchaseInPeriod(LocalDate firstPurchaseDate, LocalDate startDate,
-    LocalDate endDate) {
+                                                  LocalDate endDate) {
     if (firstPurchaseDate != null
       && (firstPurchaseDate.isBefore(startDate) || firstPurchaseDate.isAfter(endDate))) {
       throw new BacktestException(BacktestResponse.INVALID_FIRST_PURCHASE_DATE);

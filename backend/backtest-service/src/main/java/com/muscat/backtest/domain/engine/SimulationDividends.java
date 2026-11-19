@@ -27,7 +27,7 @@ final class SimulationDividends {
 
   // 세후 배당(세금은 두 자리 반올림)을 배당락일 종가(closeOn)로 재투자
   static Result reinvest(SimulationContext context, HoldingTrail trail, BigDecimal shares, BigDecimal cash,
-    Function<LocalDate, BigDecimal> closeOn) {
+                         Function<LocalDate, BigDecimal> closeOn) {
     BigDecimal dividendsReinvested = BigDecimal.ZERO;
     BigDecimal grossDividends = BigDecimal.ZERO;
     List<LocalDate> reinvestDates = new ArrayList<>();
@@ -79,7 +79,7 @@ final class SimulationDividends {
       trail.step(dividend.getExDate(), held, cash);
       // 재투자 주식의 원가는 세후 배당 × 배당락일 환율
       trail.taxTrade(StrategyTransaction.reinvestment(new StrategyTransaction.Order(null, null, dividend.getExDate(),
-        dividend.getExDate(), dividendDayPrice, trail.fxOn(dividend.getExDate()), null, null), additionalShares,
+          dividend.getExDate(), dividendDayPrice, trail.fxOn(dividend.getExDate()), null, null), additionalShares,
         afterTaxDividend));
 
       log.info("배당 재투자: {} - ${} ({}주 보유) -> {}주 추가 매수 @${}",

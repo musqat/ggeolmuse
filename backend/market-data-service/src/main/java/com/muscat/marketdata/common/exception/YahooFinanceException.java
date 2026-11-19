@@ -5,11 +5,11 @@ package com.muscat.marketdata.common.exception;
  */
 public class YahooFinanceException extends RuntimeException {
 
-    public YahooFinanceException(String message) {
-        super(message);
-    }
+  public YahooFinanceException(String message) {
+    super(message);
+  }
 
-    public YahooFinanceException(String message, Throwable cause) {
-        super(message, cause);
-    }
+  public YahooFinanceException(String message, Throwable cause) {
+    super(message, cause);
+  }
 }

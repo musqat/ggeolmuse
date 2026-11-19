@@ -22,7 +22,7 @@ public class DividendReconcileTrigger {
   private final Executor executor;
 
   public DividendReconcileTrigger(DividendReconcileProducer dividendReconcileProducer,
-    @Qualifier("applicationTaskExecutor") Executor executor) {
+                                  @Qualifier("applicationTaskExecutor") Executor executor) {
     this.dividendReconcileProducer = dividendReconcileProducer;
     this.executor = executor;
   }

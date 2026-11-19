@@ -44,7 +44,7 @@ public final class RoundLimit {
 
   /** 첫 매수일 ~ 끝날 적립식 회차 수(매주는 주말 첫 매수일을 월요일로, 매달은 없는 투자일을 말일로, 끝날이 말일 전인 달은 투자일 ~ 끝날에 평일이 있을 때만) */
   public static long dcaRounds(DcaFrequency frequency, int interval, LocalDate first, LocalDate end,
-      Integer purchaseDay, LocalDate today) {
+                               Integer purchaseDay, LocalDate today) {
     LocalDate last = closed(end, today);
     return switch (frequency) {
       case DAILY -> weekdays(first, last, today);

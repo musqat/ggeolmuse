@@ -47,7 +47,6 @@ public enum BacktestResponse implements ErrorCode {
   TOO_MANY_ROUNDS("적립 · 매수 회차가 너무 많습니다. 기간을 줄이거나 주기를 늘려 주세요.", HttpStatus.BAD_REQUEST),
 
 
-
   // === 리소스 없음 (404) ===
   DATA_NOT_FOUND("백테스트에 필요한 데이터를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
   STOCK_DATA_NOT_FOUND("주가 데이터를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),

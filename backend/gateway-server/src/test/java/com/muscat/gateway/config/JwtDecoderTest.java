@@ -52,7 +52,7 @@ class JwtDecoderTest {
     });
     jwks.start();
     decoder = SecurityConfig.buildJwtDecoder("http://127.0.0.1:" + jwks.getAddress().getPort() + "/certs",
-        List.of(PUBLIC_ISSUER, INTERNAL_ISSUER), CLIENT_IDS);
+      List.of(PUBLIC_ISSUER, INTERNAL_ISSUER), CLIENT_IDS);
   }
 
   @AfterAll
@@ -128,7 +128,7 @@ class JwtDecoderTest {
       claims.claim("email_verified", emailVerified);
     }
     SignedJWT jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(key.getKeyID()).build(),
-        claims.build());
+      claims.build());
     jwt.sign(new RSASSASigner(key));
     return jwt.serialize();
   }

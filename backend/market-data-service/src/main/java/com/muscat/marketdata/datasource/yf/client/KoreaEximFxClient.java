@@ -25,80 +25,80 @@ import java.util.Optional;
 @Slf4j
 @Component
 @ConditionalOnProperty(
-    name = "marketdata.provider",
-    havingValue = "yahoo"
+  name = "marketdata.provider",
+  havingValue = "yahoo"
 )
 @RequiredArgsConstructor
 public class KoreaEximFxClient implements MarketDataProvider.FxSource {
 
-    @Value("${korea-exim.api.url:https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON}")
-    private String baseUrl;
+  @Value("${korea-exim.api.url:https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON}")
+  private String baseUrl;
 
-    @Value("${korea-exim.api.auth-key:}")
-    private String authKey;
+  @Value("${korea-exim.api.auth-key:}")
+  private String authKey;
 
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
+  private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
-    private final RestTemplate restTemplate;
-    private final ObjectMapper objectMapper;
+  private final RestTemplate restTemplate;
+  private final ObjectMapper objectMapper;
 
-    @Override
-    public Optional<BigDecimal> fetchFx(LocalDate date) {
-        return fetchFxRate(date)
-                .map(KoreaEximRateItem::parseRate)
-                .filter(rate -> isInRange(date, rate));
+  @Override
+  public Optional<BigDecimal> fetchFx(LocalDate date) {
+    return fetchFxRate(date)
+      .map(KoreaEximRateItem::parseRate)
+      .filter(rate -> isInRange(date, rate));
+  }
+
+  // 정상 범위 밖 환율은 버림
+  private static boolean isInRange(LocalDate date, BigDecimal rate) {
+    if (MoneyUtils.isExchangeRateInRange(rate)) {
+      return true;
+    }
+    log.warn("Korea Exim API - Rate out of range, ignored: date={}, rate={}", date, rate);
+    return false;
+  }
+
+  public Optional<KoreaEximRateItem> fetchFxRate(LocalDate date) {
+    try {
+      String url = buildUrl(date);
+      String response = restTemplate.getForObject(url, String.class);
+
+      if (response == null || response.trim().isEmpty()) {
+        log.warn("Korea Exim API - No data for date: {}", date);
+        return Optional.empty();
+      }
+
+      List<KoreaEximRateItem> items = parseResponse(response);
+      return items.stream()
+        .filter(Objects::nonNull)
+        .filter(KoreaEximRateItem::isUsd)
+        .filter(item -> item.parseRate() != null)
+        .findFirst();
+
+    } catch (Exception e) {
+      log.error("Korea Exim API - Failed to fetch rate for date: {} error: {}", date, e.getMessage());
+      return Optional.empty();
+    }
+  }
+
+  private String buildUrl(LocalDate date) {
+    return UriComponentsBuilder.fromUriString(baseUrl)
+      .queryParam("searchdate", date.format(DATE_FORMAT))
+      .queryParam("data", "AP01")
+      .queryParam("authkey", authKey)
+      .build(true)
+      .toUriString();
+  }
+
+  private List<KoreaEximRateItem> parseResponse(String json) throws JsonProcessingException {
+    JsonNode root = objectMapper.readTree(json);
+
+    if (!root.isArray()) {
+      log.warn("Korea Exim API - Unexpected response format");
+      return List.of();
     }
 
-    // 정상 범위 밖 환율은 버림
-    private static boolean isInRange(LocalDate date, BigDecimal rate) {
-        if (MoneyUtils.isExchangeRateInRange(rate)) {
-            return true;
-        }
-        log.warn("Korea Exim API - Rate out of range, ignored: date={}, rate={}", date, rate);
-        return false;
-    }
-
-    public Optional<KoreaEximRateItem> fetchFxRate(LocalDate date) {
-        try {
-            String url = buildUrl(date);
-            String response = restTemplate.getForObject(url, String.class);
-            
-            if (response == null || response.trim().isEmpty()) {
-                log.warn("Korea Exim API - No data for date: {}", date);
-                return Optional.empty();
-            }
-
-            List<KoreaEximRateItem> items = parseResponse(response);
-            return items.stream()
-                    .filter(Objects::nonNull)
-                    .filter(KoreaEximRateItem::isUsd)
-                    .filter(item -> item.parseRate() != null)
-                    .findFirst();
-
-        } catch (Exception e) {
-            log.error("Korea Exim API - Failed to fetch rate for date: {} error: {}", date, e.getMessage());
-            return Optional.empty();
-        }
-    }
-
-    private String buildUrl(LocalDate date) {
-        return UriComponentsBuilder.fromUriString(baseUrl)
-                .queryParam("searchdate", date.format(DATE_FORMAT))
-                .queryParam("data", "AP01")
-                .queryParam("authkey", authKey)
-                .build(true)
-                .toUriString();
-    }
-
-    private List<KoreaEximRateItem> parseResponse(String json) throws JsonProcessingException {
-        JsonNode root = objectMapper.readTree(json);
-
-        if (!root.isArray()) {
-            log.warn("Korea Exim API - Unexpected response format");
-            return List.of();
-        }
-
-        return objectMapper.convertValue(root,
-                objectMapper.getTypeFactory().constructCollectionType(List.class, KoreaEximRateItem.class));
-    }
+    return objectMapper.convertValue(root,
+      objectMapper.getTypeFactory().constructCollectionType(List.class, KoreaEximRateItem.class));
+  }
 }

@@ -30,132 +30,132 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
-    name = "marketdata.provider",
-    havingValue = "alphavantage"
+  name = "marketdata.provider",
+  havingValue = "alphavantage"
 )
 @RequiredArgsConstructor
 public class AlphaVantageCandleUpdateService implements com.muscat.marketdata.domain.service.CandleUpdateService {
 
-    private final CandleSource candleSource;
-    private final DividendSource dividendSource;
+  private final CandleSource candleSource;
+  private final DividendSource dividendSource;
 
-    private final CandleRepository candleRepository;
-    private final DividendRepository dividendRepository;
-    private final AssetRepository assetRepository;
+  private final CandleRepository candleRepository;
+  private final DividendRepository dividendRepository;
+  private final AssetRepository assetRepository;
 
-    private final DividendEventProducer dividendEventProducer;
+  private final DividendEventProducer dividendEventProducer;
 
-    private final TransactionTemplate transactionTemplate;
+  private final TransactionTemplate transactionTemplate;
 
-    // 마지막 봉으로 받을 기간을 정하고 외부에서 받은 뒤 새 봉만 트랜잭션 하나로 저장
-    public int saveCandles(String symbol, LocalDate from, LocalDate to) {
-        // 증분 수집: 마지막 캔들 날짜 확인
-        Optional<Candle> lastCandle = candleRepository.findFirstBySymbolOrderByDateDesc(symbol);
+  // 마지막 봉으로 받을 기간을 정하고 외부에서 받은 뒤 새 봉만 트랜잭션 하나로 저장
+  public int saveCandles(String symbol, LocalDate from, LocalDate to) {
+    // 증분 수집: 마지막 캔들 날짜 확인
+    Optional<Candle> lastCandle = candleRepository.findFirstBySymbolOrderByDateDesc(symbol);
 
-        if (lastCandle.isPresent()) {
-            LocalDate lastDate = lastCandle.get().getDate();
-            LocalDate expectedLatestDate = getExpectedLatestTradingDate(to);
+    if (lastCandle.isPresent()) {
+      LocalDate lastDate = lastCandle.get().getDate();
+      LocalDate expectedLatestDate = getExpectedLatestTradingDate(to);
 
-            // 이미 최신 데이터가 있으면 스킵
-            if (!lastDate.isBefore(expectedLatestDate)) {
-                log.info("[데이터수집 스킵] {} - 이미 최신 데이터 존재 (마지막={}, 기대={}, 요청={} ~ {})",
-                        symbol, lastDate, expectedLatestDate, from, to);
-                return 0;
-            }
+      // 이미 최신 데이터가 있으면 스킵
+      if (!lastDate.isBefore(expectedLatestDate)) {
+        log.info("[데이터수집 스킵] {} - 이미 최신 데이터 존재 (마지막={}, 기대={}, 요청={} ~ {})",
+          symbol, lastDate, expectedLatestDate, from, to);
+        return 0;
+      }
 
-            // 마지막 날짜 다음날부터 수집
-            from = lastDate.plusDays(1);
-            log.info("[증분 수집] {} - 마지막 날짜 이후 데이터 수집 ({} ~ {})", symbol, from, to);
-        } else {
-            log.info("[전체 수집] {} - 최초 데이터 수집 ({} ~ {})", symbol, from, to);
-        }
-
-        List<Candle> candles = candleSource.fetchDailyAdjusted(symbol, from, to);
-        if (candles == null || candles.isEmpty()) {
-            log.debug("[수집 결과 없음] {} - 기간 내 데이터 없음", symbol);
-            return 0;
-        }
-
-        return Objects.requireNonNull(transactionTemplate.execute(status -> storeCandles(symbol, candles)));
+      // 마지막 날짜 다음날부터 수집
+      from = lastDate.plusDays(1);
+      log.info("[증분 수집] {} - 마지막 날짜 이후 데이터 수집 ({} ~ {})", symbol, from, to);
+    } else {
+      log.info("[전체 수집] {} - 최초 데이터 수집 ({} ~ {})", symbol, from, to);
     }
 
-    // 저장된 날짜를 뺀 봉 저장 · 종목의 최신 종가 갱신
-    private int storeCandles(String symbol, List<Candle> candles) {
-        // 중복 캔들 필터링 (Batch Query 방식: 1회 쿼리로 모든 날짜 조회)
-        Set<LocalDate> existingDates = candleRepository.findBySymbol(symbol)
-            .stream()
-            .map(Candle::getDate)
-            .collect(Collectors.toSet());
-
-        // 메모리에서 필터링 (DB 쿼리 없음)
-        List<Candle> newCandles = candles.stream()
-            .filter(candle -> !existingDates.contains(candle.getDate()))
-            .toList();
-
-        if (newCandles.isEmpty()) {
-            log.debug("[캔들] {} - 모두 기존 데이터, 저장 스킵 (기존={}개)", symbol, existingDates.size());
-            return 0;
-        }
-
-        // DB에 저장
-        candleRepository.saveAll(newCandles);
-
-        // 저장한 봉 중 가장 늦은 날의 종가 · 날짜를 종목에 남김
-        newCandles.stream()
-            .max(Comparator.comparing(Candle::getDate))
-            .ifPresent(latest -> assetRepository.findById(symbol)
-                .filter(asset -> asset.getLatestDate() == null || !latest.getDate().isBefore(asset.getLatestDate()))
-                .ifPresent(asset -> {
-                    asset.setLatestClose(latest.getClose());
-                    asset.setLatestDate(latest.getDate());
-                    assetRepository.save(asset);
-                }));
-
-        log.info("[캔들 저장 완료] symbol={}, count={}", symbol, newCandles.size());
-        return newCandles.size();
+    List<Candle> candles = candleSource.fetchDailyAdjusted(symbol, from, to);
+    if (candles == null || candles.isEmpty()) {
+      log.debug("[수집 결과 없음] {} - 기간 내 데이터 없음", symbol);
+      return 0;
     }
 
-    // 주말을 뺀 최신 거래일
-    private LocalDate getExpectedLatestTradingDate(LocalDate requestedDate) {
-        LocalDate date = requestedDate;
+    return Objects.requireNonNull(transactionTemplate.execute(status -> storeCandles(symbol, candles)));
+  }
 
-        // 주말이면 직전 금요일로 조정
-        while (date.getDayOfWeek() == DayOfWeek.SATURDAY || date.getDayOfWeek() == DayOfWeek.SUNDAY) {
-            date = date.minusDays(1);
-        }
+  // 저장된 날짜를 뺀 봉 저장 · 종목의 최신 종가 갱신
+  private int storeCandles(String symbol, List<Candle> candles) {
+    // 중복 캔들 필터링 (Batch Query 방식: 1회 쿼리로 모든 날짜 조회)
+    Set<LocalDate> existingDates = candleRepository.findBySymbol(symbol)
+      .stream()
+      .map(Candle::getDate)
+      .collect(Collectors.toSet());
 
-        return date;
+    // 메모리에서 필터링 (DB 쿼리 없음)
+    List<Candle> newCandles = candles.stream()
+      .filter(candle -> !existingDates.contains(candle.getDate()))
+      .toList();
+
+    if (newCandles.isEmpty()) {
+      log.debug("[캔들] {} - 모두 기존 데이터, 저장 스킵 (기존={}개)", symbol, existingDates.size());
+      return 0;
     }
 
-    // 외부에서 배당을 받은 뒤 바뀐 배당만 트랜잭션 하나로 저장
-    public int saveDividends(String symbol, LocalDate from, LocalDate to) {
-        List<DividendDto> dtos = dividendSource.fetchDividends(symbol, from, to);
-        if (dtos == null || dtos.isEmpty()) {
-            return 0;
-        }
-        return Objects.requireNonNull(transactionTemplate.execute(status -> storeDividends(symbol, dtos)));
+    // DB에 저장
+    candleRepository.saveAll(newCandles);
+
+    // 저장한 봉 중 가장 늦은 날의 종가 · 날짜를 종목에 남김
+    newCandles.stream()
+      .max(Comparator.comparing(Candle::getDate))
+      .ifPresent(latest -> assetRepository.findById(symbol)
+        .filter(asset -> asset.getLatestDate() == null || !latest.getDate().isBefore(asset.getLatestDate()))
+        .ifPresent(asset -> {
+          asset.setLatestClose(latest.getClose());
+          asset.setLatestDate(latest.getDate());
+          assetRepository.save(asset);
+        }));
+
+    log.info("[캔들 저장 완료] symbol={}, count={}", symbol, newCandles.size());
+    return newCandles.size();
+  }
+
+  // 주말을 뺀 최신 거래일
+  private LocalDate getExpectedLatestTradingDate(LocalDate requestedDate) {
+    LocalDate date = requestedDate;
+
+    // 주말이면 직전 금요일로 조정
+    while (date.getDayOfWeek() == DayOfWeek.SATURDAY || date.getDayOfWeek() == DayOfWeek.SUNDAY) {
+      date = date.minusDays(1);
     }
 
-    private int storeDividends(String symbol, List<DividendDto> dtos) {
-        List<Dividend> rows = DividendMerge.changedRows(dividendRepository, dtos);
-        if (rows.isEmpty()) {
-            log.debug("[배당금] {} - 바뀐 배당 없음, 저장 스킵", symbol);
-            return 0;
-        }
+    return date;
+  }
 
-        dividendRepository.saveAll(rows);
+  // 외부에서 배당을 받은 뒤 바뀐 배당만 트랜잭션 하나로 저장
+  public int saveDividends(String symbol, LocalDate from, LocalDate to) {
+    List<DividendDto> dtos = dividendSource.fetchDividends(symbol, from, to);
+    if (dtos == null || dtos.isEmpty()) {
+      return 0;
+    }
+    return Objects.requireNonNull(transactionTemplate.execute(status -> storeDividends(symbol, dtos)));
+  }
 
-        //Kafka 이벤트 발행 (배치로 처리)
-        dividendEventProducer.publishBatch(rows);
-        log.debug("[배당금 이벤트 발행] symbol={}, count={}", symbol, rows.size());
-
-        return rows.size();
+  private int storeDividends(String symbol, List<DividendDto> dtos) {
+    List<Dividend> rows = DividendMerge.changedRows(dividendRepository, dtos);
+    if (rows.isEmpty()) {
+      log.debug("[배당금] {} - 바뀐 배당 없음, 저장 스킵", symbol);
+      return 0;
     }
 
-    public int saveBoth(String symbol, LocalDate from, LocalDate to) {
-        int c = saveCandles(symbol, from, to);
-        int d = saveDividends(symbol, from, to);
-        log.info("[데이터저장] {} 캔들={}, 배당={}", symbol, c, d);
-        return c + d;
-    }
+    dividendRepository.saveAll(rows);
+
+    //Kafka 이벤트 발행 (배치로 처리)
+    dividendEventProducer.publishBatch(rows);
+    log.debug("[배당금 이벤트 발행] symbol={}, count={}", symbol, rows.size());
+
+    return rows.size();
+  }
+
+  public int saveBoth(String symbol, LocalDate from, LocalDate to) {
+    int c = saveCandles(symbol, from, to);
+    int d = saveDividends(symbol, from, to);
+    log.info("[데이터저장] {} 캔들={}, 배당={}", symbol, c, d);
+    return c + d;
+  }
 }

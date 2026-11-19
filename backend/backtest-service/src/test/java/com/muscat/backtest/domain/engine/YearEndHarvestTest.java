@@ -1,6 +1,7 @@
 package com.muscat.backtest.domain.engine;
 
 import com.muscat.backtest.common.enums.type.TransactionKind;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.muscat.backtest.domain.model.StrategyTransaction;
@@ -37,9 +38,9 @@ class YearEndHarvestTest {
   }
 
   private static List<YearEndHarvest.Sale> plan(List<StrategyTransaction> transactions, Map<String, String> prices,
-    String feeRate) {
+                                                String feeRate) {
     return YearEndHarvest.plan(DECEMBER, transactions, prices.entrySet().stream()
-      .collect(Collectors.toMap(Map.Entry::getKey, entry -> new BigDecimal(entry.getValue()))),
+        .collect(Collectors.toMap(Map.Entry::getKey, entry -> new BigDecimal(entry.getValue()))),
       new BigDecimal(feeRate), new BigDecimal("1000"));
   }
 

@@ -31,7 +31,7 @@ public final class BacktestCalculationUtils {
 
   // 매수 가능한 주식 수량
   public static BigDecimal calculateShares(BigDecimal investmentAmount, BigDecimal fxRate,
-    BigDecimal stockPrice) {
+                                           BigDecimal stockPrice) {
     if (investmentAmount == null || fxRate == null || stockPrice == null) {
       throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR,
         "주식 수량 계산을 위한 투자금액, 환율, 주식가격은 null이 될 수 없습니다");
@@ -51,7 +51,7 @@ public final class BacktestCalculationUtils {
 
   // 평균 매수가(USD, totalFxRateSum 은 Σ(투자금액 × 환율)이라 가중평균 환율로 바꿔 나눔)
   public static BigDecimal calculateAveragePrice(BigDecimal totalInvestment,
-    BigDecimal totalFxRateSum, BigDecimal totalShares) {
+                                                 BigDecimal totalFxRateSum, BigDecimal totalShares) {
     if (totalInvestment == null || totalFxRateSum == null || totalShares == null) {
       throw new IllegalArgumentException("모든 매개변수는 null이 될 수 없습니다");
     }
@@ -140,8 +140,8 @@ public final class BacktestCalculationUtils {
 
   // 기간 총 배당금(USD), 배당일마다 거래로 센 보유 주식 수 기준
   public static BigDecimal calculateTotalDividends(DividendHistoryDto dividendHistory,
-    List<StrategyTransaction> transactions,
-    LocalDate startDate, LocalDate endDate) {
+                                                   List<StrategyTransaction> transactions,
+                                                   LocalDate startDate, LocalDate endDate) {
 
     log.debug("배당금 계산 메서드 호출됨 (거래 목록 기반)");
 
@@ -186,8 +186,8 @@ public final class BacktestCalculationUtils {
 
   // 기간 총 배당금(USD), 고정 주식 수 기준(매수일이 배당락일인 배당은 제외)
   public static BigDecimal calculateTotalDividends(DividendHistoryDto dividendHistory,
-    BigDecimal shares,
-    LocalDate startDate, LocalDate endDate) {
+                                                   BigDecimal shares,
+                                                   LocalDate startDate, LocalDate endDate) {
 
     log.debug("배당금 계산 메서드 호출됨 (고정 주식수 기반)");
 
@@ -219,7 +219,7 @@ public final class BacktestCalculationUtils {
 
   // 연간 배당 수익률을 계산합니다 (%)
   public static BigDecimal calculateDividendYield(BigDecimal totalDividends, BigDecimal shares,
-    BigDecimal currentPrice) {
+                                                  BigDecimal currentPrice) {
     if (totalDividends == null || shares == null || currentPrice == null ||
       Decimals.isZero(shares) || Decimals.isZero(currentPrice)) {
       return BigDecimal.ZERO;
@@ -233,7 +233,7 @@ public final class BacktestCalculationUtils {
 
   // 매수 한 번의 수수료(USD, 투자금 KRW 를 받은 환율로 바꾼 달러 × 수수료율)
   public static BigDecimal calculatePurchaseFee(BigDecimal investmentAmount, BigDecimal fxRate,
-    BigDecimal feeRate) {
+                                                BigDecimal feeRate) {
     if (feeRate == null || !Decimals.isPositive(feeRate)) {
       return BigDecimal.ZERO;
     }
@@ -243,7 +243,7 @@ public final class BacktestCalculationUtils {
 
   // 수수료를 뺀 달러로 살 수 있는 주식 수(수수료 0 이면 calculateShares 와 같음)
   public static BigDecimal calculateSharesAfterFee(BigDecimal investmentAmount, BigDecimal fxRate,
-    BigDecimal stockPrice, BigDecimal feeUsd) {
+                                                   BigDecimal stockPrice, BigDecimal feeUsd) {
     BigDecimal shares = calculateShares(investmentAmount, fxRate, stockPrice);
     if (feeUsd == null || !Decimals.isPositive(feeUsd)) {
       return shares;
@@ -254,7 +254,7 @@ public final class BacktestCalculationUtils {
 
   // 수수료를 고려한 소수점 주식수 계산 (fractional shares)
   public static BigDecimal calculateSharesWithFee(BigDecimal usdAmount, BigDecimal stockPrice,
-    BigDecimal feeRate) {
+                                                  BigDecimal feeRate) {
     if (usdAmount == null || stockPrice == null || feeRate == null) {
       throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR,
         "수수료 계산을 위한 파라미터는 null이 될 수 없습니다");
@@ -298,7 +298,7 @@ public final class BacktestCalculationUtils {
 
   // 실제 사용된 총 비용 계산 (주식구매비 + 수수료)
   public static BigDecimal calculateTotalCost(BigDecimal shares, BigDecimal stockPrice,
-    BigDecimal tradingFee) {
+                                              BigDecimal tradingFee) {
     if (shares == null || stockPrice == null) {
       throw new BacktestException(BacktestResponse.TRADING_FEE_CALCULATION_ERROR,
         "비용 계산을 위한 파라미터는 null이 될 수 없습니다");

@@ -147,8 +147,8 @@ public class YahooFinanceClient {
 
   private String decompressGzip(byte[] gzipData) throws IOException {
     try (GZIPInputStream gzipStream = new GZIPInputStream(new ByteArrayInputStream(gzipData));
-      InputStreamReader reader = new InputStreamReader(gzipStream, StandardCharsets.UTF_8);
-      BufferedReader bufferedReader = new BufferedReader(reader)) {
+         InputStreamReader reader = new InputStreamReader(gzipStream, StandardCharsets.UTF_8);
+         BufferedReader bufferedReader = new BufferedReader(reader)) {
       StringBuilder result = new StringBuilder();
       String line;
       while ((line = bufferedReader.readLine()) != null) {

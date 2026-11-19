@@ -11,25 +11,25 @@ import java.time.Instant;
 @Component
 public class AlphaVantageRateLimiter {
 
-    private final long millisBetweenCalls;
-    private Instant lastCallTime = Instant.EPOCH;
+  private final long millisBetweenCalls;
+  private Instant lastCallTime = Instant.EPOCH;
 
-    public AlphaVantageRateLimiter(
-        @Value("${alphavantage.rate-limit-per-minute:5}") long callsPerMinute
-    ) {
-        this.millisBetweenCalls = 60_000 / callsPerMinute;
-        log.info("RateLimiter: {} calls/min ({}ms interval)", callsPerMinute, millisBetweenCalls);
-    }
+  public AlphaVantageRateLimiter(
+    @Value("${alphavantage.rate-limit-per-minute:5}") long callsPerMinute
+  ) {
+    this.millisBetweenCalls = 60_000 / callsPerMinute;
+    log.info("RateLimiter: {} calls/min ({}ms interval)", callsPerMinute, millisBetweenCalls);
+  }
 
-    public synchronized void waitIfNeeded() {
-        try {
-            long elapsed = Instant.now().toEpochMilli() - lastCallTime.toEpochMilli();
-            if (elapsed < millisBetweenCalls) {
-                Thread.sleep(millisBetweenCalls - elapsed);
-            }
-            lastCallTime = Instant.now();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+  public synchronized void waitIfNeeded() {
+    try {
+      long elapsed = Instant.now().toEpochMilli() - lastCallTime.toEpochMilli();
+      if (elapsed < millisBetweenCalls) {
+        Thread.sleep(millisBetweenCalls - elapsed);
+      }
+      lastCallTime = Instant.now();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
     }
+  }
 }

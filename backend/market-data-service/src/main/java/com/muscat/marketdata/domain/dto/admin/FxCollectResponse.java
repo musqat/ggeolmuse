@@ -15,44 +15,44 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class FxCollectResponse {
-    private int missingCount;
-    // 최근 빈 날(최근부터 최대 열 개)
-    private List<LocalDate> missingDates;
-    private boolean running;
-    // MISSING · ALL(상태 행이 없으면 비어 있음)
-    private String mode;
-    // 서울 시각
-    private LocalDateTime startedAt;
-    private LocalDateTime finishedAt;
-    private int total;
-    private int processed;
-    private int filled;
-    private int failed;
-    private LocalDate lastDate;
-    private String stoppedReason;
-    private String message;
+  private int missingCount;
+  // 최근 빈 날(최근부터 최대 열 개)
+  private List<LocalDate> missingDates;
+  private boolean running;
+  // MISSING · ALL(상태 행이 없으면 비어 있음)
+  private String mode;
+  // 서울 시각
+  private LocalDateTime startedAt;
+  private LocalDateTime finishedAt;
+  private int total;
+  private int processed;
+  private int filled;
+  private int failed;
+  private LocalDate lastDate;
+  private String stoppedReason;
+  private String message;
 
-    public static FxCollectResponse of(FxCollectionService.Status status) {
-        FxCollectResponseBuilder builder = FxCollectResponse.builder()
-            .missingCount(status.missingCount())
-            .missingDates(status.missingDates())
-            .running(status.running());
-        FxCollectionService.Progress progress = status.progress();
-        if (progress != null) {
-            builder.mode(progress.getMode() != null ? progress.getMode().name() : null)
-                .startedAt(progress.getStartedAt())
-                .finishedAt(progress.getFinishedAt())
-                .total(progress.getTotal())
-                .processed(progress.getProcessed())
-                .filled(progress.getFilled())
-                .failed(progress.getFailed())
-                .lastDate(progress.getLastDate())
-                .stoppedReason(progress.getStoppedReason());
-        }
-        return builder.build();
+  public static FxCollectResponse of(FxCollectionService.Status status) {
+    FxCollectResponseBuilder builder = FxCollectResponse.builder()
+      .missingCount(status.missingCount())
+      .missingDates(status.missingDates())
+      .running(status.running());
+    FxCollectionService.Progress progress = status.progress();
+    if (progress != null) {
+      builder.mode(progress.getMode() != null ? progress.getMode().name() : null)
+        .startedAt(progress.getStartedAt())
+        .finishedAt(progress.getFinishedAt())
+        .total(progress.getTotal())
+        .processed(progress.getProcessed())
+        .filled(progress.getFilled())
+        .failed(progress.getFailed())
+        .lastDate(progress.getLastDate())
+        .stoppedReason(progress.getStoppedReason());
     }
+    return builder.build();
+  }
 
-    public static FxCollectResponse message(String message) {
-        return FxCollectResponse.builder().message(message).build();
-    }
+  public static FxCollectResponse message(String message) {
+    return FxCollectResponse.builder().message(message).build();
+  }
 }

@@ -39,7 +39,7 @@ final class CashFirstPurchase {
 
   // 회당 금액만큼, 판 돈으로만 살 때는 판 돈만큼
   private Fill byAmount(BigDecimal price, BigDecimal fxRate, BigDecimal cash, boolean roundsUsed,
-    BigDecimal budgetLeft) {
+                        BigDecimal budgetLeft) {
     BigDecimal amount = amountPerPurchase;
     if (!Decimals.isPositive(cash)) {
       if (roundsUsed || PurchaseRounds.exceeds(amount, budgetLeft)) {
@@ -62,7 +62,7 @@ final class CashFirstPurchase {
 
   // 주식 수만큼(매수가 × 주식 수 + 수수료), 판 돈으로만 살 때는 판 돈으로 살 수 있는 주식 수까지
   private Fill byShares(BigDecimal price, BigDecimal fxRate, BigDecimal cash, boolean roundsUsed,
-    BigDecimal budgetLeft) {
+                        BigDecimal budgetLeft) {
     boolean hasCash = Decimals.isPositive(cash);
     if (!hasCash && roundsUsed) {
       return null;

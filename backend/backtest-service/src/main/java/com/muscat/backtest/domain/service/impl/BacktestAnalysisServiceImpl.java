@@ -58,8 +58,8 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   private final PortfolioEngine portfolioEngine;
 
   public BacktestAnalysisServiceImpl(TradingSimulationService tradingSimulationService,
-    List<InvestmentStrategy> strategies, ResponseMapper responseMapper,
-    BacktestHistoryUtils backtestHistoryUtils, PortfolioEngine portfolioEngine) {
+                                     List<InvestmentStrategy> strategies, ResponseMapper responseMapper,
+                                     BacktestHistoryUtils backtestHistoryUtils, PortfolioEngine portfolioEngine) {
     this.tradingSimulationService = tradingSimulationService;
     this.responseMapper = responseMapper;
     this.backtestHistoryUtils = backtestHistoryUtils;
@@ -230,7 +230,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   }
 
   private ComparisonResponse buildComparisonResponse(BaseComparisonRequest request,
-    List<ComparisonItem> items, String emptyDataMessage) {
+                                                     List<ComparisonItem> items, String emptyDataMessage) {
     if (items.isEmpty()) {
       throw new BacktestException(BacktestResponse.DATA_NOT_FOUND, emptyDataMessage);
     }
@@ -240,7 +240,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   }
 
   private ComparisonItem buildStrategyComparisonItem(StrategyComparisonRequest request,
-    StrategyParameter strategyConfig) {
+                                                     StrategyParameter strategyConfig) {
     StrategyType strategyType = strategyConfig.getStrategyType();
     String strategyName = strategyConfig.getName() != null ? strategyConfig.getName()
       : strategyType != null ? strategyType.name() : "UNKNOWN";
@@ -258,7 +258,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   }
 
   private <T> List<ComparisonItem> collectComparisonItems(List<T> sources,
-    Function<T, ComparisonItem> itemProvider, BiConsumer<T, Exception> errorHandler) {
+                                                          Function<T, ComparisonItem> itemProvider, BiConsumer<T, Exception> errorHandler) {
     List<ComparisonItem> items = new ArrayList<>();
     for (T source : sources) {
       try {

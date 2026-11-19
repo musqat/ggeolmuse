@@ -39,7 +39,7 @@ public class BaseExceptionHandler implements EnvironmentAware {
   // 서비스마다 GlobalExceptionHandler 가 상속하는 공통 처리(서비스 예외를 같은 모양으로)
   @ExceptionHandler(BusinessException.class)
   public ResponseEntity<ProblemDetail> handleBusinessException(BusinessException ex,
-    HttpServletRequest request) {
+                                                               HttpServletRequest request) {
     HttpStatus status = ex.getHttpStatus();
     if (status.is5xxServerError()) {
       log.error("[BUSINESS ERROR] {} - {}", ex.getErrorCode(), ex.getMessage(), ex);
@@ -62,7 +62,7 @@ public class BaseExceptionHandler implements EnvironmentAware {
   // MoneyUtils 의 금액 · 통화 · 환율 검증 실패(요청 값 문제라 400)
   @ExceptionHandler(ServiceException.class)
   public ResponseEntity<ProblemDetail> handleServiceException(ServiceException ex,
-    HttpServletRequest request) {
+                                                              HttpServletRequest request) {
     log.warn("[VALIDATION ERROR] {} - {}", ex.getErrorCode(), ex.getMessage());
 
     ProblemDetail problem = ProblemDetailUtils.createProblem(
@@ -194,7 +194,7 @@ public class BaseExceptionHandler implements EnvironmentAware {
 
   // 예상 못 한 예외의 500 응답(개발 프로필에서만 detail 에 예외 메시지)
   protected ResponseEntity<ProblemDetail> systemError(Exception ex, HttpServletRequest request,
-    String productionMessage) {
+                                                      String productionMessage) {
     log.error("[SYSTEM ERROR] 예상치 못한 오류 발생", ex);
 
     String message = isDevelopmentEnvironment()

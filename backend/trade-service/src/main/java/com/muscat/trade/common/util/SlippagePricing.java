@@ -12,7 +12,7 @@ public final class SlippagePricing {
   }
 
   public static BigDecimal apply(BigDecimal marketPrice, BigDecimal slippageRate,
-    TradeType tradeType, int scale) {
+                                 TradeType tradeType, int scale) {
     if (marketPrice == null || slippageRate == null
       || slippageRate.compareTo(BigDecimal.ZERO) <= 0) {
       return marketPrice;

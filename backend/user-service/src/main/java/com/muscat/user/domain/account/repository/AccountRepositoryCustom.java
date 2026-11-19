@@ -7,22 +7,22 @@ import java.util.Optional;
 
 public interface AccountRepositoryCustom {
 
-    // JOIN FETCH로 User와 함께 Account 조회 - N+1 문제 방지
-    List<Account> findByUserIdWithUser(Long userId);
+  // JOIN FETCH로 User와 함께 Account 조회 - N+1 문제 방지
+  List<Account> findByUserIdWithUser(Long userId);
 
-    // 계좌 ID와 사용자 ID로 조회
-    Optional<Account> findByIdAndUserId(Long accountId, Long userId);
+  // 계좌 ID와 사용자 ID로 조회
+  Optional<Account> findByIdAndUserId(Long accountId, Long userId);
 
-    // 사용자 ID와 계좌명으로 중복 확인
-    boolean existsByUserIdAndAccountName(Long userId, String accountName);
+  // 사용자 ID와 계좌명으로 중복 확인
+  boolean existsByUserIdAndAccountName(Long userId, String accountName);
 
-    // 락을 걸고 계좌 조회 (사용자 ID와 계좌 ID로)
-    Optional<Account> findByIdAndUserIdWithLock(Long accountId, Long userId);
+  // 락을 걸고 계좌 조회 (사용자 ID와 계좌 ID로)
+  Optional<Account> findByIdAndUserIdWithLock(Long accountId, Long userId);
 
-    // 락을 걸고 계좌 조회 (계좌 ID만으로)
-    Optional<Account> findByIdWithLock(Long accountId);
+  // 락을 걸고 계좌 조회 (계좌 ID만으로)
+  Optional<Account> findByIdWithLock(Long accountId);
 
-    // 사용자의 계좌를 ID 순으로 모두 행 잠금한 뒤 DB 값으로 다시 채운 계좌
-    List<Account> findByUserIdWithLock(Long userId);
+  // 사용자의 계좌를 ID 순으로 모두 행 잠금한 뒤 DB 값으로 다시 채운 계좌
+  List<Account> findByUserIdWithLock(Long userId);
 
 }

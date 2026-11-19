@@ -28,7 +28,7 @@ public class MarketDataClientWrapper implements MarketDataPort {
   private final BigDecimal defaultFxRate;
 
   public MarketDataClientWrapper(MarketDataClient marketDataClient,
-    @Value("${ggeolmuse.fx.default-rate:1350}") BigDecimal defaultFxRate) {
+                                 @Value("${ggeolmuse.fx.default-rate:1350}") BigDecimal defaultFxRate) {
     this.marketDataClient = marketDataClient;
     this.defaultFxRate = defaultFxRate;
   }
@@ -102,7 +102,7 @@ public class MarketDataClientWrapper implements MarketDataPort {
 
   // 못 받은 것과 시세가 없는 것을 가르려고 빈 목록 대신 오류
   private List<OHLCPriceDto> getOHLCPriceRangeFallback(String symbol, String startDate,
-    String endDate, Exception ex) {
+                                                       String endDate, Exception ex) {
     rethrowClientError(ex);
     log.error("Fallback triggered for getOHLCPriceRange. Symbol: {}, Error: {}",
       symbol, ex.getMessage());
@@ -125,7 +125,7 @@ public class MarketDataClientWrapper implements MarketDataPort {
 
   // 못 받은 배당 이력은 null(배당 없음은 빈 목록)
   private List<DividendDto> getDividendHistoryFallback(String symbol, String startDate,
-    String endDate, Exception ex) {
+                                                       String endDate, Exception ex) {
     log.error("Fallback triggered for getDividendHistory. Symbol: {}, Error: {}",
       symbol, ex.getMessage());
     return null;

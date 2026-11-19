@@ -235,7 +235,7 @@ class PortfolioStatsControllerTest {
     given(portfolioStatsService.fx("user-1", "all", FlowPeriod.ALL)).willReturn(new FxStatsResponse(
       new BigDecimal("152000"), new BigDecimal("1385.20"), null, new BigDecimal("0.00"), new BigDecimal("3000000"),
       new BigDecimal("300.00"), 4, List.of(new Exchange(LocalDate.of(2024, 9, 2), 3L, Direction.KRW_TO_USD,
-        new BigDecimal("1300000"), new BigDecimal("1000.00"), new BigDecimal("1300.00"), new BigDecimal("85200")))));
+      new BigDecimal("1300000"), new BigDecimal("1000.00"), new BigDecimal("1300.00"), new BigDecimal("85200")))));
 
     mockMvc.perform(get(FX).param("accountId", "all").param("period", "ALL")
         .with(jwt().jwt(t -> t.subject("user-1"))))
@@ -302,7 +302,7 @@ class PortfolioStatsControllerTest {
   void market_ReturnsComparison() throws Exception {
     given(portfolioStatsService.market("user-1", "all", FlowPeriod.ONE_YEAR)).willReturn(new MarketComparisonResponse(
       "SPY", List.of(new MarketPoint(LocalDate.of(2024, 9, 18), new BigDecimal("-12000")),
-        new MarketPoint(LocalDate.of(2024, 9, 19), new BigDecimal("98000"))), new BigDecimal("98000")));
+      new MarketPoint(LocalDate.of(2024, 9, 19), new BigDecimal("98000"))), new BigDecimal("98000")));
 
     mockMvc.perform(get(MARKET).param("accountId", "all").param("period", "1Y")
         .with(jwt().jwt(t -> t.subject("user-1"))))

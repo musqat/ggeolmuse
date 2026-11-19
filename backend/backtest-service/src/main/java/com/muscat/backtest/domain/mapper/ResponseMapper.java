@@ -189,7 +189,7 @@ public class ResponseMapper {
 
   // 거래 · 평가일 가운데 기본 환율로 계산한 날(겹치지 않게 날짜순)
   private static List<LocalDate> defaultFxDates(List<StrategyTransaction> transactions,
-    StrategyCalculationResult calculation) {
+                                                StrategyCalculationResult calculation) {
     java.util.stream.Stream<LocalDate> traded = transactions.stream().map(StrategyTransaction::getDefaultFxDate);
     return java.util.stream.Stream.concat(traded, java.util.stream.Stream.of(calculation.getDefaultFxValuationDate()))
       .filter(java.util.Objects::nonNull)

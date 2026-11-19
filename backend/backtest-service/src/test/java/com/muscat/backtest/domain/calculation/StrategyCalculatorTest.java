@@ -1,6 +1,7 @@
 package com.muscat.backtest.domain.calculation;
 
 import com.muscat.backtest.common.enums.type.TransactionKind;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.muscat.backtest.domain.model.StrategyTransaction;

@@ -62,7 +62,7 @@ public final class PortfolioStatsCalculator {
 
   // 종목 하나의 그 날짜 수량 · 투자금액과 그 날짜까지 실현 손익 · 세후 배당 · 수수료 누적(USD, 반올림 전)
   public record SymbolTotals(String symbol, BigDecimal quantity, BigDecimal investedUsd, BigDecimal realizedUsd,
-    BigDecimal dividendUsd, BigDecimal feeUsd) {
+                             BigDecimal dividendUsd, BigDecimal feeUsd) {
 
     static SymbolTotals empty(String symbol) {
       return new SymbolTotals(symbol, ZERO, ZERO, ZERO, ZERO, ZERO);
@@ -92,7 +92,7 @@ public final class PortfolioStatsCalculator {
 
   // until 이하 거래일의 완료 체결과 until 이하 배당락일의 배당 몫
   public static Replay replay(List<Trade> trades, List<DividendPayout> payouts, LocalDate until,
-    int pricePrecision) {
+                              int pricePrecision) {
     Map<String, Holdings> positions = new HashMap<>();
     Map<String, BigDecimal> realized = new HashMap<>();
     Map<String, BigDecimal> fees = new HashMap<>();
@@ -146,8 +146,8 @@ public final class PortfolioStatsCalculator {
 
   // 수익 탭 자세히(sells 는 기간 안 매도, holdings 는 기간 끝에 들고 있는 종목, start 가 null 이면 전체 기간)
   public static ProfitDetailResponse profitDetail(List<ProfitPoint> points, LocalDate start,
-    List<SellResult> sells, Collection<SymbolTotals> holdings, Map<String, NavigableMap<LocalDate, BigDecimal>> closes,
-    Map<LocalDate, BigDecimal> fxRates, LocalDate end) {
+                                                  List<SellResult> sells, Collection<SymbolTotals> holdings, Map<String, NavigableMap<LocalDate, BigDecimal>> closes,
+                                                  Map<LocalDate, BigDecimal> fxRates, LocalDate end) {
     List<Sale> sales = sells.stream()
       .sorted(Comparator.comparing((SellResult sell) -> sell.trade().getTradeDate())
         .thenComparing(sell -> sell.trade().getId())
@@ -199,8 +199,8 @@ public final class PortfolioStatsCalculator {
 
   // 종목별 기여(칸마다 기간 끝 값 − 기간 시작 전 값, before 가 null 이면 시작 전 값 0, 시작 전날 환율이 없으면 기간 끝 환율)
   public static SymbolContributionResponse symbolContributions(Map<String, SymbolTotals> end,
-    Map<String, SymbolTotals> previous, Map<String, NavigableMap<LocalDate, BigDecimal>> closes,
-    Map<LocalDate, BigDecimal> fxRates, LocalDate endDate, LocalDate before) {
+                                                               Map<String, SymbolTotals> previous, Map<String, NavigableMap<LocalDate, BigDecimal>> closes,
+                                                               Map<LocalDate, BigDecimal> fxRates, LocalDate endDate, LocalDate before) {
     BigDecimal endRate = fxRates.get(endDate);
     BigDecimal beforeRate = before == null ? null : fxRates.getOrDefault(before, endRate);
     Set<String> symbols = new TreeSet<>(end.keySet());
@@ -235,7 +235,7 @@ public final class PortfolioStatsCalculator {
 
   // 종목 하나의 원화 칸(기간 끝 값 − 기간 시작 전 값)
   private record Change(String symbol, BigDecimal realizedKrw, BigDecimal unrealizedKrw, BigDecimal dividendKrw,
-    BigDecimal feeKrw, boolean held) {
+                        BigDecimal feeKrw, boolean held) {
 
     BigDecimal totalKrw() {
       return realizedKrw.add(unrealizedKrw).add(dividendKrw).subtract(feeKrw);
@@ -248,13 +248,13 @@ public final class PortfolioStatsCalculator {
   }
 
   private static BigDecimal change(BigDecimal endUsd, BigDecimal endRate, BigDecimal beforeUsd,
-    BigDecimal beforeRate) {
+                                   BigDecimal beforeRate) {
     return krw(endUsd, endRate).subtract(krw(beforeUsd, beforeRate));
   }
 
   // 배당락일이 start(null 이면 처음)부터 today 까지이고 수량이 0 이 아닌 배당
   public static List<DividendPayout> paidInPeriod(Collection<DividendPayout> payouts, LocalDate start,
-    LocalDate today) {
+                                                  LocalDate today) {
     return payouts.stream()
       .filter(payout -> payout.getShares().signum() > 0)
       .filter(payout -> start == null || !payout.getExDate().isBefore(start))
@@ -301,7 +301,7 @@ public final class PortfolioStatsCalculator {
 
   // 환율 탭(효과는 기간 안 환전마다 반올림한 효과 합 + 시작 전 환전의 기간 동안 효과 변화, 오늘 환율이 없으면 0)
   public static FxStatsResponse fx(List<ExchangeRecordDto> exchanges, LocalDate start, LocalDate today,
-    Map<LocalDate, BigDecimal> fxRates) {
+                                   Map<LocalDate, BigDecimal> fxRates) {
     BigDecimal endRate = fxRates.get(today);
     BigDecimal beforeRate = start == null ? null : fxRates.get(start.minusDays(1));
     BigDecimal signedUsd = ZERO;
@@ -347,7 +347,7 @@ public final class PortfolioStatsCalculator {
 
   // 거래 패턴(accounts 는 계좌마다 모든 상태 체결, start 가 null 이면 전체 기간)
   public static TradingHabitsResponse habits(List<List<Trade>> accounts, LocalDate start, LocalDate today,
-    int pricePrecision) {
+                                             int pricePrecision) {
     List<Trade> traded = new ArrayList<>();
     List<SellResult> sells = new ArrayList<>();
     HeldDays held = HeldDays.NONE;
@@ -469,8 +469,8 @@ public final class PortfolioStatsCalculator {
 
   // 시장 비교(계좌마다 셈한 SPY 수익을 날짜마다 더해 기간 첫 날부터, 종가 · 환율이 빠진 날짜가 있으면 빈 값)
   public static MarketComparisonResponse market(List<AccountFlow> accounts,
-    NavigableMap<LocalDate, BigDecimal> closes, Map<LocalDate, BigDecimal> fxRates, LocalDate start,
-    int pricePrecision) {
+                                                NavigableMap<LocalDate, BigDecimal> closes, Map<LocalDate, BigDecimal> fxRates, LocalDate start,
+                                                int pricePrecision) {
     List<List<ProfitPoint>> series = new ArrayList<>();
     for (AccountFlow account : accounts) {
       List<ProfitPoint> points = marketPoints(account, closes, fxRates, pricePrecision);
@@ -489,7 +489,7 @@ public final class PortfolioStatsCalculator {
 
   // 계좌 하나의 점 날짜마다 SPY 원화 수익(매수는 체결 금액 + 수수료만큼 사고 매도는 줄어든 투자금액 비율만큼 팜, 종가 · 환율이 빠지면 null)
   private static List<ProfitPoint> marketPoints(AccountFlow account, NavigableMap<LocalDate, BigDecimal> closes,
-    Map<LocalDate, BigDecimal> fxRates, int pricePrecision) {
+                                                Map<LocalDate, BigDecimal> fxRates, int pricePrecision) {
     List<Trade> completed = account.trades().stream()
       .filter(trade -> trade.getStatus() == TradeStatus.COMPLETED)
       .sorted(TradeOrder.LEDGER)
@@ -537,13 +537,13 @@ public final class PortfolioStatsCalculator {
 
   // 그 날짜 이하 가장 늦은 종가
   private static Map.Entry<LocalDate, BigDecimal> close(Map<String, NavigableMap<LocalDate, BigDecimal>> closes,
-    String symbol, LocalDate day) {
+                                                        String symbol, LocalDate day) {
     NavigableMap<LocalDate, BigDecimal> symbolCloses = closes.get(symbol);
     return symbolCloses == null ? null : symbolCloses.floorEntry(day);
   }
 
   private static BigDecimal closeValue(Map<String, NavigableMap<LocalDate, BigDecimal>> closes, String symbol,
-    LocalDate day) {
+                                       LocalDate day) {
     Map.Entry<LocalDate, BigDecimal> close = close(closes, symbol, day);
     return close == null ? null : close.getValue();
   }

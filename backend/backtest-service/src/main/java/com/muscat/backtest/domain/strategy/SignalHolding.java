@@ -27,14 +27,14 @@ public final class SignalHolding {
 
   // 일봉(시작일 전 신호 기간만큼 더 받은 것)의 수정 종가 이동평균 교차
   public static SignalHolding maCross(Map<LocalDate, OHLCPriceDto> priceMap, int shortWindow, int longWindow,
-    LocalDate start) {
+                                      LocalDate start) {
     SignalPrices prices = SignalPrices.of(priceMap);
     return new SignalHolding(new MaCrossSignal(prices, shortWindow, longWindow), prices, start);
   }
 
   // 일봉(시작일 전 신호 기간만큼 더 받은 것)의 수정 종가 이동평균 밴드
   public static SignalHolding maBand(Map<LocalDate, OHLCPriceDto> priceMap, int window, BigDecimal upperRate,
-    BigDecimal lowerRate, LocalDate start) {
+                                     BigDecimal lowerRate, LocalDate start) {
     SignalPrices prices = SignalPrices.of(priceMap);
     return new SignalHolding(new MaBandSignal(prices, window, upperRate, lowerRate), prices, start);
   }

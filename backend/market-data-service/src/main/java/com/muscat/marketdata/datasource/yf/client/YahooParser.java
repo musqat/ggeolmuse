@@ -32,7 +32,7 @@ public class YahooParser {
   private static final String NULL_TEXT = "null";
 
   public List<CandleDto> parseDailyAdjusted(String rawJson, String symbolOverride,
-    LocalDate fromDate, LocalDate toDate) {
+                                            LocalDate fromDate, LocalDate toDate) {
     log.debug("Yahoo 일봉 데이터 파싱 시작: symbol={}, from={}, to={}", symbolOverride, fromDate, toDate);
 
     try {
@@ -58,7 +58,7 @@ public class YahooParser {
   }
 
   public List<DividendDto> parseDividends(String rawJson, String symbol, LocalDate fromDate,
-    LocalDate toDate) {
+                                          LocalDate toDate) {
     log.debug("Yahoo 배당 데이터 파싱 시작: symbol={}", symbol);
 
     try {
@@ -166,7 +166,7 @@ public class YahooParser {
   }
 
   private List<CandleDto> buildDailyAdjustedDtos(TimeSeriesData data, ChartMetadata metadata,
-    LocalDate fromDate, LocalDate toDate, Map<LocalDate, BigDecimal> splits) {
+                                                 LocalDate fromDate, LocalDate toDate, Map<LocalDate, BigDecimal> splits) {
     List<CandleDto> results = new ArrayList<>();
 
     for (int i = 0; i < data.timestamps().size(); i++) {
@@ -190,7 +190,7 @@ public class YahooParser {
   }
 
   private CandleDto createDailyAdjustedDto(TimeSeriesData data, ChartMetadata metadata,
-    LocalDate date, int index, BigDecimal splitCoefficient) {
+                                           LocalDate date, int index, BigDecimal splitCoefficient) {
     BigDecimal open = getDecimalValueAt(data.open(), index);
     BigDecimal high = getDecimalValueAt(data.high(), index);
     BigDecimal low = getDecimalValueAt(data.low(), index);
@@ -226,7 +226,7 @@ public class YahooParser {
   }
 
   private List<DividendDto> extractDividendEvents(JsonNode dividends, String symbol,
-    LocalDate fromDate, LocalDate toDate) {
+                                                  LocalDate fromDate, LocalDate toDate) {
     List<DividendDto> results = new ArrayList<>();
 
     Iterator<String> fieldNames = dividends.fieldNames();
@@ -247,7 +247,7 @@ public class YahooParser {
   }
 
   private DividendDto createDividendDto(JsonNode event, String eventKey, String symbol,
-    LocalDate fromDate, LocalDate toDate) {
+                                        LocalDate fromDate, LocalDate toDate) {
     // 삼항 양쪽 Long(long 과 섞이면 언박싱돼 null 일 때 NPE)
     Long timestamp = event.hasNonNull("date")
       ? Long.valueOf(event.get("date").asLong())

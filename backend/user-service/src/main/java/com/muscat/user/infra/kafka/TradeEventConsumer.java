@@ -17,39 +17,39 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class TradeEventConsumer {
 
-    private final TradeSettlementService tradeSettlementService;
+  private final TradeSettlementService tradeSettlementService;
 
-    @KafkaListener(
-            topics = "trading.trade.completed",
-            groupId = "${spring.application.name}-trade-consumer",
-            containerFactory = "tradeEventKafkaListenerContainerFactory"
-    )
-    public void handleTradeCompleted(
-            @Payload TradeCompletedEvent event,
-            @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
-            @Header(KafkaHeaders.OFFSET) long offset,
-            Acknowledgment acknowledgment
-    ) {
-        log.info("거래 완료 이벤트 수신: tradeId={}, userId={}, symbol={}, amount={}, partition={}, offset={}",
-                event.getTradeId(), event.getUserId(), event.getSymbol(),
-                event.getTotalAmount(), partition, offset);
+  @KafkaListener(
+    topics = "trading.trade.completed",
+    groupId = "${spring.application.name}-trade-consumer",
+    containerFactory = "tradeEventKafkaListenerContainerFactory"
+  )
+  public void handleTradeCompleted(
+    @Payload TradeCompletedEvent event,
+    @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
+    @Header(KafkaHeaders.OFFSET) long offset,
+    Acknowledgment acknowledgment
+  ) {
+    log.info("거래 완료 이벤트 수신: tradeId={}, userId={}, symbol={}, amount={}, partition={}, offset={}",
+      event.getTradeId(), event.getUserId(), event.getSymbol(),
+      event.getTotalAmount(), partition, offset);
 
-        try {
-            // 같은 체결은 한 번만 반영
-            tradeSettlementService.settle(event);
+    try {
+      // 같은 체결은 한 번만 반영
+      tradeSettlementService.settle(event);
 
-            // 수동 커밋 (처리 성공시에만)
-            acknowledgment.acknowledge();
+      // 수동 커밋 (처리 성공시에만)
+      acknowledgment.acknowledge();
 
-            log.info("거래 이벤트 처리 완료: tradeId={}, userId={}",
-                    event.getTradeId(), event.getUserId());
+      log.info("거래 이벤트 처리 완료: tradeId={}, userId={}",
+        event.getTradeId(), event.getUserId());
 
-        } catch (Exception ex) {
-            log.error("거래 이벤트 처리 실패: tradeId={}, userId={}, error={}",
-                    event.getTradeId(), event.getUserId(), ex.getMessage(), ex);
+    } catch (Exception ex) {
+      log.error("거래 이벤트 처리 실패: tradeId={}, userId={}, error={}",
+        event.getTradeId(), event.getUserId(), ex.getMessage(), ex);
 
-            // 재시도 실패시 DLQ (Dead Letter Queue)로 이동
-            throw ex;
-        }
+      // 재시도 실패시 DLQ (Dead Letter Queue)로 이동
+      throw ex;
     }
+  }
 }

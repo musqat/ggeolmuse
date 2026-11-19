@@ -41,7 +41,7 @@ public class BacktestRunLimiter implements HandlerInterceptor {
   // 실행이 끝나면 자리 반환(예외로 끝나도)
   @Override
   public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler,
-    Exception ex) {
+                              Exception ex) {
     slots.release();
   }
 }

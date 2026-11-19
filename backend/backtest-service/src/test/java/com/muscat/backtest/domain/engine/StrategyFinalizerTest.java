@@ -1,6 +1,7 @@
 package com.muscat.backtest.domain.engine;
 
 import com.muscat.backtest.common.enums.type.TransactionKind;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -119,7 +120,7 @@ class StrategyFinalizerTest {
 
     // 평가일 시세 120 · 평가일 환율 1350 · 배당 없음
     private StrategyFinalizer.Result run(List<StrategyTransaction> transactions, Map<LocalDate, OHLCPriceDto> priceMap,
-      PeriodEnd periodEnd) {
+                                         PeriodEnd periodEnd) {
       given(marketData.getOHLCPrice(eq("AAPL"), anyString())).willReturn(candle(VALUATION, "120"));
       given(marketData.getFxRate(anyString())).willReturn(new FxRateDto(VALUATION, new BigDecimal("1350")));
       given(marketData.getDividendHistory(eq("AAPL"), anyString(), anyString())).willReturn(List.of());

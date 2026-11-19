@@ -20,46 +20,46 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class KafkaProducerConfig {
 
-    private final MeterRegistry meterRegistry;
+  private final MeterRegistry meterRegistry;
 
-    @Value("${spring.kafka.bootstrap-servers}")
-    private String bootstrapServers;
+  @Value("${spring.kafka.bootstrap-servers}")
+  private String bootstrapServers;
 
-    @Bean
-    public ProducerFactory<String, DividendUpdatedEvent> dividendEventProducerFactory() {
-        return KafkaFactories.producerFactory(producerProps(), meterRegistry);
-    }
+  @Bean
+  public ProducerFactory<String, DividendUpdatedEvent> dividendEventProducerFactory() {
+    return KafkaFactories.producerFactory(producerProps(), meterRegistry);
+  }
 
-    @Bean
-    public KafkaTemplate<String, DividendUpdatedEvent> dividendEventKafkaTemplate() {
-        return new KafkaTemplate<>(dividendEventProducerFactory());
-    }
+  @Bean
+  public KafkaTemplate<String, DividendUpdatedEvent> dividendEventKafkaTemplate() {
+    return new KafkaTemplate<>(dividendEventProducerFactory());
+  }
 
-    @Bean
-    public ProducerFactory<String, AssetCreatedEvent> assetCreatedProducerFactory() {
-        return KafkaFactories.producerFactory(producerProps(), meterRegistry);
-    }
+  @Bean
+  public ProducerFactory<String, AssetCreatedEvent> assetCreatedProducerFactory() {
+    return KafkaFactories.producerFactory(producerProps(), meterRegistry);
+  }
 
-    @Bean
-    public KafkaTemplate<String, AssetCreatedEvent> assetCreatedKafkaTemplate() {
-        return new KafkaTemplate<>(assetCreatedProducerFactory());
-    }
+  @Bean
+  public KafkaTemplate<String, AssetCreatedEvent> assetCreatedKafkaTemplate() {
+    return new KafkaTemplate<>(assetCreatedProducerFactory());
+  }
 
-    @Bean
-    public ProducerFactory<String, StockSplitEvent> splitEventProducerFactory() {
-        return KafkaFactories.producerFactory(producerProps(), meterRegistry);
-    }
+  @Bean
+  public ProducerFactory<String, StockSplitEvent> splitEventProducerFactory() {
+    return KafkaFactories.producerFactory(producerProps(), meterRegistry);
+  }
 
-    @Bean
-    public KafkaTemplate<String, StockSplitEvent> splitEventKafkaTemplate() {
-        return new KafkaTemplate<>(splitEventProducerFactory());
-    }
+  @Bean
+  public KafkaTemplate<String, StockSplitEvent> splitEventKafkaTemplate() {
+    return new KafkaTemplate<>(splitEventProducerFactory());
+  }
 
-    private Map<String, Object> producerProps() {
-        Map<String, Object> props = KafkaFactories.producerProps(bootstrapServers);
-        props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
-        props.put(ProducerConfig.LINGER_MS_CONFIG, 10);
-        props.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384);
-        return props;
-    }
+  private Map<String, Object> producerProps() {
+    Map<String, Object> props = KafkaFactories.producerProps(bootstrapServers);
+    props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
+    props.put(ProducerConfig.LINGER_MS_CONFIG, 10);
+    props.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384);
+    return props;
+  }
 }

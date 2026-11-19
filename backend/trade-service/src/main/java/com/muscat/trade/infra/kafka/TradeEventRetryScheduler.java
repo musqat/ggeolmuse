@@ -35,8 +35,8 @@ public class TradeEventRetryScheduler {
   private final AtomicLong pendingBuys;
 
   public TradeEventRetryScheduler(TradeRepository tradeRepository,
-    TradeEventProducer tradeEventProducer, TradePublishRecorder tradePublishRecorder,
-    MeterRegistry meterRegistry) {
+                                  TradeEventProducer tradeEventProducer, TradePublishRecorder tradePublishRecorder,
+                                  MeterRegistry meterRegistry) {
     this.tradeRepository = tradeRepository;
     this.tradeEventProducer = tradeEventProducer;
     this.tradePublishRecorder = tradePublishRecorder;

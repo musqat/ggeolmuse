@@ -40,4 +40,5 @@ public class YfSymbolSource implements MarketDataProvider.AssetInfoSource {
       log.error("Yahoo 종목 정보 조회 실패: symbol={}", symbol, e);
       return null;
     }
-  }}
+  }
+}

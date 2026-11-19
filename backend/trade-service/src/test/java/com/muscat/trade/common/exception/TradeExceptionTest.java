@@ -10,54 +10,54 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("TradeException 테스트")
 class TradeExceptionTest {
 
-    @Test
-    @DisplayName("TradeResponse로 예외 생성 시 정상 동작")
-    void createException_WithTradeResponse_Success() {
-        // Given
-        TradeResponse response = TradeResponse.INSUFFICIENT_BALANCE;
+  @Test
+  @DisplayName("TradeResponse로 예외 생성 시 정상 동작")
+  void createException_WithTradeResponse_Success() {
+    // Given
+    TradeResponse response = TradeResponse.INSUFFICIENT_BALANCE;
 
-        // When
-        TradeException exception = new TradeException(response);
+    // When
+    TradeException exception = new TradeException(response);
 
-        // Then
-        assertThat(exception.getErrorCode()).isEqualTo(response.name());
-        assertThat(exception.getErrorMessage()).isEqualTo(response.getMessage());
-        assertThat(exception.getHttpStatus()).isEqualTo(response.getHttpStatus());
-    }
+    // Then
+    assertThat(exception.getErrorCode()).isEqualTo(response.name());
+    assertThat(exception.getErrorMessage()).isEqualTo(response.getMessage());
+    assertThat(exception.getHttpStatus()).isEqualTo(response.getHttpStatus());
+  }
 
-    @Test
-    @DisplayName("잔액 부족 예외 생성")
-    void createException_InsufficientBalance() {
-        // When
-        TradeException exception = new TradeException(TradeResponse.INSUFFICIENT_BALANCE);
+  @Test
+  @DisplayName("잔액 부족 예외 생성")
+  void createException_InsufficientBalance() {
+    // When
+    TradeException exception = new TradeException(TradeResponse.INSUFFICIENT_BALANCE);
 
-        // Then
-        assertThat(exception.getErrorCode()).isEqualTo("INSUFFICIENT_BALANCE");
-        assertThat(exception.getErrorMessage()).contains("잔액이 부족");
-        assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
-    }
+    // Then
+    assertThat(exception.getErrorCode()).isEqualTo("INSUFFICIENT_BALANCE");
+    assertThat(exception.getErrorMessage()).contains("잔액이 부족");
+    assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+  }
 
-    @Test
-    @DisplayName("계좌 미발견 예외 생성")
-    void createException_AccountNotFound() {
-        // When
-        TradeException exception = new TradeException(TradeResponse.ACCOUNT_NOT_FOUND);
+  @Test
+  @DisplayName("계좌 미발견 예외 생성")
+  void createException_AccountNotFound() {
+    // When
+    TradeException exception = new TradeException(TradeResponse.ACCOUNT_NOT_FOUND);
 
-        // Then
-        assertThat(exception.getErrorCode()).isEqualTo("ACCOUNT_NOT_FOUND");
-        assertThat(exception.getErrorMessage()).contains("계좌를 찾을 수 없");
-        assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.NOT_FOUND);
-    }
+    // Then
+    assertThat(exception.getErrorCode()).isEqualTo("ACCOUNT_NOT_FOUND");
+    assertThat(exception.getErrorMessage()).contains("계좌를 찾을 수 없");
+    assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+  }
 
-    @Test
-    @DisplayName("보유량 부족 예외 생성")
-    void createException_InsufficientHoldings() {
-        // When
-        TradeException exception = new TradeException(TradeResponse.INSUFFICIENT_HOLDINGS);
+  @Test
+  @DisplayName("보유량 부족 예외 생성")
+  void createException_InsufficientHoldings() {
+    // When
+    TradeException exception = new TradeException(TradeResponse.INSUFFICIENT_HOLDINGS);
 
-        // Then
-        assertThat(exception.getErrorCode()).isEqualTo("INSUFFICIENT_HOLDINGS");
-        assertThat(exception.getErrorMessage()).contains("보유 수량이 부족");
-        assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
-    }
+    // Then
+    assertThat(exception.getErrorCode()).isEqualTo("INSUFFICIENT_HOLDINGS");
+    assertThat(exception.getErrorMessage()).contains("보유 수량이 부족");
+    assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+  }
 }

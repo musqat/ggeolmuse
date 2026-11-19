@@ -27,21 +27,21 @@ class RouteCircuitBreakerTest {
   private static final String ID = "marketDataServiceCB";
 
   private final ApplicationContextRunner runner = new ApplicationContextRunner()
-      .withConfiguration(AutoConfigurations.of(CircuitBreakerAutoConfiguration.class,
-          BulkheadAutoConfiguration.class, TimeLimiterAutoConfiguration.class,
-          ReactiveResilience4JAutoConfiguration.class))
-      .withPropertyValues(
-          "resilience4j.timelimiter.configs.default.timeoutDuration=30s",
-          "resilience4j.timelimiter.configs.default.cancelRunningFuture=false",
-          "resilience4j.bulkhead.configs.default.maxConcurrentCalls=50",
-          "resilience4j.bulkhead.configs.default.maxWaitDuration=0ms",
-          "resilience4j.circuitbreaker.configs.default.slidingWindowSize=50",
-          "resilience4j.circuitbreaker.configs.default.minimumNumberOfCalls=20",
-          "resilience4j.circuitbreaker.configs.default.failureRateThreshold=50",
-          "resilience4j.circuitbreaker.configs.default.waitDurationInOpenState=10s",
-          "resilience4j.circuitbreaker.configs.default.automaticTransitionFromOpenToHalfOpenEnabled=true",
-          "resilience4j.circuitbreaker.configs.default.permittedNumberOfCallsInHalfOpenState=5",
-          "resilience4j.circuitbreaker.configs.default.ignoreExceptions[0]=io.github.resilience4j.bulkhead.BulkheadFullException");
+    .withConfiguration(AutoConfigurations.of(CircuitBreakerAutoConfiguration.class,
+      BulkheadAutoConfiguration.class, TimeLimiterAutoConfiguration.class,
+      ReactiveResilience4JAutoConfiguration.class))
+    .withPropertyValues(
+      "resilience4j.timelimiter.configs.default.timeoutDuration=30s",
+      "resilience4j.timelimiter.configs.default.cancelRunningFuture=false",
+      "resilience4j.bulkhead.configs.default.maxConcurrentCalls=50",
+      "resilience4j.bulkhead.configs.default.maxWaitDuration=0ms",
+      "resilience4j.circuitbreaker.configs.default.slidingWindowSize=50",
+      "resilience4j.circuitbreaker.configs.default.minimumNumberOfCalls=20",
+      "resilience4j.circuitbreaker.configs.default.failureRateThreshold=50",
+      "resilience4j.circuitbreaker.configs.default.waitDurationInOpenState=10s",
+      "resilience4j.circuitbreaker.configs.default.automaticTransitionFromOpenToHalfOpenEnabled=true",
+      "resilience4j.circuitbreaker.configs.default.permittedNumberOfCallsInHalfOpenState=5",
+      "resilience4j.circuitbreaker.configs.default.ignoreExceptions[0]=io.github.resilience4j.bulkhead.BulkheadFullException");
 
   @Test
   @DisplayName("동시 한도를 넘는 요청이 몰려도 서킷은 닫혀 있다")
@@ -49,11 +49,11 @@ class RouteCircuitBreakerTest {
     runner.run(context -> {
       ReactiveCircuitBreaker breaker = context.getBean(ReactiveCircuitBreakerFactory.class).create(ID);
       List<String> results = Flux.range(0, 3)
-          .concatMap(wave -> Flux.range(0, 60)
-              .flatMap(i -> breaker.run(Mono.delay(Duration.ofMillis(100)).thenReturn("ok"),
-                  error -> Mono.just("fallback")), 60))
-          .collectList()
-          .block();
+        .concatMap(wave -> Flux.range(0, 60)
+          .flatMap(i -> breaker.run(Mono.delay(Duration.ofMillis(100)).thenReturn("ok"),
+            error -> Mono.just("fallback")), 60))
+        .collectList()
+        .block();
 
       assertThat(results).contains("ok", "fallback");
       assertThat(state(context)).isEqualTo(CircuitBreaker.State.CLOSED);

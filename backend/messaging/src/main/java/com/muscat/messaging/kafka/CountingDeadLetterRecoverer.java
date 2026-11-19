@@ -14,20 +14,20 @@ import org.springframework.lang.Nullable;
 @Slf4j
 public class CountingDeadLetterRecoverer implements ConsumerAwareRecordRecoverer {
 
-    private final ConsumerAwareRecordRecoverer delegate;
-    private final Counter counter;
+  private final ConsumerAwareRecordRecoverer delegate;
+  private final Counter counter;
 
-    public CountingDeadLetterRecoverer(ConsumerAwareRecordRecoverer delegate, MeterRegistry meterRegistry) {
-        this.delegate = delegate;
-        // 시작 때 0 으로 등록(첫 증가 때 생긴 시계열은 increase 가 첫 값을 못 셈)
-        this.counter = Counter.builder("kafka.dlt.records").register(meterRegistry);
-    }
+  public CountingDeadLetterRecoverer(ConsumerAwareRecordRecoverer delegate, MeterRegistry meterRegistry) {
+    this.delegate = delegate;
+    // 시작 때 0 으로 등록(첫 증가 때 생긴 시계열은 increase 가 첫 값을 못 셈)
+    this.counter = Counter.builder("kafka.dlt.records").register(meterRegistry);
+  }
 
-    @Override
-    public void accept(ConsumerRecord<?, ?> record, @Nullable Consumer<?, ?> consumer, Exception exception) {
-        counter.increment();
-        log.error("DLT 로 보냄: topic={}, partition={}, offset={}, error={}",
-                record.topic(), record.partition(), record.offset(), exception.getMessage());
-        delegate.accept(record, consumer, exception);
-    }
+  @Override
+  public void accept(ConsumerRecord<?, ?> record, @Nullable Consumer<?, ?> consumer, Exception exception) {
+    counter.increment();
+    log.error("DLT 로 보냄: topic={}, partition={}, offset={}, error={}",
+      record.topic(), record.partition(), record.offset(), exception.getMessage());
+    delegate.accept(record, consumer, exception);
+  }
 }

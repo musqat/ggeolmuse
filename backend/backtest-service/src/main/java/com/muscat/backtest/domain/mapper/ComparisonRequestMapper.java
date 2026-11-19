@@ -94,7 +94,7 @@ public final class ComparisonRequestMapper {
 
   // 비교할 조건부 매수 요청(예산은 비교 투자 금액)
   private static ConditionalStrategyRequest conditional(StrategyComparisonRequest request,
-    StrategyParameter strategy) {
+                                                        StrategyParameter strategy) {
     boolean sells = strategy.getTakeProfitRate() != null || strategy.getStopLossRate() != null;
     return ConditionalStrategyRequest.builder()
       .symbol(request.getSymbol())

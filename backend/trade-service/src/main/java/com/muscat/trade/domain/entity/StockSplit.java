@@ -44,7 +44,7 @@ public class StockSplit {
   private LocalDateTime appliedAt;
 
   public static StockSplit of(String symbol, LocalDate splitDate, BigDecimal ratio, int adjustedTrades,
-    LocalDateTime appliedAt) {
+                              LocalDateTime appliedAt) {
     StockSplit split = new StockSplit();
     split.symbol = symbol;
     split.splitDate = splitDate;

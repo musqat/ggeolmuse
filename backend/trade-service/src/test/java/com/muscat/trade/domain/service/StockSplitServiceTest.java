@@ -86,7 +86,7 @@ class StockSplitServiceTest {
   }
 
   private static Trade trade(long id, long accountId, TradeType type, String quantity, String price,
-    LocalDate tradeDate) {
+                             LocalDate tradeDate) {
     return Trade.builder().id(id).userId(USER).accountId(accountId).symbol(SYMBOL).tradeType(type)
       .quantity(new BigDecimal(quantity)).price(new BigDecimal(price)).totalAmount(new BigDecimal("1000"))
       .tradeDate(tradeDate).executedAt(tradeDate.atTime(10, 0).plusSeconds(id)).status(TradeStatus.COMPLETED)

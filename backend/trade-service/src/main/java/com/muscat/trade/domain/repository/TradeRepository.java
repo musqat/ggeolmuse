@@ -30,13 +30,13 @@ public interface TradeRepository extends JpaRepository<Trade, Long>, TradeReposi
 
   // 한 종목 체결(체결 시각 순)
   List<Trade> findByUserIdAndAccountIdAndSymbolAndStatusOrderByExecutedAtAscIdAsc(String userId,
-    Long accountId, String symbol, TradeStatus status);
+                                                                                  Long accountId, String symbol, TradeStatus status);
 
   List<Trade> findByUserIdAndStatusOrderByExecutedAtAscIdAsc(String userId, TradeStatus status);
 
   // 기준 거래일 뒤 한 종목 체결이 있는지
   boolean existsByUserIdAndAccountIdAndSymbolAndStatusAndTradeDateAfter(String userId, Long accountId,
-    String symbol, TradeStatus status, LocalDate tradeDate);
+                                                                        String symbol, TradeStatus status, LocalDate tradeDate);
 
   // 모든 상태(대기 · 완료 · 취소)의 체결
   List<Trade> findByUserId(String userId);
@@ -69,7 +69,7 @@ public interface TradeRepository extends JpaRepository<Trade, Long>, TradeReposi
 
   // 기준 시각 전에 발행하고도 아직 그 상태인 체결 100건 (id 순)
   List<Trade> findTop100ByTradeTypeAndStatusAndEventPublishedAtBeforeOrderByIdAsc(TradeType tradeType,
-    TradeStatus status, LocalDateTime before);
+                                                                                  TradeStatus status, LocalDateTime before);
 
   // 기준 시각 전에 만들고 아직 그 상태인 체결 수 (trade.buys.pending)
   long countByTradeTypeAndStatusAndCreatedAtBefore(TradeType tradeType, TradeStatus status, LocalDateTime cutoff);

@@ -27,8 +27,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/admin/market/batch")
 @RequiredArgsConstructor
 @ConditionalOnProperty(
-    name = "marketdata.provider",
-    havingValue = "alphavantage"
+  name = "marketdata.provider",
+  havingValue = "alphavantage"
 )
 public class DataCollectionController {
 

@@ -16,7 +16,7 @@ class SecretsManagerDependencyTest {
   @DisplayName("Secrets Manager 연동 라이브러리가 클래스패스에 없다")
   void noSecretsManagerClient() {
     assertThat(ClassUtils.isPresent("io.awspring.cloud.secretsmanager.SecretsManagerPropertySource",
-        getClass().getClassLoader())).isFalse();
+      getClass().getClassLoader())).isFalse();
   }
 
   @Test

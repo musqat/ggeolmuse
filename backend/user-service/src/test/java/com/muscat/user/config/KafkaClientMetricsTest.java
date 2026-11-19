@@ -35,7 +35,7 @@ class KafkaClientMetricsTest {
     }
 
     assertThat(factories).isNotEmpty().allSatisfy(factory ->
-        assertThat(factory.getListeners()).hasAtLeastOneElementOfType(MicrometerProducerListener.class));
+      assertThat(factory.getListeners()).hasAtLeastOneElementOfType(MicrometerProducerListener.class));
   }
 
   @Test
@@ -51,7 +51,7 @@ class KafkaClientMetricsTest {
     }
 
     assertThat(factories).isNotEmpty().allSatisfy(factory ->
-        assertThat(factory.getListeners()).hasAtLeastOneElementOfType(MicrometerConsumerListener.class));
+      assertThat(factory.getListeners()).hasAtLeastOneElementOfType(MicrometerConsumerListener.class));
   }
 
   private KafkaProducerConfig producerConfig() {

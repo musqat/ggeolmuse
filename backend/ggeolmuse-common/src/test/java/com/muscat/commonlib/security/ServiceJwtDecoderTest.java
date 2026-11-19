@@ -122,8 +122,8 @@ class ServiceJwtDecoderTest {
   @Test
   @DisplayName("허용한 두 발급자와 두 클라이언트의 토큰은 통과한다")
   void allowedIssuersAndClientsPass() throws Exception {
-    for (String issuer : new String[] {PUBLIC_ISSUER, internalIssuer()}) {
-      for (String clientId : new String[] {"web-client", "app-client"}) {
+    for (String issuer : new String[]{PUBLIC_ISSUER, internalIssuer()}) {
+      for (String clientId : new String[]{"web-client", "app-client"}) {
         mockMvc.perform(get("/api/things").header("Authorization", "Bearer " + token(issuer, clientId)))
           .andExpect(status().isOk());
       }

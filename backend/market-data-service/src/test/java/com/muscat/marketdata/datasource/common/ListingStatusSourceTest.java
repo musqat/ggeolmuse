@@ -24,7 +24,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class ListingStatusSourceTest {
 
   private static final String HEADER =
-      "symbol,name,exchange,assetType,ipoDate,delistingDate,status";
+    "symbol,name,exchange,assetType,ipoDate,delistingDate,status";
 
   @Mock
   private AlphaVantageClient client;
@@ -64,12 +64,12 @@ class ListingStatusSourceTest {
     givenCsv("A,Agilent Technologies Inc,NYSE,Stock,1999-11-18,null,Active");
 
     assertThat(source.fetch())
-        .singleElement()
-        .satisfies(a -> {
-          assertThat(a.getAssetType()).isEqualTo("EQUITY");
-          assertThat(a.getCurrency()).isEqualTo("USD");
-          assertThat(a.getCountry()).isEqualTo("US");
-        });
+      .singleElement()
+      .satisfies(a -> {
+        assertThat(a.getAssetType()).isEqualTo("EQUITY");
+        assertThat(a.getCurrency()).isEqualTo("USD");
+        assertThat(a.getCountry()).isEqualTo("US");
+      });
   }
 
   @Test
@@ -79,25 +79,25 @@ class ListingStatusSourceTest {
     givenCsv("AAPL,Apple Inc,NASDAQ,Stock,1980-12-12,null,Active");
 
     assertThat(source.fetch()).singleElement()
-        .satisfies(a -> assertThat(a.getMarketCap()).isNull());
+      .satisfies(a -> assertThat(a.getMarketCap()).isNull());
   }
 
   @Test
   @DisplayName("이름에 쉼표가 있어도 잘리지 않는다")
   void 쉼표_이름() {
     givenCsv("XYZ,Some Corp\\, Inc,NYSE,Stock,2020-01-01,null,Active"
-        .replace("\\,", ","));
+      .replace("\\,", ","));
 
     assertThat(source.fetch()).singleElement()
-        .satisfies(a -> assertThat(a.getName()).isEqualTo("Some Corp, Inc"));
+      .satisfies(a -> assertThat(a.getName()).isEqualTo("Some Corp, Inc"));
   }
 
   @Test
   @DisplayName("상장폐지된 것은 목록에 넣지 않는다")
   void 상장폐지_제외() {
     givenCsv(
-        "OLD,Delisted Corp,NYSE,Stock,2000-01-01,2020-05-05,Delisted",
-        "NEW,Active Corp,NYSE,Stock,2020-01-01,null,Active");
+      "OLD,Delisted Corp,NYSE,Stock,2000-01-01,2020-05-05,Delisted",
+      "NEW,Active Corp,NYSE,Stock,2020-01-01,null,Active");
 
     assertThat(source.fetch()).extracting(Asset::getSymbol).containsExactly("NEW");
   }
@@ -106,8 +106,8 @@ class ListingStatusSourceTest {
   @DisplayName("Stock 도 ETF 도 아니면 버린다")
   void 기타_유형_제외() {
     givenCsv(
-        "FUND1,Some Mutual Fund,NYSE,Mutual Fund,2010-01-01,null,Active",
-        "OK,Normal Corp,NYSE,Stock,2010-01-01,null,Active");
+      "FUND1,Some Mutual Fund,NYSE,Mutual Fund,2010-01-01,null,Active",
+      "OK,Normal Corp,NYSE,Stock,2010-01-01,null,Active");
 
     assertThat(source.fetch()).extracting(Asset::getSymbol).containsExactly("OK");
   }
@@ -116,8 +116,8 @@ class ListingStatusSourceTest {
   @DisplayName("주요 거래소가 아니면 버린다")
   void 비주요_거래소_제외() {
     givenCsv(
-        "OTC1,OTC Corp,OTC,Stock,2010-01-01,null,Active",
-        "OK,Normal Corp,NASDAQ,Stock,2010-01-01,null,Active");
+      "OTC1,OTC Corp,OTC,Stock,2010-01-01,null,Active",
+      "OK,Normal Corp,NASDAQ,Stock,2010-01-01,null,Active");
 
     assertThat(source.fetch()).extracting(Asset::getSymbol).containsExactly("OK");
   }
@@ -136,9 +136,9 @@ class ListingStatusSourceTest {
   void 상한() {
     ReflectionTestUtils.setField(source, "maxSymbols", 2);
     givenCsv(
-        "A1,Corp One,NYSE,Stock,2010-01-01,null,Active",
-        "A2,Corp Two,NYSE,Stock,2010-01-01,null,Active",
-        "A3,Corp Three,NYSE,Stock,2010-01-01,null,Active");
+      "A1,Corp One,NYSE,Stock,2010-01-01,null,Active",
+      "A2,Corp Two,NYSE,Stock,2010-01-01,null,Active",
+      "A3,Corp Three,NYSE,Stock,2010-01-01,null,Active");
 
     assertThat(source.fetch()).hasSize(2);
   }
@@ -165,8 +165,8 @@ class ListingStatusSourceTest {
   @DisplayName("깨진 행은 건너뛰고 나머지를 살린다")
   void 깨진_행() {
     givenCsv(
-        "TOOSHORT,name,NYSE",
-        "OK,Normal Corp,NYSE,Stock,2010-01-01,null,Active");
+      "TOOSHORT,name,NYSE",
+      "OK,Normal Corp,NYSE,Stock,2010-01-01,null,Active");
 
     assertThat(source.fetch()).extracting(Asset::getSymbol).containsExactly("OK");
   }
@@ -187,10 +187,10 @@ class ListingStatusSourceTest {
   @DisplayName("Stock 으로 와도 이름이 ETF 낱말이나 money market 이면 ETF, Netflix 처럼 낱말 안에 든 etf 는 주식")
   void fundNameOverridesStock() {
     givenCsv("YBST,GraniteShares YieldBoost Single Stock Universe ETF,NASDAQ,Stock,2025-01-01,null,Active",
-        "JMMF,JPMorgan 100 U.S. Treasury Securities Money Market,NYSE,Stock,2025-01-01,null,Active",
-        "NFLX,Netflix Inc,NASDAQ,Stock,2002-05-23,null,Active");
+      "JMMF,JPMorgan 100 U.S. Treasury Securities Money Market,NYSE,Stock,2025-01-01,null,Active",
+      "NFLX,Netflix Inc,NASDAQ,Stock,2002-05-23,null,Active");
 
     assertThat(source.fetch()).extracting(Asset::getSymbol, Asset::getAssetType)
-        .containsExactly(tuple("YBST", "ETF"), tuple("JMMF", "ETF"), tuple("NFLX", "EQUITY"));
+      .containsExactly(tuple("YBST", "ETF"), tuple("JMMF", "ETF"), tuple("NFLX", "EQUITY"));
   }
 }

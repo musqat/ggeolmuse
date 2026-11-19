@@ -19,13 +19,13 @@ public interface MarketDataClient {
   // 특정 날짜의 주식 OHLC 가격 조회 (내부 API)
   @GetMapping("/api/internal/market/ohlc/{symbol}")
   OHLCPriceDto getOHLCPrice(@PathVariable("symbol") String symbol,
-    @RequestParam("date") String date);
+                            @RequestParam("date") String date);
 
   // 특정 기간의 주식 OHLC 가격 범위 조회 (내부 API)
   @GetMapping("/api/internal/market/ohlc/{symbol}/range")
   List<OHLCPriceDto> getOHLCPriceRange(@PathVariable("symbol") String symbol,
-    @RequestParam("startDate") String startDate,
-    @RequestParam("endDate") String endDate);
+                                       @RequestParam("startDate") String startDate,
+                                       @RequestParam("endDate") String endDate);
 
   // 현재 주식 가격 조회 (내부 API)
   @GetMapping("/api/internal/market/price/{symbol}")
@@ -42,8 +42,8 @@ public interface MarketDataClient {
   // 특정 기간의 배당 이력 조회 (내부 API)
   @GetMapping("/api/internal/market/dividend/{symbol}")
   List<DividendDto> getDividendHistory(@PathVariable("symbol") String symbol,
-    @RequestParam(value = "startDate", required = false) String startDate,
-    @RequestParam(value = "endDate", required = false) String endDate);
+                                       @RequestParam(value = "startDate", required = false) String startDate,
+                                       @RequestParam(value = "endDate", required = false) String endDate);
 
   // Bulk 환율 조회 (내부 API) - 여러 날짜의 환율을 한 번에 조회
   @PostMapping("/api/internal/market/fx/bulk")

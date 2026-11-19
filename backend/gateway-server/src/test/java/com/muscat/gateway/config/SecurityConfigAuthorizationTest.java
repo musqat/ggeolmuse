@@ -34,7 +34,7 @@ class SecurityConfigAuthorizationTest {
   @Autowired
   private WebTestClient client;
 
-  enum Caller { ANONYMOUS, USER, ADMIN }
+  enum Caller {ANONYMOUS, USER, ADMIN}
 
   static Stream<Arguments> rules() {
     return Stream.of(
@@ -79,7 +79,8 @@ class SecurityConfigAuthorizationTest {
     WebTestClient as = switch (caller) {
       case ANONYMOUS -> client;
       case USER -> client.mutateWith(mockJwt().authorities(new SimpleGrantedAuthority("user")));
-      case ADMIN -> client.mutateWith(mockJwt().authorities(new SimpleGrantedAuthority("user"), new SimpleGrantedAuthority("admin")));
+      case ADMIN ->
+        client.mutateWith(mockJwt().authorities(new SimpleGrantedAuthority("user"), new SimpleGrantedAuthority("admin")));
     };
 
     as.method(HttpMethod.valueOf(method)).uri(path).exchange().expectStatus().isEqualTo(status);

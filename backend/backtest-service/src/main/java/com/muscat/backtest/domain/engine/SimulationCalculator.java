@@ -30,7 +30,7 @@ public final class SimulationCalculator {
 
   // 일별 환율 fx 와 배당락일 종가 closeOn(휴장일이면 직전 거래일)으로 낸 손익
   public static SimulationCalculationResult calculate(SimulationContext context, Function<LocalDate, BigDecimal> fx,
-    Function<LocalDate, BigDecimal> closeOn) {
+                                                      Function<LocalDate, BigDecimal> closeOn) {
     SimulationRequest request = context.request();
     BigDecimal purchasePriceUsd = PriceLookup.effectiveClose(context.purchaseData());
     BigDecimal purchaseFxRate = context.purchaseFxRate().rate();
@@ -74,13 +74,13 @@ public final class SimulationCalculator {
     // 재투자를 끄면 세후 배당을 현금으로(켜면 이미 주식 수에 포함)
     BigDecimal cashDividendKrw = !reinvested && Decimals.isPositive(totalDividends)
       ? MoneyUtils.convertUsdToKrw(
-        BacktestCalculationUtils.afterDividendTax(totalDividends, request.getDividendTaxRate(), false), currentFxRate)
+      BacktestCalculationUtils.afterDividendTax(totalDividends, request.getDividendTaxRate(), false), currentFxRate)
       : BigDecimal.ZERO;
 
     // 기간 끝에 팔면 주식 0 · 판 돈은 남은 현금으로(환율은 평가일 환율)
     StrategyTransaction endSale = PeriodEnd.sells(request.getPeriodEnd())
       ? PeriodEndSale.of(shares, StrategyCalculator.holdingCost(trail.taxTransactions()), context.priceMap(),
-        context.valuationDate(), currentPriceUsd, request.getTradingFeeRate(), currentFxRate)
+      context.valuationDate(), currentPriceUsd, request.getTradingFeeRate(), currentFxRate)
       : null;
     BigDecimal heldShares = shares;
     if (endSale != null) {
@@ -121,7 +121,7 @@ public final class SimulationCalculator {
 
   // 투자 금액이면 환전한 달러로 수수료를 빼고 사고, 주식 수면 정한 주식 수 × 종가 + 수수료를 원화로
   static Purchase purchase(BigDecimal investmentKrw, Integer shares, BigDecimal priceUsd, BigDecimal fxRate,
-    BigDecimal feeRate) {
+                           BigDecimal feeRate) {
     if (shares != null) {
       RoundPurchase bought = RoundPurchase.byShares(shares, priceUsd, fxRate, feeRate);
       return new Purchase(bought.amountKrw(), bought.costUsd(), bought.shares(), bought.feeUsd(), BigDecimal.ZERO);

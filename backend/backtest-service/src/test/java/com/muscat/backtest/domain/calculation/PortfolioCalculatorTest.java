@@ -1,6 +1,7 @@
 package com.muscat.backtest.domain.calculation;
 
 import com.muscat.backtest.common.enums.type.TransactionKind;
+
 import static com.muscat.backtest.common.enums.type.PortfolioStrategyType.DCA;
 import static com.muscat.backtest.common.enums.type.PortfolioStrategyType.LUMP_SUM;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,14 +48,14 @@ class PortfolioCalculatorTest {
   }
 
   private static StrategyTransaction buy(String symbol, LocalDate date, String price, String shares, String amount,
-    String fx) {
+                                         String fx) {
     return StrategyTransaction.builder().kind((number(shares)).signum() < 0 ? TransactionKind.SELL : TransactionKind.BUY).symbol(symbol).reason(TradeReason.BUY).date(date).actualDate(date)
       .price(number(price)).shares(number(shares)).amount(number(amount)).fee(BigDecimal.ZERO).fxRate(number(fx))
       .trigger(TransactionTrigger.LUMP_SUM_PURCHASE).build();
   }
 
   private static StrategyTransaction sale(String symbol, LocalDate date, String price, String shares, String proceeds,
-    String realized, String fx) {
+                                          String realized, String fx) {
     return StrategyTransaction.builder().kind(TransactionKind.SELL).symbol(symbol).reason(TradeReason.PERIOD_END_SALE).date(date).actualDate(date)
       .price(number(price)).shares(number(shares).negate()).amount(BigDecimal.ZERO).fee(BigDecimal.ZERO)
       .proceeds(number(proceeds)).realizedProfit(number(realized)).fxRate(number(fx))
@@ -62,12 +63,12 @@ class PortfolioCalculatorTest {
   }
 
   private static PortfolioEngine.Position position(String symbol, String planned, String shares, String close,
-    String value) {
+                                                   String value) {
     return position(symbol, LUMP_SUM, planned, shares, close, value);
   }
 
   private static PortfolioEngine.Position position(String symbol, PortfolioStrategyType type, String planned,
-    String shares, String close, String value) {
+                                                   String shares, String close, String value) {
     return new PortfolioEngine.Position(symbol, type, null, number(planned), number(shares), number(close), number(value));
   }
 
@@ -80,8 +81,8 @@ class PortfolioCalculatorTest {
   }
 
   private static PortfolioResponse.Asset row(String symbol, PortfolioStrategyType type, String invested, String bought,
-    String value, String sold, String dividend, String profit, String returnPercent, String contribution,
-    String startWeight, String endWeight, String shares, String realized, int buys, int sells) {
+                                             String value, String sold, String dividend, String profit, String returnPercent, String contribution,
+                                             String startWeight, String endWeight, String shares, String realized, int buys, int sells) {
     return new PortfolioResponse.Asset(symbol, type, null, number(invested), number(bought), number(value), number(sold),
       number(dividend), number(profit), number(returnPercent), number(contribution), number(startWeight),
       number(endWeight), number(shares), number(realized), buys, sells);
@@ -253,7 +254,7 @@ class PortfolioCalculatorTest {
     PortfolioEngine.Result result = new PortfolioEngine.Result(START, END,
       List.of(buy("SPY", START, "20", "100", "2600000", "1300"), first, sell, rebuy),
       List.of(), List.of(position("SPY", "2600000", "100", "22", "2860000"),
-        position("QQQ", PortfolioStrategyType.MA_CROSS, "1300000", "100", "6", "780000")),
+      position("QQQ", PortfolioStrategyType.MA_CROSS, "1300000", "100", "6", "780000")),
       number("3900000"), BigDecimal.ZERO, BigDecimal.ZERO, number("3640000"), number("3640000"), number("1300"),
       new StrategyPerformance.Result(List.of(), null, null), CapitalGainsTaxCalculator.Payments.NONE, List.of(), List.of());
 

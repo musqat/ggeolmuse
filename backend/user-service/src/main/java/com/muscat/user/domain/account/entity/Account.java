@@ -25,8 +25,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "account", indexes = {
-    @Index(name = "idx_account_user_id", columnList = "user_id"),
-    @Index(name = "idx_account_number", columnList = "account_number", unique = true)
+  @Index(name = "idx_account_user_id", columnList = "user_id"),
+  @Index(name = "idx_account_number", columnList = "account_number", unique = true)
 })
 @Getter
 @Setter
@@ -102,14 +102,14 @@ public class Account {
   @Override
   public String toString() {
     return String.format("Account[id=%d, number=%s, name=%s, krw=%s, usd=%s]",
-        id, accountNumber, accountName, balanceKrw, balanceUsd);
+      id, accountNumber, accountName, balanceKrw, balanceUsd);
   }
 
   // 잔액 검증
   public void validateSufficientKrwBalance(BigDecimal amount) {
     if (this.balanceKrw.compareTo(amount) < 0) {
       throw new com.muscat.user.common.exception.AccountException(
-          com.muscat.user.common.enums.response.AccountResponse.INSUFFICIENT_BALANCE
+        com.muscat.user.common.enums.response.AccountResponse.INSUFFICIENT_BALANCE
       );
     }
   }
@@ -117,7 +117,7 @@ public class Account {
   public void validateSufficientUsdBalance(BigDecimal amount) {
     if (this.balanceUsd.compareTo(amount) < 0) {
       throw new com.muscat.user.common.exception.AccountException(
-          com.muscat.user.common.enums.response.AccountResponse.INSUFFICIENT_USD_BALANCE
+        com.muscat.user.common.enums.response.AccountResponse.INSUFFICIENT_USD_BALANCE
       );
     }
   }
@@ -134,7 +134,7 @@ public class Account {
 
     if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
       throw new com.muscat.user.common.exception.AccountException(
-          com.muscat.user.common.enums.response.AccountResponse.INSUFFICIENT_USD_BALANCE
+        com.muscat.user.common.enums.response.AccountResponse.INSUFFICIENT_USD_BALANCE
       );
     }
 
@@ -148,7 +148,7 @@ public class Account {
 
   // KRW -> USD 환전(새 평균이 정상 환율 범위 밖이면 이번 환전 금액으로 두 누계 다시 시작)
   public void executeExchangeKrwToUsd(BigDecimal krwToDeduct, BigDecimal usdToAdd,
-                                       BigDecimal newAvgRate, BigDecimal krwAmountForAvg) {
+                                      BigDecimal newAvgRate, BigDecimal krwAmountForAvg) {
     validateSufficientKrwBalance(krwToDeduct);
 
     this.balanceKrw = this.balanceKrw.subtract(krwToDeduct);
@@ -172,12 +172,12 @@ public class Account {
       return;
     }
     if (this.totalExchangedUsd.signum() > 0 && ratio(this.totalExchangedKrw, this.totalExchangedUsd)
-        .subtract(this.avgExchangeRate).abs()
-        .compareTo(this.avgExchangeRate.multiply(TOTALS_TOLERANCE)) <= 0) {
+      .subtract(this.avgExchangeRate).abs()
+      .compareTo(this.avgExchangeRate.multiply(TOTALS_TOLERANCE)) <= 0) {
       return;
     }
     this.totalExchangedUsd = MoneyUtils.roundUsd(
-        this.totalExchangedKrw.divide(this.avgExchangeRate, 10, MoneyUtils.ROUND_MODE));
+      this.totalExchangedKrw.divide(this.avgExchangeRate, 10, MoneyUtils.ROUND_MODE));
   }
 
   // USD -> KRW 환전(남은 달러 잔액 비율만큼 두 환전 누계 축소, 달러 잔액이 0 이면 평균 환율도 0)
@@ -189,8 +189,8 @@ public class Account {
     this.balanceKrw = this.balanceKrw.add(krwToAdd);
 
     BigDecimal remaining = usdBefore.signum() > 0
-        ? this.balanceUsd.divide(usdBefore, 10, MoneyUtils.ROUND_MODE)
-        : BigDecimal.ZERO;
+      ? this.balanceUsd.divide(usdBefore, 10, MoneyUtils.ROUND_MODE)
+      : BigDecimal.ZERO;
     this.totalExchangedKrw = MoneyUtils.roundKrw(this.totalExchangedKrw.multiply(remaining));
     this.totalExchangedUsd = MoneyUtils.roundUsd(this.totalExchangedUsd.multiply(remaining));
     if (this.balanceUsd.signum() == 0) {

@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("PriceLookup 단위 테스트")
 class PriceLookupTest {
 
-  private static LocalDate d(String s) { return LocalDate.parse(s); }
+  private static LocalDate d(String s) {return LocalDate.parse(s);}
 
   private static OHLCPriceDto price(String date, double close, boolean available) {
     BigDecimal c = BigDecimal.valueOf(close);
@@ -37,8 +37,8 @@ class PriceLookupTest {
   @DisplayName("withFallback: 휴장일이면 과거로 거슬러 찾는다")
   void withFallback_fallsBack() {
     var r = PriceLookup.withFallback(
-        (sym, dt) -> d(dt).equals(d("2025-05-30")) ? price(dt, 48, true) : null,
-        "AAPL", d("2025-06-02"), 5); // 월요일 → 직전 금요일(5-30)
+      (sym, dt) -> d(dt).equals(d("2025-05-30")) ? price(dt, 48, true) : null,
+      "AAPL", d("2025-06-02"), 5); // 월요일 → 직전 금요일(5-30)
     assertThat(r.closePrice()).isEqualByComparingTo("48");
   }
 
@@ -46,9 +46,9 @@ class PriceLookupTest {
   @DisplayName("withFallback: available=false는 건너뛴다")
   void withFallback_skipsUnavailable() {
     var r = PriceLookup.withFallback(
-        (sym, dt) -> d(dt).equals(d("2025-06-05")) ? price(dt, 99, false)
-            : d(dt).equals(d("2025-06-04")) ? price(dt, 47, true) : null,
-        "AAPL", d("2025-06-05"), 5);
+      (sym, dt) -> d(dt).equals(d("2025-06-05")) ? price(dt, 99, false)
+        : d(dt).equals(d("2025-06-04")) ? price(dt, 47, true) : null,
+      "AAPL", d("2025-06-05"), 5);
     assertThat(r.closePrice()).isEqualByComparingTo("47");
   }
 
@@ -56,8 +56,8 @@ class PriceLookupTest {
   @DisplayName("withFallback: maxDays 내 못 찾으면 STOCK_DATA_NOT_FOUND")
   void withFallback_throws() {
     assertThatThrownBy(() -> PriceLookup.withFallback((sym, dt) -> null, "AAPL", d("2025-06-05"), 5))
-        .isInstanceOf(BacktestException.class)
-        .hasMessageContaining("주가 데이터를 찾을 수 없습니다 (5일 검색)");
+      .isInstanceOf(BacktestException.class)
+      .hasMessageContaining("주가 데이터를 찾을 수 없습니다 (5일 검색)");
   }
 
   @Test
@@ -65,29 +65,29 @@ class PriceLookupTest {
   void withFallback_allFailed_unavailable() {
     RuntimeException down = new RuntimeException("down");
 
-    assertThatThrownBy(() -> PriceLookup.withFallback((sym, dt) -> { throw down; }, "AAPL", d("2025-06-05"), 5))
-        .isInstanceOf(BacktestException.class)
-        .hasCause(down)
-        .extracting("code").isEqualTo(BacktestResponse.MARKET_DATA_UNAVAILABLE);
+    assertThatThrownBy(() -> PriceLookup.withFallback((sym, dt) -> {throw down;}, "AAPL", d("2025-06-05"), 5))
+      .isInstanceOf(BacktestException.class)
+      .hasCause(down)
+      .extracting("code").isEqualTo(BacktestResponse.MARKET_DATA_UNAVAILABLE);
   }
 
   @Test
   @DisplayName("withFallback: 한 번이라도 답을 받았거나 4xx 면 데이터 없음으로 본다")
   void withFallback_answered_notFound() {
     Request request = Request.create(Request.HttpMethod.GET, "/api/internal/market/ohlc", Map.of(), null,
-        StandardCharsets.UTF_8, null);
+      StandardCharsets.UTF_8, null);
     FeignException.BadRequest badRequest = new FeignException.BadRequest("Bad Request", request, null, Map.of());
 
-    assertThatThrownBy(() -> PriceLookup.withFallback((sym, dt) -> { throw badRequest; }, "AAPL", d("2025-06-05"), 5))
-        .extracting("code").isEqualTo(BacktestResponse.STOCK_DATA_NOT_FOUND);
+    assertThatThrownBy(() -> PriceLookup.withFallback((sym, dt) -> {throw badRequest;}, "AAPL", d("2025-06-05"), 5))
+      .extracting("code").isEqualTo(BacktestResponse.STOCK_DATA_NOT_FOUND);
     assertThatThrownBy(() -> PriceLookup.withFallback(
-        (sym, dt) -> {
-          if (d(dt).equals(d("2025-06-05"))) {
-            return price(dt, 1, false);
-          }
-          throw new RuntimeException("down");
-        }, "AAPL", d("2025-06-05"), 5))
-        .extracting("code").isEqualTo(BacktestResponse.STOCK_DATA_NOT_FOUND);
+      (sym, dt) -> {
+        if (d(dt).equals(d("2025-06-05"))) {
+          return price(dt, 1, false);
+        }
+        throw new RuntimeException("down");
+      }, "AAPL", d("2025-06-05"), 5))
+      .extracting("code").isEqualTo(BacktestResponse.STOCK_DATA_NOT_FOUND);
   }
 
   @Test
@@ -117,8 +117,8 @@ class PriceLookupTest {
   void effectiveClose_usesClose() {
     // closePrice 는 분할만 조정된 값, adjustedClose 는 배당까지 조정된 값
     OHLCPriceDto p = new OHLCPriceDto("AAPL", d("2025-06-05"),
-        BigDecimal.valueOf(100), BigDecimal.valueOf(100), BigDecimal.valueOf(100),
-        BigDecimal.valueOf(100), BigDecimal.valueOf(90), 1L, "USD", true);
+      BigDecimal.valueOf(100), BigDecimal.valueOf(100), BigDecimal.valueOf(100),
+      BigDecimal.valueOf(100), BigDecimal.valueOf(90), 1L, "USD", true);
     assertThat(PriceLookup.effectiveClose(p)).isEqualByComparingTo("100");
   }
 
@@ -150,8 +150,8 @@ class PriceLookupTest {
   @DisplayName("effectiveClose: closePrice null이면 adjustedClose fallback")
   void effectiveClose_fallback() {
     OHLCPriceDto p = new OHLCPriceDto("AAPL", d("2025-06-05"),
-        BigDecimal.valueOf(100), BigDecimal.valueOf(100), BigDecimal.valueOf(100),
-        null, BigDecimal.valueOf(90), 1L, "USD", true);
+      BigDecimal.valueOf(100), BigDecimal.valueOf(100), BigDecimal.valueOf(100),
+      null, BigDecimal.valueOf(90), 1L, "USD", true);
     assertThat(PriceLookup.effectiveClose(p)).isEqualByComparingTo("90");
   }
 }

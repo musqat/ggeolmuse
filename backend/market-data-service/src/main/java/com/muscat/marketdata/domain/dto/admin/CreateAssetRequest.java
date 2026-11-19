@@ -10,14 +10,14 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateAssetRequest {
-    private String symbol;
-    private String name;      // optional
-    private String country;   // optional
-    private String currency;  // optional
-    private String assetType; // optional
+  private String symbol;
+  private String name;      // optional
+  private String country;   // optional
+  private String currency;  // optional
+  private String assetType; // optional
 
-    private boolean collectData = false;
-    private LocalDate fromDate;
-    private LocalDate toDate;
-    private boolean includeDividends = false;
+  private boolean collectData = false;
+  private LocalDate fromDate;
+  private LocalDate toDate;
+  private boolean includeDividends = false;
 }

@@ -30,7 +30,7 @@ public final class CapitalGainsTaxPayer {
   // 받은 날짜까지 납부일이 온 해의 남은 세금을 현금에서 낸 거래(끄거나 낼 세금 · 현금이 없거나 남은 세금이 몇 원뿐이라 달러로 0센트가 되면 null)
   // 다 낼 수 있으면 남은 세금 ÷ 환율(센트 반올림), 모자라면 현금 전부(낸 원화는 원 미만 버림)
   public StrategyTransaction pay(LocalDate date, List<StrategyTransaction> transactions, BigDecimal cash,
-    BigDecimal fxRate, boolean defaultFx) {
+                                 BigDecimal fxRate, boolean defaultFx) {
     if (!enabled) {
       return null;
     }
@@ -52,7 +52,7 @@ public final class CapitalGainsTaxPayer {
 
   // 받은 날짜까지 납부일이 온 남은 세금 ÷ 환율(센트 반올림)에서 현금을 뺀 모자란 달러(끄거나 현금이 넉넉하면 0)
   public BigDecimal shortfallUsd(LocalDate date, List<StrategyTransaction> transactions, BigDecimal cash,
-    BigDecimal fxRate) {
+                                 BigDecimal fxRate) {
     if (!enabled) {
       return BigDecimal.ZERO;
     }

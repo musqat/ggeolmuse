@@ -72,4 +72,4 @@ public enum UserResponse implements ErrorCode {
 
   private final String message;
   private final HttpStatus httpStatus;
-  }
+}

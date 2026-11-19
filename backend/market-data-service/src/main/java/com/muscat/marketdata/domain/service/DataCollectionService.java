@@ -22,64 +22,64 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class DataCollectionService {
 
-    private final CandleUpdateService candleUpdateService;
-    private final AssetRepository assetRepository;
-    private final CandleRepository candleRepository;
-    private final MarketDataProperties properties;
-    private final CandleService candleService;
+  private final CandleUpdateService candleUpdateService;
+  private final AssetRepository assetRepository;
+  private final CandleRepository candleRepository;
+  private final MarketDataProperties properties;
+  private final CandleService candleService;
 
-    // 컨슈머 스레드에서 그대로 수집(병렬도는 리스너 동시성, ACK 는 수집 뒤)
-    public void collect(AssetCreatedEvent event) {
-        log.debug("수집 시작: symbol={}", event.getSymbol());
+  // 컨슈머 스레드에서 그대로 수집(병렬도는 리스너 동시성, ACK 는 수집 뒤)
+  public void collect(AssetCreatedEvent event) {
+    log.debug("수집 시작: symbol={}", event.getSymbol());
 
-        int candleCount = 0;
-        int dividendCount = 0;
+    int candleCount = 0;
+    int dividendCount = 0;
 
-        try {
-            // 이 종목의 캔들이 처음 들어오는 수집인지
-            boolean firstCollection = candleRepository.findFirstBySymbolOrderByDateDesc(event.getSymbol()).isEmpty();
-            candleCount = candleUpdateService.saveCandles(
-                    event.getSymbol(),
-                    event.getFromDate(),
-                    event.getToDate()
-            );
-            // 지수는 배당 없이 캔들만
-            if (event.isIncludeDividends() && !Asset.INDEX_TYPE.equals(event.getAssetType())) {
-                dividendCount = candleUpdateService.saveDividends(
-                        event.getSymbol(),
-                        event.getFromDate(),
-                        event.getToDate()
-                );
-            }
-            // ETF 를 비활성으로 돌리면 활성 종목이 바뀌어 배당수익률 순서 캐시를 비움
-            if (firstCollection && candleCount > 0 && deactivateThinEtf(event.getSymbol())) {
-                candleService.evictDividendYieldOrder();
-            }
-            log.debug("수집 완료: symbol={}, 캔들={}, 배당={}", event.getSymbol(), candleCount, dividendCount);
-        } catch (Exception e) {
-            log.error("수집 실패: symbol={}, error={}", event.getSymbol(), e.getMessage(), e);
+    try {
+      // 이 종목의 캔들이 처음 들어오는 수집인지
+      boolean firstCollection = candleRepository.findFirstBySymbolOrderByDateDesc(event.getSymbol()).isEmpty();
+      candleCount = candleUpdateService.saveCandles(
+        event.getSymbol(),
+        event.getFromDate(),
+        event.getToDate()
+      );
+      // 지수는 배당 없이 캔들만
+      if (event.isIncludeDividends() && !Asset.INDEX_TYPE.equals(event.getAssetType())) {
+        dividendCount = candleUpdateService.saveDividends(
+          event.getSymbol(),
+          event.getFromDate(),
+          event.getToDate()
+        );
+      }
+      // ETF 를 비활성으로 돌리면 활성 종목이 바뀌어 배당수익률 순서 캐시를 비움
+      if (firstCollection && candleCount > 0 && deactivateThinEtf(event.getSymbol())) {
+        candleService.evictDividendYieldOrder();
+      }
+      log.debug("수집 완료: symbol={}, 캔들={}, 배당={}", event.getSymbol(), candleCount, dividendCount);
+    } catch (Exception e) {
+      log.error("수집 실패: symbol={}, error={}", event.getSymbol(), e.getMessage(), e);
 
-            // 예상 밖 실패는 재시도 · .DLT 로(외부 호출 · DB · Kafka 장애는 saveCandles · saveDividends 가 0 으로 돌림)
-            throw e;
-        }
+      // 예상 밖 실패는 재시도 · .DLT 로(외부 호출 · DB · Kafka 장애는 saveCandles · saveDividends 가 0 으로 돌림)
+      throw e;
     }
+  }
 
-    // 거래가 거의 없는 ETF 는 첫 수집 뒤 비활성으로 돌림(갱신 대상과 화면에서 빠짐, 돌렸으면 true)
-    private boolean deactivateThinEtf(String symbol) {
-        Asset asset = assetRepository.findById(symbol).orElse(null);
-        if (asset == null || !"ETF".equals(asset.getAssetType()) || !Boolean.TRUE.equals(asset.getActive())) {
-            return false;
-        }
-        MarketDataProperties.Etf rule = properties.getEtf();
-        List<Candle> recent = candleRepository.findBySymbolOrderByDateDesc(symbol, PageRequest.of(0, rule.getVolumeWindow()));
-        OptionalDouble average = recent.stream().map(Candle::getVolume).filter(Objects::nonNull)
-            .mapToLong(Long::longValue).average();
-        if (average.isPresent() && average.getAsDouble() < rule.getMinAverageVolume()) {
-            asset.setActive(false);
-            assetRepository.save(asset);
-            log.info("평균 거래량이 기준 아래라 ETF 비활성: symbol={}, 평균={}", symbol, (long) average.getAsDouble());
-            return true;
-        }
-        return false;
+  // 거래가 거의 없는 ETF 는 첫 수집 뒤 비활성으로 돌림(갱신 대상과 화면에서 빠짐, 돌렸으면 true)
+  private boolean deactivateThinEtf(String symbol) {
+    Asset asset = assetRepository.findById(symbol).orElse(null);
+    if (asset == null || !"ETF".equals(asset.getAssetType()) || !Boolean.TRUE.equals(asset.getActive())) {
+      return false;
     }
+    MarketDataProperties.Etf rule = properties.getEtf();
+    List<Candle> recent = candleRepository.findBySymbolOrderByDateDesc(symbol, PageRequest.of(0, rule.getVolumeWindow()));
+    OptionalDouble average = recent.stream().map(Candle::getVolume).filter(Objects::nonNull)
+      .mapToLong(Long::longValue).average();
+    if (average.isPresent() && average.getAsDouble() < rule.getMinAverageVolume()) {
+      asset.setActive(false);
+      assetRepository.save(asset);
+      log.info("평균 거래량이 기준 아래라 ETF 비활성: symbol={}, 평균={}", symbol, (long) average.getAsDouble());
+      return true;
+    }
+    return false;
+  }
 }

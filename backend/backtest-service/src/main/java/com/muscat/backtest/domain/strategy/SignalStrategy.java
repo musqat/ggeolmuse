@@ -54,7 +54,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
 
     // 원금(첫 매수)이나 판 돈 전부로 사고 트레일링 스탑 기준가 · 부분 익절 첫 단계를 엶(계획일은 신호 난 날)
     private void buy(SignalStrategyRequest request, LocalDate planned, LocalDate date, BigDecimal price,
-      String trigger) {
+                     String trigger) {
       StrategyTransaction buy = started
         ? ledger.buyWithCash(holding, planned, date, price, ledger.cash(), trigger, null)
         : ledger.buyWithDeposit(holding, planned, date, price, request.getInvestmentAmount(), trigger, null);
@@ -64,7 +64,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
 
     // 받은 날짜 · 가격으로 정한 주식 · 원가를 판 거래(계획일은 신호 난 날)
     private StrategyTransaction sell(LocalDate planned, LocalDate date, BigDecimal price, BigDecimal shares,
-      BigDecimal cost, String trigger) {
+                                     BigDecimal cost, String trigger) {
       return ledger.sell(holding, planned, date, price, shares, cost, trigger, null);
     }
 
@@ -193,7 +193,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
   // 트레일링 스탑 다음 부분 익절을 신호로 팔지 않는 날만 보고, 다 팔면 새 매수 신호까지 사지 않음, 연말 정리 날은 사고판 뒤 연말 정리
   // 다음 거래일 시가 체결은 체결일 첫 매매(매도는 양도세 납부 전, 매수는 납부 뒤 남은 돈으로), 마지막 거래일 신호는 체결 안 함
   private StrategyPurchases trade(R request, Map<LocalDate, OHLCPriceDto> priceMap, SignalPrices signalPrices,
-    TradeSignal signal, LocalDate actualEndDate, CapitalGainsTaxPayer taxPayer) {
+                                  TradeSignal signal, LocalDate actualEndDate, CapitalGainsTaxPayer taxPayer) {
     LocalDate start = request.getStartDate();
     List<OHLCPriceDto> candles = SignalPrices.usable(priceMap);
     FxRates fxRates = loadFxRates(request, candles, actualEndDate);

@@ -68,7 +68,7 @@ class ClientWrapperRetryTest {
   private UserServiceClientWrapper userWrapper;
 
   record Call(String name, Function<MarketServiceClient, Object> client,
-    Function<MarketServiceClientWrapper, Object> wrapper, Object value) {
+              Function<MarketServiceClientWrapper, Object> wrapper, Object value) {
 
     @Override
     public String toString() {

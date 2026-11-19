@@ -42,8 +42,8 @@ public class StockSplitBackfillService {
   private StockSplitBackfillService self;
 
   public StockSplitBackfillService(TradeRepository tradeRepository,
-    MarketServiceClientWrapper marketServiceClientWrapper, StockSplitService stockSplitService,
-    @Qualifier("applicationTaskExecutor") Executor executor, Clock clock, MeterRegistry meterRegistry) {
+                                   MarketServiceClientWrapper marketServiceClientWrapper, StockSplitService stockSplitService,
+                                   @Qualifier("applicationTaskExecutor") Executor executor, Clock clock, MeterRegistry meterRegistry) {
     this.tradeRepository = tradeRepository;
     this.marketServiceClientWrapper = marketServiceClientWrapper;
     this.stockSplitService = stockSplitService;

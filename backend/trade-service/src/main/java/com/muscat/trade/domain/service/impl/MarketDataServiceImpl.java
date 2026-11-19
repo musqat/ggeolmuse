@@ -25,7 +25,7 @@ public class MarketDataServiceImpl implements MarketDataService {
 
   @Override
   public BigDecimal determineTradePrice(String symbol, LocalDate tradeDate, PriceType priceType,
-    BigDecimal manualPrice) {
+                                        BigDecimal manualPrice) {
     if (priceType == PriceType.MANUAL) {
       // 직접입력인 경우 가격 범위 검증
       return validateManualPrice(symbol, tradeDate, manualPrice);
@@ -60,7 +60,7 @@ public class MarketDataServiceImpl implements MarketDataService {
 
   @Override
   public BigDecimal validateManualPrice(String symbol, LocalDate tradeDate,
-    BigDecimal manualPrice) {
+                                        BigDecimal manualPrice) {
     StockPriceDto ohlc = fetchAvailable(symbol, tradeDate, MANUAL_VALIDATION);
     BigDecimal lowPrice = ohlc.lowPrice();
     BigDecimal highPrice = ohlc.highPrice();

@@ -32,6 +32,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.jwt.Jwt;
+
 import static org.mockito.ArgumentMatchers.same;
 
 @ExtendWith(MockitoExtension.class)

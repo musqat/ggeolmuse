@@ -67,23 +67,23 @@ public class UnadjustedScanService {
     try {
       List<String> symbols = candleRepository.findSymbolsWithSplits(from);
       result = Result.builder()
-          .from(from)
-          .count(symbols.size())
-          .symbols(symbols)
-          .finishedAt(Instant.now())
-          .tookMillis(System.currentTimeMillis() - begin)
-          .build();
+        .from(from)
+        .count(symbols.size())
+        .symbols(symbols)
+        .finishedAt(Instant.now())
+        .tookMillis(System.currentTimeMillis() - begin)
+        .build();
       log.info("[분할탐색] 완료: {}개, {}ms", symbols.size(), System.currentTimeMillis() - begin);
     } catch (Exception e) {
       log.error("[분할탐색] 실패: from={}", from, e);
       result = Result.builder()
-          .from(from)
-          .count(0)
-          .symbols(List.of())
-          .finishedAt(Instant.now())
-          .tookMillis(System.currentTimeMillis() - begin)
-          .error(e.getMessage())
-          .build();
+        .from(from)
+        .count(0)
+        .symbols(List.of())
+        .finishedAt(Instant.now())
+        .tookMillis(System.currentTimeMillis() - begin)
+        .error(e.getMessage())
+        .build();
     } finally {
       jobState.finish(JOB_NAME, result);
     }

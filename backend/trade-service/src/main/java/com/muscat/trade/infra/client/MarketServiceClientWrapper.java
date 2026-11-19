@@ -81,7 +81,7 @@ public class MarketServiceClientWrapper {
 
   // 못 받으면 빈 목록 대신 오류(배당 없음과 구별)
   private List<DividendDto> getDividendsFallback(String symbol, String startDate,
-    String endDate, Exception ex) {
+                                                 String endDate, Exception ex) {
     log.error("Fallback triggered for getDividends. Symbol: {}, Error: {}",
       symbol, ex.getMessage());
     throw new TradeException(TradeResponse.MARKET_DATA_SERVICE_ERROR, ex);
@@ -89,7 +89,7 @@ public class MarketServiceClientWrapper {
 
   // 기간 시세 · 여러 날짜 환율도 못 받으면 빈 값 대신 오류(값 없음과 구별)
   private List<OHLCPriceDto> getOHLCPriceRangeFallback(String symbol, String startDate,
-    String endDate, Exception ex) {
+                                                       String endDate, Exception ex) {
     log.error("Fallback triggered for getOHLCPriceRange. Symbol: {}, Error: {}",
       symbol, ex.getMessage());
     throw new TradeException(TradeResponse.MARKET_DATA_SERVICE_ERROR, ex);

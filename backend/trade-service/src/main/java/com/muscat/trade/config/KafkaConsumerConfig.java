@@ -24,94 +24,94 @@ import org.springframework.kafka.listener.CommonErrorHandler;
 @RequiredArgsConstructor
 public class KafkaConsumerConfig {
 
-    private final MeterRegistry meterRegistry;
+  private final MeterRegistry meterRegistry;
 
-    @Value("${spring.kafka.bootstrap-servers}")
-    private String bootstrapServers;
+  @Value("${spring.kafka.bootstrap-servers}")
+  private String bootstrapServers;
 
-    @Value("${spring.application.name}")
-    private String applicationName;
+  @Value("${spring.application.name}")
+  private String applicationName;
 
-    @Bean
-    public ConsumerFactory<String, DividendUpdatedEvent> dividendEventConsumerFactory() {
-        return consumerFactory(DividendUpdatedEvent.class, "-dividend-consumer");
-    }
+  @Bean
+  public ConsumerFactory<String, DividendUpdatedEvent> dividendEventConsumerFactory() {
+    return consumerFactory(DividendUpdatedEvent.class, "-dividend-consumer");
+  }
 
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, DividendUpdatedEvent>
-    dividendEventKafkaListenerContainerFactory() {
-        return KafkaFactories.manualAckContainer(dividendEventConsumerFactory(), 1, kafkaErrorHandler());
-    }
+  @Bean
+  public ConcurrentKafkaListenerContainerFactory<String, DividendUpdatedEvent>
+  dividendEventKafkaListenerContainerFactory() {
+    return KafkaFactories.manualAckContainer(dividendEventConsumerFactory(), 1, kafkaErrorHandler());
+  }
 
-    @Bean
-    public ConsumerFactory<String, DividendReconcileRequest> dividendReconcileConsumerFactory() {
-        return consumerFactory(DividendReconcileRequest.class, "-dividend-reconcile-consumer");
-    }
+  @Bean
+  public ConsumerFactory<String, DividendReconcileRequest> dividendReconcileConsumerFactory() {
+    return consumerFactory(DividendReconcileRequest.class, "-dividend-reconcile-consumer");
+  }
 
-    // 한 스레드가 차례로 처리해 같은 계좌의 재계산이 겹치지 않음
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, DividendReconcileRequest>
-    dividendReconcileKafkaListenerContainerFactory() {
-        return KafkaFactories.manualAckContainer(dividendReconcileConsumerFactory(), 1, kafkaErrorHandler());
-    }
+  // 한 스레드가 차례로 처리해 같은 계좌의 재계산이 겹치지 않음
+  @Bean
+  public ConcurrentKafkaListenerContainerFactory<String, DividendReconcileRequest>
+  dividendReconcileKafkaListenerContainerFactory() {
+    return KafkaFactories.manualAckContainer(dividendReconcileConsumerFactory(), 1, kafkaErrorHandler());
+  }
 
-    @Bean
-    public ConsumerFactory<String, StockSplitEvent> stockSplitEventConsumerFactory() {
-        return consumerFactory(StockSplitEvent.class, "-split-consumer");
-    }
+  @Bean
+  public ConsumerFactory<String, StockSplitEvent> stockSplitEventConsumerFactory() {
+    return consumerFactory(StockSplitEvent.class, "-split-consumer");
+  }
 
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, StockSplitEvent>
-    stockSplitEventKafkaListenerContainerFactory() {
-        return KafkaFactories.manualAckContainer(stockSplitEventConsumerFactory(), 1, kafkaErrorHandler());
-    }
+  @Bean
+  public ConcurrentKafkaListenerContainerFactory<String, StockSplitEvent>
+  stockSplitEventKafkaListenerContainerFactory() {
+    return KafkaFactories.manualAckContainer(stockSplitEventConsumerFactory(), 1, kafkaErrorHandler());
+  }
 
-    @Bean
-    public ConsumerFactory<String, AccountDeletedEvent> accountDeletedEventConsumerFactory() {
-        return consumerFactory(AccountDeletedEvent.class, "-account-deleted-consumer");
-    }
+  @Bean
+  public ConsumerFactory<String, AccountDeletedEvent> accountDeletedEventConsumerFactory() {
+    return consumerFactory(AccountDeletedEvent.class, "-account-deleted-consumer");
+  }
 
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, AccountDeletedEvent>
-    accountDeletedEventKafkaListenerContainerFactory() {
-        return KafkaFactories.manualAckContainer(accountDeletedEventConsumerFactory(), 1, kafkaErrorHandler());
-    }
+  @Bean
+  public ConcurrentKafkaListenerContainerFactory<String, AccountDeletedEvent>
+  accountDeletedEventKafkaListenerContainerFactory() {
+    return KafkaFactories.manualAckContainer(accountDeletedEventConsumerFactory(), 1, kafkaErrorHandler());
+  }
 
-    @Bean
-    public ConsumerFactory<String, TradeRejectedEvent> tradeRejectedEventConsumerFactory() {
-        return consumerFactory(TradeRejectedEvent.class, "-trade-rejected-consumer");
-    }
+  @Bean
+  public ConsumerFactory<String, TradeRejectedEvent> tradeRejectedEventConsumerFactory() {
+    return consumerFactory(TradeRejectedEvent.class, "-trade-rejected-consumer");
+  }
 
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, TradeRejectedEvent>
-    tradeRejectedEventKafkaListenerContainerFactory() {
-        return KafkaFactories.manualAckContainer(tradeRejectedEventConsumerFactory(), 1, kafkaErrorHandler());
-    }
+  @Bean
+  public ConcurrentKafkaListenerContainerFactory<String, TradeRejectedEvent>
+  tradeRejectedEventKafkaListenerContainerFactory() {
+    return KafkaFactories.manualAckContainer(tradeRejectedEventConsumerFactory(), 1, kafkaErrorHandler());
+  }
 
-    @Bean
-    public ConsumerFactory<String, TradeSettledEvent> tradeSettledEventConsumerFactory() {
-        return consumerFactory(TradeSettledEvent.class, "-trade-settled-consumer");
-    }
+  @Bean
+  public ConsumerFactory<String, TradeSettledEvent> tradeSettledEventConsumerFactory() {
+    return consumerFactory(TradeSettledEvent.class, "-trade-settled-consumer");
+  }
 
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, TradeSettledEvent>
-    tradeSettledEventKafkaListenerContainerFactory() {
-        return KafkaFactories.manualAckContainer(tradeSettledEventConsumerFactory(), 1, kafkaErrorHandler());
-    }
+  @Bean
+  public ConcurrentKafkaListenerContainerFactory<String, TradeSettledEvent>
+  tradeSettledEventKafkaListenerContainerFactory() {
+    return KafkaFactories.manualAckContainer(tradeSettledEventConsumerFactory(), 1, kafkaErrorHandler());
+  }
 
-    /**
-     * 재시도 뒤에도 실패한 메시지를 .DLT 토픽에 넣는 템플릿
-     */
-    @Bean
-    public KafkaTemplate<String, Object> dltKafkaTemplate() {
-        return KafkaFactories.dltTemplate(bootstrapServers, meterRegistry);
-    }
+  /**
+   * 재시도 뒤에도 실패한 메시지를 .DLT 토픽에 넣는 템플릿
+   */
+  @Bean
+  public KafkaTemplate<String, Object> dltKafkaTemplate() {
+    return KafkaFactories.dltTemplate(bootstrapServers, meterRegistry);
+  }
 
-    private <T> ConsumerFactory<String, T> consumerFactory(Class<T> type, String groupSuffix) {
-        return KafkaFactories.jsonConsumerFactory(bootstrapServers, applicationName + groupSuffix, type, meterRegistry);
-    }
+  private <T> ConsumerFactory<String, T> consumerFactory(Class<T> type, String groupSuffix) {
+    return KafkaFactories.jsonConsumerFactory(bootstrapServers, applicationName + groupSuffix, type, meterRegistry);
+  }
 
-    private CommonErrorHandler kafkaErrorHandler() {
-        return KafkaFactories.deadLetterErrorHandler(dltKafkaTemplate(), meterRegistry);
-    }
+  private CommonErrorHandler kafkaErrorHandler() {
+    return KafkaFactories.deadLetterErrorHandler(dltKafkaTemplate(), meterRegistry);
+  }
 }

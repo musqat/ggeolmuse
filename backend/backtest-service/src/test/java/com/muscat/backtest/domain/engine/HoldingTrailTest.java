@@ -39,7 +39,7 @@ class HoldingTrailTest {
   private static StrategyTransaction endSale() {
     LocalDate end = LocalDate.of(2025, 6, 30);
     return StrategyTransaction.sell(new StrategyTransaction.Order(null, null, end, end, new BigDecimal("150"),
-      new BigDecimal("1000"), null, TransactionTrigger.PERIOD_END_SALE), new BigDecimal("10"), BigDecimal.ZERO,
+        new BigDecimal("1000"), null, TransactionTrigger.PERIOD_END_SALE), new BigDecimal("10"), BigDecimal.ZERO,
       new BigDecimal("1500"), new BigDecimal("500"));
   }
 

@@ -23,29 +23,29 @@ class BacktestRequestValidatorTest {
   @DisplayName("null 요청 → STRATEGY_REQUEST_NULL")
   void requireNonNull() {
     assertThatThrownBy(() -> BacktestRequestValidator.requireNonNull(null))
-        .isInstanceOf(BacktestException.class)
-        .extracting("code").isEqualTo(BacktestResponse.STRATEGY_REQUEST_NULL);
+      .isInstanceOf(BacktestException.class)
+      .extracting("code").isEqualTo(BacktestResponse.STRATEGY_REQUEST_NULL);
   }
 
   @Test
   @DisplayName("빈 심볼 → STRATEGY_SYMBOL_REQUIRED")
   void requireSymbol_blank() {
     assertThatThrownBy(() -> BacktestRequestValidator.requireSymbol("  "))
-        .isInstanceOf(BacktestException.class)
-        .extracting("code").isEqualTo(BacktestResponse.STRATEGY_SYMBOL_REQUIRED);
+      .isInstanceOf(BacktestException.class)
+      .extracting("code").isEqualTo(BacktestResponse.STRATEGY_SYMBOL_REQUIRED);
     assertThatThrownBy(() -> BacktestRequestValidator.requireSymbol(null))
-        .isInstanceOf(BacktestException.class);
+      .isInstanceOf(BacktestException.class);
   }
 
   @Test
   @DisplayName("^ 로 시작하는 지수 심볼 → INDEX_NOT_TRADABLE")
   void requireSymbol_index() {
     assertThatThrownBy(() -> BacktestRequestValidator.requireSymbol("^GSPC"))
-        .isInstanceOf(BacktestException.class)
-        .extracting("code").isEqualTo(BacktestResponse.INDEX_NOT_TRADABLE);
+      .isInstanceOf(BacktestException.class)
+      .extracting("code").isEqualTo(BacktestResponse.INDEX_NOT_TRADABLE);
     assertThatThrownBy(() -> BacktestRequestValidator.requireTradable(" ^NDX"))
-        .isInstanceOf(BacktestException.class)
-        .extracting("code").isEqualTo(BacktestResponse.INDEX_NOT_TRADABLE);
+      .isInstanceOf(BacktestException.class)
+      .extracting("code").isEqualTo(BacktestResponse.INDEX_NOT_TRADABLE);
     assertThatCode(() -> BacktestRequestValidator.requireTradable(null)).doesNotThrowAnyException();
   }
 
@@ -55,14 +55,14 @@ class BacktestRequestValidatorTest {
     LocalDate s = LocalDate.of(2025, 1, 1);
     LocalDate e = LocalDate.of(2026, 1, 1);
     assertThatThrownBy(() -> BacktestRequestValidator.requireDateRange(null, e))
-        .isInstanceOf(BacktestException.class)
-        .extracting("code").isEqualTo(BacktestResponse.STRATEGY_START_DATE_REQUIRED);
+      .isInstanceOf(BacktestException.class)
+      .extracting("code").isEqualTo(BacktestResponse.STRATEGY_START_DATE_REQUIRED);
     assertThatThrownBy(() -> BacktestRequestValidator.requireDateRange(s, null))
-        .isInstanceOf(BacktestException.class)
-        .extracting("code").isEqualTo(BacktestResponse.STRATEGY_END_DATE_REQUIRED);
+      .isInstanceOf(BacktestException.class)
+      .extracting("code").isEqualTo(BacktestResponse.STRATEGY_END_DATE_REQUIRED);
     assertThatThrownBy(() -> BacktestRequestValidator.requireDateRange(e, s))
-        .isInstanceOf(BacktestException.class)
-        .extracting("code").isEqualTo(BacktestResponse.STRATEGY_DATE_RANGE_INVALID);
+      .isInstanceOf(BacktestException.class)
+      .extracting("code").isEqualTo(BacktestResponse.STRATEGY_DATE_RANGE_INVALID);
   }
 
   private static BigDecimal rate(String value) {
@@ -74,8 +74,8 @@ class BacktestRequestValidatorTest {
   @DisplayName("익절 비율이 0 이하이거나 손절 비율이 0 이하 · 1 이상이면 INVALID_SELL_RATE")
   void requireSellRates_rejected(String takeProfitRate, String stopLossRate) {
     assertThatThrownBy(() -> BacktestRequestValidator.requireSellRates(rate(takeProfitRate), rate(stopLossRate)))
-        .isInstanceOf(BacktestException.class)
-        .extracting("code").isEqualTo(BacktestResponse.INVALID_SELL_RATE);
+      .isInstanceOf(BacktestException.class)
+      .extracting("code").isEqualTo(BacktestResponse.INVALID_SELL_RATE);
   }
 
   @ParameterizedTest(name = "익절 {0} · 손절 {1}")
@@ -83,7 +83,7 @@ class BacktestRequestValidatorTest {
   @DisplayName("익절 · 손절은 비우거나 익절 비율이 0 초과이고 손절 비율이 0 초과 1 미만이면 통과한다")
   void requireSellRates_accepted(String takeProfitRate, String stopLossRate) {
     assertThatCode(() -> BacktestRequestValidator.requireSellRates(rate(takeProfitRate), rate(stopLossRate)))
-        .doesNotThrowAnyException();
+      .doesNotThrowAnyException();
   }
 
   @ParameterizedTest(name = "하락 {0} · 팔 {1}")
@@ -91,8 +91,8 @@ class BacktestRequestValidatorTest {
   @DisplayName("트레일링 스탑 하락 비율이 0 초과 1 미만 밖이거나 팔 비율이 0 초과 1 이하 밖이거나 팔 비율만 있으면 INVALID_TRAILING_STOP")
   void requireTrailingStop_rejected(String stopRate, String sellRate) {
     assertThatThrownBy(() -> BacktestRequestValidator.requireTrailingStop(rate(stopRate), rate(sellRate)))
-        .isInstanceOf(BacktestException.class)
-        .extracting("code").isEqualTo(BacktestResponse.INVALID_TRAILING_STOP);
+      .isInstanceOf(BacktestException.class)
+      .extracting("code").isEqualTo(BacktestResponse.INVALID_TRAILING_STOP);
   }
 
   @ParameterizedTest(name = "하락 {0} · 팔 {1}")
@@ -100,7 +100,7 @@ class BacktestRequestValidatorTest {
   @DisplayName("트레일링 스탑은 둘 다 비우거나 하락 비율이 0 초과 1 미만이고 팔 비율을 비우거나 0 초과 1 이하면 통과한다")
   void requireTrailingStop_accepted(String stopRate, String sellRate) {
     assertThatCode(() -> BacktestRequestValidator.requireTrailingStop(rate(stopRate), rate(sellRate)))
-        .doesNotThrowAnyException();
+      .doesNotThrowAnyException();
   }
 
   // "수익률:팔 비율" 을 띄어 적은 단계 목록("[]" 는 빈 목록, "null" 은 비운 단계, 콜론 앞이나 뒤를 비우면 비운 칸 null)
@@ -136,8 +136,8 @@ class BacktestRequestValidatorTest {
   @DisplayName("부분 익절이 6단계 이상이거나 수익률이 0 초과 오름차순이 아니거나 팔 비율이 0 초과 1 이하 밖이거나 비운 칸이 있으면 INVALID_PARTIAL_TAKE_PROFIT")
   void requirePartialTakeProfits_rejected(String label, String spec) {
     assertThatThrownBy(() -> BacktestRequestValidator.requirePartialTakeProfits(steps(spec)))
-        .isInstanceOf(BacktestException.class)
-        .extracting("code").isEqualTo(BacktestResponse.INVALID_PARTIAL_TAKE_PROFIT);
+      .isInstanceOf(BacktestException.class)
+      .extracting("code").isEqualTo(BacktestResponse.INVALID_PARTIAL_TAKE_PROFIT);
   }
 
   @ParameterizedTest(name = "{0}")
@@ -149,7 +149,7 @@ class BacktestRequestValidatorTest {
   @DisplayName("부분 익절은 비우거나 5단계까지 수익률이 0 초과 오름차순이고 팔 비율이 0 초과 1 이하면 통과한다")
   void requirePartialTakeProfits_accepted(String label, String spec) {
     assertThatCode(() -> BacktestRequestValidator.requirePartialTakeProfits(steps(spec)))
-        .doesNotThrowAnyException();
+      .doesNotThrowAnyException();
   }
 
   @Test
@@ -167,13 +167,13 @@ class BacktestRequestValidatorTest {
   @DisplayName("회당 금액 · 주식 수 가운데 하나만, 회당 금액은 0 초과 · 주식 수는 1 이상")
   void requirePerPurchase() {
     assertThatThrownBy(() -> BacktestRequestValidator.requirePerPurchase(null, null))
-        .extracting("code").isEqualTo(BacktestResponse.AMOUNT_OR_SHARES_REQUIRED);
+      .extracting("code").isEqualTo(BacktestResponse.AMOUNT_OR_SHARES_REQUIRED);
     assertThatThrownBy(() -> BacktestRequestValidator.requirePerPurchase(new BigDecimal("100000"), 2))
-        .extracting("code").isEqualTo(BacktestResponse.AMOUNT_OR_SHARES_REQUIRED);
+      .extracting("code").isEqualTo(BacktestResponse.AMOUNT_OR_SHARES_REQUIRED);
     assertThatThrownBy(() -> BacktestRequestValidator.requirePerPurchase(BigDecimal.ZERO, null))
-        .extracting("code").isEqualTo(BacktestResponse.STRATEGY_AMOUNT_PER_PURCHASE_REQUIRED);
+      .extracting("code").isEqualTo(BacktestResponse.STRATEGY_AMOUNT_PER_PURCHASE_REQUIRED);
     assertThatThrownBy(() -> BacktestRequestValidator.requirePerPurchase(null, 0))
-        .extracting("code").isEqualTo(BacktestResponse.INVALID_SHARES_PER_PURCHASE);
+      .extracting("code").isEqualTo(BacktestResponse.INVALID_SHARES_PER_PURCHASE);
     assertThatCode(() -> BacktestRequestValidator.requirePerPurchase(new BigDecimal("100000"), null)).doesNotThrowAnyException();
     assertThatCode(() -> BacktestRequestValidator.requirePerPurchase(null, 3)).doesNotThrowAnyException();
   }
@@ -182,7 +182,7 @@ class BacktestRequestValidatorTest {
   @DisplayName("예산은 비우거나 0 초과")
   void requireBudget() {
     assertThatThrownBy(() -> BacktestRequestValidator.requireBudget(BigDecimal.ZERO))
-        .extracting("code").isEqualTo(BacktestResponse.INVALID_TOTAL_INVESTMENT);
+      .extracting("code").isEqualTo(BacktestResponse.INVALID_TOTAL_INVESTMENT);
     assertThatCode(() -> BacktestRequestValidator.requireBudget(null)).doesNotThrowAnyException();
     assertThatCode(() -> BacktestRequestValidator.requireBudget(new BigDecimal("1000000"))).doesNotThrowAnyException();
   }

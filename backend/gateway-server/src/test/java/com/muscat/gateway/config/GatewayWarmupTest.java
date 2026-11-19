@@ -48,7 +48,7 @@ class GatewayWarmupTest {
     backend.start();
     URI uri = URI.create("http://127.0.0.1:" + backend.getAddress().getPort());
     RouteLocator routes = () -> Flux.just(route(ROUTE, uri), route("user-auth-route", uri),
-        route("fallback", URI.create("forward:/fallback")));
+      route("fallback", URI.create("forward:/fallback")));
     given(rateLimiter.getConfig()).willReturn(Map.of(ROUTE, new RedisRateLimiter.Config()));
     warmup = new GatewayWarmup(routes, rateLimiter, HttpClient.create());
   }
@@ -86,13 +86,13 @@ class GatewayWarmupTest {
     GatewayWarmup rateLimiterOnly = new GatewayWarmup(noBackend, rateLimiter, HttpClient.create());
 
     StepVerifier.withVirtualTime(() -> {
-          given(rateLimiter.isAllowed(ROUTE, "warmup")).willReturn(Mono.delay(Duration.ofSeconds(8))
-              .map(tick -> new RateLimiter.Response(true, Map.of()))
-              .doOnNext(response -> answered.set(true)));
-          return rateLimiterOnly.warmUp();
-        })
-        .thenAwait(Duration.ofSeconds(20))
-        .verifyComplete();
+        given(rateLimiter.isAllowed(ROUTE, "warmup")).willReturn(Mono.delay(Duration.ofSeconds(8))
+          .map(tick -> new RateLimiter.Response(true, Map.of()))
+          .doOnNext(response -> answered.set(true)));
+        return rateLimiterOnly.warmUp();
+      })
+      .thenAwait(Duration.ofSeconds(20))
+      .verifyComplete();
 
     assertThat(answered).isTrue();
   }

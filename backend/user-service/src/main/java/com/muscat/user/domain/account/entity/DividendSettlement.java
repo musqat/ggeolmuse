@@ -42,7 +42,7 @@ public class DividendSettlement {
   private LocalDateTime processedAt;
 
   public static DividendSettlement of(Long accountId, String symbol, LocalDate exDate, BigDecimal amount,
-    LocalDateTime processedAt) {
+                                      LocalDateTime processedAt) {
     DividendSettlement settlement = new DividendSettlement();
     settlement.accountId = accountId;
     settlement.symbol = symbol;

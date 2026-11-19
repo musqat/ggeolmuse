@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
 public class ListingStatusSource implements MarketDataProvider.ListingSource {
 
   private static final Set<String> MAJOR_EXCHANGES =
-      Set.of("NYSE", "NASDAQ", "NYSE ARCA", "NYSE MKT", "AMEX", "BATS");
+    Set.of("NYSE", "NASDAQ", "NYSE ARCA", "NYSE MKT", "AMEX", "BATS");
 
   private final AlphaVantageClient client;
 
@@ -113,13 +113,13 @@ public class ListingStatusSource implements MarketDataProvider.ListingSource {
     }
 
     return Asset.builder()
-        .symbol(symbol)
-        .name(name.isEmpty() ? symbol : name)
-        .sourceName(name.isEmpty() ? symbol : name)
-        .country("US")
-        .currency("USD")
-        .assetType(AssetTypeRule.resolve(isEtf, name))
-        .marketCap(null)   // LISTING_STATUS 에 없는 시가총액은 따로 채움
-        .build();
+      .symbol(symbol)
+      .name(name.isEmpty() ? symbol : name)
+      .sourceName(name.isEmpty() ? symbol : name)
+      .country("US")
+      .currency("USD")
+      .assetType(AssetTypeRule.resolve(isEtf, name))
+      .marketCap(null)   // LISTING_STATUS 에 없는 시가총액은 따로 채움
+      .build();
   }
 }

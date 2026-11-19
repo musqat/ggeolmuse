@@ -45,7 +45,7 @@ class TradeRepositoryQueryTest {
   }
 
   private Trade save(String userId, long accountId, String symbol, TradeType type, String quantity,
-    String totalAmount, LocalDate tradeDate, int hour, TradeStatus status) {
+                     String totalAmount, LocalDate tradeDate, int hour, TradeStatus status) {
     return tradeRepository.save(Trade.builder()
       .userId(userId).accountId(accountId).symbol(symbol).tradeType(type)
       .quantity(new BigDecimal(quantity)).price(new BigDecimal("10"))
@@ -55,7 +55,7 @@ class TradeRepositoryQueryTest {
   }
 
   private Trade save(String userId, long accountId, String symbol, TradeType type, String quantity,
-    String totalAmount, LocalDate tradeDate, int hour) {
+                     String totalAmount, LocalDate tradeDate, int hour) {
     return save(userId, accountId, symbol, type, quantity, totalAmount, tradeDate, hour, TradeStatus.COMPLETED);
   }
 

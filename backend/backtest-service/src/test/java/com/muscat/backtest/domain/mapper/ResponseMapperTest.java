@@ -1,6 +1,7 @@
 package com.muscat.backtest.domain.mapper;
 
 import com.muscat.backtest.common.enums.type.TransactionKind;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;

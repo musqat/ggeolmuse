@@ -24,4 +24,42 @@
         <module>user-service</module>
         <module>backtest-service</module>
     </modules>
+
+    <properties>
+        <spotless.version>3.11.0</spotless.version>
+    </properties>
+
+    <build>
+        <plugins>
+            <!-- 모든 모듈 Java 기본 형식 검사(줄 끝 공백 · 끝 줄바꿈 · 탭, 정렬은 IntelliJ 코드 스타일과 .editorconfig, 고치기: mvn -f backend/pom.xml -N spotless:apply) -->
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless.version}</version>
+                <inherited>false</inherited>
+                <configuration>
+                    <java>
+                        <includes>
+                            <include>*/src/main/java/**/*.java</include>
+                            <include>*/src/test/java/**/*.java</include>
+                        </includes>
+                        <trimTrailingWhitespace/>
+                        <endWithNewline/>
+                        <indent>
+                            <spaces>true</spaces>
+                            <spacesPerTab>2</spacesPerTab>
+                        </indent>
+                    </java>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <phase>validate</phase>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

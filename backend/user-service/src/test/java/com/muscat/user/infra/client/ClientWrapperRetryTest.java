@@ -49,7 +49,7 @@ class ClientWrapperRetryTest {
   private MarketDataServiceClientWrapper wrapper;
 
   record Call(String name, Function<MarketDataServiceClient, Object> client,
-    Function<MarketDataServiceClientWrapper, Object> wrapper, Object value) {
+              Function<MarketDataServiceClientWrapper, Object> wrapper, Object value) {
 
     @Override
     public String toString() {
