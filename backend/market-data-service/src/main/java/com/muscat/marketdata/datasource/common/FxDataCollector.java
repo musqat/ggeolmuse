@@ -1,5 +1,7 @@
 package com.muscat.marketdata.datasource.common;
 
+import com.muscat.marketdata.common.enums.response.MarketDataResponse;
+import com.muscat.marketdata.common.exception.MarketDataException;
 import com.muscat.marketdata.config.MarketDataProperties;
 import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.marketdata.domain.entity.FxRate;
@@ -183,7 +185,8 @@ public class FxDataCollector {
       attempts++;
 
       if (attempts > properties.getFx().getMaxFallbackDays()) {
-        throw new IllegalStateException("환율 폴백 기간 초과: " + targetDate);
+        log.warn("환율 폴백 기간 초과: targetDate={}", targetDate);
+        throw new MarketDataException(MarketDataResponse.FX_RATE_NOT_FOUND);
       }
     }
 

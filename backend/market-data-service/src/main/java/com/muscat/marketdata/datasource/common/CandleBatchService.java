@@ -100,29 +100,30 @@ public class CandleBatchService {
   }
 
   private <T> T tryWithRetry(RetryableTask<T> task) throws Exception {
+    int attempts = Math.max(1, maxRetryAttempts);
     int attempt = 0;
     long currentBackoff = initialBackoffMs;
     Exception lastException = null;
 
-    while (attempt < maxRetryAttempts) {
+    while (attempt < attempts) {
       try {
         return task.execute();
       } catch (Exception e) {
         lastException = e;
         attempt++;
 
-        if (attempt >= maxRetryAttempts) {
+        if (attempt >= attempts) {
           break;
         }
 
-        log.debug("[배치수집] 재시도 {}/{}: {}", attempt, maxRetryAttempts, e.getMessage());
+        log.debug("[배치수집] 재시도 {}/{}: {}", attempt, attempts, e.getMessage());
         sleepQuietly(currentBackoff);
         currentBackoff = Math.min(currentBackoff * BACKOFF_MULTIPLIER,
           properties.getBatch().getMaxBackoffMs());
       }
     }
 
-    throw lastException != null ? lastException : new RuntimeException("알 수 없는 오류");
+    throw lastException;
   }
 
   private void sleepQuietly(long milliseconds) {

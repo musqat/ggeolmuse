@@ -1,8 +1,11 @@
 package com.muscat.marketdata.domain.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
 
+import com.muscat.marketdata.common.enums.response.MarketDataResponse;
+import com.muscat.marketdata.common.exception.MarketDataException;
 import java.time.LocalDateTime;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -40,6 +43,20 @@ class AdminJobStateTest {
 
     assertThat(podB.tryStart(JOB)).isFalse();
     assertThat(podB.isRunning(JOB)).isTrue();
+  }
+
+  @Test
+  @DisplayName("저장된 상태를 그 타입으로 읽지 못하면 ADMIN_JOB_STATE_UNREADABLE, 쓰지 못하면 ADMIN_JOB_STATE_UNWRITABLE")
+  void unreadableOrUnwritableState() {
+    podA.tryStart(JOB);
+    podA.save(JOB, Map.of("processed", 5));
+
+    assertThatThrownBy(() -> podB.detail(JOB, Integer.class))
+      .isInstanceOf(MarketDataException.class)
+      .extracting("code").isEqualTo(MarketDataResponse.ADMIN_JOB_STATE_UNREADABLE);
+    assertThatThrownBy(() -> podA.save(JOB, new Object()))
+      .isInstanceOf(MarketDataException.class)
+      .extracting("code").isEqualTo(MarketDataResponse.ADMIN_JOB_STATE_UNWRITABLE);
   }
 
   @Test

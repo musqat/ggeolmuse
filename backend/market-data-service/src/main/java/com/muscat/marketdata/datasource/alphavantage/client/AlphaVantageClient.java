@@ -2,6 +2,7 @@ package com.muscat.marketdata.datasource.alphavantage.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.muscat.marketdata.common.enums.response.MarketDataResponse;
 import com.muscat.marketdata.common.exception.AlphaVantageException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,17 +38,18 @@ public class AlphaVantageClient {
     try {
       String response = restTemplate.getForObject(uri, String.class);
       if (response == null || response.isEmpty()) {
-        throw new AlphaVantageException("Empty response");
+        throw new AlphaVantageException(MarketDataResponse.ALPHA_VANTAGE_ERROR);
       }
 
       JsonNode json = objectMapper.readTree(response);
 
       // 에러 체크
       if (json.has("Error Message")) {
-        throw new AlphaVantageException(json.get("Error Message").asText());
+        log.warn("Alpha Vantage 오류 응답: function={}, message={}", function, json.get("Error Message").asText());
+        throw new AlphaVantageException(MarketDataResponse.ALPHA_VANTAGE_ERROR);
       }
       if (json.has("Note") && json.get("Note").asText().contains("call frequency")) {
-        throw new AlphaVantageException("API rate limit exceeded");
+        throw new AlphaVantageException(MarketDataResponse.ALPHA_VANTAGE_RATE_LIMITED);
       }
 
       return json;
@@ -56,7 +58,7 @@ public class AlphaVantageClient {
       throw e;
     } catch (Exception e) {
       log.error("API call failed: function={}, error={}", function, e.getMessage());
-      throw new AlphaVantageException("API call failed: " + function, e);
+      throw new AlphaVantageException(MarketDataResponse.ALPHA_VANTAGE_ERROR, e);
     }
   }
 
@@ -69,17 +71,18 @@ public class AlphaVantageClient {
     try {
       String response = restTemplate.getForObject(uri, String.class);
       if (response == null || response.isEmpty()) {
-        throw new AlphaVantageException("Empty CSV response");
+        throw new AlphaVantageException(MarketDataResponse.ALPHA_VANTAGE_ERROR);
       }
 
       // 에러 체크 (CSV 형태가 아닌 JSON 에러 응답인 경우)
       if (response.trim().startsWith("{")) {
         JsonNode json = objectMapper.readTree(response);
         if (json.has("Error Message")) {
-          throw new AlphaVantageException(json.get("Error Message").asText());
+          log.warn("Alpha Vantage 오류 응답: function={}, message={}", function, json.get("Error Message").asText());
+          throw new AlphaVantageException(MarketDataResponse.ALPHA_VANTAGE_ERROR);
         }
         if (json.has("Note")) {
-          throw new AlphaVantageException("API rate limit exceeded");
+          throw new AlphaVantageException(MarketDataResponse.ALPHA_VANTAGE_RATE_LIMITED);
         }
       }
 
@@ -89,7 +92,7 @@ public class AlphaVantageClient {
       throw e;
     } catch (Exception e) {
       log.error("CSV API 호출 실패: function={}, error={}", function, e.getMessage());
-      throw new AlphaVantageException("CSV API 호출 실패: " + function, e);
+      throw new AlphaVantageException(MarketDataResponse.ALPHA_VANTAGE_ERROR, e);
     }
   }
 

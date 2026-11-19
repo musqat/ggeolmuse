@@ -51,8 +51,10 @@ class GlobalExceptionHandlerTest {
       .isEqualTo("handleMissingParameterException");
     assertThat(resolver.resolveMethod(new HttpMessageNotReadableException("JSON parse error", new MockHttpInputMessage(new byte[0]))).getName())
       .isEqualTo("handleNotReadable");
-    assertThat(resolver.resolveMethod(new YahooFinanceException("원인")).getName())
-      .isEqualTo("handleYahooFinanceException");
+    assertThat(resolver.resolveMethod(new YahooFinanceException(MarketDataResponse.YAHOO_RESPONSE_INVALID)).getName())
+      .isEqualTo("handleBusinessException");
+    assertThat(resolver.resolveMethod(new AlphaVantageException(MarketDataResponse.ALPHA_VANTAGE_ERROR)).getName())
+      .isEqualTo("handleBusinessException");
     assertThat(resolver.resolveMethod(new IllegalStateException("원인")).getName())
       .isEqualTo("handleGeneralException");
   }
@@ -106,21 +108,25 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
-  @DisplayName("야후 · AlphaVantage · 수출입은행 오류는 502 이고 외부 서비스 오류로 표시한다")
+  @DisplayName("야후 · AlphaVantage 오류는 그 코드의 상태 · 이름 · 문구이고 외부 서비스 오류로 표시한다")
   void externalServiceErrors() {
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/market/price/AAPL");
 
-    ResponseEntity<ProblemDetail> yahoo = handler.handleYahooFinanceException(new YahooFinanceException("429"), request);
-    ResponseEntity<ProblemDetail> av = handler.handleAlphaVantageException(new AlphaVantageException("limit"), request);
-    ResponseEntity<ProblemDetail> fx = handler.handleFxRateException(new FxRateException("no data"), request);
+    ResponseEntity<ProblemDetail> yahoo = handler.handleBusinessException(
+      new YahooFinanceException(MarketDataResponse.YAHOO_RESPONSE_INVALID), request);
+    ResponseEntity<ProblemDetail> av = handler.handleBusinessException(
+      new AlphaVantageException(MarketDataResponse.ALPHA_VANTAGE_ERROR), request);
+    ResponseEntity<ProblemDetail> limited = handler.handleBusinessException(
+      new AlphaVantageException(MarketDataResponse.ALPHA_VANTAGE_RATE_LIMITED), request);
 
-    assertThat(List.of(yahoo, av, fx)).allSatisfy(response -> {
-      assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
-      assertThat(Objects.requireNonNull(response.getBody()).getProperties()).containsEntry("errorType", "EXTERNAL_SERVICE");
-    });
-    assertThat(Objects.requireNonNull(yahoo.getBody()).getDetail()).isEqualTo("Yahoo Finance 서비스 오류: 429");
-    assertThat(Objects.requireNonNull(av.getBody()).getDetail()).isEqualTo("Alpha Vantage 서비스 오류: limit");
-    assertThat(Objects.requireNonNull(fx.getBody()).getDetail()).isEqualTo("한국수출입은행 서비스 오류: no data");
+    assertThat(List.of(yahoo, av, limited)).allSatisfy(response ->
+      assertThat(Objects.requireNonNull(response.getBody()).getProperties()).containsEntry("errorType", "EXTERNAL_SERVICE"));
+    assertThat(yahoo.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+    assertThat(Objects.requireNonNull(yahoo.getBody()).getProperties()).containsEntry("errorCode", "YAHOO_RESPONSE_INVALID");
+    assertThat(av.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+    assertThat(Objects.requireNonNull(av.getBody()).getDetail()).isEqualTo("Alpha Vantage 서비스 오류");
+    assertThat(limited.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+    assertThat(Objects.requireNonNull(limited.getBody()).getProperties()).containsEntry("errorCode", "ALPHA_VANTAGE_RATE_LIMITED");
   }
 
   @Test

@@ -11,4 +11,8 @@ public class MarketDataException extends BusinessException {
   public MarketDataException(MarketDataResponse response) {
     super(response);
   }
+
+  public MarketDataException(MarketDataResponse response, Throwable cause) {
+    super(response, cause);
+  }
 }

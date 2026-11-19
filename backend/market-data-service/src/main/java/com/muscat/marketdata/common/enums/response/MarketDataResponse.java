@@ -36,8 +36,16 @@ public enum MarketDataResponse implements ErrorCode {
   YAHOO_FINANCE_ERROR("Yahoo Finance 서비스 오류", HttpStatus.BAD_GATEWAY),
   ALPHA_VANTAGE_ERROR("Alpha Vantage 서비스 오류", HttpStatus.BAD_GATEWAY),
   KOREA_EXIM_ERROR("한국수출입은행 서비스 오류", HttpStatus.BAD_GATEWAY),
+  YAHOO_NO_DATA("Yahoo Finance 응답에 시세가 없습니다", HttpStatus.NOT_FOUND),
+  YAHOO_RESPONSE_INVALID("Yahoo Finance 응답을 읽지 못했습니다", HttpStatus.BAD_GATEWAY),
+  ALPHA_VANTAGE_RATE_LIMITED("Alpha Vantage 요청 한도를 넘었습니다", HttpStatus.SERVICE_UNAVAILABLE),
   MARKET_CAP_UNAVAILABLE("시가총액을 가져오지 못했습니다", HttpStatus.BAD_GATEWAY),
-  DATA_SOURCE_UNAVAILABLE("시세 공급원이 설정되지 않았습니다", HttpStatus.SERVICE_UNAVAILABLE);
+  DATA_SOURCE_UNAVAILABLE("시세 공급원이 설정되지 않았습니다", HttpStatus.SERVICE_UNAVAILABLE),
+
+  // 서버 내부 오류
+  FIXED_QUOTES_UNREADABLE("고정 시세 파일을 읽지 못했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
+  ADMIN_JOB_STATE_UNREADABLE("관리자 작업 상태를 읽지 못했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
+  ADMIN_JOB_STATE_UNWRITABLE("관리자 작업 상태를 쓰지 못했습니다", HttpStatus.INTERNAL_SERVER_ERROR);
 
   private final String message;
   private final HttpStatus httpStatus;

@@ -1,5 +1,7 @@
 package com.muscat.marketdata.datasource.fixed;
 
+import com.muscat.marketdata.common.enums.response.MarketDataResponse;
+import com.muscat.marketdata.common.exception.MarketDataException;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.AssetInfoSource;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.CandleSource;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.DividendSource;
@@ -12,7 +14,6 @@ import com.muscat.marketdata.domain.entity.Candle;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -87,7 +88,7 @@ public class FixedQuoteSource implements ListingSource, CandleSource, DividendSo
       new ClassPathResource(DIR + file).getInputStream(), StandardCharsets.UTF_8))) {
       reader.lines().skip(1).filter(line -> !line.isBlank()).map(line -> line.split(",")).forEach(rows::add);
     } catch (IOException e) {
-      throw new UncheckedIOException("고정 시세 파일을 읽지 못했다: " + DIR + file, e);
+      throw new MarketDataException(MarketDataResponse.FIXED_QUOTES_UNREADABLE, e);
     }
     return rows;
   }

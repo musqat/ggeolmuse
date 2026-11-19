@@ -9,6 +9,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.muscat.marketdata.common.enums.response.MarketDataResponse;
 import com.muscat.marketdata.common.exception.AlphaVantageException;
 import com.muscat.marketdata.datasource.alphavantage.client.AlphaVantageClient;
 import com.muscat.marketdata.datasource.alphavantage.client.AlphaVantageRateLimiter;
@@ -55,7 +56,7 @@ class MarketCapCollectionServiceTest {
     overview("BAD", "{\"Symbol\":\"BAD\",\"MarketCapitalization\":\"None\"}");
     overview("ZERO", "{\"Symbol\":\"ZERO\",\"MarketCapitalization\":\"0\"}");
     overview("NOFIELD", "{\"Symbol\":\"NOFIELD\"}");
-    given(client.get("OVERVIEW", Map.of("symbol", "DOWN"))).willThrow(new AlphaVantageException("API rate limit exceeded"));
+    given(client.get("OVERVIEW", Map.of("symbol", "DOWN"))).willThrow(new AlphaVantageException(MarketDataResponse.ALPHA_VANTAGE_RATE_LIMITED));
   }
 
   @Test

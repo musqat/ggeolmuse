@@ -12,6 +12,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.muscat.marketdata.common.enums.response.MarketDataResponse;
+import com.muscat.marketdata.common.exception.MarketDataException;
 import com.muscat.marketdata.config.MarketDataProperties;
 import com.muscat.marketdata.datasource.common.MarketDataProvider.FxSource;
 import com.muscat.marketdata.domain.entity.FxRate;
@@ -158,8 +160,8 @@ class FxDataCollectorTest {
       given(fxSource.fetchFx(any())).willReturn(Optional.empty());
 
       assertThatThrownBy(() -> collector.collectSingleDate(MON, true))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("환율 폴백 기간 초과");
+        .isInstanceOf(MarketDataException.class)
+        .extracting("code").isEqualTo(MarketDataResponse.FX_RATE_NOT_FOUND);
     }
   }
 

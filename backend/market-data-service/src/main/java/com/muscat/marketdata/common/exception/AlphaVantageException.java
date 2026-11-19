@@ -1,12 +1,18 @@
 package com.muscat.marketdata.common.exception;
 
-public class AlphaVantageException extends RuntimeException {
+import com.muscat.commonlib.exception.BusinessException;
+import com.muscat.marketdata.common.enums.response.MarketDataResponse;
 
-  public AlphaVantageException(String message) {
-    super(message);
+/**
+ * Alpha Vantage 호출이 실패했을 때의 예외
+ */
+public class AlphaVantageException extends BusinessException {
+
+  public AlphaVantageException(MarketDataResponse response) {
+    super(response);
   }
 
-  public AlphaVantageException(String message, Throwable cause) {
-    super(message, cause);
+  public AlphaVantageException(MarketDataResponse response, Throwable cause) {
+    super(response, cause);
   }
 }

@@ -3,6 +3,7 @@ package com.muscat.marketdata.datasource.yf.client;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.muscat.marketdata.common.enums.response.MarketDataResponse;
 import com.muscat.marketdata.common.exception.YahooFinanceException;
 import com.muscat.marketdata.domain.dto.CandleDto;
 import com.muscat.marketdata.domain.dto.DividendDto;
@@ -258,7 +259,7 @@ class YahooParserTest {
 
       assertThatThrownBy(() -> parser.parseDailyAdjusted(json, SYMBOL, null, null))
         .isInstanceOf(YahooFinanceException.class)
-        .hasMessageContaining("차트 결과가 없습니다");
+        .extracting("code").isEqualTo(MarketDataResponse.YAHOO_NO_DATA);
     }
 
     @Test
@@ -275,7 +276,7 @@ class YahooParserTest {
 
       assertThatThrownBy(() -> parser.parseDailyAdjusted(json, SYMBOL, null, null))
         .isInstanceOf(YahooFinanceException.class)
-        .hasMessageContaining("필수 데이터가 없습니다");
+        .extracting("code").isEqualTo(MarketDataResponse.YAHOO_NO_DATA);
     }
 
     @Test
@@ -293,7 +294,7 @@ class YahooParserTest {
 
       assertThatThrownBy(() -> parser.parseDailyAdjusted(json, SYMBOL, null, null))
         .isInstanceOf(YahooFinanceException.class)
-        .hasMessageContaining("필수 데이터가 없습니다");
+        .extracting("code").isEqualTo(MarketDataResponse.YAHOO_NO_DATA);
     }
 
     @Test
@@ -301,7 +302,7 @@ class YahooParserTest {
     void 깨진_json() {
       assertThatThrownBy(() -> parser.parseDailyAdjusted("{ not json", SYMBOL, null, null))
         .isInstanceOf(YahooFinanceException.class)
-        .hasMessageContaining("파싱 실패");
+        .extracting("code").isEqualTo(MarketDataResponse.YAHOO_RESPONSE_INVALID);
     }
   }
 
@@ -639,11 +640,12 @@ class YahooParserTest {
   class MalformedTests {
 
     @Test
-    @DisplayName("배당 응답 JSON 이 깨지면 종목을 담은 파싱 예외")
+    @DisplayName("배당 응답 JSON 이 깨지면 원인을 담은 응답 오류")
     void brokenDividendJson() {
       assertThatThrownBy(() -> parser.parseDividends("{not json", SYMBOL, null, null))
         .isInstanceOf(YahooFinanceException.class)
-        .hasMessageContaining(SYMBOL);
+        .hasCauseInstanceOf(Exception.class)
+        .extracting("code").isEqualTo(MarketDataResponse.YAHOO_RESPONSE_INVALID);
     }
 
     @Test
