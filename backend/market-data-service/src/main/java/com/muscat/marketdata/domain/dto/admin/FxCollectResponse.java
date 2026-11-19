@@ -30,7 +30,6 @@ public class FxCollectResponse {
   private int failed;
   private LocalDate lastDate;
   private String stoppedReason;
-  private String message;
 
   public static FxCollectResponse of(FxCollectionService.Status status) {
     FxCollectResponseBuilder builder = FxCollectResponse.builder()
@@ -52,7 +51,4 @@ public class FxCollectResponse {
     return builder.build();
   }
 
-  public static FxCollectResponse message(String message) {
-    return FxCollectResponse.builder().message(message).build();
-  }
 }

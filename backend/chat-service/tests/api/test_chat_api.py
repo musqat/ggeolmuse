@@ -55,11 +55,27 @@ def test_start_returns_conversation(env):
     assert body["conversation_id"]
 
 
-def test_start_unknown_symbol_is_404_with_code(env):
+def test_start_unknown_symbol_is_404_problem(env):
     res = env.start("ZZZZ")
     assert res.status_code == 404
-    assert res.json() == {"code": "symbol_not_found",
-                          "message": "종목을 찾을 수 없습니다. 종목 코드로 입력해 주세요. (예: AAPL)"}
+    assert res.headers["content-type"] == "application/problem+json"
+    body = res.json()
+    assert body.pop("timestamp")
+    assert body == {
+        "type": "https://api.muscat.com/problems/symbol-not-found",
+        "title": "Not Found",
+        "status": 404,
+        "detail": "종목을 찾을 수 없습니다. 종목 코드로 입력해 주세요. (예: AAPL)",
+        "instance": "/api/chat/conversations",
+        "errorCode": "SYMBOL_NOT_FOUND",
+        "errorType": "NOT_FOUND",
+    }
+
+
+def test_unknown_symbol_log_keeps_code_without_error(env, caplog):
+    with caplog.at_level(logging.INFO, logger="chat"):
+        env.start("ZZZZ")
+    assert "symbol=ZZZZ outcome=SYMBOL_NOT_FOUND ms=" in caplog.text
 
 
 def test_ask_answers(env):
@@ -80,24 +96,25 @@ def test_ask_rejection_keeps_quota(env):
 
 def test_ask_unknown_conversation_is_404(env):
     res = env.ask("00000000-0000-0000-0000-000000000000")
-    assert (res.status_code, res.json()["code"]) == (404, "conversation_not_found")
+    assert (res.status_code, res.json()["errorCode"], res.json()["instance"]) == (404, "CONVERSATION_NOT_FOUND", "/api/chat")
 
 
 def test_quota_exceeded_is_429(env):
     conversation_id = env.start().json()["conversation_id"]
     env.quota.used["user-1"] = 5
     res = env.ask(conversation_id)
-    assert (res.status_code, res.json()["code"]) == (429, "quota_exceeded")
+    assert (res.status_code, res.json()["errorCode"], res.json()["errorType"]) == (429, "QUOTA_EXCEEDED", "RATE_LIMIT")
 
 
 def test_outages_are_503_with_source(env):
     conversation_id = env.start().json()["conversation_id"]
     env.model.answer_error = AiUnavailable("timeout")
-    assert env.ask(conversation_id).json()["code"] == "ai_unavailable"
+    body = env.ask(conversation_id).json()
+    assert (body["errorCode"], body["errorType"], body["title"]) == ("AI_UNAVAILABLE", "EXTERNAL_SERVICE", "Service Unavailable")
 
     env.model.answer_error = None
     env.market.error = MarketUnavailable("down")
-    assert env.start().json()["code"] == "market_unavailable"
+    assert env.start().json()["errorCode"] == "MARKET_UNAVAILABLE"
 
 
 def test_unexpected_error_is_500(env, caplog):
@@ -105,7 +122,7 @@ def test_unexpected_error_is_500(env, caplog):
     env.model.answer_error = RuntimeError("bug")
     with caplog.at_level(logging.ERROR, logger="chat"):
         res = env.ask(conversation_id)
-    assert (res.status_code, res.json()["code"]) == (500, "internal_error")
+    assert (res.status_code, res.json()["errorCode"], res.json()["errorType"]) == (500, "INTERNAL_SERVER_ERROR", "SYSTEM")
     assert "Traceback" in caplog.text
 
 
@@ -116,7 +133,7 @@ def test_outage_log_keeps_cause(env, caplog):
         env.ask(conversation_id)
 
     line = [r.getMessage() for r in caplog.records if r.getMessage().startswith("ask ")][0]
-    assert "outcome=error:ai_unavailable" in line
+    assert "outcome=error:AI_UNAVAILABLE" in line
     assert "detail=APITimeoutError" in line
 
 
@@ -149,12 +166,17 @@ def test_quota_error_is_500_with_code(env, monkeypatch, caplog):
     monkeypatch.setattr(env.quota, "remaining", down)
     with caplog.at_level(logging.ERROR, logger="chat"):
         res = env.client.get("/api/chat/quota")
-    assert (res.status_code, res.json()["code"]) == (500, "internal_error")
-    assert "quota user=" in caplog.text and "outcome=error:internal_error" in caplog.text
+    assert (res.status_code, res.json()["errorCode"], res.json()["instance"]) == (500, "INTERNAL_SERVER_ERROR", "/api/chat/quota")
+    assert "quota user=" in caplog.text and "outcome=error:INTERNAL_SERVER_ERROR" in caplog.text
 
 
-def test_empty_message_is_422(env):
-    assert env.ask("c", "").status_code == 422
+def test_invalid_body_is_400_validation_problem(env):
+    res = env.ask("c", "")
+    assert (res.status_code, res.headers["content-type"]) == (400, "application/problem+json")
+    body = res.json()
+    assert (body["errorCode"], body["errorType"], body["title"]) == ("VALIDATION_ERROR", "VALIDATION", "Validation Error")
+    assert (body["detail"], body["instance"]) == ("입력값 검증에 실패했습니다.", "/api/chat")
+    assert list(body["validationErrors"]) == ["message"]
 
 
 def test_request_log_line(env, caplog):

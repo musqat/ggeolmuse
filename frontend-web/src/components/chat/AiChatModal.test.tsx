@@ -103,7 +103,7 @@ describe('AiChatModal', () => {
 
   it('없는 종목이면 입력 단계 그대로 서버 문구를 보인다', async () => {
     startConversation.mockRejectedValueOnce(
-      apiError(404, { code: 'symbol_not_found', message: '종목을 찾을 수 없습니다. 종목 코드로 입력해 주세요 (예: AAPL).' })
+      apiError(404, { errorCode: 'SYMBOL_NOT_FOUND', detail: '종목을 찾을 수 없습니다. 종목 코드로 입력해 주세요 (예: AAPL).' })
     )
     await openAndStart()
 
@@ -126,7 +126,7 @@ describe('AiChatModal', () => {
   it('대화가 만료되면 종목 입력으로 돌아간다', async () => {
     startConversation.mockResolvedValueOnce(started('AAPL', 'Apple Inc.'))
     ask.mockRejectedValueOnce(
-      apiError(404, { code: 'conversation_not_found', message: '대화가 만료되었습니다. 종목을 다시 입력해 주세요.' })
+      apiError(404, { errorCode: 'CONVERSATION_NOT_FOUND', detail: '대화가 만료되었습니다. 종목을 다시 입력해 주세요.' })
     )
     await openAndStart()
 
@@ -302,7 +302,7 @@ describe('AiChatModal', () => {
       updatedAt: Date.now(),
     }))
     startConversation.mockRejectedValueOnce(
-      apiError(404, { code: 'symbol_not_found', message: '종목을 찾을 수 없습니다. 종목 코드로 입력해 주세요 (예: AAPL).' })
+      apiError(404, { errorCode: 'SYMBOL_NOT_FOUND', detail: '종목을 찾을 수 없습니다. 종목 코드로 입력해 주세요 (예: AAPL).' })
     )
     renderModal()
 
@@ -368,10 +368,12 @@ describe('AiChatModal', () => {
     expect(await screen.findByPlaceholderText(QUESTION_INPUT)).toHaveAttribute('maxlength', '500')
   })
 
-  it('입력 검증(422)에 걸리면 입력을 확인하라고 보인다', async () => {
-    startConversation.mockRejectedValueOnce(apiError(422, { detail: [{ msg: 'String should have at most 32 characters' }] }))
+  it('입력 검증에 걸리면 서버 문구를 보인다', async () => {
+    startConversation.mockRejectedValueOnce(apiError(400, {
+      errorCode: 'VALIDATION_ERROR', detail: '입력값 검증에 실패했습니다.', validationErrors: { symbol: 'too long' },
+    }))
     await openAndStart()
 
-    expect(await screen.findByText('입력 내용을 확인해 주세요.')).toBeInTheDocument()
+    expect(await screen.findByText('입력값 검증에 실패했습니다.')).toBeInTheDocument()
   })
 })

@@ -14,6 +14,9 @@ public enum MarketDataResponse implements ErrorCode {
   INVALID_SORT("유효하지 않은 정렬 기준입니다", HttpStatus.BAD_REQUEST),
   ASSET_NAME_REQUIRED("종목 이름이 비어 있습니다", HttpStatus.BAD_REQUEST),
   ASSET_ALREADY_EXISTS("이미 등록된 종목입니다", HttpStatus.CONFLICT),
+  INVALID_FX_COLLECT_MODE("모드는 missing 또는 all 입니다", HttpStatus.BAD_REQUEST),
+  ADMIN_JOB_BUSY("이미 다른 전체 갱신이 진행 중입니다. 끝난 뒤 다시 시도해 주세요", HttpStatus.CONFLICT),
+  FX_COLLECT_IN_PROGRESS("이미 환율 수집이 진행 중입니다. 끝난 뒤 다시 시도해 주세요", HttpStatus.CONFLICT),
 
   // 리소스 없음
   SYMBOL_NOT_FOUND("종목을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
@@ -27,6 +30,7 @@ public enum MarketDataResponse implements ErrorCode {
   ALPHA_VANTAGE_RATE_LIMITED("Alpha Vantage 요청 한도를 넘었습니다", HttpStatus.SERVICE_UNAVAILABLE),
   MARKET_CAP_UNAVAILABLE("시가총액을 가져오지 못했습니다", HttpStatus.BAD_GATEWAY),
   DATA_SOURCE_UNAVAILABLE("시세 공급원이 설정되지 않았습니다", HttpStatus.SERVICE_UNAVAILABLE),
+  SYMBOL_COLLECTOR_UNAVAILABLE("신규 종목 수집은 yahoo 프로바이더에서만 지원합니다", HttpStatus.SERVICE_UNAVAILABLE),
 
   // 서버 내부 오류
   FIXED_QUOTES_UNREADABLE("고정 시세 파일을 읽지 못했습니다", HttpStatus.INTERNAL_SERVER_ERROR),

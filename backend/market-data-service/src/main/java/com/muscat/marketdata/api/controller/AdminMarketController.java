@@ -1,6 +1,8 @@
 package com.muscat.marketdata.api.controller;
 
 import com.muscat.commonlib.constants.CommonConstants;
+import com.muscat.marketdata.common.enums.response.MarketDataResponse;
+import com.muscat.marketdata.common.exception.MarketDataException;
 import com.muscat.marketdata.datasource.yf.collector.SymbolCollector;
 import com.muscat.marketdata.domain.dto.AssetSummaryDto;
 import com.muscat.marketdata.domain.dto.admin.AssetResponse;
@@ -186,7 +188,7 @@ public class AdminMarketController {
 
     boolean started = jobRunner.submit("시가총액 전체 갱신", assetService::updateAllMarketCaps);
     if (!started) {
-      return jobBusy();
+      throw jobBusy();
     }
 
     return ResponseEntity.ok(UpdateResponse.of("시가총액 업데이트가 백그라운드에서 시작되었습니다."));
@@ -198,7 +200,7 @@ public class AdminMarketController {
 
     boolean started = jobRunner.submit("캔들 전체 갱신", priceBatchUpdater::updateAllPrices);
     if (!started) {
-      return jobBusy();
+      throw jobBusy();
     }
 
     return ResponseEntity.ok(UpdateResponse.of("캔들 데이터 업데이트가 백그라운드에서 시작되었습니다."));
@@ -211,22 +213,20 @@ public class AdminMarketController {
 
     SymbolCollector collector = symbolCollectorProvider.getIfAvailable();
     if (collector == null) {
-      return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-        .body(UpdateResponse.of("신규 종목 수집은 yahoo 프로바이더에서만 지원합니다."));
+      throw new MarketDataException(MarketDataResponse.SYMBOL_COLLECTOR_UNAVAILABLE);
     }
 
     boolean started = jobRunner.submit("신규 종목 수집", collector::collectNewlyListedDaily);
     if (!started) {
-      return jobBusy();
+      throw jobBusy();
     }
 
     return ResponseEntity.ok(UpdateResponse.of("신규 종목 수집이 백그라운드에서 시작되었습니다."));
   }
 
-  private ResponseEntity<UpdateResponse> jobBusy() {
+  private MarketDataException jobBusy() {
     log.warn("관리자 전체 갱신이 이미 돌고 하나가 기다리는 중이라 받지 않음");
-    return ResponseEntity.status(HttpStatus.CONFLICT)
-      .body(UpdateResponse.of("이미 다른 전체 갱신이 진행 중입니다. 끝난 뒤 다시 시도해 주세요."));
+    return new MarketDataException(MarketDataResponse.ADMIN_JOB_BUSY);
   }
 
   // 분할 계수가 기록된 종목(탐색이 몇 분 걸려 마지막 결과만)
@@ -304,17 +304,15 @@ public class AdminMarketController {
       default -> null;
     };
     if (parsed == null) {
-      return ResponseEntity.badRequest().body(FxCollectResponse.message("모드는 missing 또는 all 입니다."));
+      throw new MarketDataException(MarketDataResponse.INVALID_FX_COLLECT_MODE);
     }
 
     boolean started = fxCollectionService.start(parsed);
     log.info("환율 수집 요청: mode={}, started={}", parsed, started);
 
-    FxCollectResponse body = FxCollectResponse.of(fxCollectionService.status());
     if (!started) {
-      body.setMessage("이미 환율 수집이 진행 중입니다. 끝난 뒤 다시 시도해 주세요.");
-      return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+      throw new MarketDataException(MarketDataResponse.FX_COLLECT_IN_PROGRESS);
     }
-    return ResponseEntity.accepted().body(body);
+    return ResponseEntity.accepted().body(FxCollectResponse.of(fxCollectionService.status()));
   }
 }

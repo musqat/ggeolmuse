@@ -48,14 +48,24 @@ def client():
     ("POST", "/api/chat", {"conversation_id": "c", "message": "hi"}),
     ("GET", "/api/chat/quota", None),
 ])
-def test_requests_without_token_get_401_code(client, method, path, body):
+def test_requests_without_token_get_401_problem(client, method, path, body):
     app.state.verify_token = lambda token: {"sub": "u1"}
     res = client.request(method, path, json=body)
     assert res.status_code == 401
-    assert res.json() == {"code": "unauthorized", "message": "로그인이 필요합니다."}
+    problem = res.json()
+    assert problem.pop("timestamp")
+    assert problem == {
+        "type": "https://api.muscat.com/problems/unauthorized",
+        "title": "Unauthorized",
+        "status": 401,
+        "detail": "로그인이 필요합니다.",
+        "instance": path,
+        "errorCode": "UNAUTHORIZED",
+        "errorType": "UNAUTHORIZED",
+    }
 
 
-def test_auth_server_down_gets_503_code(client, caplog):
+def test_auth_server_down_gets_503_problem(client, caplog):
     def down(token):
         raise AuthUnavailable("keycloak down")
 
@@ -64,5 +74,5 @@ def test_auth_server_down_gets_503_code(client, caplog):
         res = client.post("/api/chat", json={"conversation_id": "c", "message": "hi"},
                           headers={"Authorization": "Bearer t"})
     assert res.status_code == 503
-    assert res.json()["code"] == "auth_unavailable"
-    assert "detail='keycloak down'" in caplog.text
+    assert (res.json()["errorCode"], res.json()["errorType"]) == ("AUTH_UNAVAILABLE", "EXTERNAL_SERVICE")
+    assert "outcome=error:AUTH_UNAVAILABLE detail='keycloak down'" in caplog.text

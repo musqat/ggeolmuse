@@ -7,14 +7,15 @@ REJECTIONS = {
 }
 
 ERRORS = {
-    "symbol_not_found": "종목을 찾을 수 없습니다. 종목 코드로 입력해 주세요. (예: AAPL)",
-    "conversation_not_found": "대화가 만료되었습니다. 종목을 다시 입력해 주세요.",
-    "quota_exceeded": "오늘 사용 한도를 초과했습니다.",
-    "unauthorized": "로그인이 필요합니다.",
-    "auth_unavailable": "인증 서버에 연결할 수 없습니다.",
-    "market_unavailable": "시세 데이터 조회에 실패했습니다.",
-    "ai_unavailable": "AI 응답 생성에 실패했습니다.",
-    "internal_error": "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    "SYMBOL_NOT_FOUND": "종목을 찾을 수 없습니다. 종목 코드로 입력해 주세요. (예: AAPL)",
+    "CONVERSATION_NOT_FOUND": "대화가 만료되었습니다. 종목을 다시 입력해 주세요.",
+    "QUOTA_EXCEEDED": "오늘 사용 한도를 초과했습니다.",
+    "UNAUTHORIZED": "로그인이 필요합니다.",
+    "AUTH_UNAVAILABLE": "인증 서버에 연결할 수 없습니다.",
+    "MARKET_UNAVAILABLE": "시세 데이터 조회에 실패했습니다.",
+    "AI_UNAVAILABLE": "AI 응답 생성에 실패했습니다.",
+    "VALIDATION_ERROR": "입력값 검증에 실패했습니다.",
+    "INTERNAL_SERVER_ERROR": "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
 }
 
 DISCLAIMER = (
