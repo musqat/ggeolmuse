@@ -348,7 +348,7 @@ jobs:
               | awk 'spec { sub(/^  /, ""); print } /^spec:$/ { spec = 1 }' > alert-rules.yaml
             promtool check rules alert-rules.yaml
             promtool test rules helm/monitoring/alert-rules-test.yaml
-            python3 .github/scripts/alert_rules_coverage.py alert-rules.yaml helm/monitoring/alert-rules-test.yaml
+            (cd tools && go run ./cmd/alert-rules-coverage ../alert-rules.yaml ../helm/monitoring/alert-rules-test.yaml)
           }
           rules helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml
           rules k8s/helm/ggeolmuse -f k8s/helm/ggeolmuse/values-prod.yaml -f k8s/helm/ggeolmuse/values-k8s.yaml
@@ -422,12 +422,13 @@ jobs:
         with:
           go-version-file: tools/go.mod
           cache-dependency-path: tools/go.sum
+      # 리포 검사(repocheck)가 읽는 워크플로 · Dockerfile 은 모듈 밖이라 테스트 결과 캐시 없이
       - name: 형식 · 정적 검사 · 테스트
         run: |
           unformatted=$(gofmt -l .)
           if [ -n "$unformatted" ]; then echo "$unformatted"; exit 1; fi
           go vet ./...
-          go test ./...
+          go test -count=1 ./...
 
       # 워크플로 · 액션 문법과 run 스크립트(shellcheck) 검사
       - name: actionlint
@@ -444,7 +445,6 @@ jobs:
         run: |
           shellcheck helm/k3s-node/*.sh
           bash helm/k3s-node/bootstrap_test.sh
-          python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 
   # terraform 형식 · 문법 · 가짜 프로바이더 테스트(AWS 에 닿지 않음, 운영 루트와 멀티 노드 루트)
   terraform:
