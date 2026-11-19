@@ -64,8 +64,8 @@ describe('CompareStrategiesChart', () => {
       { x: '2026-03-02', y: 100, fill: '#ef4444' },
       { x: '2026-03-04', y: 110, fill: '#ef4444' },
     ])
-    expect(screen.getByText('단순 매수').previousElementSibling).toHaveStyle({ background: '#3b82f6' })
-    expect(screen.getByText('적립식').previousElementSibling).toHaveStyle({ background: '#ef4444' })
+    expect(screen.getByText('단순 매수').previousElementSibling).toHaveStyle({ backgroundColor: '#3b82f6' })
+    expect(screen.getByText('적립식').previousElementSibling).toHaveStyle({ backgroundColor: '#ef4444' })
   })
 
   it('배당 재투자 거래에는 점을 찍지 않는다', async () => {
