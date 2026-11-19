@@ -208,12 +208,13 @@ services:
         initialDelaySeconds: 180
       liveness:
         initialDelaySeconds: 600
+    # 무거운 백테스트 10건 동시 실행 몫(힙 768m 위로 메타스페이스 · 코드 캐시 · 스레드 약 300Mi)
     resources:
       limits:
-        memory: 896Mi
-        cpu: 600m
+        memory: 1536Mi
+        cpu: 1000m
       requests:
-        memory: 448Mi
+        memory: 768Mi
         cpu: 100m
 
   chatService:
