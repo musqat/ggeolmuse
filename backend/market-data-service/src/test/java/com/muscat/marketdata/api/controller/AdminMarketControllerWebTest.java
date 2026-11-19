@@ -344,7 +344,8 @@ class AdminMarketControllerWebTest {
 
       for (String path : List.of("/update/market-cap", "/update/candles", "/update/symbols")) {
         asAdmin(post(BASE + path)).andExpect(status().isConflict())
-          .andExpect(jsonPath("$.message").value("이미 다른 전체 갱신이 진행 중입니다. 끝난 뒤 다시 시도해 주세요."));
+          .andExpect(jsonPath("$.errorCode").value("ADMIN_JOB_BUSY"))
+          .andExpect(jsonPath("$.detail").value("이미 다른 전체 갱신이 진행 중입니다. 끝난 뒤 다시 시도해 주세요"));
       }
       verify(assetService, never()).updateAllMarketCaps();
     }
@@ -480,12 +481,12 @@ class AdminMarketControllerWebTest {
     @DisplayName("이미 돌고 있으면 409 와 안내를 주고, 모르는 모드는 400 이고 시작하지 않는다")
     void busyOrUnknownMode() throws Exception {
       given(fxCollectionService.start(any())).willReturn(false);
-      given(fxCollectionService.status()).willReturn(fxStatus());
 
       asAdmin(post(BASE + "/fx/collect").param("mode", "missing")).andExpect(status().isConflict())
-        .andExpect(jsonPath("$.message").value("이미 환율 수집이 진행 중입니다. 끝난 뒤 다시 시도해 주세요."));
+        .andExpect(jsonPath("$.errorCode").value("FX_COLLECT_IN_PROGRESS"))
+        .andExpect(jsonPath("$.detail").value("이미 환율 수집이 진행 중입니다. 끝난 뒤 다시 시도해 주세요"));
       asAdmin(post(BASE + "/fx/collect").param("mode", "everything")).andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("모드는 missing 또는 all 입니다."));
+        .andExpect(jsonPath("$.errorCode").value("INVALID_FX_COLLECT_MODE"));
 
       verify(fxCollectionService).start(FxCollectionService.Mode.MISSING);
     }
