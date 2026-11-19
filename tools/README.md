@@ -10,6 +10,7 @@ CI · 릴리스 · 운영 확인에 쓰는 Go 명령이다.
 | `cmd/keycloak-check` | realm 파일(두 차트의 템플릿 · compose)의 로그인 · 사용자 관리 · 서비스 클라이언트가 가진 흐름과 역할, 렌더 결과에서 Keycloak 클라이언트 secret 을 받는 워크로드와 Keycloak 이 사용자 관리 · 서비스 클라이언트 secret 없이도 뜨는지 본다 |
 | `cmd/ci-changes` | 바뀐 폴더로 CI 가 빌드 · 테스트할 대상을 고른다 |
 | `cmd/chat-coverage` | chat 테스트의 줄 · 분기 커버리지를 최소치와 비교하고 표를 잡 요약에 남긴다 |
+| `cmd/error-codes` | 백엔드 main 자바의 예외가 백엔드에 선언한 예외를 문자열 문구 없이 쓰는지, 오류 코드 enum 상수를 main 코드가 쓰는지 본다 |
 | `cmd/image-check` | 렌더한 이미지 태그가 Docker Hub 에 있는지 본다 |
 | `cmd/alert-rules-coverage` | 렌더한 알림 규칙마다 대응 문서 주소(`#<알림 이름 소문자>`)와 울리는 promtool 테스트가 있는지 본다 |
 | `cmd/rollout-check` | Deployment 마다 이미지 태그 · 준비 · 재시작 수를 보고 운영 값 파일의 태그와 대조한다. `-argocd` 를 주면 클러스터 대신 ArgoCD API 로 반영 · 상태를 기다린 뒤 공개 주소에 스모크 요청 한 번(운영 시간 밖 안내면 건너뜀, 뒤 릴리스가 태그를 바꿨으면 그 태그로 통과, 릴리스 끝에서 씀) |

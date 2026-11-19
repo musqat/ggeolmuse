@@ -164,17 +164,17 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 ## 테스트
 
-백엔드 **3,009 개**, 프론트 **1,764 개**, E2E **72 개**.
+백엔드 **3,035 개**, 프론트 **1,764 개**, E2E **72 개**.
 
 | 서비스 | 테스트 |
 |---|---|
-| market-data-service | 617 |
+| market-data-service | 621 |
 | user-service | 481 |
-| backtest-service | 1,117 |
-| trade-service | 475 |
+| backtest-service | 1,119 |
+| trade-service | 487 |
 | gateway-server | 50 |
 | config-server | 5 |
-| ggeolmuse-common | 65 |
+| ggeolmuse-common | 73 |
 | messaging | 26 |
 | chat-service | 173 |
 | frontend-web | 1,764 |
@@ -196,12 +196,12 @@ CI 에서 그 아래면 빌드를 실패시킨다(자바 JaCoCo · chat `tools/c
 
 | 서비스 | 라인 | 분기 |
 |---|---|---|
-| user | 98.4% | 87.9% |
-| trade | 99.5% | 96.8% |
-| backtest | 98.9% | 95.2% |
-| market-data | 97.9% | 88.4% |
-| gateway | 67.3% | 37.5% |
-| common | 66.2% | 48.0% |
+| user | 98.6% | 87.9% |
+| trade | 99.6% | 96.7% |
+| backtest | 99.6% | 95.2% |
+| market-data | 98.1% | 88.5% |
+| gateway | 73.5% | 37.5% |
+| common | 87.8% | 89.4% |
 | chat | 98.5% | 90.1% |
 | frontend-web | 95.1% | 90.3% |
 
