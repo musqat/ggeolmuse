@@ -215,7 +215,6 @@ export interface FxCollectResponse {
   failed: number;
   lastDate: string | null;
   stoppedReason: string | null;
-  message: string | null;
 }
 
 // ==================== User Admin APIs ====================

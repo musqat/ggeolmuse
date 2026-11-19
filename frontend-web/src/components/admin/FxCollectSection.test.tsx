@@ -12,7 +12,7 @@ vi.mock('@services/adminApi', () => ({
 
 const IDLE: FxCollectResponse = {
   missingCount: 1, missingDates: ['2026-06-25'], running: false, mode: null, startedAt: null, finishedAt: null,
-  total: 0, processed: 0, filled: 0, failed: 0, lastDate: null, stoppedReason: null, message: null,
+  total: 0, processed: 0, filled: 0, failed: 0, lastDate: null, stoppedReason: null,
 }
 const RUNNING: FxCollectResponse = {
   ...IDLE, running: true, mode: 'MISSING', startedAt: '2026-10-25T03:00:00', total: 3, processed: 1, filled: 1,
@@ -89,7 +89,7 @@ describe('FxCollectSection', () => {
   it('이미 진행 중이라 막히면 서버 문구를 보인다', async () => {
     const user = userEvent.setup()
     vi.mocked(marketAdminApi.startFxCollect).mockRejectedValue(new AxiosError('fail', 'ERR', undefined, undefined, {
-      status: 409, data: { message: '이미 환율 수집이 진행 중입니다. 끝난 뒤 다시 시도해 주세요.' },
+      status: 409, data: { errorCode: 'FX_COLLECT_IN_PROGRESS', detail: '이미 환율 수집이 진행 중입니다. 끝난 뒤 다시 시도해 주세요' },
       statusText: '', headers: {}, config: {},
     } as AxiosResponse))
     vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -98,6 +98,6 @@ describe('FxCollectSection', () => {
 
     await user.click(screen.getByRole('button', { name: '빠진 날 채우기' }))
 
-    expect(await screen.findByText('이미 환율 수집이 진행 중입니다. 끝난 뒤 다시 시도해 주세요.')).toBeInTheDocument()
+    expect(await screen.findByText('이미 환율 수집이 진행 중입니다. 끝난 뒤 다시 시도해 주세요')).toBeInTheDocument()
   })
 })

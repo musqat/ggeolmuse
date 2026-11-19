@@ -34,7 +34,6 @@ function renderWithBold(text: string): React.ReactNode[] {
 function errorText(e: unknown): string {
   if (getApiErrorCode(e)) return getApiErrorMessage(e, '요청에 실패했습니다.');
   const status = getApiErrorStatus(e);
-  if (status === 422) return '입력 내용을 확인해 주세요.';
   if (status === 429) return '오늘 사용 한도(5회)를 모두 사용했습니다.';
   if (status === 404 || status === 503) return 'AI 분석 기능은 현재 환경에서 사용할 수 없습니다.';
   return '분석 요청에 실패했습니다. 잠시 후 다시 시도해주세요.';
@@ -138,7 +137,7 @@ const AiChatModal: React.FC<AiChatModalProps> = ({ onRequireLogin }) => {
       );
       setRemaining(res.data.remaining);
     } catch (e: unknown) {
-      if (getApiErrorCode(e) === 'conversation_not_found') setSession(null);
+      if (getApiErrorCode(e) === 'CONVERSATION_NOT_FOUND') setSession(null);
       setError(errorText(e));
     } finally {
       setPending(null);

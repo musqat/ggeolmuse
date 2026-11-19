@@ -18,7 +18,7 @@ AI 종목 대화 서비스 (FastAPI + OpenAI)
 ```
 app/
   main.py   조립: 시작할 때 클라이언트를 만들어 흐름에 넣고, 끝날 때 닫는다
-  api/      HTTP. 요청 · 응답 변환, 예외 → {code, message}, 요청 로그
+  api/      HTTP. 요청 · 응답 변환, 예외 → ProblemDetail, 요청 로그
   core/     흐름 · 스킬 고르기 · 답변 · 스킬 · 계산. FastAPI · OpenAI · Redis 를 모른다
   infra/    OpenAI · market-data · Redis · Keycloak 어댑터, 트레이스 · 요청 지표
 ```
@@ -62,7 +62,7 @@ GET /api/chat/quota   (JWT)
   → { remaining }
 ```
 
-오류 본문은 `{ code, message }` 다. `unauthorized`(401), `symbol_not_found` · `conversation_not_found`(404), `quota_exceeded`(429), `market_unavailable` · `ai_unavailable` · `auth_unavailable`(503), `internal_error`(500).
+오류 본문은 자바 서비스와 같은 ProblemDetail 이고 코드는 `errorCode`, 문구는 `detail` 에 있다. `VALIDATION_ERROR`(400), `UNAUTHORIZED`(401), `SYMBOL_NOT_FOUND` · `CONVERSATION_NOT_FOUND`(404), `QUOTA_EXCEEDED`(429), `MARKET_UNAVAILABLE` · `AI_UNAVAILABLE` · `AUTH_UNAVAILABLE`(503), `INTERNAL_SERVER_ERROR`(500).
 
 ## 테스트
 
