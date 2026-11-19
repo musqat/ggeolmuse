@@ -348,7 +348,7 @@ jobs:
               | awk 'spec { sub(/^  /, ""); print } /^spec:$/ { spec = 1 }' > alert-rules.yaml
             promtool check rules alert-rules.yaml
             promtool test rules helm/monitoring/alert-rules-test.yaml
-            python3 .github/scripts/alert_rules_coverage.py alert-rules.yaml helm/monitoring/alert-rules-test.yaml
+            (cd tools && go run ./cmd/alert-rules-coverage ../alert-rules.yaml ../helm/monitoring/alert-rules-test.yaml)
           }
           rules helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml
           rules k8s/helm/ggeolmuse -f k8s/helm/ggeolmuse/values-prod.yaml -f k8s/helm/ggeolmuse/values-k8s.yaml
