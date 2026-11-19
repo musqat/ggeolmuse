@@ -1,5 +1,7 @@
 package com.muscat.user.config;
 
+import com.muscat.user.common.enums.response.KeycloakResponse;
+import com.muscat.user.common.exception.KeycloakException;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
@@ -11,7 +13,7 @@ public class KeycloakAdminClientCheck {
   public KeycloakAdminClientCheck(KeycloakAdminClientProperties properties) {
     String secret = properties.getSecret();
     if (secret == null || secret.isBlank()) {
-      throw new IllegalStateException("KEYCLOAK_ADMIN_CLIENT_SECRET 없음");
+      throw new KeycloakException(KeycloakResponse.ADMIN_CLIENT_SECRET_MISSING);
     }
   }
 }

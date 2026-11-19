@@ -8,7 +8,6 @@ import java.math.RoundingMode;
 public final class SlippagePricing {
 
   private SlippagePricing() {
-    throw new AssertionError("Utility class cannot be instantiated");
   }
 
   public static BigDecimal apply(BigDecimal marketPrice, BigDecimal slippageRate,

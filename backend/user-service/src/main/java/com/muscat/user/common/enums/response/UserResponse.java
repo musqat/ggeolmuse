@@ -68,6 +68,7 @@ public enum UserResponse implements ErrorCode {
   EXTERNAL_SERVICE_ERROR("외부 서비스 연동 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   EVENT_PUBLISH_FAILED("이벤트 발행에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   EVENT_PROCESSING_FAILED("이벤트 처리에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+  ADMIN_SETUP_FAILED("관리자 계정을 만들지 못했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   INTERNAL_SERVER_ERROR("서버에 문제가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR);
 
   private final String message;

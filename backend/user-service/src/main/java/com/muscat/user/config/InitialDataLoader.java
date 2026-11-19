@@ -1,7 +1,9 @@
 package com.muscat.user.config;
 
+import com.muscat.user.common.enums.response.UserResponse;
 import com.muscat.user.common.enums.type.AuthType;
 import com.muscat.user.common.enums.type.UserRole;
+import com.muscat.user.common.exception.UserException;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.repository.AccountRepository;
 import com.muscat.user.domain.user.entity.User;
@@ -108,7 +110,7 @@ public class InitialDataLoader implements ApplicationRunner {
 
     } catch (Exception e) {
       log.error("Admin 사용자 생성 실패: {}", e.getMessage(), e);
-      throw new RuntimeException("Admin 사용자 생성 실패", e);
+      throw new UserException(UserResponse.ADMIN_SETUP_FAILED, e);
     }
   }
 

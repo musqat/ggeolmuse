@@ -1,6 +1,8 @@
 package com.muscat.user.common.util;
 
 import com.muscat.commonlib.util.MoneyUtils;
+import com.muscat.user.common.enums.response.AccountResponse;
+import com.muscat.user.common.exception.AccountException;
 import com.muscat.user.domain.account.dto.response.ExchangeCalculationResult;
 import com.muscat.user.domain.account.entity.Account;
 import lombok.extern.slf4j.Slf4j;
@@ -55,7 +57,7 @@ public class AccountCalculatorUtil {
     return switch (fromCurrency + "_TO_" + toCurrency) {
       case "KRW_TO_USD" -> ExchangeCalculationResult.ofKrwToUsd(amount, exchangeRate);
       case "USD_TO_KRW" -> ExchangeCalculationResult.ofUsdToKrw(amount, exchangeRate);
-      default -> throw new IllegalArgumentException("지원하지 않는 환전: " + fromCurrency + " -> " + toCurrency);
+      default -> throw new AccountException(AccountResponse.INVALID_CURRENCY);
     };
   }
 
@@ -83,7 +85,7 @@ public class AccountCalculatorUtil {
     return switch (currency.toUpperCase()) {
       case "KRW" -> account.getBalanceKrw() != null ? account.getBalanceKrw() : BigDecimal.ZERO;
       case "USD" -> account.getBalanceUsd() != null ? account.getBalanceUsd() : BigDecimal.ZERO;
-      default -> throw new IllegalArgumentException("지원하지 않는 통화: " + currency);
+      default -> throw new AccountException(AccountResponse.INVALID_CURRENCY);
     };
   }
 

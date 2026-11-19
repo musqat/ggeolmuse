@@ -26,7 +26,7 @@ class FallbackControllerTest {
 
   @ParameterizedTest(name = "{0}")
   @ValueSource(strings = {"GET", "POST", "PUT", "DELETE", "PATCH"})
-  @DisplayName("어느 메서드로 와도 503 과 안내 본문을 준다")
+  @DisplayName("어느 메서드로 와도 503 과 오류 코드 · 안내 문구가 든 ProblemDetail 을 준다")
   void fallbackAcceptsEveryMethod(String method) {
     client.method(HttpMethod.valueOf(method))
       .uri("/fallback")
@@ -34,7 +34,11 @@ class FallbackControllerTest {
       .expectStatus().isEqualTo(503)
       .expectBody()
       .jsonPath("$.status").isEqualTo(503)
-      .jsonPath("$.error").isEqualTo("서비스 사용 불가")
+      .jsonPath("$.title").isEqualTo("Service Unavailable")
+      .jsonPath("$.errorCode").isEqualTo("SERVICE_UNAVAILABLE")
+      .jsonPath("$.errorType").isEqualTo("EXTERNAL_SERVICE")
+      .jsonPath("$.detail").isEqualTo("요청하신 서비스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해주세요.")
+      .jsonPath("$.instance").isEqualTo("/fallback")
       .jsonPath("$.timestamp").exists();
   }
 }

@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.muscat.commonlib.exception.BusinessException;
+import com.muscat.user.common.enums.response.AccountResponse;
+import com.muscat.user.common.exception.AccountException;
 import com.muscat.user.domain.account.dto.response.ExchangeCalculationResult;
 import com.muscat.user.domain.account.entity.Account;
 import java.math.BigDecimal;
@@ -259,8 +261,8 @@ class AccountCalculatorUtilTest {
       assertThatThrownBy(() ->
         accountCalculatorUtil.calculateExchangeWithCommission(
           testAccount, BigDecimal.TEN, "EUR", "USD", testExchangeRate))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("지원하지 않는 환전");
+        .isInstanceOf(AccountException.class)
+        .extracting("code").isEqualTo(AccountResponse.INVALID_CURRENCY);
     }
   }
 
@@ -388,8 +390,8 @@ class AccountCalculatorUtilTest {
       // when & then
       assertThatThrownBy(() ->
         accountCalculatorUtil.getBalanceByCurrency(testAccount, "EUR"))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("지원하지 않는 통화");
+        .isInstanceOf(AccountException.class)
+        .extracting("code").isEqualTo(AccountResponse.INVALID_CURRENCY);
     }
 
     @Test

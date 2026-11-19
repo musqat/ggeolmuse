@@ -40,6 +40,7 @@ public enum TradeResponse implements ErrorCode {
   TRADING_SUSPENDED("해당 종목은 거래 정지 상태입니다.", HttpStatus.BAD_REQUEST),
   FRACTIONAL_SHARES_NOT_ALLOWED("소수점 주식 거래는 지원되지 않습니다.", HttpStatus.BAD_REQUEST),
   INVALID_IDEMPOTENCY_KEY("중복 요청 키는 64자 이하의 영문 · 숫자 · 하이픈입니다.", HttpStatus.BAD_REQUEST),
+  INVALID_PERIOD("기간은 1M · 3M · 1Y · ALL 가운데 하나입니다.", HttpStatus.BAD_REQUEST),
 
   // === 인증/인가 오류 (401, 403) ===
   AUTHENTICATION_REQUIRED("인증이 필요합니다.", HttpStatus.UNAUTHORIZED),

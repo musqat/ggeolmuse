@@ -31,6 +31,9 @@ public enum CommonResponse implements ErrorCode {
   SERVICE_TOKEN_MISSING("서비스 토큰 응답에 access_token 이 없습니다", HttpStatus.SERVICE_UNAVAILABLE),
   SERVICE_TOKEN_RETRY_WAIT("서비스 토큰 받기에 실패해 다시 받기를 기다리는 중입니다", HttpStatus.SERVICE_UNAVAILABLE),
 
+  // 해시
+  HASH_UNAVAILABLE("SHA-256 해시를 만들 수 없습니다", HttpStatus.INTERNAL_SERVER_ERROR),
+
   // 예상하지 못한 오류
   INTERNAL_SERVER_ERROR("서비스에 문제가 발생했습니다. 잠시 후 다시 시도해 주세요", HttpStatus.INTERNAL_SERVER_ERROR);
 

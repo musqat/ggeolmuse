@@ -103,7 +103,8 @@ class PortfolioStatsControllerTest {
   @DisplayName("기간 값이 1M · 3M · 1Y · ALL 이 아니거나 빠지면 400 이고 서비스까지 가지 않는다")
   void flow_InvalidPeriod_BadRequest() throws Exception {
     mockMvc.perform(get(FLOW).param("accountId", "all").param("period", "2W").with(jwt()))
-      .andExpect(status().isBadRequest());
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.errorCode").value("INVALID_PERIOD"));
     mockMvc.perform(get(FLOW).param("accountId", "all").param("period", "1m").with(jwt()))
       .andExpect(status().isBadRequest());
     mockMvc.perform(get(FLOW).param("accountId", "all").with(jwt()))

@@ -1,5 +1,7 @@
 package com.muscat.trade.common.enums.type;
 
+import com.muscat.trade.common.enums.response.TradeResponse;
+import com.muscat.trade.common.exception.TradeException;
 import java.time.LocalDate;
 import java.util.Arrays;
 
@@ -18,12 +20,12 @@ public enum FlowPeriod {
     this.days = days;
   }
 
-  // 1M · 3M · 1Y · ALL 이 아니면 IllegalArgumentException
+  // 1M · 3M · 1Y · ALL 이 아니면 INVALID_PERIOD
   public static FlowPeriod of(String code) {
     return Arrays.stream(values())
       .filter(period -> period.code.equals(code))
       .findFirst()
-      .orElseThrow(() -> new IllegalArgumentException("기간은 1M · 3M · 1Y · ALL 중 하나: " + code));
+      .orElseThrow(() -> new TradeException(TradeResponse.INVALID_PERIOD));
   }
 
   // 기간 첫 날짜(그 날짜 포함, ALL 은 null)

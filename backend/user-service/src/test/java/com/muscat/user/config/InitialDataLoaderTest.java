@@ -11,9 +11,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.muscat.user.common.enums.response.KeycloakResponse;
+import com.muscat.user.common.enums.response.UserResponse;
 import com.muscat.user.common.enums.type.AuthType;
 import com.muscat.user.common.enums.type.UserRole;
 import com.muscat.user.common.exception.KeycloakException;
+import com.muscat.user.common.exception.UserException;
 import com.muscat.user.domain.account.entity.Account;
 import com.muscat.user.domain.account.repository.AccountRepository;
 import com.muscat.user.domain.user.entity.User;
@@ -133,8 +135,8 @@ class InitialDataLoaderTest {
       .willThrow(new KeycloakException(KeycloakResponse.USER_CREATE_FAILED));
 
     assertThatThrownBy(() -> loader.run(null))
-      .isInstanceOf(RuntimeException.class)
-      .hasMessage("Admin 사용자 생성 실패");
+      .isInstanceOf(UserException.class)
+      .extracting("code").isEqualTo(UserResponse.ADMIN_SETUP_FAILED);
     verify(userRepository, never()).save(any());
   }
 }
