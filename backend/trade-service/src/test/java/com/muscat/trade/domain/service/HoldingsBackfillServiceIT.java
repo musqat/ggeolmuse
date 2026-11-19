@@ -88,7 +88,7 @@ class HoldingsBackfillServiceIT {
   }
 
   private Trade completed(long accountId, TradeType type, String quantity, String price, LocalDate tradeDate,
-    LocalDateTime executedAt) {
+                          LocalDateTime executedAt) {
     BigDecimal amount = new BigDecimal(quantity).multiply(new BigDecimal(price));
     return tradeRepository.save(Trade.builder().userId("user-1").accountId(accountId).symbol("AAPL")
       .tradeType(type).quantity(new BigDecimal(quantity)).price(new BigDecimal(price)).totalAmount(amount)

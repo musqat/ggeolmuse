@@ -42,7 +42,7 @@ public class KeycloakServiceImpl implements KeycloakService {
   private static final ObjectMapper JSON = new ObjectMapper();
 
   public KeycloakServiceImpl(KeycloakProperties keycloakProperties, AppProperties appProperties,
-    KeycloakAdminClientProperties adminClientProperties) {
+                             KeycloakAdminClientProperties adminClientProperties) {
     this.keycloakProperties = keycloakProperties;
     this.appProperties = appProperties;
     this.adminClientProperties = adminClientProperties;

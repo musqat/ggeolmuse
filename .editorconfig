@@ -9,3 +9,18 @@ indent_size = 2
 
 [*.{bat,cmd}]
 end_of_line = crlf
+
+# IntelliJ Java 정렬 규칙(Ctrl + Alt + L 이 지금 코드 모양을 지킴)
+[*.java]
+ij_continuation_indent_size = 2
+ij_java_doc_enable_formatting = false
+ij_java_imports_layout = $*, |, *
+ij_java_class_count_to_use_import_on_demand = 999
+ij_java_names_count_to_use_import_on_demand = 999
+ij_java_keep_simple_blocks_in_one_line = true
+ij_java_keep_simple_methods_in_one_line = true
+ij_java_keep_simple_lambdas_in_one_line = true
+ij_java_keep_simple_classes_in_one_line = true
+ij_java_record_components_wrap = off
+ij_java_field_annotation_wrap = off
+ij_java_blank_lines_around_method_in_interface = 0

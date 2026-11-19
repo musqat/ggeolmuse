@@ -40,7 +40,7 @@ public record BalanceResponseDto(
 ) {
 
   public static BalanceResponseDto of(Account account, BigDecimal currentRate,
-    AccountCalculatorUtil calculator) {
+                                      AccountCalculatorUtil calculator) {
     return new BalanceResponseDto(
       account.getAccountName(),
       account.getAccountNumber(),

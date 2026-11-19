@@ -13,7 +13,7 @@ class AssetTypeRuleTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"SPDR S&P 500 ETF Trust", "GRANITESHARES YIELDBOOST AMD ETF", "Some Exchange Traded Fund",
-      "JPMorgan 100 U.S. Treasury Securities Money Market", "ProShares GENIUS Money Market"})
+    "JPMorgan 100 U.S. Treasury Securities Money Market", "ProShares GENIUS Money Market"})
   @DisplayName("이름에 ETF 낱말 · exchange traded fund · money market 이 있으면 출처가 주식이라 해도 ETF")
   void fundNames(String name) {
     assertThat(AssetTypeRule.isFundName(name)).isTrue();

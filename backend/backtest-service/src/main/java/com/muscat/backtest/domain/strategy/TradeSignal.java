@@ -16,5 +16,5 @@ interface TradeSignal {
 
   String sellTrigger();
 
-  enum Action { BUY, SELL }
+  enum Action {BUY, SELL}
 }

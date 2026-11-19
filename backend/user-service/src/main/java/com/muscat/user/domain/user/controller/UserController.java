@@ -39,13 +39,13 @@ public class UserController {
 
   @Operation(summary = "내 프로필 조회", description = "로그인한 사용자의 프로필 정보를 조회합니다")
   @ApiResponses(value = {
-      @ApiResponse(responseCode = "200", description = "프로필 조회 성공"),
-      @ApiResponse(responseCode = "401", description = "인증 실패"),
-      @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
+    @ApiResponse(responseCode = "200", description = "프로필 조회 성공"),
+    @ApiResponse(responseCode = "401", description = "인증 실패"),
+    @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
   })
   @GetMapping("/me")
   public ResponseEntity<UserResponseDto> getMyProfile(
-      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
+    @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
 
     String email = jwt.getClaimAsString("email");
     User user = userService.getOrCreateProfile(jwt.getSubject(), email, nickname(jwt, email),
@@ -58,15 +58,15 @@ public class UserController {
 
   @Operation(summary = "프로필 수정", description = "사용자의 프로필 정보를 수정합니다")
   @ApiResponses(value = {
-      @ApiResponse(responseCode = "200", description = "프로필 수정 성공"),
-      @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
-      @ApiResponse(responseCode = "401", description = "인증 실패"),
-      @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
+    @ApiResponse(responseCode = "200", description = "프로필 수정 성공"),
+    @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
+    @ApiResponse(responseCode = "401", description = "인증 실패"),
+    @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
   })
   @PutMapping("/me")
   public ResponseEntity<UserResponseDto> updateProfile(
-      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
-      @Valid @RequestBody UpdateProfileRequestDto request) {
+    @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+    @Valid @RequestBody UpdateProfileRequestDto request) {
 
     String keycloakId = jwt.getSubject();
     User updatedUser = userService.updateProfile(keycloakId, request);
@@ -78,14 +78,14 @@ public class UserController {
 
   @Operation(summary = "비밀번호 변경", description = "사용자의 비밀번호를 변경합니다")
   @ApiResponses(value = {
-      @ApiResponse(responseCode = "200", description = "비밀번호 변경 성공"),
-      @ApiResponse(responseCode = "400", description = "현재 비밀번호 불일치 또는 잘못된 요청 데이터"),
-      @ApiResponse(responseCode = "401", description = "인증 실패")
+    @ApiResponse(responseCode = "200", description = "비밀번호 변경 성공"),
+    @ApiResponse(responseCode = "400", description = "현재 비밀번호 불일치 또는 잘못된 요청 데이터"),
+    @ApiResponse(responseCode = "401", description = "인증 실패")
   })
   @PutMapping("/me/password")
   public ResponseEntity<Void> changePassword(
-      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
-      @Valid @RequestBody ChangePasswordRequestDto request) {
+    @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+    @Valid @RequestBody ChangePasswordRequestDto request) {
 
     String keycloakId = jwt.getSubject();
 
@@ -97,15 +97,15 @@ public class UserController {
 
   @Operation(summary = "계정 삭제", description = "사용자 계정을 영구적으로 삭제합니다")
   @ApiResponses(value = {
-      @ApiResponse(responseCode = "200", description = "계정 삭제 성공"),
-      @ApiResponse(responseCode = "400", description = "비밀번호 불일치"),
-      @ApiResponse(responseCode = "401", description = "인증 실패"),
-      @ApiResponse(responseCode = "403", description = "비밀번호 없는 사용자가 로그인한 지 오래됨(다시 로그인 필요)")
+    @ApiResponse(responseCode = "200", description = "계정 삭제 성공"),
+    @ApiResponse(responseCode = "400", description = "비밀번호 불일치"),
+    @ApiResponse(responseCode = "401", description = "인증 실패"),
+    @ApiResponse(responseCode = "403", description = "비밀번호 없는 사용자가 로그인한 지 오래됨(다시 로그인 필요)")
   })
   @DeleteMapping("/me")
   public ResponseEntity<Void> deleteAccount(
-      @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
-      @RequestBody(required = false) DeleteAccountRequestDto request) {
+    @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt,
+    @RequestBody(required = false) DeleteAccountRequestDto request) {
 
     String keycloakId = jwt.getSubject();
     String password = request != null ? request.getPassword() : null;

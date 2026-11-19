@@ -67,8 +67,7 @@ public final class PriceLookup {
     if (!answered && lastError != null) {
       throw new BacktestException(BacktestResponse.MARKET_DATA_UNAVAILABLE, lastError);
     }
-    throw new BacktestException(BacktestResponse.STOCK_DATA_NOT_FOUND,
-        "주가 데이터를 찾을 수 없습니다 (" + maxDays + "일 검색): " + symbol + ", " + date);
+    throw new BacktestException(BacktestResponse.STOCK_DATA_NOT_FOUND);
   }
 
   /**
@@ -89,7 +88,7 @@ public final class PriceLookup {
   // date 부터 notAfter 까지(최대 maxDays) 앞으로 찾은 첫 available 시세(휴장일이면 다음 거래일), 없으면 null
   // 4xx 는 그 날짜 데이터가 없는 것이라 다음 날로, 그 밖의 실패는 예외 그대로
   public static OHLCPriceDto nextAvailable(PriceFetcher fetcher, String symbol, LocalDate date,
-      LocalDate notAfter, int maxDays) {
+                                           LocalDate notAfter, int maxDays) {
     LocalDate searchDate = date;
     for (int i = 0; i < maxDays && !searchDate.isAfter(notAfter); i++) {
       try {
@@ -107,7 +106,7 @@ public final class PriceLookup {
 
   // 인메모리 priceMap 에서 date 부터 notAfter 까지(최대 maxDays) 앞으로 찾은 첫 시세, 없으면 null
   public static OHLCPriceDto nextFromMap(Map<LocalDate, OHLCPriceDto> priceMap, LocalDate date,
-      LocalDate notAfter, int maxDays) {
+                                         LocalDate notAfter, int maxDays) {
     LocalDate searchDate = date;
     for (int i = 0; i < maxDays && !searchDate.isAfter(notAfter); i++) {
       OHLCPriceDto p = priceMap.get(searchDate);

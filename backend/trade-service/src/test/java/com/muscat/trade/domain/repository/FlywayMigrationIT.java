@@ -61,7 +61,7 @@ class FlywayMigrationIT {
     migrate();
 
     try (Connection connection = connect();
-         ResultSet tables = connection.getMetaData().getTables(null, "public", "dividends", new String[] {"TABLE"})) {
+         ResultSet tables = connection.getMetaData().getTables(null, "public", "dividends", new String[]{"TABLE"})) {
       assertThat(tables.next()).isFalse();
     }
   }

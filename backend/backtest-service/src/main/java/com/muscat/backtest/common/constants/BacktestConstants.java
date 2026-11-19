@@ -11,7 +11,6 @@ import java.time.MonthDay;
 public final class BacktestConstants {
 
   private BacktestConstants() {
-    throw new UnsupportedOperationException("Constants class cannot be instantiated");
   }
 
   /**
@@ -19,7 +18,6 @@ public final class BacktestConstants {
    */
   public static final class Money {
     private Money() {
-      throw new UnsupportedOperationException("Constants class cannot be instantiated");
     }
 
     /** 금액 소수점 자리수 (2자리) */
@@ -40,7 +38,6 @@ public final class BacktestConstants {
    */
   public static final class TransactionTrigger {
     private TransactionTrigger() {
-      throw new UnsupportedOperationException("Constants class cannot be instantiated");
     }
 
     /** 배당금 재투자 */
@@ -103,7 +100,6 @@ public final class BacktestConstants {
    */
   public static final class DataLookup {
     private DataLookup() {
-      throw new UnsupportedOperationException("Constants class cannot be instantiated");
     }
 
     /** 과거 데이터 최대 검색 일수 (주말/공휴일 처리) */
@@ -115,7 +111,6 @@ public final class BacktestConstants {
    */
   public static final class RequestLimit {
     private RequestLimit() {
-      throw new UnsupportedOperationException("Constants class cannot be instantiated");
     }
 
     /** 단순 · 회당 주식 수 상한 */
@@ -136,7 +131,6 @@ public final class BacktestConstants {
    */
   public static final class MovingAverage {
     private MovingAverage() {
-      throw new UnsupportedOperationException("Constants class cannot be instantiated");
     }
 
     /** 짧은 기간 기본값 */
@@ -160,7 +154,6 @@ public final class BacktestConstants {
    */
   public static final class Band {
     private Band() {
-      throw new UnsupportedOperationException("Constants class cannot be instantiated");
     }
 
     /** 평균 기간 기본값 (거래일) */
@@ -178,7 +171,6 @@ public final class BacktestConstants {
    */
   public static final class SellRule {
     private SellRule() {
-      throw new UnsupportedOperationException("Constants class cannot be instantiated");
     }
 
     /** 부분 익절 단계 수 상한 */
@@ -190,7 +182,6 @@ public final class BacktestConstants {
    */
   public static final class Portfolio {
     private Portfolio() {
-      throw new UnsupportedOperationException("Constants class cannot be instantiated");
     }
 
     /** 종목 줄 수 상한 */
@@ -208,7 +199,6 @@ public final class BacktestConstants {
    */
   public static final class CapitalGains {
     private CapitalGains() {
-      throw new UnsupportedOperationException("Constants class cannot be instantiated");
     }
 
     /** 해마다 실현 이익에서 빼는 기본 공제 (KRW) */

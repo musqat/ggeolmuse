@@ -16,44 +16,44 @@ import java.time.LocalDate;
 @Builder
 @Schema(description = "주식 현재가 정보")
 public class StockPriceDto implements Serializable {
-    private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 1L;
 
-    @Schema(description = "종목 코드", example = "AAPL")
-    private String symbol;
+  @Schema(description = "종목 코드", example = "AAPL")
+  private String symbol;
 
-    @Schema(description = "종목 이름", example = "Apple Inc.")
-    private String name;
+  @Schema(description = "종목 이름", example = "Apple Inc.")
+  private String name;
 
-    @Schema(description = "현재가", example = "238.15")
-    private BigDecimal currentPrice;
+  @Schema(description = "현재가", example = "238.15")
+  private BigDecimal currentPrice;
 
-    @Schema(description = "전일 종가", example = "235.90")
-    private BigDecimal previousClose;
+  @Schema(description = "전일 종가", example = "235.90")
+  private BigDecimal previousClose;
 
-    @Schema(description = "등락률", example = "0.95")
-    private BigDecimal changePercent;
+  @Schema(description = "등락률", example = "0.95")
+  private BigDecimal changePercent;
 
-    @Schema(description = "거래량", example = "45678900")
-    private Long volume;
+  @Schema(description = "거래량", example = "45678900")
+  private Long volume;
 
-    @Schema(description = "데이터 날짜", example = "2024-09-18")
-    private LocalDate date;
+  @Schema(description = "데이터 날짜", example = "2024-09-18")
+  private LocalDate date;
 
-    @Schema(description = "통화", example = "USD")
-    private String currency;
+  @Schema(description = "통화", example = "USD")
+  private String currency;
 
-    @Schema(description = "데이터 유효성", example = "true")
-    private boolean available;
+  @Schema(description = "데이터 유효성", example = "true")
+  private boolean available;
 
-    @Schema(description = "상장 여부. 종목 정보가 없거나 상장폐지면 false", example = "true")
-    private Boolean active;
+  @Schema(description = "상장 여부. 종목 정보가 없거나 상장폐지면 false", example = "true")
+  private Boolean active;
 
-    @Schema(description = "시가총액", example = "3600000000000")
-    private Long marketCap;
+  @Schema(description = "시가총액", example = "3600000000000")
+  private Long marketCap;
 
-    @Schema(description = "자산 유형", example = "EQUITY")
-    private String assetType;
+  @Schema(description = "자산 유형", example = "EQUITY")
+  private String assetType;
 
-    @Schema(description = "연 배당수익률(%). 최근 1년 배당 합 ÷ 최신 종가, 못 구하면 null", example = "0.45")
-    private BigDecimal dividendYieldPercent;
+  @Schema(description = "연 배당수익률(%). 최근 1년 배당 합 ÷ 최신 종가, 못 구하면 null", example = "0.45")
+  private BigDecimal dividendYieldPercent;
 }

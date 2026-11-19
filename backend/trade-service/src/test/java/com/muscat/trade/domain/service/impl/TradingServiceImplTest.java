@@ -11,6 +11,7 @@ import static org.mockito.BDDMockito.verify;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.calls;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.muscat.trade.common.enums.response.TradeResponse;
@@ -114,6 +115,9 @@ class TradingServiceImplTest {
 
     calculationProps = new TradeProperties.Calculation();
     calculationProps.setPricePrecision(2);
+
+    // 거래일 확정은 받은 날짜 그대로(거래일 테스트는 따로 정함)
+    lenient().when(marketDataService.resolveTradeDate(any(), any())).thenAnswer(invocation -> invocation.getArgument(1));
   }
 
   private void stubTradePropertiesForHoldingsUpdate() {
@@ -805,7 +809,7 @@ class TradingServiceImplTest {
     }
 
     private TradingCapacityRequestDto capacityRequest(PriceType priceType,
-      BigDecimal manualPrice) {
+                                                      BigDecimal manualPrice) {
       return TradingCapacityRequestDto.builder()
         .accountId(String.valueOf(TEST_ACCOUNT_ID))
         .symbol(TEST_SYMBOL)
@@ -1226,5 +1230,67 @@ class TradingServiceImplTest {
       .tradeDate(TEST_TRADE_DATE)
       .executedAt(LocalDateTime.now())
       .build();
+  }
+
+  @Nested
+  @DisplayName("거래일 확정")
+  class TradeDateTests {
+
+    private static final LocalDate SATURDAY = LocalDate.of(2024, 1, 13);
+    private static final LocalDate FRIDAY = LocalDate.of(2024, 1, 12);
+
+    @Test
+    @DisplayName("주말 주문은 확정한 직전 거래일 가격으로 체결하고 그 날짜로 기록한다")
+    void weekendOrderUsesResolvedDate() {
+      given(marketDataService.resolveTradeDate(TEST_SYMBOL, SATURDAY)).willReturn(FRIDAY);
+      given(marketDataService.determineTradePrice(TEST_SYMBOL, FRIDAY, PriceType.CLOSE, null))
+        .willReturn(TEST_PRICE);
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID))).willReturn(testAccountBalance);
+      given(tradeUtils.calculateFee(any(), any())).willReturn(new BigDecimal("1.50"));
+      given(tradeRepository.save(any(Trade.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+      TradeResponseDto result = tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID,
+        TEST_SYMBOL, TEST_QUANTITY, SATURDAY, PriceType.CLOSE, null);
+
+      ArgumentCaptor<Trade> tradeCaptor = ArgumentCaptor.forClass(Trade.class);
+      verify(tradeRepository).save(tradeCaptor.capture());
+      assertThat(tradeCaptor.getValue().getTradeDate()).isEqualTo(FRIDAY);
+      assertThat(result.tradeDate()).isEqualTo(FRIDAY);
+    }
+
+    @Test
+    @DisplayName("매수 가능 수량은 확정한 거래일 가격으로 계산하고 그 날짜로 답한다")
+    void capacityUsesResolvedDate() {
+      TradingCapacityRequestDto request = TradingCapacityRequestDto.builder()
+        .accountId(String.valueOf(TEST_ACCOUNT_ID))
+        .symbol(TEST_SYMBOL)
+        .tradeDate(SATURDAY)
+        .build();
+      given(tradeUtils.getAccountBalance(String.valueOf(TEST_ACCOUNT_ID))).willReturn(testAccountBalance);
+      given(marketDataService.resolveTradeDate(TEST_SYMBOL, SATURDAY)).willReturn(FRIDAY);
+      given(marketDataService.determineTradePrice(TEST_SYMBOL, FRIDAY, PriceType.CLOSE, null))
+        .willReturn(TEST_PRICE);
+      given(tradeUtils.calculateFee(any(), any())).willReturn(BigDecimal.ZERO);
+
+      TradingCapacityResponseDto result = tradingService.calculateBuyingCapacity(TEST_USER_ID, request);
+
+      assertThat(result.tradeDate()).isEqualTo(FRIDAY);
+      assertThat(result.currentPrice()).isEqualByComparingTo(TEST_PRICE);
+    }
+
+    @Test
+    @DisplayName("거래일이 거절되면 가격 · 잔액을 묻지 않고 그 오류로 끝난다")
+    void rejectedDateStopsOrder() {
+      LocalDate future = LocalDate.of(2099, 1, 2);
+      given(marketDataService.resolveTradeDate(TEST_SYMBOL, future))
+        .willThrow(new TradeException(TradeResponse.FUTURE_DATE_NOT_ALLOWED));
+
+      assertThatThrownBy(() -> tradingService.buyStock(TEST_USER_ID, TEST_ACCOUNT_ID,
+        TEST_SYMBOL, TEST_QUANTITY, future, PriceType.CLOSE, null))
+        .isInstanceOf(TradeException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "FUTURE_DATE_NOT_ALLOWED");
+      verify(marketDataService, never()).determineTradePrice(any(), any(), any(), any());
+      verify(tradeUtils, never()).getAccountBalance(any());
+    }
   }
 }

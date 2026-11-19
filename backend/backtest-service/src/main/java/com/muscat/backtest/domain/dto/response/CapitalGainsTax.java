@@ -30,7 +30,7 @@ public record CapitalGainsTax(
 
   // 연말 정리 비교 없는 양도세
   public CapitalGainsTax(List<Year> years, BigDecimal totalTaxKrw, BigDecimal paidTaxKrw, BigDecimal unpaidTaxKrw,
-    BigDecimal cashKrw, BigDecimal stockKrw, BigDecimal afterTaxValueKrw, BigDecimal afterTaxReturnPercent) {
+                         BigDecimal cashKrw, BigDecimal stockKrw, BigDecimal afterTaxValueKrw, BigDecimal afterTaxReturnPercent) {
     this(years, totalTaxKrw, paidTaxKrw, unpaidTaxKrw, cashKrw, stockKrw, afterTaxValueKrw, afterTaxReturnPercent,
       null);
   }

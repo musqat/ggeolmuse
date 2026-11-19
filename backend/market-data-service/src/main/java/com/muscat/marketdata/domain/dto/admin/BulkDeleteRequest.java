@@ -10,5 +10,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BulkDeleteRequest {
-    private List<String> symbols;
+  private List<String> symbols;
 }

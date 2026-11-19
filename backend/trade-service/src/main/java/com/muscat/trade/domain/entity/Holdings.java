@@ -21,12 +21,12 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "holdings",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"userId", "accountId", "symbol"}),
-    indexes = {
-        @Index(name = "idx_holdings_user_account", columnList = "userId, accountId"),
-        @Index(name = "idx_holdings_user_symbol", columnList = "userId, symbol"),
-        @Index(name = "idx_holdings_account_symbol", columnList = "accountId, symbol")
-    })
+  uniqueConstraints = @UniqueConstraint(columnNames = {"userId", "accountId", "symbol"}),
+  indexes = {
+    @Index(name = "idx_holdings_user_account", columnList = "userId, accountId"),
+    @Index(name = "idx_holdings_user_symbol", columnList = "userId, symbol"),
+    @Index(name = "idx_holdings_account_symbol", columnList = "accountId, symbol")
+  })
 @Getter
 @Setter
 @NoArgsConstructor
@@ -78,7 +78,7 @@ public class Holdings {
     BigDecimal newTotalValue = currentTotalValue.add(quantity.multiply(price));
     BigDecimal newTotalQuantity = this.totalQuantity.add(quantity);
     BigDecimal newAvgPrice = newTotalValue.divide(newTotalQuantity, pricePrecision,
-        java.math.RoundingMode.HALF_UP);
+      java.math.RoundingMode.HALF_UP);
 
     this.totalQuantity = newTotalQuantity;
     this.avgPurchasePrice = newAvgPrice;
@@ -88,7 +88,7 @@ public class Holdings {
   // 매도: 수량 감소 (평균 매수가는 유지)
   public void sellShares(BigDecimal quantity, int sellRatioPrecision) {
     BigDecimal sellRatio = quantity.divide(this.totalQuantity, sellRatioPrecision,
-        java.math.RoundingMode.HALF_UP);
+      java.math.RoundingMode.HALF_UP);
     BigDecimal soldAmount = this.totalInvestedAmount.multiply(sellRatio);
 
     this.totalQuantity = this.totalQuantity.subtract(quantity);

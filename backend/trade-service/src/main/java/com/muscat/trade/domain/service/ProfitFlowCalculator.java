@@ -25,8 +25,8 @@ public final class ProfitFlowCalculator {
 
   // 평가손익 · 투자 원금(그 날짜에 들고 있던 종목 매수 금액)은 그 날짜 값, 실현 손익 · 배당(세후) · 수수료는 그 날짜까지 누적
   public record DailyProfit(LocalDate date, BigDecimal unrealizedUsd, BigDecimal realizedUsd,
-    BigDecimal dividendUsd, BigDecimal feeUsd, BigDecimal fxRate, BigDecimal profitKrw,
-    BigDecimal investedUsd, BigDecimal investedKrw) {
+                            BigDecimal dividendUsd, BigDecimal feeUsd, BigDecimal fxRate, BigDecimal profitKrw,
+                            BigDecimal investedUsd, BigDecimal investedKrw) {
   }
 
   private ProfitFlowCalculator() {
@@ -34,8 +34,8 @@ public final class ProfitFlowCalculator {
 
   // days 는 오름차순, 그 날짜 이하 가장 늦은 종가로 평가, 환율이 없는 날은 건너뜀
   public static List<DailyProfit> calculate(List<Trade> trades, List<DividendPayout> payouts,
-    Map<String, NavigableMap<LocalDate, BigDecimal>> closes, Map<LocalDate, BigDecimal> fxRates,
-    List<LocalDate> days, int pricePrecision) {
+                                            Map<String, NavigableMap<LocalDate, BigDecimal>> closes, Map<LocalDate, BigDecimal> fxRates,
+                                            List<LocalDate> days, int pricePrecision) {
     List<Trade> completed = trades.stream()
       .filter(trade -> trade.getStatus() == TradeStatus.COMPLETED)
       .sorted(TradeOrder.LEDGER)
@@ -97,7 +97,7 @@ public final class ProfitFlowCalculator {
 
   // 종가를 못 받은 종목은 0 으로 평가
   private static BigDecimal unrealized(Map<String, Holdings> positions,
-    Map<String, NavigableMap<LocalDate, BigDecimal>> closes, LocalDate day) {
+                                       Map<String, NavigableMap<LocalDate, BigDecimal>> closes, LocalDate day) {
     BigDecimal total = BigDecimal.ZERO;
     for (Holdings position : positions.values()) {
       NavigableMap<LocalDate, BigDecimal> symbolCloses = closes.get(position.getSymbol());

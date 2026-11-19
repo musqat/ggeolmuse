@@ -71,7 +71,7 @@ public final class PortfolioCalculator {
 
   // 종목 줄 하나(원금 = 새 돈 원화 합, 산 돈 = 새 돈 + 쓴 현금 × 산 날 환율, 판 돈 = 판 돈 × 판 날 환율, 배당 = 세후 배당 × 배당락일 환율)
   private static PortfolioResponse.Asset asset(PortfolioEngine.Position position, PortfolioEngine.Result result,
-    BigDecimal totalReturn, BigDecimal plannedSum) {
+                                               BigDecimal totalReturn, BigDecimal plannedSum) {
     List<StrategyTransaction> own = result.transactions().stream()
       .filter(tx -> position.symbol().equals(tx.getSymbol()))
       .toList();

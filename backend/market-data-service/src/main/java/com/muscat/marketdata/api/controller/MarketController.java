@@ -2,6 +2,8 @@ package com.muscat.marketdata.api.controller;
 
 import com.muscat.commonlib.constants.CommonConstants;
 import com.muscat.marketdata.common.enums.StockSort;
+import com.muscat.marketdata.common.enums.response.MarketDataResponse;
+import com.muscat.marketdata.common.exception.MarketDataException;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
 import com.muscat.marketdata.domain.dto.SymbolDto;
@@ -218,10 +220,10 @@ public class MarketController {
   })
   @GetMapping("/symbols/search")
   public ResponseEntity<List<SymbolSearchDto>> searchSymbols(
-      @Parameter(description = "검색어 (티커나 회사 이름 일부, 50자까지)", example = "apple", required = true)
-      @RequestParam @NotBlank @Size(max = 50) String q,
-      @Parameter(description = "개수 (1~20)", example = "20")
-      @RequestParam(defaultValue = "20") @Min(1) @Max(20) int limit) {
+    @Parameter(description = "검색어 (티커나 회사 이름 일부, 50자까지)", example = "apple", required = true)
+    @RequestParam @NotBlank @Size(max = 50) String q,
+    @Parameter(description = "개수 (1~20)", example = "20")
+    @RequestParam(defaultValue = "20") @Min(1) @Max(20) int limit) {
     List<SymbolSearchDto> matches = assetService.searchListedSymbols(q, limit).stream()
       .map(asset -> new SymbolSearchDto(asset.getSymbol(), asset.getName()))
       .toList();
@@ -244,23 +246,23 @@ public class MarketController {
   })
   @GetMapping("/stocks")
   public ResponseEntity<Page<StockPriceDto>> getAllStocksWithPrices(
-      @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
-      @RequestParam(defaultValue = "0") @Min(0) int page,
-      @Parameter(description = "페이지 크기 (1~200)", example = "50")
-      @RequestParam(defaultValue = "50") @Min(1) @Max(200) int size,
-      @Parameter(description = "정렬 방향 (asc: 오름차순, desc: 내림차순)", example = "desc")
-      @RequestParam(defaultValue = "desc") String direction,
-      @Parameter(description = "자산 유형 필터 (ALL, EQUITY, ETF)", example = "ALL")
-      @RequestParam(required = false) String assetType,
-      @Parameter(description = "정렬 기준 (marketCap: 시가총액, dividendYield: 최근 1년 배당수익률)", example = "marketCap")
-      @RequestParam(defaultValue = "marketCap") String sort) {
+    @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
+    @RequestParam(defaultValue = "0") @Min(0) int page,
+    @Parameter(description = "페이지 크기 (1~200)", example = "50")
+    @RequestParam(defaultValue = "50") @Min(1) @Max(200) int size,
+    @Parameter(description = "정렬 방향 (asc: 오름차순, desc: 내림차순)", example = "desc")
+    @RequestParam(defaultValue = "desc") String direction,
+    @Parameter(description = "자산 유형 필터 (ALL, EQUITY, ETF)", example = "ALL")
+    @RequestParam(required = false) String assetType,
+    @Parameter(description = "정렬 기준 (marketCap: 시가총액, dividendYield: 최근 1년 배당수익률)", example = "marketCap")
+    @RequestParam(defaultValue = "marketCap") String sort) {
     log.debug("종목 목록과 현재가 조회 요청: page={}, size={}, direction={}, assetType={}, sort={}",
-        page, size, direction, assetType, sort);
+      page, size, direction, assetType, sort);
 
     Pageable pageable =
-        PageRequest.of(page, size);
+      PageRequest.of(page, size);
     Page<StockPriceDto> stocks =
-        candleService.getAllStocksWithPrices(pageable, direction, assetType, StockSort.from(sort));
+      candleService.getAllStocksWithPrices(pageable, direction, assetType, StockSort.from(sort));
 
     log.debug("종목 목록과 현재가 조회 완료: {} 개 (전체 {}개 중)", stocks.getNumberOfElements(), stocks.getTotalElements());
     return ResponseEntity.status(HttpStatus.OK).body(stocks);
@@ -293,6 +295,9 @@ public class MarketController {
     @Parameter(description = "종료 날짜", example = "2024-12-31", required = true)
     @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
     log.debug("다중 OHLC 조회 요청: symbols={}, startDate={}, endDate={}", symbols, startDate, endDate);
+    if (startDate.isAfter(endDate)) {
+      throw new MarketDataException(MarketDataResponse.INVALID_DATE_RANGE);
+    }
 
     List<OHLCPriceDto> result = candleService.getMultipleOHLCPrices(symbols, startDate, endDate);
 

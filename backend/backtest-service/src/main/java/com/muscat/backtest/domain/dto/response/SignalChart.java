@@ -43,7 +43,7 @@ public record SignalChart(
 
     // 밴드의 점(평균 · 위 선 · 아래 선)
     public static Point band(LocalDate date, BigDecimal close, BigDecimal average, BigDecimal upperBand,
-      BigDecimal lowerBand) {
+                             BigDecimal lowerBand) {
       return new Point(date, close, null, null, average, upperBand, lowerBand);
     }
   }
@@ -56,5 +56,5 @@ public record SignalChart(
     CrossType type
   ) {}
 
-  public enum CrossType { GOLDEN, DEAD }
+  public enum CrossType {GOLDEN, DEAD}
 }

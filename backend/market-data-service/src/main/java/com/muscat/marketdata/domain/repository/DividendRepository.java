@@ -11,6 +11,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface DividendRepository extends JpaRepository<Dividend, Long>, DividendRepositoryCustom {
 
-    Optional<Dividend> findBySymbolAndExDate(String symbol, LocalDate exDate);
+  Optional<Dividend> findBySymbolAndExDate(String symbol, LocalDate exDate);
 
 }

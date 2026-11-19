@@ -246,6 +246,27 @@ class MarketControllerTest {
   }
 
   @Test
+  @DisplayName("여러 종목 기간 시세의 시작일이 종료일보다 늦으면 400 이고 서비스를 부르지 않는다")
+  void multipleStartAfterEnd() throws Exception {
+    mockMvc.perform(get(BASE + "/ohlc/multiple").param("symbols", "AAPL").param("startDate", "2024-03-31").param("endDate", "2024-01-01"))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.detail").value("유효하지 않은 날짜 범위입니다"));
+
+    verify(candleService, never()).getMultipleOHLCPrices(any(), any(), any());
+  }
+
+  @Test
+  @DisplayName("여러 종목 기간 시세의 시작일과 종료일이 같으면 그 하루를 조회한다")
+  void multipleSingleDay() throws Exception {
+    LocalDate day = LocalDate.of(2024, 3, 4);
+    given(candleService.getMultipleOHLCPrices(List.of("AAPL"), day, day)).willReturn(List.of(candle("AAPL", "175.1")));
+
+    mockMvc.perform(get(BASE + "/ohlc/multiple").param("symbols", "AAPL").param("startDate", "2024-03-04").param("endDate", "2024-03-04"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$[0].closePrice").value(175.1));
+  }
+
+  @Test
   @DisplayName("일괄 환율은 토큰 없이 POST 로 받고, 날짜 문자열을 키로 돌려준다")
   void bulkFx() throws Exception {
     given(fxRateService.findByDates(List.of(LocalDate.of(2024, 3, 4), LocalDate.of(2024, 3, 5))))

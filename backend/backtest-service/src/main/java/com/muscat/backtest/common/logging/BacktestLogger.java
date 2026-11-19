@@ -6,7 +6,6 @@ import org.slf4j.MDC;
 public final class BacktestLogger {
 
   private BacktestLogger() {
-    throw new UnsupportedOperationException("이 클래스는 인스턴스를 생성할 수 없습니다");
   }
 
   public static final String USER_ID = "userId";

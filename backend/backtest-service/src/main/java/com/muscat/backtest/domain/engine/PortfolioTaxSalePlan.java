@@ -113,7 +113,7 @@ final class PortfolioTaxSalePlan {
 
   // 남은 달러를 줄 무게대로 나눠 더함, 몫이 남은 판 돈 이상인 줄은 남은 판 돈만큼 채우고 나머지를 남은 줄에 다시 나눔
   private void spread(List<Candidate> lines, List<Integer> candidates, Function<Integer, BigDecimal> weight,
-    BigDecimal needUsd, Map<Integer, BigDecimal> taken) {
+                      BigDecimal needUsd, Map<Integer, BigDecimal> taken) {
     List<Integer> open = new ArrayList<>(candidates);
     BigDecimal left = needUsd;
     while (left.signum() > 0 && !open.isEmpty()) {

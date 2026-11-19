@@ -9,9 +9,9 @@ import java.math.BigDecimal;
 @Getter
 @Builder
 public class ComparisonCalculationResult {
-    
-    private final ComparisonItem bestPerformer;
-    private final ComparisonItem worstPerformer;
-    private final BigDecimal averageReturn;
-    private final BigDecimal medianReturn;
+
+  private final ComparisonItem bestPerformer;
+  private final ComparisonItem worstPerformer;
+  private final BigDecimal averageReturn;
+  private final BigDecimal medianReturn;
 }

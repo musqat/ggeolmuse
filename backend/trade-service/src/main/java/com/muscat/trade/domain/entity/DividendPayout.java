@@ -60,7 +60,7 @@ public class DividendPayout {
   private LocalDateTime updatedAt;
 
   public static DividendPayout of(String userId, Long accountId, String symbol, LocalDate exDate,
-    DividendAmounts amounts, LocalDateTime updatedAt) {
+                                  DividendAmounts amounts, LocalDateTime updatedAt) {
     DividendPayout payout = new DividendPayout();
     payout.userId = userId;
     payout.accountId = accountId;

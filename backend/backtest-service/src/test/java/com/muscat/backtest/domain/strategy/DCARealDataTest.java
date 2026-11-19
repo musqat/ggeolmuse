@@ -50,93 +50,93 @@ class DCARealDataTest {
   private DCAStrategy dcaStrategy;
 
   private static final List<OHLCPriceDto> BARS = List.of(
-      bar("2022-09-01", "62.0000", "55.1078"),
-      bar("2022-09-15", "59.5300", "53.2982"),
-      bar("2022-09-30", "56.0200", "50.1556"),
-      bar("2022-10-03", "56.6500", "50.7196"),
-      bar("2022-11-01", "59.6400", "53.3967"),
-      bar("2022-11-30", "63.6100", "57.3550"),
-      bar("2022-12-01", "63.7900", "57.5173"),
-      bar("2022-12-30", "63.6100", "57.3550"),
-      bar("2023-01-03", "62.9500", "56.7598"),
-      bar("2023-02-01", "61.3300", "55.2992"),
-      bar("2023-03-01", "58.8600", "53.0721"),
-      bar("2023-03-16", "60.3000", "54.7875"),
-      bar("2023-03-31", "62.0300", "56.3594"),
-      bar("2023-04-03", "62.4000", "56.6955"),
-      bar("2023-05-01", "64.3000", "58.4219"),
-      bar("2023-06-01", "60.0000", "54.5150"),
-      bar("2023-06-15", "61.2300", "56.0562"),
-      bar("2023-06-30", "60.2200", "55.1315"),
-      bar("2023-07-03", "60.5800", "55.4611"),
-      bar("2023-08-01", "61.7700", "56.5506"),
-      bar("2023-09-01", "59.3100", "54.2984"),
-      bar("2023-09-14", "58.4600", "53.9449"),
-      bar("2023-09-29", "55.9800", "51.6564"),
-      bar("2023-10-02", "55.4800", "51.1950"),
-      bar("2023-11-01", "56.4400", "52.0809"),
-      bar("2023-11-30", "58.4400", "54.3558"),
-      bar("2023-12-01", "58.6400", "54.5418"),
-      bar("2023-12-29", "58.9300", "54.8116"),
-      bar("2024-01-02", "59.8200", "55.6393"),
-      bar("2024-02-01", "60.9800", "56.7183"),
-      bar("2024-03-01", "59.5300", "55.3696"),
-      bar("2024-03-14", "60.5000", "56.7220"),
-      bar("2024-04-01", "60.6800", "56.8907"),
-      bar("2024-05-01", "61.9300", "58.0627"),
-      bar("2024-05-31", "62.9300", "59.0002"),
-      bar("2024-06-03", "62.9300", "59.0002"),
-      bar("2024-06-14", "62.5500", "59.0990"),
-      bar("2024-07-01", "63.2800", "59.7887"),
-      bar("2024-08-01", "67.9600", "64.2105"),
-      bar("2024-08-30", "72.4700", "68.4717"),
-      bar("2024-09-03", "73.0100", "68.9818"),
-      bar("2024-09-13", "71.4100", "67.9327"),
-      bar("2024-10-01", "71.7100", "68.2181"),
-      bar("2024-11-01", "65.0100", "61.8443"),
-      bar("2024-11-29", "64.0800", "61.4220"),
-      bar("2024-12-02", "63.6500", "61.0098"),
-      bar("2024-12-31", "62.2600", "59.6775"),
-      bar("2025-01-02", "61.8400", "59.2749"),
-      bar("2025-01-31", "63.4800", "60.8469"),
-      bar("2025-02-03", "63.3500", "60.7222"),
-      bar("2025-02-28", "71.2100", "68.2562"),
-      bar("2025-03-03", "72.3200", "69.3201"),
-      bar("2025-03-14", "69.1600", "66.7805"),
-      bar("2025-04-01", "71.8700", "69.3972"),
-      bar("2025-05-01", "71.2900", "68.8372"),
-      bar("2025-05-30", "72.1000", "69.6193"),
-      bar("2025-06-02", "72.0000", "69.5227"),
-      bar("2025-06-13", "71.0200", "69.0640"),
-      bar("2025-07-01", "71.6700", "69.6961"),
-      bar("2025-08-01", "68.8600", "66.9635"),
-      bar("2025-08-29", "68.9900", "67.0900")
+    bar("2022-09-01", "62.0000", "55.1078"),
+    bar("2022-09-15", "59.5300", "53.2982"),
+    bar("2022-09-30", "56.0200", "50.1556"),
+    bar("2022-10-03", "56.6500", "50.7196"),
+    bar("2022-11-01", "59.6400", "53.3967"),
+    bar("2022-11-30", "63.6100", "57.3550"),
+    bar("2022-12-01", "63.7900", "57.5173"),
+    bar("2022-12-30", "63.6100", "57.3550"),
+    bar("2023-01-03", "62.9500", "56.7598"),
+    bar("2023-02-01", "61.3300", "55.2992"),
+    bar("2023-03-01", "58.8600", "53.0721"),
+    bar("2023-03-16", "60.3000", "54.7875"),
+    bar("2023-03-31", "62.0300", "56.3594"),
+    bar("2023-04-03", "62.4000", "56.6955"),
+    bar("2023-05-01", "64.3000", "58.4219"),
+    bar("2023-06-01", "60.0000", "54.5150"),
+    bar("2023-06-15", "61.2300", "56.0562"),
+    bar("2023-06-30", "60.2200", "55.1315"),
+    bar("2023-07-03", "60.5800", "55.4611"),
+    bar("2023-08-01", "61.7700", "56.5506"),
+    bar("2023-09-01", "59.3100", "54.2984"),
+    bar("2023-09-14", "58.4600", "53.9449"),
+    bar("2023-09-29", "55.9800", "51.6564"),
+    bar("2023-10-02", "55.4800", "51.1950"),
+    bar("2023-11-01", "56.4400", "52.0809"),
+    bar("2023-11-30", "58.4400", "54.3558"),
+    bar("2023-12-01", "58.6400", "54.5418"),
+    bar("2023-12-29", "58.9300", "54.8116"),
+    bar("2024-01-02", "59.8200", "55.6393"),
+    bar("2024-02-01", "60.9800", "56.7183"),
+    bar("2024-03-01", "59.5300", "55.3696"),
+    bar("2024-03-14", "60.5000", "56.7220"),
+    bar("2024-04-01", "60.6800", "56.8907"),
+    bar("2024-05-01", "61.9300", "58.0627"),
+    bar("2024-05-31", "62.9300", "59.0002"),
+    bar("2024-06-03", "62.9300", "59.0002"),
+    bar("2024-06-14", "62.5500", "59.0990"),
+    bar("2024-07-01", "63.2800", "59.7887"),
+    bar("2024-08-01", "67.9600", "64.2105"),
+    bar("2024-08-30", "72.4700", "68.4717"),
+    bar("2024-09-03", "73.0100", "68.9818"),
+    bar("2024-09-13", "71.4100", "67.9327"),
+    bar("2024-10-01", "71.7100", "68.2181"),
+    bar("2024-11-01", "65.0100", "61.8443"),
+    bar("2024-11-29", "64.0800", "61.4220"),
+    bar("2024-12-02", "63.6500", "61.0098"),
+    bar("2024-12-31", "62.2600", "59.6775"),
+    bar("2025-01-02", "61.8400", "59.2749"),
+    bar("2025-01-31", "63.4800", "60.8469"),
+    bar("2025-02-03", "63.3500", "60.7222"),
+    bar("2025-02-28", "71.2100", "68.2562"),
+    bar("2025-03-03", "72.3200", "69.3201"),
+    bar("2025-03-14", "69.1600", "66.7805"),
+    bar("2025-04-01", "71.8700", "69.3972"),
+    bar("2025-05-01", "71.2900", "68.8372"),
+    bar("2025-05-30", "72.1000", "69.6193"),
+    bar("2025-06-02", "72.0000", "69.5227"),
+    bar("2025-06-13", "71.0200", "69.0640"),
+    bar("2025-07-01", "71.6700", "69.6961"),
+    bar("2025-08-01", "68.8600", "66.9635"),
+    bar("2025-08-29", "68.9900", "67.0900")
   );
 
   private static final List<DividendDto> DIVIDENDS = List.of(
-      div("2022-09-15", "0.44"),
-      div("2022-11-30", "0.44"),
-      div("2023-03-16", "0.46"),
-      div("2023-06-15", "0.46"),
-      div("2023-09-14", "0.46"),
-      div("2023-11-30", "0.46"),
-      div("2024-03-14", "0.485"),
-      div("2024-06-14", "0.485"),
-      div("2024-09-13", "0.485"),
-      div("2024-11-29", "0.485"),
-      div("2025-03-14", "0.51"),
-      div("2025-06-13", "0.51")
+    div("2022-09-15", "0.44"),
+    div("2022-11-30", "0.44"),
+    div("2023-03-16", "0.46"),
+    div("2023-06-15", "0.46"),
+    div("2023-09-14", "0.46"),
+    div("2023-11-30", "0.46"),
+    div("2024-03-14", "0.485"),
+    div("2024-06-14", "0.485"),
+    div("2024-09-13", "0.485"),
+    div("2024-11-29", "0.485"),
+    div("2025-03-14", "0.51"),
+    div("2025-06-13", "0.51")
   );
 
   private static OHLCPriceDto bar(String date, String close, String adj) {
     BigDecimal c = new BigDecimal(close);
     return new OHLCPriceDto(SYMBOL, LocalDate.parse(date), c, c, c, c,
-        new BigDecimal(adj), 1_000_000L, "USD", true);
+      new BigDecimal(adj), 1_000_000L, "USD", true);
   }
 
   private static DividendDto div(String date, String amount) {
     return new DividendDto(SYMBOL, LocalDate.parse(date), null, null,
-        new BigDecimal(amount), "USD", "yahoo");
+      new BigDecimal(amount), "USD", "yahoo");
   }
 
   @Test
@@ -157,7 +157,7 @@ class DCARealDataTest {
       .build();
 
     Map<LocalDate, OHLCPriceDto> byDate = BARS.stream()
-        .collect(Collectors.toMap(OHLCPriceDto::date, Function.identity()));
+      .collect(Collectors.toMap(OHLCPriceDto::date, Function.identity()));
 
     given(marketDataClient.getOHLCPriceRange(eq(SYMBOL), anyString(), anyString()))
       .willReturn(BARS);
@@ -173,9 +173,9 @@ class DCARealDataTest {
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<StrategyTransaction>> txCaptor = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<StrategyCalculationResult> calcCaptor =
-        ArgumentCaptor.forClass(StrategyCalculationResult.class);
+      ArgumentCaptor.forClass(StrategyCalculationResult.class);
     verify(responseMapper).toStrategyResponse(
-        any(DcaStrategyRequest.class), txCaptor.capture(), calcCaptor.capture(), any(), any());
+      any(DcaStrategyRequest.class), txCaptor.capture(), calcCaptor.capture(), any(), any());
 
     StrategyCalculationResult calc = calcCaptor.getValue();
 
@@ -208,7 +208,7 @@ class DCARealDataTest {
       .build();
 
     Map<LocalDate, OHLCPriceDto> byDate = BARS.stream()
-        .collect(Collectors.toMap(OHLCPriceDto::date, Function.identity()));
+      .collect(Collectors.toMap(OHLCPriceDto::date, Function.identity()));
 
     given(marketDataClient.getOHLCPriceRange(eq(SYMBOL), anyString(), anyString()))
       .willReturn(BARS);
@@ -222,9 +222,9 @@ class DCARealDataTest {
     dcaStrategy.execute(request);
 
     ArgumentCaptor<StrategyCalculationResult> calcCaptor =
-        ArgumentCaptor.forClass(StrategyCalculationResult.class);
+      ArgumentCaptor.forClass(StrategyCalculationResult.class);
     verify(responseMapper).toStrategyResponse(
-        any(DcaStrategyRequest.class), any(), calcCaptor.capture(), any(), any());
+      any(DcaStrategyRequest.class), any(), calcCaptor.capture(), any(), any());
 
     StrategyCalculationResult calc = calcCaptor.getValue();
 
@@ -256,7 +256,7 @@ class DCARealDataTest {
       .build();
 
     Map<LocalDate, OHLCPriceDto> byDate = BARS.stream()
-        .collect(Collectors.toMap(OHLCPriceDto::date, Function.identity()));
+      .collect(Collectors.toMap(OHLCPriceDto::date, Function.identity()));
 
     given(marketDataClient.getOHLCPriceRange(eq(SYMBOL), anyString(), anyString()))
       .willReturn(BARS);
@@ -272,9 +272,9 @@ class DCARealDataTest {
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<StrategyTransaction>> txCaptor = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<StrategyCalculationResult> calcCaptor =
-        ArgumentCaptor.forClass(StrategyCalculationResult.class);
+      ArgumentCaptor.forClass(StrategyCalculationResult.class);
     verify(responseMapper).toStrategyResponse(
-        any(DcaStrategyRequest.class), txCaptor.capture(), calcCaptor.capture(), any(), any());
+      any(DcaStrategyRequest.class), txCaptor.capture(), calcCaptor.capture(), any(), any());
 
     StrategyCalculationResult calc = calcCaptor.getValue();
 
@@ -290,7 +290,7 @@ class DCARealDataTest {
 
     // 세전으로 더했다면 이보다 큼
     double gross = calc.getCurrentValueKrw().doubleValue()
-        + calc.getTotalDividends().doubleValue() * FX.doubleValue();
+      + calc.getTotalDividends().doubleValue() * FX.doubleValue();
     assertThat(calc.getTotalAssetKrw().doubleValue()).isLessThan(gross);
   }
 }

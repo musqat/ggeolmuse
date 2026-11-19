@@ -66,14 +66,14 @@ public class TradingServiceImpl implements TradingService {
 
   @Override
   public TradeResponseDto buyStock(String userId, Long accountId, String symbol, BigDecimal quantity,
-    LocalDate tradeDate, PriceType priceType, BigDecimal manualPrice, IdempotencyKey key) {
+                                   LocalDate tradeDate, PriceType priceType, BigDecimal manualPrice, IdempotencyKey key) {
     return executeTrade(userId, accountId, symbol, quantity, tradeDate, priceType, manualPrice,
       TradeType.BUY, key);
   }
 
   @Override
   public TradeResponseDto sellStock(String userId, Long accountId, String symbol, BigDecimal quantity,
-    LocalDate tradeDate, PriceType priceType, BigDecimal manualPrice, IdempotencyKey key) {
+                                    LocalDate tradeDate, PriceType priceType, BigDecimal manualPrice, IdempotencyKey key) {
     return executeTrade(userId, accountId, symbol, quantity, tradeDate, priceType, manualPrice,
       TradeType.SELL, key);
   }
@@ -100,7 +100,7 @@ public class TradingServiceImpl implements TradingService {
 
   @Override
   public TradingCapacityResponseDto calculateBuyingCapacity(String userId,
-    TradingCapacityRequestDto request) {
+                                                            TradingCapacityRequestDto request) {
     log.info("매수 가능 수량 계산 시작: userId={}, accountId={}, symbol={}, tradeDate={}",
       userId, request.getAccountId(), request.getSymbol(), request.getTradeDate());
 
@@ -109,8 +109,9 @@ public class TradingServiceImpl implements TradingService {
     BigDecimal availableBalance = balance.getBalanceUsd();
 
     PriceType priceType = capacityPriceType(request);
+    LocalDate tradeDate = marketDataService.resolveTradeDate(request.getSymbol(), request.getTradeDate());
     BigDecimal currentPrice = marketDataService.determineTradePrice(request.getSymbol(),
-      request.getTradeDate(), priceType, request.getManualPrice());
+      tradeDate, priceType, request.getManualPrice());
 
     // 체결 때와 같은 체결가 · 총액 기준
     BigDecimal tradePrice = applySlippage(request.getSymbol(), currentPrice, balance, priceType,
@@ -123,7 +124,7 @@ public class TradingServiceImpl implements TradingService {
 
     return new TradingCapacityResponseDto(
       request.getSymbol(),
-      request.getTradeDate(),
+      tradeDate,
       currentPrice,
       availableBalance,
       maxShares,
@@ -136,7 +137,7 @@ public class TradingServiceImpl implements TradingService {
 
   @Override
   public TradingCapacityResponseDto calculateSellingCapacity(String userId,
-    TradingCapacityRequestDto request) {
+                                                             TradingCapacityRequestDto request) {
     log.info("매도 가능 수량 계산 시작: userId={}, accountId={}, symbol={}, tradeDate={}",
       userId, request.getAccountId(), request.getSymbol(), request.getTradeDate());
 
@@ -153,12 +154,13 @@ public class TradingServiceImpl implements TradingService {
       .orElse(BigDecimal.ZERO);
 
     // 매도일에 팔 수 있는 수량(뒤 날짜 누적 보유까지 봄)
+    LocalDate tradeDate = marketDataService.resolveTradeDate(request.getSymbol(), request.getTradeDate());
     BigDecimal maxSellableShares = calculateSellableQuantity(userId, accountId,
-      request.getSymbol(), request.getTradeDate());
+      request.getSymbol(), tradeDate);
 
     PriceType priceType = capacityPriceType(request);
     BigDecimal currentPrice = marketDataService.determineTradePrice(request.getSymbol(),
-      request.getTradeDate(), priceType, request.getManualPrice());
+      tradeDate, priceType, request.getManualPrice());
 
     // 체결 때와 같은 체결가에서 수수료를 뺀 받을 금액 기준
     BigDecimal tradePrice = applySlippage(request.getSymbol(), currentPrice, balance, priceType,
@@ -170,7 +172,7 @@ public class TradingServiceImpl implements TradingService {
 
     return new TradingCapacityResponseDto(
       request.getSymbol(),
-      request.getTradeDate(),
+      tradeDate,
       currentPrice,
       null,  // availableBalance (매도용이므로 null)
       null,  // maxShares (매도용이므로 null)
@@ -190,8 +192,8 @@ public class TradingServiceImpl implements TradingService {
 
   // 공통 거래 실행 메서드(키가 있으면 끝난 주문인지 먼저 보고, 키 충돌은 먼저 끝난 체결)
   private TradeResponseDto executeTrade(String userId, Long accountId, String symbol,
-    BigDecimal quantity, LocalDate tradeDate, PriceType priceType,
-    BigDecimal manualPrice, TradeType tradeType, IdempotencyKey key) {
+                                        BigDecimal quantity, LocalDate tradeDate, PriceType priceType,
+                                        BigDecimal manualPrice, TradeType tradeType, IdempotencyKey key) {
 
     String fingerprint = IdempotencyKey.fingerprint(tradeType.name(), accountId, symbol, quantity, tradeDate,
       priceType, manualPrice);
@@ -225,7 +227,7 @@ public class TradingServiceImpl implements TradingService {
     Trade savedTrade;
     try {
       savedTrade = executeTradeTransaction(userId, accountId, symbol, quantity,
-        tradePrice, amounts.total(), amounts.fee(), tradeDate, tradeType, key, fingerprint);
+        tradePrice, amounts.total(), amounts.fee(), order.tradeDate(), tradeType, key, fingerprint);
     } catch (DataIntegrityViolationException e) {
       Optional<Trade> done = doneByFirstRequest(userId, key, fingerprint);
       if (done.isEmpty()) {
@@ -237,20 +239,20 @@ public class TradingServiceImpl implements TradingService {
 
     // 거래 로그 기록
     tradeLogger.logTrade(savedTrade.getId(), userId, accountKey, symbol,
-      tradeType, quantity, tradePrice, amounts.fee(), amounts.total(), tradeDate);
+      tradeType, quantity, tradePrice, amounts.fee(), amounts.total(), order.tradeDate());
 
     log.info("{} 완료: 거래ID={}, 금액={}", tradeType.name(), savedTrade.getId(), amounts.total());
     return TradeResponseDto.from(savedTrade);
   }
 
-  // 체결가와 금액(트랜잭션 전에 정함)
-  private record PreparedOrder(BigDecimal tradePrice, TradeAmounts amounts) {
+  // 체결할 거래일 · 체결가 · 금액(트랜잭션 전에 정함)
+  private record PreparedOrder(LocalDate tradeDate, BigDecimal tradePrice, TradeAmounts amounts) {
   }
 
-  // 거래 전 검증 · 가격 결정 · 수수료 계산(매수는 잔액 확인)
+  // 거래 전 검증 · 거래일 확정 · 가격 결정 · 수수료 계산(매수는 잔액 확인)
   private PreparedOrder prepareOrder(String userId, Long accountId, String symbol, BigDecimal quantity,
-    LocalDate tradeDate, PriceType priceType, BigDecimal manualPrice, TradeType tradeType) {
-    performPreTradeValidation(userId, accountId, symbol, quantity, tradeDate, tradeType);
+                                     LocalDate requestedDate, PriceType priceType, BigDecimal manualPrice, TradeType tradeType) {
+    LocalDate tradeDate = performPreTradeValidation(userId, accountId, symbol, quantity, requestedDate, tradeType);
 
     BigDecimal marketPrice = marketDataService.determineTradePrice(symbol, tradeDate, priceType,
       manualPrice);
@@ -261,7 +263,7 @@ public class TradingServiceImpl implements TradingService {
       tradeType);
     TradeAmounts amounts = calculateTradeAmounts(userId, accountKey, quantity, tradePrice,
       accountBalance, tradeType);
-    return new PreparedOrder(tradePrice, amounts);
+    return new PreparedOrder(tradeDate, tradePrice, amounts);
   }
 
   // 같은 키의 처음 주문이 끝났으면 그 체결(키가 없거나 기록이 없으면 빈 값)
@@ -269,20 +271,22 @@ public class TradingServiceImpl implements TradingService {
     return key == null ? Optional.empty() : idempotencyGuard.findDone(userId, key, fingerprint);
   }
 
-  // 거래 전 검증(지수는 주문 불가)
-  private void performPreTradeValidation(String userId, Long accountId, String symbol,
-    BigDecimal quantity, LocalDate tradeDate, TradeType tradeType) {
+  // 거래 전 검증(지수는 주문 불가, 매도는 확정한 거래일 보유로) 뒤 체결할 거래일
+  private LocalDate performPreTradeValidation(String userId, Long accountId, String symbol,
+                                              BigDecimal quantity, LocalDate requestedDate, TradeType tradeType) {
     if (symbol.startsWith(TradeConstants.INDEX_SYMBOL_PREFIX)) {
       throw new TradeException(TradeResponse.INDEX_NOT_TRADABLE);
     }
+    LocalDate tradeDate = marketDataService.resolveTradeDate(symbol, requestedDate);
     if (tradeType == TradeType.SELL) {
       validateSellEligibility(userId, accountId, symbol, quantity, tradeDate);
     }
+    return tradeDate;
   }
 
   // 체결가에 계좌 슬리피지율 반영(직접 입력 가격은 제외)
   private BigDecimal applySlippage(String symbol, BigDecimal marketPrice,
-    AccountBalanceDto accountBalance, PriceType priceType, TradeType tradeType) {
+                                   AccountBalanceDto accountBalance, PriceType priceType, TradeType tradeType) {
     BigDecimal rate = accountBalance.getSlippageRate();
     if (priceType == PriceType.MANUAL || rate == null
       || rate.compareTo(BigDecimal.ZERO) <= 0) {
@@ -302,7 +306,7 @@ public class TradingServiceImpl implements TradingService {
 
   // 거래 금액 계산(매수는 잔액 확인)
   private TradeAmounts calculateTradeAmounts(String userId, String accountId, BigDecimal quantity,
-    BigDecimal tradePrice, AccountBalanceDto accountBalance, TradeType tradeType) {
+                                             BigDecimal tradePrice, AccountBalanceDto accountBalance, TradeType tradeType) {
     TradeAmounts amounts = amountsOf(quantity, tradePrice, accountBalance, tradeType);
     if (tradeType == TradeType.BUY) {
       tradeUtils.validateBuyBalance(userId, accountId, amounts.total(), accountBalance);
@@ -314,7 +318,7 @@ public class TradingServiceImpl implements TradingService {
 
   // 잔액 안에 드는 가장 큰 수량(체결 때와 같은 총액 수량 × 체결가 + 수수료로 이분 탐색)
   private BigDecimal maxAffordableShares(BigDecimal balanceUsd, BigDecimal tradePrice,
-    AccountBalanceDto accountBalance) {
+                                         AccountBalanceDto accountBalance) {
     if (tradePrice.signum() <= 0) {
       return BigDecimal.ZERO;
     }
@@ -334,7 +338,7 @@ public class TradingServiceImpl implements TradingService {
 
   // 수량 × 체결가의 금액 · 수수료 · 총액(센트 반올림)
   private TradeAmounts amountsOf(BigDecimal quantity, BigDecimal tradePrice,
-    AccountBalanceDto accountBalance, TradeType tradeType) {
+                                 AccountBalanceDto accountBalance, TradeType tradeType) {
     BigDecimal tradeAmount = MoneyUtils.roundUsd(MoneyUtils.multiply(quantity, tradePrice));
     BigDecimal fee = MoneyUtils.roundUsd(tradeUtils.calculateFee(accountBalance, tradeAmount));
     BigDecimal total = tradeType == TradeType.BUY
@@ -344,8 +348,8 @@ public class TradingServiceImpl implements TradingService {
 
   // 키 넣기(트랜잭션 첫 줄) · 체결 저장 · 보유 변경
   private Trade executeTradeTransaction(String userId, Long accountId, String symbol,
-    BigDecimal quantity, BigDecimal tradePrice, BigDecimal totalAmount,
-    BigDecimal fee, LocalDate tradeDate, TradeType tradeType, IdempotencyKey key, String fingerprint) {
+                                        BigDecimal quantity, BigDecimal tradePrice, BigDecimal totalAmount,
+                                        BigDecimal fee, LocalDate tradeDate, TradeType tradeType, IdempotencyKey key, String fingerprint) {
 
     try {
       log.info("거래 DB 트랜잭션 시작: userId={}, symbol={}, amount={}", userId, symbol, totalAmount);
@@ -381,8 +385,8 @@ public class TradingServiceImpl implements TradingService {
 
   // 체결 저장(매도만 보유에 바로 반영, 매수는 정산된 뒤 보유에 들어감)
   private Trade executeTradeDbTransaction(String userId, Long accountId, String symbol,
-    BigDecimal quantity, BigDecimal tradePrice, BigDecimal totalAmount,
-    BigDecimal fee, LocalDate tradeDate, TradeType tradeType) {
+                                          BigDecimal quantity, BigDecimal tradePrice, BigDecimal totalAmount,
+                                          BigDecimal fee, LocalDate tradeDate, TradeType tradeType) {
     // 매도는 보유 행 잠금 뒤 매도 가능량(뒤 날짜 누적 보유 포함)을 다시 확인(잠금 밖 사전 검사로는 동시 매도가 같은 물량을 가져감)
     if (tradeType == TradeType.SELL) {
       holdingsRepository.findByUserIdAndAccountIdAndSymbolWithLock(userId, accountId, symbol);
@@ -453,7 +457,7 @@ public class TradingServiceImpl implements TradingService {
 
   // 매도 가능 여부 검증(보유량 · 매도일과 뒤 날짜 누적 보유)
   private void validateSellEligibility(String userId, Long accountId, String symbol,
-    BigDecimal quantity, LocalDate sellDate) {
+                                       BigDecimal quantity, LocalDate sellDate) {
     // 1. 기본 보유량 확인
     Optional<Holdings> holdings = holdingsRepository
       .findByUserIdAndAccountIdAndSymbol(userId, accountId, symbol);
@@ -485,7 +489,7 @@ public class TradingServiceImpl implements TradingService {
 
   // 매도 가능 수량(체결을 보유 계산과 같은 순서로 읽는 쿼리 하나)
   private BigDecimal calculateSellableQuantity(String userId, Long accountId, String symbol,
-    LocalDate sellDate) {
+                                               LocalDate sellDate) {
     // DB 레벨에서 집계하여 성능 최적화
     BigDecimal sellableQuantity = tradeRepository.calculateSellableQuantity(
       userId, accountId, symbol, sellDate);

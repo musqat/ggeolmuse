@@ -157,37 +157,11 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
   // 최적 타이밍 · 일별 가치 · 지표를 더한 응답
   private SimulationResponse buildSimulationResponse(SimulationContext context,
-    SimulationCalculationResult calculation, List<OHLCPriceDto> candles, Map<String, BigDecimal> fxRates,
-    Function<LocalDate, BigDecimal> fx) {
+                                                     SimulationCalculationResult calculation, List<OHLCPriceDto> candles, Map<String, BigDecimal> fxRates,
+                                                     Function<LocalDate, BigDecimal> fx) {
     OptimalTiming optimalTiming = calculateOptimalTiming(candles, fxRates);
 
-    SimulationResponse response = responseMapper.toSimulationResponse(
-      context.request(),
-      calculation.purchasePriceUsd(),
-      calculation.shares(),
-      calculation.currentPriceUsd(),
-      calculation.currentValueUsd(),
-      calculation.currentValueKrw(),
-      calculation.stockReturn(),
-      calculation.stockReturnPercent(),
-      calculation.purchaseFxRate(),
-      calculation.currentFxRate(),
-      calculation.fxReturn(),
-      calculation.fxReturnPercent(),
-      calculation.totalDividends(),
-      calculation.dividendYield(),
-      calculation.tradingFee(),
-      calculation.remainingCash(),
-      calculation.totalAssetKrw(),
-      calculation.totalReturnKrw(),
-      calculation.totalReturnPercent(),
-      optimalTiming.buyDate(),
-      optimalTiming.buyPrice(),
-      optimalTiming.sellDate(),
-      optimalTiming.sellPrice(),
-      optimalTiming.returnPercent(),
-      calculation.dividendsReinvested(),
-      calculation.dividendReinvestDates());
+    SimulationResponse response = responseMapper.toSimulationResponse(context.request(), calculation, optimalTiming);
     // 응답의 매수일은 실제로 산 날, 투자 금액은 주식 수로 샀으면 산 날 비용
     response.setPurchaseDate(context.purchaseData().date());
     response.setInvestmentAmount(calculation.investmentKrw());
@@ -198,8 +172,8 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
     response.setCapitalGainsTax(Boolean.TRUE.equals(context.request().getCapitalGainsTax())
       ? CapitalGainsTaxCalculator.of(CapitalGainsTaxCalculator.realizedGains(calculation.taxTransactions()),
-        CapitalGainsTaxCalculator.Payments.NONE, calculation.totalAssetKrw(), calculation.currentValueKrw(),
-        calculation.investmentKrw())
+      CapitalGainsTaxCalculator.Payments.NONE, calculation.totalAssetKrw(), calculation.currentValueKrw(),
+      calculation.investmentKrw())
       : null);
     response.setTransactions(calculation.transactions());
     StrategyPerformance.Result performance = SimulationPerformance.of(candles, fx, calculation, context.valuationDate(),
@@ -213,7 +187,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
   // 매수일별 수익률(기간 환율을 못 받았거나 계산이 실패하면 빈 목록, 결과는 그대로)
   private List<PurchaseDayReturn> purchaseDayReturns(List<OHLCPriceDto> candles, SimulationContext context,
-    SimulationCalculationResult calculation, Map<String, BigDecimal> fxRates) {
+                                                     SimulationCalculationResult calculation, Map<String, BigDecimal> fxRates) {
     SimulationRequest request = context.request();
     if (candles.isEmpty() || (fxRates == null && request.getPurchaseFxRate() == null)) {
       return List.of();
@@ -232,7 +206,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
   // 매수일별 산 날 환율: 실제로 산 날은 결과의 매수 환율, 매수 환율을 넣었으면 넣은 환율, 아니면 산 날 시장 환율
   private Function<LocalDate, BigDecimal> purchaseFx(SimulationContext context,
-    SimulationCalculationResult calculation, Map<String, BigDecimal> fxRates) {
+                                                     SimulationCalculationResult calculation, Map<String, BigDecimal> fxRates) {
     LocalDate tradeDate = context.purchaseData().date();
     BigDecimal manual = context.request().getPurchaseFxRate();
     Function<LocalDate, BigDecimal> market = FxPath.marketFromBulk(fxRates, marketDataPort.defaultFxRate());
@@ -260,7 +234,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
   // 매수일 ~ 평가일 일봉(날짜순)
   private static List<OHLCPriceDto> candlesBetween(Map<LocalDate, OHLCPriceDto> priceMap,
-    LocalDate startDate, LocalDate endDate) {
+                                                   LocalDate startDate, LocalDate endDate) {
     return priceMap.values().stream()
       .filter(candle -> !candle.date().isBefore(startDate) && !candle.date().isAfter(endDate))
       .sorted(Comparator.comparing(OHLCPriceDto::date))
@@ -327,7 +301,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
   // 매수일 5일 전 ~ 평가일 일봉(못 받으면 빈 맵이라 날짜별 조회로)
   private Map<LocalDate, OHLCPriceDto> loadPriceMap(String symbol, LocalDate purchaseDate,
-    LocalDate valuationDate) {
+                                                    LocalDate valuationDate) {
     try {
       return BacktestDataUtils.buildPriceMap(marketDataPort, symbol, purchaseDate.minusDays(5),
         valuationDate);
@@ -339,7 +313,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
 
   // 매수 시세, 휴장일이면 평가일까지 다음 거래일(7일 안) · 다음 거래일이 없으면 직전 거래일(기간 일봉에 없을 때만 날짜별 조회)
   private OHLCPriceDto getPurchasePrice(String symbol, LocalDate purchaseDate, LocalDate valuationDate,
-    Map<LocalDate, OHLCPriceDto> priceMap) {
+                                        Map<LocalDate, OHLCPriceDto> priceMap) {
     OHLCPriceDto fromRange = PriceLookup.nextFromMap(priceMap, purchaseDate, valuationDate, 7);
     if (fromRange == null) {
       fromRange = PriceLookup.fromMap(priceMap, purchaseDate, 5);

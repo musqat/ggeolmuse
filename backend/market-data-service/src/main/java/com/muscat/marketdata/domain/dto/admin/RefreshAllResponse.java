@@ -11,11 +11,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RefreshAllResponse {
-    // 서울 시각
-    private LocalDateTime lastRunAt;
-    private int published;
+  // 서울 시각
+  private LocalDateTime lastRunAt;
+  private int published;
 
-    public static RefreshAllResponse of(AdminJobRun run) {
-        return new RefreshAllResponse(run.getLastRunAt(), run.getPublished());
-    }
+  public static RefreshAllResponse of(AdminJobRun run) {
+    return new RefreshAllResponse(run.getLastRunAt(), run.getPublished());
+  }
 }

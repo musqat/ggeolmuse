@@ -5,7 +5,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.*;
 
-@Getter @Setter
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

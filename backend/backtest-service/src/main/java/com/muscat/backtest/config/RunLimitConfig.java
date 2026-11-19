@@ -15,7 +15,7 @@ public class RunLimitConfig implements WebMvcConfigurer {
   private final Duration wait;
 
   public RunLimitConfig(@Value("${backtest.run-limit.max-concurrent:10}") int maxConcurrentRuns,
-    @Value("${backtest.run-limit.wait:5s}") Duration wait) {
+                        @Value("${backtest.run-limit.wait:5s}") Duration wait) {
     this.maxConcurrentRuns = maxConcurrentRuns;
     this.wait = wait;
   }

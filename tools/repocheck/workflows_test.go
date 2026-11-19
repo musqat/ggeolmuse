@@ -141,6 +141,16 @@ func TestE2EBuildReadsEachServiceBuildCache(t *testing.T) {
 	}
 }
 
+// 백엔드 Java 기본 형식은 모듈 빌드 전에 한 번 검사
+func TestBackendFormatIsCheckedBeforeModuleBuilds(t *testing.T) {
+	bom := job(t, workflow(t, "ci.yml"), "build-bom")
+	check := strings.Index(bom, "-f backend/pom.xml -N spotless:check")
+	install := strings.Index(bom, "mvn -s \"$GITHUB_WORKSPACE/.mvn/ci-settings.xml\" clean install")
+	if check < 0 || install < 0 || check > install {
+		t.Errorf("build-bom 잡에 모듈 빌드 앞 백엔드 형식 검사가 없음(검사 %d, 빌드 %d)", check, install)
+	}
+}
+
 // 리포 검사가 읽는 파일은 tools 모듈 밖이라 Go 테스트 결과 캐시가 바뀐 것을 모름
 func TestToolsJobRunsTestsWithoutResultCache(t *testing.T) {
 	mustContain(t, "tools 잡", job(t, workflow(t, "ci.yml"), "tools"), "go test -count=1 ./...")
@@ -178,4 +188,9 @@ func TestReleaseStartsOnlyFromCIOrByHand(t *testing.T) {
 	if want := []string{"workflow_call", "workflow_dispatch"}; !slices.Equal(triggers, want) {
 		t.Errorf("release.yml 시작 조건 %v, 기대 %v", triggers, want)
 	}
+}
+
+// 예외 생성식 · 오류 코드 enum 검사
+func TestToolsJobChecksErrorCodes(t *testing.T) {
+	mustContain(t, "tools 잡", job(t, workflow(t, "ci.yml"), "tools"), "go run ./cmd/error-codes ../backend")
 }

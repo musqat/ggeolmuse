@@ -16,10 +16,10 @@ public class SwaggerConfig {
   @Bean
   @Primary
   public List<GroupedOpenApi> apis(RouteDefinitionLocator locator,
-    @Value("${services.user.uri}") String userServiceUri,
-    @Value("${services.trade.uri}") String tradeServiceUri,
-    @Value("${services.market-data.uri}") String marketDataServiceUri,
-    @Value("${services.backtest.uri}") String backtestServiceUri) {
+                                   @Value("${services.user.uri}") String userServiceUri,
+                                   @Value("${services.trade.uri}") String tradeServiceUri,
+                                   @Value("${services.market-data.uri}") String marketDataServiceUri,
+                                   @Value("${services.backtest.uri}") String backtestServiceUri) {
 
     List<GroupedOpenApi> groups = new ArrayList<>();
 

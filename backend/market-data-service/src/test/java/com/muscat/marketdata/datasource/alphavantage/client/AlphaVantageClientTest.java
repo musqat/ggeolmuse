@@ -7,6 +7,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.muscat.marketdata.common.enums.response.MarketDataResponse;
 import com.muscat.marketdata.common.exception.AlphaVantageException;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -85,23 +86,25 @@ class AlphaVantageClientTest {
       server.expect(requestTo(URL)).andRespond(withSuccess("", MediaType.APPLICATION_JSON));
 
       assertThatThrownBy(() -> client.get("TIME_SERIES_DAILY", params())).isInstanceOf(AlphaVantageException.class)
-        .hasMessage("Invalid API call");
+        .extracting("code").isEqualTo(MarketDataResponse.ALPHA_VANTAGE_ERROR);
       assertThatThrownBy(() -> client.get("TIME_SERIES_DAILY", params())).isInstanceOf(AlphaVantageException.class)
-        .hasMessage("API rate limit exceeded");
+        .extracting("code").isEqualTo(MarketDataResponse.ALPHA_VANTAGE_RATE_LIMITED);
       assertThatThrownBy(() -> client.get("TIME_SERIES_DAILY", params())).isInstanceOf(AlphaVantageException.class)
-        .hasMessage("Empty response");
+        .extracting("code").isEqualTo(MarketDataResponse.ALPHA_VANTAGE_ERROR);
     }
 
     @Test
-    @DisplayName("다른 안내 문구는 그대로 돌려주고, 서버 오류나 깨진 JSON 은 함수 이름을 담은 예외")
+    @DisplayName("다른 안내 문구는 그대로 돌려주고, 서버 오류나 깨진 JSON 은 원인을 담은 Alpha Vantage 오류")
     void otherNoteAndFailures() {
       respond(URL, "{\"Note\":\"maintenance tonight\"}");
       server.expect(requestTo(URL)).andRespond(withServerError());
       respond(URL, "{broken");
 
       assertThat(client.get("TIME_SERIES_DAILY", params()).has("Note")).isTrue();
-      assertThatThrownBy(() -> client.get("TIME_SERIES_DAILY", params())).hasMessage("API call failed: TIME_SERIES_DAILY");
-      assertThatThrownBy(() -> client.get("TIME_SERIES_DAILY", params())).hasMessage("API call failed: TIME_SERIES_DAILY");
+      assertThatThrownBy(() -> client.get("TIME_SERIES_DAILY", params())).hasCauseInstanceOf(Exception.class)
+        .extracting("code").isEqualTo(MarketDataResponse.ALPHA_VANTAGE_ERROR);
+      assertThatThrownBy(() -> client.get("TIME_SERIES_DAILY", params())).hasCauseInstanceOf(Exception.class)
+        .extracting("code").isEqualTo(MarketDataResponse.ALPHA_VANTAGE_ERROR);
     }
   }
 
@@ -127,18 +130,19 @@ class AlphaVantageClientTest {
       server.expect(requestTo(URL)).andRespond(withSuccess("", MediaType.TEXT_PLAIN));
       respond(URL, "{\"Information\":\"premium\"}");
 
-      assertThatThrownBy(() -> client.getCsv("LISTING_STATUS", Map.of())).hasMessage("Invalid API call");
-      assertThatThrownBy(() -> client.getCsv("LISTING_STATUS", Map.of())).hasMessage("API rate limit exceeded");
-      assertThatThrownBy(() -> client.getCsv("LISTING_STATUS", Map.of())).hasMessage("Empty CSV response");
+      assertThatThrownBy(() -> client.getCsv("LISTING_STATUS", Map.of())).extracting("code").isEqualTo(MarketDataResponse.ALPHA_VANTAGE_ERROR);
+      assertThatThrownBy(() -> client.getCsv("LISTING_STATUS", Map.of())).extracting("code").isEqualTo(MarketDataResponse.ALPHA_VANTAGE_RATE_LIMITED);
+      assertThatThrownBy(() -> client.getCsv("LISTING_STATUS", Map.of())).extracting("code").isEqualTo(MarketDataResponse.ALPHA_VANTAGE_ERROR);
       assertThat(client.getCsv("LISTING_STATUS", Map.of())).isEqualTo("{\"Information\":\"premium\"}");
     }
 
     @Test
-    @DisplayName("서버 오류는 함수 이름을 담은 예외")
+    @DisplayName("서버 오류는 원인을 담은 Alpha Vantage 오류")
     void serverError() {
       server.expect(requestTo(URL)).andRespond(withServerError());
 
-      assertThatThrownBy(() -> client.getCsv("LISTING_STATUS", Map.of())).hasMessage("CSV API 호출 실패: LISTING_STATUS");
+      assertThatThrownBy(() -> client.getCsv("LISTING_STATUS", Map.of())).hasCauseInstanceOf(Exception.class)
+        .extracting("code").isEqualTo(MarketDataResponse.ALPHA_VANTAGE_ERROR);
     }
   }
 

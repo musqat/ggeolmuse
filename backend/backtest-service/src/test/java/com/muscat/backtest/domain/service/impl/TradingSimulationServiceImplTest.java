@@ -17,6 +17,8 @@ import com.muscat.backtest.common.enums.response.BacktestResponse;
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import com.muscat.backtest.common.exception.BacktestException;
+import com.muscat.backtest.domain.model.OptimalTiming;
+import com.muscat.backtest.domain.model.SimulationCalculationResult;
 import com.muscat.backtest.domain.service.BacktestHistoryUtils;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.dto.response.CapitalGainsTax;
@@ -110,15 +112,8 @@ class TradingSimulationServiceImplTest {
         .willReturn(Collections.emptyList());
       given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(purchasePrice));
-      given(responseMapper.toSimulationResponse(
-        any(SimulationRequest.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(LocalDate.class), any(BigDecimal.class),
-        any(LocalDate.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        anyList()))
+      given(responseMapper.toSimulationResponse(any(SimulationRequest.class), any(SimulationCalculationResult.class),
+        any(OptimalTiming.class)))
         .willReturn(createSimulationResponse());
 
       SimulationResponse result = tradingSimulationService.runSimulation(testSimulationRequest);
@@ -141,21 +136,13 @@ class TradingSimulationServiceImplTest {
       given(marketDataPort.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString())).willReturn(null);
       given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(purchasePrice));
-      ArgumentCaptor<BigDecimal> totalDividends = ArgumentCaptor.forClass(BigDecimal.class);
-      given(responseMapper.toSimulationResponse(
-        any(SimulationRequest.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), totalDividends.capture(),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(LocalDate.class), any(BigDecimal.class),
-        any(LocalDate.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        anyList()))
+      ArgumentCaptor<SimulationCalculationResult> calculation = ArgumentCaptor.forClass(SimulationCalculationResult.class);
+      given(responseMapper.toSimulationResponse(any(SimulationRequest.class), calculation.capture(), any(OptimalTiming.class)))
         .willReturn(createSimulationResponse());
 
       SimulationResponse result = tradingSimulationService.runSimulation(testSimulationRequest);
 
-      assertThat(totalDividends.getValue()).isEqualByComparingTo("0");
+      assertThat(calculation.getValue().totalDividends()).isEqualByComparingTo("0");
       assertThat(result.getDividendUnavailableSymbols()).containsExactly(TEST_SYMBOL);
     }
 
@@ -197,15 +184,8 @@ class TradingSimulationServiceImplTest {
         .willReturn(Collections.emptyList());
       given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(purchasePrice));
-      given(responseMapper.toSimulationResponse(
-        any(SimulationRequest.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(LocalDate.class), any(BigDecimal.class),
-        any(LocalDate.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        anyList()))
+      given(responseMapper.toSimulationResponse(any(SimulationRequest.class), any(SimulationCalculationResult.class),
+        any(OptimalTiming.class)))
         .willReturn(expectedResponse);
 
       // when
@@ -242,15 +222,8 @@ class TradingSimulationServiceImplTest {
         .willReturn(Collections.emptyList());
       given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(purchasePrice));
-      given(responseMapper.toSimulationResponse(
-        any(SimulationRequest.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(LocalDate.class), any(BigDecimal.class),
-        any(LocalDate.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        anyList()))
+      given(responseMapper.toSimulationResponse(any(SimulationRequest.class), any(SimulationCalculationResult.class),
+        any(OptimalTiming.class)))
         .willReturn(expectedResponse);
 
       // when
@@ -301,15 +274,8 @@ class TradingSimulationServiceImplTest {
       // BULK: 배당일 주가 + 최적타이밍 모두 이 stub으로 (배당일 2건 포함)
       given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(purchasePrice, divDay1, divDay2));
-      given(responseMapper.toSimulationResponse(
-        any(SimulationRequest.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(LocalDate.class), any(BigDecimal.class),
-        any(LocalDate.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        anyList()))
+      given(responseMapper.toSimulationResponse(any(SimulationRequest.class), any(SimulationCalculationResult.class),
+        any(OptimalTiming.class)))
         .willReturn(createSimulationResponse());
 
       // when
@@ -347,15 +313,8 @@ class TradingSimulationServiceImplTest {
         .willReturn(Collections.emptyList());
       given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(purchasePrice));
-      given(responseMapper.toSimulationResponse(
-        any(SimulationRequest.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(LocalDate.class), any(BigDecimal.class),
-        any(LocalDate.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        anyList()))
+      given(responseMapper.toSimulationResponse(any(SimulationRequest.class), any(SimulationCalculationResult.class),
+        any(OptimalTiming.class)))
         .willReturn(expectedResponse);
 
       // when
@@ -395,15 +354,8 @@ class TradingSimulationServiceImplTest {
         .willReturn(Collections.emptyList());
       given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(purchasePrice));
-      given(responseMapper.toSimulationResponse(
-        any(SimulationRequest.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(LocalDate.class), any(BigDecimal.class),
-        any(LocalDate.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        anyList()))
+      given(responseMapper.toSimulationResponse(any(SimulationRequest.class), any(SimulationCalculationResult.class),
+        any(OptimalTiming.class)))
         .willReturn(expectedResponse);
 
       // when
@@ -448,15 +400,8 @@ class TradingSimulationServiceImplTest {
         .willReturn(Collections.emptyList());
       given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(List.of(purchasePrice));
-      given(responseMapper.toSimulationResponse(
-        any(SimulationRequest.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(LocalDate.class), any(BigDecimal.class),
-        any(LocalDate.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        anyList()))
+      given(responseMapper.toSimulationResponse(any(SimulationRequest.class), any(SimulationCalculationResult.class),
+        any(OptimalTiming.class)))
         .willReturn(expectedResponse);
 
       // when
@@ -499,15 +444,8 @@ class TradingSimulationServiceImplTest {
         .willReturn(Collections.emptyList());
       given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
         .willReturn(range);
-      given(responseMapper.toSimulationResponse(
-        any(SimulationRequest.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(LocalDate.class), any(BigDecimal.class),
-        any(LocalDate.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        anyList()))
+      given(responseMapper.toSimulationResponse(any(SimulationRequest.class), any(SimulationCalculationResult.class),
+        any(OptimalTiming.class)))
         .willReturn(createSimulationResponse());
 
       tradingSimulationService.runSimulation(testSimulationRequest, false);
@@ -528,23 +466,15 @@ class TradingSimulationServiceImplTest {
         candle("2026-08-26", "312.84")
       ));
 
-      ArgumentCaptor<LocalDate> buyDate = ArgumentCaptor.forClass(LocalDate.class);
-      ArgumentCaptor<LocalDate> sellDate = ArgumentCaptor.forClass(LocalDate.class);
 
-      verify(responseMapper).toSimulationResponse(
-        any(SimulationRequest.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), buyDate.capture(), any(BigDecimal.class),
-        sellDate.capture(), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        anyList());
+      ArgumentCaptor<OptimalTiming> timing = ArgumentCaptor.forClass(OptimalTiming.class);
+      verify(responseMapper).toSimulationResponse(any(SimulationRequest.class), any(SimulationCalculationResult.class),
+        timing.capture());
 
       // then: 7/2 에 사서 7/28 에 파는 것이 제약 아래 최대 수익
-      assertThat(buyDate.getValue()).isEqualTo(LocalDate.parse("2026-07-02"));
-      assertThat(sellDate.getValue()).isEqualTo(LocalDate.parse("2026-07-28"));
-      assertThat(sellDate.getValue()).isAfterOrEqualTo(buyDate.getValue());
+      assertThat(timing.getValue().buyDate()).isEqualTo(LocalDate.parse("2026-07-02"));
+      assertThat(timing.getValue().sellDate()).isEqualTo(LocalDate.parse("2026-07-28"));
+      assertThat(timing.getValue().sellDate()).isAfterOrEqualTo(timing.getValue().buyDate());
     }
 
     @Test
@@ -556,21 +486,13 @@ class TradingSimulationServiceImplTest {
         candle("2026-07-28", "339.79")
       ));
 
-      ArgumentCaptor<LocalDate> buyDate = ArgumentCaptor.forClass(LocalDate.class);
-      ArgumentCaptor<LocalDate> sellDate = ArgumentCaptor.forClass(LocalDate.class);
 
-      verify(responseMapper).toSimulationResponse(
-        any(SimulationRequest.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), buyDate.capture(), any(BigDecimal.class),
-        sellDate.capture(), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        anyList());
+      ArgumentCaptor<OptimalTiming> timing = ArgumentCaptor.forClass(OptimalTiming.class);
+      verify(responseMapper).toSimulationResponse(any(SimulationRequest.class), any(SimulationCalculationResult.class),
+        timing.capture());
 
-      assertThat(buyDate.getValue()).isEqualTo(LocalDate.parse("2025-04-08"));
-      assertThat(sellDate.getValue()).isEqualTo(LocalDate.parse("2026-07-28"));
+      assertThat(timing.getValue().buyDate()).isEqualTo(LocalDate.parse("2025-04-08"));
+      assertThat(timing.getValue().sellDate()).isEqualTo(LocalDate.parse("2026-07-28"));
     }
 
     @Test
@@ -582,22 +504,13 @@ class TradingSimulationServiceImplTest {
         candle("2026-03-02", "200.00")
       ));
 
-      ArgumentCaptor<LocalDate> buyDate = ArgumentCaptor.forClass(LocalDate.class);
-      ArgumentCaptor<LocalDate> sellDate = ArgumentCaptor.forClass(LocalDate.class);
-      ArgumentCaptor<BigDecimal> optimalReturn = ArgumentCaptor.forClass(BigDecimal.class);
 
-      verify(responseMapper).toSimulationResponse(
-        any(SimulationRequest.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), buyDate.capture(), any(BigDecimal.class),
-        sellDate.capture(), any(BigDecimal.class), optimalReturn.capture(), any(BigDecimal.class),
-        anyList());
+      ArgumentCaptor<OptimalTiming> timing = ArgumentCaptor.forClass(OptimalTiming.class);
+      verify(responseMapper).toSimulationResponse(any(SimulationRequest.class), any(SimulationCalculationResult.class),
+        timing.capture());
 
-      assertThat(buyDate.getValue()).isEqualTo(sellDate.getValue());
-      assertThat(optimalReturn.getValue()).isEqualByComparingTo(BigDecimal.ZERO);
+      assertThat(timing.getValue().buyDate()).isEqualTo(timing.getValue().sellDate());
+      assertThat(timing.getValue().returnPercent()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
     @Test
@@ -615,29 +528,18 @@ class TradingSimulationServiceImplTest {
         "2025-10-28", new BigDecimal("1431.40"),
         "2026-10-13", new BigDecimal("1335.80")));
 
-      ArgumentCaptor<LocalDate> buyDate = ArgumentCaptor.forClass(LocalDate.class);
-      ArgumentCaptor<BigDecimal> buyPrice = ArgumentCaptor.forClass(BigDecimal.class);
-      ArgumentCaptor<LocalDate> sellDate = ArgumentCaptor.forClass(LocalDate.class);
-      ArgumentCaptor<BigDecimal> sellPrice = ArgumentCaptor.forClass(BigDecimal.class);
-      ArgumentCaptor<BigDecimal> optimalReturn = ArgumentCaptor.forClass(BigDecimal.class);
 
-      verify(responseMapper).toSimulationResponse(
-        any(SimulationRequest.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), buyDate.capture(), buyPrice.capture(),
-        sellDate.capture(), sellPrice.capture(), optimalReturn.capture(), any(BigDecimal.class),
-        anyList());
+      ArgumentCaptor<OptimalTiming> timing = ArgumentCaptor.forClass(OptimalTiming.class);
+      verify(responseMapper).toSimulationResponse(any(SimulationRequest.class), any(SimulationCalculationResult.class),
+        timing.capture());
 
-      assertThat(buyDate.getValue()).isEqualTo(LocalDate.parse("2023-01-09"));
-      assertThat(sellDate.getValue()).isEqualTo(LocalDate.parse("2025-10-28"));
+      assertThat(timing.getValue().buyDate()).isEqualTo(LocalDate.parse("2023-01-09"));
+      assertThat(timing.getValue().sellDate()).isEqualTo(LocalDate.parse("2025-10-28"));
       // 매수가 · 매도가는 매수일 · 매도일 달러 종가
-      assertThat(buyPrice.getValue()).isEqualByComparingTo("227.12");
-      assertThat(sellPrice.getValue()).isEqualByComparingTo("542.07");
+      assertThat(timing.getValue().buyPrice()).isEqualByComparingTo("227.12");
+      assertThat(timing.getValue().sellPrice()).isEqualByComparingTo("542.07");
       // 542.07 × 1431.40 / (227.12 × 1239.25) - 1
-      assertThat(optimalReturn.getValue()).isEqualByComparingTo("175.68");
+      assertThat(timing.getValue().returnPercent()).isEqualByComparingTo("175.68");
     }
 
     @Test
@@ -652,21 +554,13 @@ class TradingSimulationServiceImplTest {
         "2023-01-09", new BigDecimal("1000"),
         "2023-03-01", new BigDecimal("1000")));
 
-      ArgumentCaptor<LocalDate> buyDate = ArgumentCaptor.forClass(LocalDate.class);
-      ArgumentCaptor<BigDecimal> optimalReturn = ArgumentCaptor.forClass(BigDecimal.class);
-      verify(responseMapper).toSimulationResponse(
-        any(SimulationRequest.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), buyDate.capture(), any(BigDecimal.class),
-        any(LocalDate.class), any(BigDecimal.class), optimalReturn.capture(), any(BigDecimal.class),
-        anyList());
+      ArgumentCaptor<OptimalTiming> timing = ArgumentCaptor.forClass(OptimalTiming.class);
+      verify(responseMapper).toSimulationResponse(any(SimulationRequest.class), any(SimulationCalculationResult.class),
+        timing.capture());
 
-      assertThat(buyDate.getValue()).isEqualTo(LocalDate.parse("2023-01-05"));
+      assertThat(timing.getValue().buyDate()).isEqualTo(LocalDate.parse("2023-01-05"));
       // 110 / 95 - 1
-      assertThat(optimalReturn.getValue()).isEqualByComparingTo("15.79");
+      assertThat(timing.getValue().returnPercent()).isEqualByComparingTo("15.79");
     }
 
     @Test
@@ -679,21 +573,13 @@ class TradingSimulationServiceImplTest {
         candle("2026-07-28", "339.79")
       ));
 
-      ArgumentCaptor<LocalDate> buyDate = ArgumentCaptor.forClass(LocalDate.class);
-      ArgumentCaptor<LocalDate> sellDate = ArgumentCaptor.forClass(LocalDate.class);
 
-      verify(responseMapper).toSimulationResponse(
-        any(SimulationRequest.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        any(BigDecimal.class), any(BigDecimal.class), buyDate.capture(), any(BigDecimal.class),
-        sellDate.capture(), any(BigDecimal.class), any(BigDecimal.class), any(BigDecimal.class),
-        anyList());
+      ArgumentCaptor<OptimalTiming> timing = ArgumentCaptor.forClass(OptimalTiming.class);
+      verify(responseMapper).toSimulationResponse(any(SimulationRequest.class), any(SimulationCalculationResult.class),
+        timing.capture());
 
-      assertThat(buyDate.getValue()).isEqualTo(LocalDate.parse("2026-07-02"));
-      assertThat(sellDate.getValue()).isEqualTo(LocalDate.parse("2026-07-28"));
+      assertThat(timing.getValue().buyDate()).isEqualTo(LocalDate.parse("2026-07-02"));
+      assertThat(timing.getValue().sellDate()).isEqualTo(LocalDate.parse("2026-07-28"));
     }
   }
 

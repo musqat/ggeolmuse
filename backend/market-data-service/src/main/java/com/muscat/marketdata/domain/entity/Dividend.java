@@ -5,16 +5,17 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-@Getter @Setter
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @Entity
 @Table(name = "dividend",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"symbol", "ex_date"}),
-    indexes = {
-        @Index(name = "idx_dividend_ex_date", columnList = "ex_date")
-    })
+  uniqueConstraints = @UniqueConstraint(columnNames = {"symbol", "ex_date"}),
+  indexes = {
+    @Index(name = "idx_dividend_ex_date", columnList = "ex_date")
+  })
 public class Dividend {
 
   @Id

@@ -59,7 +59,7 @@ class PortfolioStatsCalculatorTest {
   private long ids = 1;
 
   private Trade trade(long accountId, TradeType type, String symbol, String quantity, String price, String fee,
-    LocalDate tradeDate, TradeStatus status) {
+                      LocalDate tradeDate, TradeStatus status) {
     return Trade.builder()
       .id(ids++)
       .userId("user-1")
@@ -91,7 +91,7 @@ class PortfolioStatsCalculatorTest {
   }
 
   private static SymbolTotals totals(String symbol, String quantity, String invested, String realized,
-    String dividend, String fee) {
+                                     String dividend, String fee) {
     return new SymbolTotals(symbol, new BigDecimal(quantity), new BigDecimal(invested), new BigDecimal(realized),
       new BigDecimal(dividend), new BigDecimal(fee));
   }
@@ -105,7 +105,7 @@ class PortfolioStatsCalculatorTest {
   }
 
   private static void assertTotals(SymbolTotals actual, String quantity, String invested, String realized,
-    String dividend, String fee) {
+                                   String dividend, String fee) {
     assertThat(actual.quantity()).isEqualByComparingTo(quantity);
     assertThat(actual.investedUsd()).isEqualByComparingTo(invested);
     assertThat(actual.realizedUsd()).isEqualByComparingTo(realized);
@@ -422,7 +422,7 @@ class PortfolioStatsCalculatorTest {
     private static final LocalDate START = BEFORE.plusDays(1);
 
     private static DividendPayout paid(long accountId, String symbol, LocalDate exDate, String perShare,
-      String shares, String gross, String tax, String net) {
+                                       String shares, String gross, String tax, String net) {
       return DividendPayout.of("user-1", accountId, symbol, exDate,
         new DividendAmounts(new BigDecimal(perShare), new BigDecimal(shares), new BigDecimal(gross),
           new BigDecimal(tax), new BigDecimal(net)), LocalDateTime.of(2024, 9, 1, 9, 0));
@@ -523,13 +523,13 @@ class PortfolioStatsCalculatorTest {
       BEFORE, new BigDecimal("1340"));
 
     private static ExchangeRecordDto krwToUsd(long accountId, LocalDateTime at, String krw, String usd,
-      String rate) {
+                                              String rate) {
       return new ExchangeRecordDto(accountId, at, "KRW", "USD", new BigDecimal(krw), new BigDecimal(usd),
         new BigDecimal(rate));
     }
 
     private static ExchangeRecordDto usdToKrw(long accountId, LocalDateTime at, String usd, String krw,
-      String rate) {
+                                              String rate) {
       return new ExchangeRecordDto(accountId, at, "USD", "KRW", new BigDecimal(usd), new BigDecimal(krw),
         new BigDecimal(rate));
     }
@@ -805,7 +805,7 @@ class PortfolioStatsCalculatorTest {
     }
 
     private static MarketComparisonResponse market(List<AccountFlow> accounts,
-      NavigableMap<LocalDate, BigDecimal> closes, Map<LocalDate, BigDecimal> rates, LocalDate start) {
+                                                   NavigableMap<LocalDate, BigDecimal> closes, Map<LocalDate, BigDecimal> rates, LocalDate start) {
       return PortfolioStatsCalculator.market(accounts, closes, rates, start, 2);
     }
 

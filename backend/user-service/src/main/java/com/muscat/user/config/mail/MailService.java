@@ -74,78 +74,78 @@ public class MailService {
   //이메일 HTML 템플릿
   private String createEmailTemplate(String verificationUrl) {
     return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>이메일 인증</title>
-        </head>
-        <body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-            <div style="max-width: 500px; margin: 50px auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                <div style="background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); padding: 40px 30px; text-align: center;">
-                    <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">이메일 인증</h1>
-                </div>
-                <div style="padding: 40px 30px;">
-                    <p style="margin: 0 0 24px 0; color: #333; font-size: 16px; line-height: 1.5;">
-                        안녕하세요!<br>
-                        회원가입을 완료하려면 아래 버튼을 클릭해주세요.
-                    </p>
-                    <div style="text-align: center; margin: 32px 0;">
-                        <a href="%s" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 14px 28px; border-radius: 6px; font-weight: 500; font-size: 16px;">
-                            이메일 인증하기
-                        </a>
-                    </div>
-                    <div style="border-top: 1px solid #eee; padding-top: 20px; margin-top: 32px;">
-                        <p style="margin: 0; color: #666; font-size: 14px; line-height: 1.4;">
-                            인증 링크는 24시간 후 만료됩니다.<br>
-                            본인이 요청하지 않았다면 이 메일을 무시해주세요.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </body>
-        </html>
-        """.formatted(verificationUrl);
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>이메일 인증</title>
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="max-width: 500px; margin: 50px auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+              <div style="background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); padding: 40px 30px; text-align: center;">
+                  <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">이메일 인증</h1>
+              </div>
+              <div style="padding: 40px 30px;">
+                  <p style="margin: 0 0 24px 0; color: #333; font-size: 16px; line-height: 1.5;">
+                      안녕하세요!<br>
+                      회원가입을 완료하려면 아래 버튼을 클릭해주세요.
+                  </p>
+                  <div style="text-align: center; margin: 32px 0;">
+                      <a href="%s" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 14px 28px; border-radius: 6px; font-weight: 500; font-size: 16px;">
+                          이메일 인증하기
+                      </a>
+                  </div>
+                  <div style="border-top: 1px solid #eee; padding-top: 20px; margin-top: 32px;">
+                      <p style="margin: 0; color: #666; font-size: 14px; line-height: 1.4;">
+                          인증 링크는 24시간 후 만료됩니다.<br>
+                          본인이 요청하지 않았다면 이 메일을 무시해주세요.
+                      </p>
+                  </div>
+              </div>
+          </div>
+      </body>
+      </html>
+      """.formatted(verificationUrl);
   }
 
   // 비밀번호 재설정 이메일 HTML 템플릿
   private String createPasswordResetTemplate(String resetUrl) {
     return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>비밀번호 재설정</title>
-        </head>
-        <body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-            <div style="max-width: 500px; margin: 50px auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                <div style="background: linear-gradient(135deg, #f093fb 0%%, #f5576c 100%%); padding: 40px 30px; text-align: center;">
-                    <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">비밀번호 재설정</h1>
-                </div>
-                <div style="padding: 40px 30px;">
-                    <p style="margin: 0 0 24px 0; color: #333; font-size: 16px; line-height: 1.5;">
-                        안녕하세요!<br>
-                        비밀번호 재설정을 요청하셨습니다.<br>
-                        아래 버튼을 클릭하여 새로운 비밀번호를 설정해주세요.
-                    </p>
-                    <div style="text-align: center; margin: 32px 0;">
-                        <a href="%s" style="display: inline-block; background: #f5576c; color: white; text-decoration: none; padding: 14px 28px; border-radius: 6px; font-weight: 500; font-size: 16px;">
-                            비밀번호 재설정하기
-                        </a>
-                    </div>
-                    <div style="border-top: 1px solid #eee; padding-top: 20px; margin-top: 32px;">
-                        <p style="margin: 0; color: #666; font-size: 14px; line-height: 1.4;">
-                            이 링크는 30분 후 만료됩니다.<br>
-                            본인이 요청하지 않았다면 이 메일을 무시해주세요.<br>
-                            보안을 위해 링크는 한 번만 사용할 수 있습니다.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </body>
-        </html>
-        """.formatted(resetUrl);
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>비밀번호 재설정</title>
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="max-width: 500px; margin: 50px auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+              <div style="background: linear-gradient(135deg, #f093fb 0%%, #f5576c 100%%); padding: 40px 30px; text-align: center;">
+                  <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">비밀번호 재설정</h1>
+              </div>
+              <div style="padding: 40px 30px;">
+                  <p style="margin: 0 0 24px 0; color: #333; font-size: 16px; line-height: 1.5;">
+                      안녕하세요!<br>
+                      비밀번호 재설정을 요청하셨습니다.<br>
+                      아래 버튼을 클릭하여 새로운 비밀번호를 설정해주세요.
+                  </p>
+                  <div style="text-align: center; margin: 32px 0;">
+                      <a href="%s" style="display: inline-block; background: #f5576c; color: white; text-decoration: none; padding: 14px 28px; border-radius: 6px; font-weight: 500; font-size: 16px;">
+                          비밀번호 재설정하기
+                      </a>
+                  </div>
+                  <div style="border-top: 1px solid #eee; padding-top: 20px; margin-top: 32px;">
+                      <p style="margin: 0; color: #666; font-size: 14px; line-height: 1.4;">
+                          이 링크는 30분 후 만료됩니다.<br>
+                          본인이 요청하지 않았다면 이 메일을 무시해주세요.<br>
+                          보안을 위해 링크는 한 번만 사용할 수 있습니다.
+                      </p>
+                  </div>
+              </div>
+          </div>
+      </body>
+      </html>
+      """.formatted(resetUrl);
   }
 }

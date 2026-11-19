@@ -98,7 +98,7 @@ public class ProfitFlowService {
 
   // 저장분이 없으면 첫 거래일, 있으면 최근 7거래일과 마지막 계산 뒤 생긴 체결 · 취소 · 분할 반영 · 배당 몫 변경 중 가장 이른 날짜
   private static LocalDate recomputeFrom(List<AccountProfitDaily> stored, List<Trade> trades,
-    List<DividendPayout> payouts, LocalDate first) {
+                                         List<DividendPayout> payouts, LocalDate first) {
     if (stored.isEmpty()) {
       return first;
     }
@@ -129,7 +129,7 @@ public class ProfitFlowService {
 
   // 거래한 종목들의 캔들 날짜 · 거래일 · 배당락일로 거래일을 잡고 각 거래일 이하 가장 늦은 종가 · 환율로 계산
   private List<DailyProfit> compute(List<Trade> trades, List<DividendPayout> payouts, LocalDate from,
-    LocalDate today) {
+                                    LocalDate today) {
     List<Trade> completed = trades.stream()
       .filter(trade -> trade.getStatus() == TradeStatus.COMPLETED)
       .toList();

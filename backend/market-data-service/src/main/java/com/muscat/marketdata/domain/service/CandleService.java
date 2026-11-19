@@ -33,7 +33,7 @@ public interface CandleService {
   StockPriceDto getCurrentPrice(String symbol);
 
   List<OHLCPriceDto> getMultipleOHLCPrices(List<String> symbols, LocalDate startDate,
-    LocalDate endDate);
+                                           LocalDate endDate);
 
   // 시가총액 · 배당수익률 순 페이지(assetType 은 null · ALL · EQUITY · ETF)
   Page<StockPriceDto> getAllStocksWithPrices(

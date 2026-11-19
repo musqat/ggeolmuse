@@ -51,8 +51,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
   public StrategyResponse execute(StrategyRequest request) {
     // null 은 검증이 막음
     if (request != null && !(request instanceof ConditionalStrategyRequest)) {
-      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH,
-        "조건부 매수 전략에 다른 요청이 왔습니다: " + request.getStrategyType());
+      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH);
     }
     return runConditional((ConditionalStrategyRequest) request);
   }
@@ -83,10 +82,10 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
       // 마무리(평가일 시세/환율/배당재투자/계산) — 공통 로직 위임
       StrategyFinalizer.Result finalized = StrategyFinalizer.run(
-        marketData, request.getSymbol(), request.getStartDate(), actualEndDate, request.getCurrentFxRate(),
-        request.getPurchaseFxRate(), Boolean.TRUE.equals(request.getReinvestDividends()),
-        request.getDividendTaxRate(), transactions, purchases.priceMap(), purchases.dailyFx(), request.getPeriodEnd(),
-        request.getTradingFeeRate(), !request.sells() && harvests(request));
+        marketData,
+        StrategyFinalizer.Settings.of(request, actualEndDate, Boolean.TRUE.equals(request.getReinvestDividends()),
+          !request.sells() && harvests(request)),
+        transactions, purchases.priceMap(), purchases.dailyFx());
 
       log.info("조건부 매수 전략 실행 완료: {} - {}회 투자, 수익률 {}%",
         request.getSymbol(), finalized.transactions().size(),
@@ -188,21 +187,20 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
 
   // 기간 일봉(쓸 수 있는 일봉이 없으면 DATA_NOT_FOUND)
   private java.util.Map<LocalDate, OHLCPriceDto> loadPrices(ConditionalStrategyRequest request,
-    LocalDate actualEndDate) {
+                                                            LocalDate actualEndDate) {
     // 기간 일봉을 한 번에 조회
     log.info("조건부 매수 전략 - Bulk 데이터 조회 시작: {} ~ {}", request.getStartDate(), actualEndDate);
     java.util.Map<LocalDate, OHLCPriceDto> priceMap = BacktestDataUtils.buildPriceMap(
       marketData, request.getSymbol(), request.getStartDate(), actualEndDate);
     if (priceMap.values().stream().noneMatch(PriceLookup::isUsable)) {
-      throw new BacktestException(BacktestResponse.DATA_NOT_FOUND,
-        "조건부 매수 전략 실행 가능한 데이터가 없습니다");
+      throw new BacktestException(BacktestResponse.DATA_NOT_FOUND);
     }
     return priceMap;
   }
 
   // 첫 시세일부터 평가일까지 날마다 환율(수동 환율이면 빈 값)
   private FxRates loadFxRates(ConditionalStrategyRequest request, java.util.Map<LocalDate, OHLCPriceDto> priceMap,
-    LocalDate actualEndDate) {
+                              LocalDate actualEndDate) {
     if (request.getPurchaseFxRate() != null) {
       return FxRates.EMPTY;
     }

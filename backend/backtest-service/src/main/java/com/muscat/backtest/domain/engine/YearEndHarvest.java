@@ -58,20 +58,20 @@ public final class YearEndHarvest {
 
   // 양도세 · 연말 정리를 켜고 시작일 + 2년이 평가일 이하인지(기간 끝에 한 번에 판 양도세와 견주는지)
   public static boolean compares(Boolean capitalGainsTax, Boolean yearEndHarvest, LocalDate start,
-    LocalDate valuationDate) {
+                                 LocalDate valuationDate) {
     return enabled(capitalGainsTax, yearEndHarvest) && !start.plusYears(2).isAfter(valuationDate);
   }
 
   // 쓸 수 있는 일봉 날짜로 본 연말 정리 날
   public static NavigableSet<LocalDate> dates(Map<LocalDate, OHLCPriceDto> priceMap, LocalDate start,
-    LocalDate valuationDate) {
+                                              LocalDate valuationDate) {
     return dates(priceMap.values().stream().filter(PriceLookup::isUsable).map(OHLCPriceDto::date).toList(), start,
       valuationDate);
   }
 
   // 12월 31일이 평가일 이하인 해마다 결제일이 같은 해인 마지막 12월 일봉 날, 시작일 앞이면 뺌
   public static NavigableSet<LocalDate> dates(Collection<LocalDate> candleDates, LocalDate start,
-    LocalDate valuationDate) {
+                                              LocalDate valuationDate) {
     Map<Integer, List<LocalDate>> byYear = candleDates.stream().distinct().sorted()
       .collect(Collectors.groupingBy(LocalDate::getYear, TreeMap::new, Collectors.toList()));
     NavigableSet<LocalDate> dates = new TreeSet<>();
@@ -95,7 +95,7 @@ public final class YearEndHarvest {
   // 받은 날짜까지 거래의 같은 해 실현 이익을 공제(수수료가 있으면 1센트 × 환율만큼 아래)에 맞추도록 받은 가격이 있는 종목마다 팔 주식 수
   // 공제 채우기는 평가 이익 큰 종목부터, 손실 상계는 평가 손실 큰 종목부터, 판 수는 소수 여덟째에서 내림 · 보유 상한, 남은 목표가 1달러 × 환율 아래면 팔지 않음
   public static List<Sale> plan(LocalDate date, List<StrategyTransaction> transactions, Map<String, BigDecimal> prices,
-    BigDecimal feeRate, BigDecimal fxRate) {
+                                BigDecimal feeRate, BigDecimal fxRate) {
     BigDecimal realized = CapitalGainsTaxCalculator.realizedByYear(CapitalGainsTaxCalculator.realizedGains(transactions))
       .getOrDefault(date.getYear(), BigDecimal.ZERO);
     BigDecimal margin = charged(feeRate) ? FEE_ROUNDING_USD.multiply(fxRate) : BigDecimal.ZERO;
@@ -128,7 +128,7 @@ public final class YearEndHarvest {
 
   // 받은 가격이 있고 주식이 있는 종목마다 보유 · 원화 원가와 수수료를 뺀 판 돈 × 환율 - 원가
   private static List<Holding> holdings(List<StrategyTransaction> transactions, Map<String, BigDecimal> prices,
-    BigDecimal feeRate, BigDecimal fxRate) {
+                                        BigDecimal feeRate, BigDecimal fxRate) {
     Map<String, CapitalGainsTaxCalculator.HoldingKrw> held = CapitalGainsTaxCalculator.holdingsKrw(transactions);
     BigDecimal kept = charged(feeRate) ? BigDecimal.ONE.subtract(feeRate) : BigDecimal.ONE;
     List<Holding> holdings = new ArrayList<>();
@@ -152,7 +152,7 @@ public final class YearEndHarvest {
 
   // 종목 하나를 받은 가격에 연말 정리한 거래(기본 환율 날이면 받은 날짜를 남김, 팔 것이 없으면 null)
   public static Trade single(LocalDate date, List<StrategyTransaction> transactions, BigDecimal price,
-    BigDecimal heldShares, BigDecimal heldCostUsd, BigDecimal feeRate, BigDecimal fxRate, boolean defaultFx) {
+                             BigDecimal heldShares, BigDecimal heldCostUsd, BigDecimal feeRate, BigDecimal fxRate, boolean defaultFx) {
     List<Sale> sales = plan(date, transactions, Map.of("", price), feeRate, fxRate);
     if (sales.isEmpty()) {
       return null;
@@ -165,7 +165,7 @@ public final class YearEndHarvest {
 
   // 받은 가격에 정한 주식을 팔고(매도 수수료 뺌, 판 몫 원가 = 보유 원가 × 판 수 ÷ 보유 수, 전량이면 원가 전부) 판 돈 전부로 다시 산 거래(매수 수수료 뺌)
   public static Trade trade(LocalDate date, Sale sale, BigDecimal price, BigDecimal heldShares, BigDecimal heldCostUsd,
-    BigDecimal feeRate, BigDecimal fxRate) {
+                            BigDecimal feeRate, BigDecimal fxRate) {
     boolean all = sale.shares().compareTo(heldShares) >= 0;
     BigDecimal shares = all ? heldShares : sale.shares();
     BigDecimal soldCost = all

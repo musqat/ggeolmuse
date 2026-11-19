@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
+import com.muscat.marketdata.common.enums.response.MarketDataResponse;
 import com.muscat.marketdata.common.exception.YahooFinanceException;
 import com.muscat.marketdata.datasource.yf.client.YahooFinanceClient;
 import com.muscat.marketdata.datasource.yf.client.YahooParser;
@@ -58,7 +59,7 @@ class YahooSourcesTest {
       given(yahooClient.getDailyChartRaw(anyString(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
         .willReturn("{json}");
       given(yahooParser.parseDailyAdjusted("{json}", "NEW", FROM, TO)).willReturn(List.of());
-      given(yahooParser.parseDailyAdjusted("{json}", "GONE", FROM, TO)).willThrow(new YahooFinanceException("no result"));
+      given(yahooParser.parseDailyAdjusted("{json}", "GONE", FROM, TO)).willThrow(new YahooFinanceException(MarketDataResponse.YAHOO_NO_DATA));
 
       assertThat(source.fetchDailyAdjusted("NEW", FROM, TO)).isEmpty();
       assertThat(source.fetchDailyAdjusted("GONE", FROM, TO)).isEmpty();
@@ -87,7 +88,7 @@ class YahooSourcesTest {
       given(yahooClient.getDailyChartRaw(anyString(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
         .willReturn("{json}");
       given(yahooParser.parseDividends("{json}", "AAPL", FROM, TO)).willReturn(dividends);
-      given(yahooParser.parseDividends("{json}", "GONE", FROM, TO)).willThrow(new YahooFinanceException("no result"));
+      given(yahooParser.parseDividends("{json}", "GONE", FROM, TO)).willThrow(new YahooFinanceException(MarketDataResponse.YAHOO_NO_DATA));
 
       assertThat(source.fetchDividends("AAPL", FROM, TO)).isSameAs(dividends);
       assertThat(source.fetchDividends("GONE", FROM, TO)).isEmpty();

@@ -2,6 +2,7 @@ package com.muscat.marketdata.datasource.yf.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.muscat.marketdata.common.enums.response.MarketDataResponse;
 import com.muscat.marketdata.common.exception.YahooFinanceException;
 import com.muscat.marketdata.datasource.common.AssetTypeRule;
 import com.muscat.marketdata.domain.dto.CandleDto;
@@ -32,7 +33,7 @@ public class YahooParser {
   private static final String NULL_TEXT = "null";
 
   public List<CandleDto> parseDailyAdjusted(String rawJson, String symbolOverride,
-    LocalDate fromDate, LocalDate toDate) {
+                                            LocalDate fromDate, LocalDate toDate) {
     log.debug("Yahoo 일봉 데이터 파싱 시작: symbol={}, from={}, to={}", symbolOverride, fromDate, toDate);
 
     try {
@@ -53,12 +54,12 @@ public class YahooParser {
       throw e;
     } catch (Exception e) {
       log.error("Yahoo 일봉 파싱 실패: symbol={}, error={}", symbolOverride, e.getMessage());
-      throw new YahooFinanceException("Yahoo 일봉 파싱 실패: " + symbolOverride, e);
+      throw new YahooFinanceException(MarketDataResponse.YAHOO_RESPONSE_INVALID, e);
     }
   }
 
   public List<DividendDto> parseDividends(String rawJson, String symbol, LocalDate fromDate,
-    LocalDate toDate) {
+                                          LocalDate toDate) {
     log.debug("Yahoo 배당 데이터 파싱 시작: symbol={}", symbol);
 
     try {
@@ -81,14 +82,14 @@ public class YahooParser {
       throw e;
     } catch (Exception e) {
       log.error("Yahoo 배당 파싱 실패: symbol={}, error={}", symbol, e.getMessage());
-      throw new YahooFinanceException("Yahoo 배당 파싱 실패: " + symbol, e);
+      throw new YahooFinanceException(MarketDataResponse.YAHOO_RESPONSE_INVALID, e);
     }
   }
 
   private JsonNode getChartResult(JsonNode root) {
     JsonNode chartResult = root.path("chart").path("result").get(0);
     if (chartResult == null || chartResult.isNull()) {
-      throw new YahooFinanceException("Yahoo Finance 응답에 차트 결과가 없습니다");
+      throw new YahooFinanceException(MarketDataResponse.YAHOO_NO_DATA);
     }
     return chartResult;
   }
@@ -108,7 +109,7 @@ public class YahooParser {
 
     if (timestamps == null || quote == null || timestamps.isNull() || quote.isNull()
       || !timestamps.isArray() || !quote.isObject()) {
-      throw new YahooFinanceException("Yahoo Finance 응답에 필수 데이터가 없습니다");
+      throw new YahooFinanceException(MarketDataResponse.YAHOO_NO_DATA);
     }
 
     return new TimeSeriesData(
@@ -166,7 +167,7 @@ public class YahooParser {
   }
 
   private List<CandleDto> buildDailyAdjustedDtos(TimeSeriesData data, ChartMetadata metadata,
-    LocalDate fromDate, LocalDate toDate, Map<LocalDate, BigDecimal> splits) {
+                                                 LocalDate fromDate, LocalDate toDate, Map<LocalDate, BigDecimal> splits) {
     List<CandleDto> results = new ArrayList<>();
 
     for (int i = 0; i < data.timestamps().size(); i++) {
@@ -190,7 +191,7 @@ public class YahooParser {
   }
 
   private CandleDto createDailyAdjustedDto(TimeSeriesData data, ChartMetadata metadata,
-    LocalDate date, int index, BigDecimal splitCoefficient) {
+                                           LocalDate date, int index, BigDecimal splitCoefficient) {
     BigDecimal open = getDecimalValueAt(data.open(), index);
     BigDecimal high = getDecimalValueAt(data.high(), index);
     BigDecimal low = getDecimalValueAt(data.low(), index);
@@ -226,7 +227,7 @@ public class YahooParser {
   }
 
   private List<DividendDto> extractDividendEvents(JsonNode dividends, String symbol,
-    LocalDate fromDate, LocalDate toDate) {
+                                                  LocalDate fromDate, LocalDate toDate) {
     List<DividendDto> results = new ArrayList<>();
 
     Iterator<String> fieldNames = dividends.fieldNames();
@@ -247,7 +248,7 @@ public class YahooParser {
   }
 
   private DividendDto createDividendDto(JsonNode event, String eventKey, String symbol,
-    LocalDate fromDate, LocalDate toDate) {
+                                        LocalDate fromDate, LocalDate toDate) {
     // 삼항 양쪽 Long(long 과 섞이면 언박싱돼 null 일 때 NPE)
     Long timestamp = event.hasNonNull("date")
       ? Long.valueOf(event.get("date").asLong())

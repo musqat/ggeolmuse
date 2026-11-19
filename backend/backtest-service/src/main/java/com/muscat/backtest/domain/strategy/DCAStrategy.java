@@ -51,8 +51,7 @@ public class DCAStrategy implements InvestmentStrategy {
   public StrategyResponse execute(StrategyRequest request) {
     // null 은 검증이 막음
     if (request != null && !(request instanceof DcaStrategyRequest)) {
-      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH,
-        "적립식 전략에 다른 요청이 왔습니다: " + request.getStrategyType());
+      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH);
     }
     return runDca((DcaStrategyRequest) request);
   }
@@ -79,10 +78,10 @@ public class DCAStrategy implements InvestmentStrategy {
 
       // 마무리(평가일 시세/환율/배당재투자/계산) — 공통 로직 위임
       StrategyFinalizer.Result finalized = StrategyFinalizer.run(
-        marketData, request.getSymbol(), request.getStartDate(), actualEndDate, request.getCurrentFxRate(),
-        request.getPurchaseFxRate(), Boolean.TRUE.equals(request.getReinvestDividends()),
-        request.getDividendTaxRate(), transactions, purchases.priceMap(), purchases.dailyFx(), request.getPeriodEnd(),
-        request.getTradingFeeRate(), YearEndHarvest.enabled(request.getCapitalGainsTax(), request.getYearEndHarvest()));
+        marketData,
+        StrategyFinalizer.Settings.of(request, actualEndDate, Boolean.TRUE.equals(request.getReinvestDividends()),
+          YearEndHarvest.enabled(request.getCapitalGainsTax(), request.getYearEndHarvest())),
+        transactions, purchases.priceMap(), purchases.dailyFx());
 
       log.info("DCA 전략 실행 완료: {} - {}회 투자, 수익률 {}%",
         request.getSymbol(), finalized.transactions().size(),
@@ -134,8 +133,7 @@ public class DCAStrategy implements InvestmentStrategy {
     Map<LocalDate, OHLCPriceDto> priceMap = BacktestDataUtils.buildPriceMap(
       marketData, request.getSymbol(), request.getStartDate(), actualEndDate);
     if (priceMap.values().stream().noneMatch(PriceLookup::isUsable)) {
-      throw new BacktestException(BacktestResponse.DATA_NOT_FOUND,
-        "적립식 투자 전략 실행 가능한 데이터가 없습니다");
+      throw new BacktestException(BacktestResponse.DATA_NOT_FOUND);
     }
 
     LocalDate first = request.getFirstPurchaseDate() != null ? request.getFirstPurchaseDate() : request.getStartDate();

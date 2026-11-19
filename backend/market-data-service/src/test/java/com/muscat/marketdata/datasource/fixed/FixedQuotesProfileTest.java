@@ -48,7 +48,7 @@ class FixedQuotesProfileTest {
   @DisplayName("일봉 · 배당 · 환율 · 종목 정보 · 시가총액 자리에 고정 공급원이 들어간다")
   void sourcesAreFixed() {
     assertThat(List.of(candleSource, dividendSource, fxSource, assetInfoSource, marketCapSource))
-        .allMatch(FixedQuoteSource.class::isInstance);
+      .allMatch(FixedQuoteSource.class::isInstance);
   }
 
   @Test
@@ -59,13 +59,13 @@ class FixedQuotesProfileTest {
     assertThat(listing.assets()).extracting(Asset::getSymbol).containsExactly("FQA", "FQB", "SPY");
     assertThat(listing.complete()).isTrue();
     assertThat(beanFactory.getDependenciesForBean("symbolCatalog")).contains("fixedQuoteSource")
-        .doesNotContain("listingStatusSource");
+      .doesNotContain("listingStatusSource");
   }
 
   @Test
   @DisplayName("야후 스케줄러의 시가총액 갱신도 고정 공급원을 부른다")
   void schedulerUsesFixedMarketCaps() {
     assertThat(beanFactory.getDependenciesForBean("yahooScheduler")).contains("fixedQuoteSource")
-        .doesNotContain("yahooMarketCapService");
+      .doesNotContain("yahooMarketCapService");
   }
 }

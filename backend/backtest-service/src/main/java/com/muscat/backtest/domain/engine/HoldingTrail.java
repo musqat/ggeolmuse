@@ -25,7 +25,7 @@ final class HoldingTrail {
   private final List<StrategyTransaction> trades = new ArrayList<>();
 
   HoldingTrail(NavigableSet<LocalDate> dates, Map<LocalDate, OHLCPriceDto> priceMap, BigDecimal feeRate,
-    Function<LocalDate, BigDecimal> fx) {
+               Function<LocalDate, BigDecimal> fx) {
     this.dates = dates;
     this.priceMap = priceMap;
     this.feeRate = feeRate;

@@ -13,9 +13,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RefreshResponse {
-    private int requested;
-    private int published;
-    private List<String> notFound;
-    private LocalDate from;
-    private LocalDate to;
+  private int requested;
+  private int published;
+  private List<String> notFound;
+  private LocalDate from;
+  private LocalDate to;
 }

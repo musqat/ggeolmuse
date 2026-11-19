@@ -2,6 +2,7 @@ package com.muscat.trade.common.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.muscat.commonlib.exception.CommonResponse;
 import com.muscat.trade.api.controller.DividendAdminController;
 import com.muscat.trade.api.controller.PortfolioController;
 import com.muscat.trade.api.controller.TradeApiController;
@@ -19,7 +20,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.validation.BeanPropertyBindingResult;
@@ -38,14 +38,6 @@ class GlobalExceptionHandlerTest {
     new ExceptionHandlerMethodResolver(GlobalExceptionHandler.class);
 
   private final MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/trading/buy");
-
-  private static GlobalExceptionHandler handler(String... profiles) {
-    MockEnvironment environment = new MockEnvironment();
-    environment.setActiveProfiles(profiles);
-    GlobalExceptionHandler handler = new GlobalExceptionHandler();
-    handler.setEnvironment(environment);
-    return handler;
-  }
 
   private String handlerFor(Exception e) {
     return Objects.requireNonNull(resolver.resolveMethod(e)).getName();
@@ -73,13 +65,13 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
-  @DisplayName("운영에서는 예상하지 못한 예외의 내용을 응답에 싣지 않는다")
-  void generalException_Production_HidesDetail() {
-    ResponseEntity<ProblemDetail> prod = handler("prod")
+  @DisplayName("그 밖의 예외는 내용을 싣지 않고 공통 500 문구로 응답한다")
+  void generalException_CommonMessage() {
+    ResponseEntity<ProblemDetail> response = new GlobalExceptionHandler()
       .handleGeneralException(new IllegalStateException("jdbc:postgresql://db/secret"), request);
 
-    assertThat(prod.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-    assertThat(prod.getBody()).extracting(ProblemDetail::getDetail).isEqualTo("거래 서비스에 문제가 발생했습니다.");
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    assertThat(response.getBody()).extracting(ProblemDetail::getDetail).isEqualTo(CommonResponse.INTERNAL_SERVER_ERROR.getMessage());
   }
 
   // 컨트롤러 패키지 밖에 둔 컨트롤러

@@ -110,7 +110,7 @@ class LayerDependencyTest {
     reader.accept(new ClassVisitor(Opcodes.ASM9) {
       @Override
       public void visit(int version, int access, String name, String signature, String superName,
-        String[] interfaces) {
+                        String[] interfaces) {
         addName(types, superName);
         if (interfaces != null) {
           for (String type : interfaces) {
@@ -148,7 +148,7 @@ class LayerDependencyTest {
 
       @Override
       public MethodVisitor visitMethod(int access, String name, String descriptor, String signature,
-        String[] exceptions) {
+                                       String[] exceptions) {
         addDescriptor(types, descriptor);
         addDescriptor(types, signature);
         if (exceptions != null) {
@@ -182,14 +182,14 @@ class LayerDependencyTest {
 
           @Override
           public void visitMethodInsn(int opcode, String owner, String methodName, String methodDescriptor,
-            boolean isInterface) {
+                                      boolean isInterface) {
             addName(types, owner);
             addDescriptor(types, methodDescriptor);
           }
 
           @Override
           public void visitInvokeDynamicInsn(String methodName, String methodDescriptor, Handle bootstrap,
-            Object... arguments) {
+                                             Object... arguments) {
             addDescriptor(types, methodDescriptor);
             for (Object argument : arguments) {
               if (argument instanceof Handle handle) {
@@ -220,7 +220,7 @@ class LayerDependencyTest {
 
           @Override
           public void visitLocalVariable(String variable, String variableDescriptor, String signature, Label start,
-            Label end, int index) {
+                                         Label end, int index) {
             addDescriptor(types, variableDescriptor);
             addDescriptor(types, signature);
           }

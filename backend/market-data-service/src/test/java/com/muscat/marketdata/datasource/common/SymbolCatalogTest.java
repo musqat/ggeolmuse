@@ -61,9 +61,9 @@ class SymbolCatalogTest {
   @DisplayName("상장 목록은 거른 종목과 거르기 전 심볼을 함께 준다")
   void fetchListing_KeepsSymbolsBeforeFilters() {
     given(listingSource.fetch()).willReturn(List.of(
-        asset("EVOX", "Evolution Global Acquisition Corp - Class A"),
-        asset("EVOXW", "Evolution Global Acquisition Corp - Warrants"),
-        asset("ZVZZT", "NASDAQ TEST STOCK")));
+      asset("EVOX", "Evolution Global Acquisition Corp - Class A"),
+      asset("EVOXW", "Evolution Global Acquisition Corp - Warrants"),
+      asset("ZVZZT", "NASDAQ TEST STOCK")));
 
     SymbolCatalog.Listing listing = catalog.fetchListing();
 
@@ -115,17 +115,17 @@ class SymbolCatalogTest {
 
   private static Asset asset(String symbol, String name) {
     return Asset.builder().symbol(symbol).name(name).country("US")
-        .currency("USD").assetType("EQUITY").build();
+      .currency("USD").assetType("EQUITY").build();
   }
 
   @ParameterizedTest
   @DisplayName("보통주가 아닌 것은 걸러진다")
   @ValueSource(strings = {
-      "EVgo Inc - Warrants (28/06/2026)",
-      "Quetta Acquisition Corp - Units (1 1 Rights)",
-      "Hennessy Advisors Inc Preferred Series A",
-      "Some Corp Depositary Shares",
-      "Acme Corp 5.5% Notes due 2030"
+    "EVgo Inc - Warrants (28/06/2026)",
+    "Quetta Acquisition Corp - Units (1 1 Rights)",
+    "Hennessy Advisors Inc Preferred Series A",
+    "Some Corp Depositary Shares",
+    "Acme Corp 5.5% Notes due 2030"
   })
   void 제외(String name) {
     given(listingSource.fetch()).willReturn(List.of(asset("X", name)));
@@ -136,13 +136,13 @@ class SymbolCatalogTest {
   @ParameterizedTest
   @DisplayName("정상 종목은 남는다")
   @ValueSource(strings = {
-      "Apple Inc",
-      "Lowe`s Cos. Inc",
-      "Corning Inc",
-      "International Seaways Inc",
-      "FS Bancorp Inc",
-      "SPDR S&P 500 ETF Trust",
-      "Vanguard Total Stock Market ETF"
+    "Apple Inc",
+    "Lowe`s Cos. Inc",
+    "Corning Inc",
+    "International Seaways Inc",
+    "FS Bancorp Inc",
+    "SPDR S&P 500 ETF Trust",
+    "Vanguard Total Stock Market ETF"
   })
   void 유지(String name) {
     given(listingSource.fetch()).willReturn(List.of(asset("X", name)));
@@ -155,9 +155,9 @@ class SymbolCatalogTest {
   void united_오탐_없음() {
     // 패턴의 앞 공백이 막는 경우(공백을 지우면 실패)
     given(listingSource.fetch()).willReturn(List.of(
-        asset("UAL", "United Airlines Holdings Inc"),
-        asset("UNH", "UnitedHealth Group Inc"),
-        asset("UNP", "Union Pacific Corp")));
+      asset("UAL", "United Airlines Holdings Inc"),
+      asset("UNH", "UnitedHealth Group Inc"),
+      asset("UNP", "Union Pacific Corp")));
 
     assertThat(catalog.fetchAll()).hasSize(3);
   }
@@ -167,9 +167,9 @@ class SymbolCatalogTest {
   void etf_유지() {
     // 워런트와 달리 만료 없이 주식처럼 거래(백테스트에 유효)
     given(listingSource.fetch()).willReturn(List.of(
-        asset("SPY", "SPDR S&P 500 ETF Trust"),
-        asset("QQQ", "Invesco QQQ Trust Series 1"),
-        asset("HIBL", "Direxion Daily S&P 500 High Beta Bull 3X ETF")));
+      asset("SPY", "SPDR S&P 500 ETF Trust"),
+      asset("QQQ", "Invesco QQQ Trust Series 1"),
+      asset("HIBL", "Direxion Daily S&P 500 High Beta Bull 3X ETF")));
 
     assertThat(catalog.fetchAll()).hasSize(3);
   }
@@ -178,9 +178,9 @@ class SymbolCatalogTest {
   @DisplayName("보통주 SPAC 은 남기고 유닛·워런트만 거른다")
   void spac() {
     given(listingSource.fetch()).willReturn(List.of(
-        asset("EVOX", "Evolution Global Acquisition Corp - Class A"),
-        asset("EVOXU", "Evolution Global Acquisition Corp - Units (1 Ord Cls A & 1 Warrant)"),
-        asset("EVOXW", "Evolution Global Acquisition Corp - Warrants")));
+      asset("EVOX", "Evolution Global Acquisition Corp - Class A"),
+      asset("EVOXU", "Evolution Global Acquisition Corp - Units (1 Ord Cls A & 1 Warrant)"),
+      asset("EVOXW", "Evolution Global Acquisition Corp - Warrants")));
 
     assertThat(catalog.fetchAll()).extracting(Asset::getSymbol).containsExactly("EVOX");
   }
@@ -189,9 +189,9 @@ class SymbolCatalogTest {
   @DisplayName("같은 심볼이 여러 번 오면 첫 것만 남긴다")
   void 중복_제거() {
     given(listingSource.fetch()).willReturn(List.of(
-        asset("AAPL", "Apple Inc"),
-        asset("AAPL", "Apple Inc Duplicate"),
-        asset("MSFT", "Microsoft Corporation")));
+      asset("AAPL", "Apple Inc"),
+      asset("AAPL", "Apple Inc Duplicate"),
+      asset("MSFT", "Microsoft Corporation")));
 
     List<Asset> result = catalog.fetchAll();
 
@@ -203,14 +203,14 @@ class SymbolCatalogTest {
   @DisplayName("거래소 테스트 종목은 이름이 비어도 기호로 거르고, 기호가 평범하면 이름으로 거른다")
   void 테스트_종목() {
     given(listingSource.fetch()).willReturn(List.of(
-        asset("MTEST-A", ""),
-        asset("PTEST-X", ""),
-        asset("ZTST", ""),
-        asset("ZVZZT", "NASDAQ TEST STOCK"),
-        asset("ZBZZT", "ZBZZT"),
-        asset("CBO", "NYSE LISTED TEST STOCK FOR CTS AND CQS"),
-        asset("ZVV", "LISTED TEST SYMBOL"),
-        asset("AAPL", "Apple Inc")));
+      asset("MTEST-A", ""),
+      asset("PTEST-X", ""),
+      asset("ZTST", ""),
+      asset("ZVZZT", "NASDAQ TEST STOCK"),
+      asset("ZBZZT", "ZBZZT"),
+      asset("CBO", "NYSE LISTED TEST STOCK FOR CTS AND CQS"),
+      asset("ZVV", "LISTED TEST SYMBOL"),
+      asset("AAPL", "Apple Inc")));
 
     assertThat(catalog.fetchAll()).extracting(Asset::getSymbol).containsExactly("AAPL");
   }
@@ -219,10 +219,10 @@ class SymbolCatalogTest {
   @DisplayName("TEST 가 든 진짜 종목은 남긴다")
   void 테스트_종목_오탐_없음() {
     given(listingSource.fetch()).willReturn(List.of(
-        asset("TEST", "YIELDMAX(R) TSLA PERFORMANCE & DISTRIBUTION TARGET 25(TM) ETF"),
-        asset("AEHR", "Aehr Test Systems"),
-        asset("INTT", "Intest Corp"),
-        asset("HSCS", "Heart Test Laboratories Inc")));
+      asset("TEST", "YIELDMAX(R) TSLA PERFORMANCE & DISTRIBUTION TARGET 25(TM) ETF"),
+      asset("AEHR", "Aehr Test Systems"),
+      asset("INTT", "Intest Corp"),
+      asset("HSCS", "Heart Test Laboratories Inc")));
 
     assertThat(catalog.fetchAll()).extracting(Asset::getSymbol).containsExactly("TEST", "AEHR", "INTT", "HSCS");
   }
@@ -232,23 +232,23 @@ class SymbolCatalogTest {
   void 심볼_형식() {
     // CAPTW(EXP20260807) 한 줄이 기동 때 신규 종목 저장 전체를 실패시키는 경우
     given(listingSource.fetch()).willReturn(List.of(
-        asset("CAPTW(EXP20260807)", "Abcam plc"),
-        asset("AB(EXP1)", "Short Annotated Corp"),
-        asset("ABCDEFGHIJKLMNOPQ", "Seventeen Letters Corp"),
-        asset("ABCDEFGHIJKLMNOP", "Sixteen Letters Corp"),
-        asset("BRK-B", "Berkshire Hathaway Inc"),
-        asset("AAPL", "Apple Inc")));
+      asset("CAPTW(EXP20260807)", "Abcam plc"),
+      asset("AB(EXP1)", "Short Annotated Corp"),
+      asset("ABCDEFGHIJKLMNOPQ", "Seventeen Letters Corp"),
+      asset("ABCDEFGHIJKLMNOP", "Sixteen Letters Corp"),
+      asset("BRK-B", "Berkshire Hathaway Inc"),
+      asset("AAPL", "Apple Inc")));
 
     assertThat(catalog.fetchAll()).extracting(Asset::getSymbol)
-        .containsExactly("ABCDEFGHIJKLMNOP", "BRK-B", "AAPL");
+      .containsExactly("ABCDEFGHIJKLMNOP", "BRK-B", "AAPL");
   }
 
   @Test
   @DisplayName("심볼이 비었으면 버린다")
   void 빈_심볼() {
     given(listingSource.fetch()).willReturn(List.of(
-        asset("", "심볼 없는 행"),
-        asset("AAPL", "Apple Inc")));
+      asset("", "심볼 없는 행"),
+      asset("AAPL", "Apple Inc")));
 
     assertThat(catalog.fetchAll()).extracting(Asset::getSymbol).containsExactly("AAPL");
   }
@@ -283,7 +283,7 @@ class SymbolCatalogTest {
   void 패턴_없음() {
     setPatterns("");
     given(listingSource.fetch())
-        .willReturn(List.of(asset("X", "EVgo Inc - Warrants (28/06/2026)")));
+      .willReturn(List.of(asset("X", "EVgo Inc - Warrants (28/06/2026)")));
 
     assertThat(catalog.fetchAll()).hasSize(1);
   }

@@ -2,6 +2,8 @@ package com.muscat.marketdata.domain.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.muscat.marketdata.common.enums.response.MarketDataResponse;
+import com.muscat.marketdata.common.exception.MarketDataException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -63,7 +65,7 @@ public class AdminJobState {
     try {
       return Optional.of(mapper.readValue(value, type));
     } catch (JsonProcessingException e) {
-      throw new IllegalStateException("관리자 작업 상태를 읽지 못함: " + name, e);
+      throw new MarketDataException(MarketDataResponse.ADMIN_JOB_STATE_UNREADABLE, e);
     }
   }
 
@@ -81,7 +83,7 @@ public class AdminJobState {
     try {
       return detail == null ? null : mapper.writeValueAsString(detail);
     } catch (JsonProcessingException e) {
-      throw new IllegalStateException("관리자 작업 상태를 쓰지 못함", e);
+      throw new MarketDataException(MarketDataResponse.ADMIN_JOB_STATE_UNWRITABLE, e);
     }
   }
 }

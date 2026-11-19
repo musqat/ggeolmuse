@@ -22,7 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 public final class BacktestDataUtils {
 
   private BacktestDataUtils() {
-    throw new AssertionError("유틸리티 클래스는 인스턴스화할 수 없습니다");
   }
 
   /**
@@ -41,8 +40,7 @@ public final class BacktestDataUtils {
     var response = marketData.getCurrentPrice(symbol);
 
     if (response == null || !response.available()) {
-      throw new BacktestException(BacktestResponse.STOCK_DATA_NOT_FOUND,
-        "현재 주가 데이터를 찾을 수 없습니다: " + symbol);
+      throw new BacktestException(BacktestResponse.STOCK_DATA_NOT_FOUND);
     }
 
     return response;

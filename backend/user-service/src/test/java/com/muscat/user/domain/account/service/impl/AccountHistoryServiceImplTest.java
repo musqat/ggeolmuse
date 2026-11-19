@@ -7,7 +7,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import com.muscat.commonlib.exception.ServiceException;
+import com.muscat.commonlib.exception.BusinessException;
 import com.muscat.user.common.enums.response.AccountHistoryResponse;
 import com.muscat.user.common.enums.response.AccountResponse;
 import com.muscat.user.common.enums.type.TransactionType;
@@ -153,7 +153,7 @@ class AccountHistoryServiceImplTest {
       assertThatThrownBy(() ->
         accountHistoryService.createDepositHistory(
           accountId, negativeAmount, "KRW", "테스트", "REF_001")
-      ).isInstanceOf(ServiceException.class);
+      ).isInstanceOf(BusinessException.class);
 
       verify(accountHistoryRepository, never()).save(any(AccountHistory.class));
     }

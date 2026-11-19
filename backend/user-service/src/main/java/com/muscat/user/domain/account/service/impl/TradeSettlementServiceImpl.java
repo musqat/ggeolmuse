@@ -30,10 +30,10 @@ public class TradeSettlementServiceImpl implements TradeSettlementService {
   private final TransactionTemplate transactionTemplate;
 
   public TradeSettlementServiceImpl(AccountService accountService,
-    TradeSettlementRepository tradeSettlementRepository,
-    TradeRejectedEventProducer tradeRejectedEventProducer,
-    TradeSettledEventProducer tradeSettledEventProducer,
-    PlatformTransactionManager transactionManager) {
+                                    TradeSettlementRepository tradeSettlementRepository,
+                                    TradeRejectedEventProducer tradeRejectedEventProducer,
+                                    TradeSettledEventProducer tradeSettledEventProducer,
+                                    PlatformTransactionManager transactionManager) {
     this.accountService = accountService;
     this.tradeSettlementRepository = tradeSettlementRepository;
     this.tradeRejectedEventProducer = tradeRejectedEventProducer;

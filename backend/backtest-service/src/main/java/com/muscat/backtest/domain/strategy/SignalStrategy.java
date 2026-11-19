@@ -15,6 +15,7 @@ import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.FxRates;
 import com.muscat.backtest.common.util.PriceLookup;
 import com.muscat.backtest.domain.validation.BacktestRequestValidator;
+import com.muscat.backtest.domain.dto.request.RequestOptions;
 import com.muscat.backtest.domain.dto.request.SignalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.StrategyRequest;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
@@ -33,7 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 
 // 신호 전략 공통 매매: 매매 종목 일봉마다 신호대로 가진 돈 전부로 사거나 전량 팜(처음 매수는 원금, 이후 매수는 판 돈, 트레일링 스탑 · 부분 익절은 정한 몫)
 @Slf4j
-abstract class SignalStrategy<R extends SignalStrategyRequest> implements InvestmentStrategy {
+abstract class SignalStrategy<R extends RequestOptions & SignalStrategyRequest> implements InvestmentStrategy {
 
   // 모의 계좌 · 보유 · 트레일링 스탑 · 부분 익절과 첫 매수를 했는지
   private static final class Book {
@@ -54,7 +55,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
 
     // 원금(첫 매수)이나 판 돈 전부로 사고 트레일링 스탑 기준가 · 부분 익절 첫 단계를 엶(계획일은 신호 난 날)
     private void buy(SignalStrategyRequest request, LocalDate planned, LocalDate date, BigDecimal price,
-      String trigger) {
+                     String trigger) {
       StrategyTransaction buy = started
         ? ledger.buyWithCash(holding, planned, date, price, ledger.cash(), trigger, null)
         : ledger.buyWithDeposit(holding, planned, date, price, request.getInvestmentAmount(), trigger, null);
@@ -64,7 +65,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
 
     // 받은 날짜 · 가격으로 정한 주식 · 원가를 판 거래(계획일은 신호 난 날)
     private StrategyTransaction sell(LocalDate planned, LocalDate date, BigDecimal price, BigDecimal shares,
-      BigDecimal cost, String trigger) {
+                                     BigDecimal cost, String trigger) {
       return ledger.sell(holding, planned, date, price, shares, cost, trigger, null);
     }
 
@@ -110,8 +111,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
   public StrategyResponse execute(StrategyRequest request) {
     // null 은 검증이 막음
     if (request != null && !requestType.isInstance(request)) {
-      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH,
-        label() + " 전략에 다른 요청이 왔습니다: " + request.getStrategyType());
+      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH);
     }
     return run(requestType.cast(request));
   }
@@ -141,9 +141,8 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
       StrategyPurchases trades = trade(request, priceMap, prices, signal, actualEndDate, taxPayer);
 
       StrategyFinalizer.Result finalized = StrategyFinalizer.run(
-        marketData, request.getSymbol(), request.getStartDate(), actualEndDate, request.getCurrentFxRate(),
-        request.getPurchaseFxRate(), false, request.getDividendTaxRate(), trades.transactions(), trades.priceMap(),
-        trades.dailyFx(), request.getPeriodEnd(), request.getTradingFeeRate(), false);
+        marketData, StrategyFinalizer.Settings.of(request, actualEndDate, false, false), trades.transactions(),
+        trades.priceMap(), trades.dailyFx());
 
       log.info("{} 전략 실행 완료: {} - 거래 {}건, 수익률 {}%",
         label(), request.getSymbol(), finalized.transactions().size(), finalized.calculation().getTotalReturnPercent());
@@ -184,7 +183,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
   private SignalPrices signalPrices(String symbol, LocalDate from, LocalDate start, LocalDate end) {
     SignalPrices prices = SignalPrices.of(BacktestDataUtils.buildPriceMap(marketData, symbol, from, end));
     if (prices.candles().isEmpty() || prices.candles().getLast().date().isBefore(start)) {
-      throw new BacktestException(BacktestResponse.DATA_NOT_FOUND, "신호 종목 시세가 없습니다");
+      throw new BacktestException(BacktestResponse.SIGNAL_DATA_NOT_FOUND);
     }
     return prices;
   }
@@ -193,7 +192,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
   // 트레일링 스탑 다음 부분 익절을 신호로 팔지 않는 날만 보고, 다 팔면 새 매수 신호까지 사지 않음, 연말 정리 날은 사고판 뒤 연말 정리
   // 다음 거래일 시가 체결은 체결일 첫 매매(매도는 양도세 납부 전, 매수는 납부 뒤 남은 돈으로), 마지막 거래일 신호는 체결 안 함
   private StrategyPurchases trade(R request, Map<LocalDate, OHLCPriceDto> priceMap, SignalPrices signalPrices,
-    TradeSignal signal, LocalDate actualEndDate, CapitalGainsTaxPayer taxPayer) {
+                                  TradeSignal signal, LocalDate actualEndDate, CapitalGainsTaxPayer taxPayer) {
     LocalDate start = request.getStartDate();
     List<OHLCPriceDto> candles = SignalPrices.usable(priceMap);
     FxRates fxRates = loadFxRates(request, candles, actualEndDate);
@@ -269,8 +268,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
       .map(OHLCPriceDto::date)
       .filter(date -> !date.isBefore(start))
       .findFirst()
-      .orElseThrow(() -> new BacktestException(BacktestResponse.DATA_NOT_FOUND,
-        label() + " 전략 실행 가능한 데이터가 없습니다"));
+      .orElseThrow(() -> new BacktestException(BacktestResponse.DATA_NOT_FOUND));
     if (request.getPurchaseFxRate() != null) {
       return FxRates.EMPTY;
     }

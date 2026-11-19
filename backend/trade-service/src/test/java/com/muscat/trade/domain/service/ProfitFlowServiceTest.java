@@ -91,7 +91,7 @@ class ProfitFlowServiceTest {
   }
 
   private Trade trade(long accountId, TradeType type, String symbol, String quantity, String price, String fee,
-    LocalDate tradeDate, TradeStatus status, LocalDateTime createdAt) {
+                      LocalDate tradeDate, TradeStatus status, LocalDateTime createdAt) {
     return Trade.builder()
       .id(ids++)
       .userId(USER)

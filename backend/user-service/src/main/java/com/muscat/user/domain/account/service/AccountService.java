@@ -37,7 +37,7 @@ public interface AccountService {
 
   // KRW → USD 환전(하루 안의 같은 중복 요청 키는 한 번만)
   void exchangeKrwToUsd(Long accountId, Long userId, BigDecimal krwAmount, BigDecimal exchangeRate,
-    IdempotencyKey key);
+                        IdempotencyKey key);
 
   // KRW → USD 환전(중복 요청 키 없음)
   default void exchangeKrwToUsd(Long accountId, Long userId, BigDecimal krwAmount, BigDecimal exchangeRate) {
@@ -46,7 +46,7 @@ public interface AccountService {
 
   // USD → KRW 환전(하루 안의 같은 중복 요청 키는 한 번만)
   void exchangeUsdToKrw(Long accountId, Long userId, BigDecimal usdAmount, BigDecimal exchangeRate,
-    IdempotencyKey key);
+                        IdempotencyKey key);
 
   // USD → KRW 환전(중복 요청 키 없음)
   default void exchangeUsdToKrw(Long accountId, Long userId, BigDecimal usdAmount, BigDecimal exchangeRate) {

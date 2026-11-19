@@ -16,25 +16,25 @@ import java.time.LocalDateTime;
 @Builder
 public class BacktestHistory {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @Column(nullable = true)
-    private String userId; // 사용자 ID (null 가능 - 비로그인 사용자)
+  @Column(nullable = true)
+  private String userId; // 사용자 ID (null 가능 - 비로그인 사용자)
 
-    @Column(nullable = false)
-    @Enumerated(EnumType.STRING)
-    private BacktestType backtestType;
+  @Column(nullable = false)
+  @Enumerated(EnumType.STRING)
+  private BacktestType backtestType;
 
-    @Column(columnDefinition = "TEXT")
-    private String requestParams; // 요청 파라미터 (JSON 형태)
+  @Column(columnDefinition = "TEXT")
+  private String requestParams; // 요청 파라미터 (JSON 형태)
 
-    @Column(length = 20)
-    private String fxRateMode; // 환율 설정 모드: "auto" 또는 "manual"
+  @Column(length = 20)
+  private String fxRateMode; // 환율 설정 모드: "auto" 또는 "manual"
 
-    @CreationTimestamp
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt; // 백테스팅 실행일시
+  @CreationTimestamp
+  @Column(nullable = false, updatable = false)
+  private LocalDateTime createdAt; // 백테스팅 실행일시
 
 }

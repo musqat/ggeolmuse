@@ -30,25 +30,25 @@ public class ExchangeCalculationResult {
 
   // KRW → USD 환전 결과 생성 (수수료 없음)
   public static ExchangeCalculationResult ofKrwToUsd(
-      BigDecimal krwAmount, BigDecimal exchangeRate) {
+    BigDecimal krwAmount, BigDecimal exchangeRate) {
 
     BigDecimal usdAmount = MoneyUtils.calculateKrwToUsd(krwAmount, exchangeRate);
 
     return new ExchangeCalculationResult(
-        krwAmount, exchangeRate, "KRW", "USD",
-        usdAmount, BigDecimal.ZERO, usdAmount
+      krwAmount, exchangeRate, "KRW", "USD",
+      usdAmount, BigDecimal.ZERO, usdAmount
     );
   }
 
   // USD → KRW 환전 결과 생성 (수수료 없음)
   public static ExchangeCalculationResult ofUsdToKrw(
-      BigDecimal usdAmount, BigDecimal exchangeRate) {
+    BigDecimal usdAmount, BigDecimal exchangeRate) {
 
     BigDecimal krwAmount = MoneyUtils.calculateUsdToKrw(usdAmount, exchangeRate);
 
     return new ExchangeCalculationResult(
-        usdAmount, exchangeRate, "USD", "KRW",
-        krwAmount, BigDecimal.ZERO, krwAmount
+      usdAmount, exchangeRate, "USD", "KRW",
+      krwAmount, BigDecimal.ZERO, krwAmount
     );
   }
 
@@ -81,19 +81,19 @@ public class ExchangeCalculationResult {
   // 환전 요약 정보
   public String getSummary() {
     return String.format("%s %s → %s %s (수수료: %s)",
-        MoneyUtils.formatAmount(requestAmount, fromCurrency), fromCurrency,
-        MoneyUtils.formatAmount(finalAmount, toCurrency), toCurrency,
-        MoneyUtils.formatAmount(commissionAmount, getCommissionCurrency()));
+      MoneyUtils.formatAmount(requestAmount, fromCurrency), fromCurrency,
+      MoneyUtils.formatAmount(finalAmount, toCurrency), toCurrency,
+      MoneyUtils.formatAmount(commissionAmount, getCommissionCurrency()));
   }
 
   // 상세 환전 정보 (환율 포함)
   public String getDetailedSummary() {
     return String.format("환전: %s %s → %s %s | 환율: %s | 수수료: %s %s (%.3f%%)",
-        MoneyUtils.formatAmount(requestAmount, fromCurrency), fromCurrency,
-        MoneyUtils.formatAmount(finalAmount, toCurrency), toCurrency,
-        exchangeRate,
-        MoneyUtils.formatAmount(commissionAmount, getCommissionCurrency()), getCommissionCurrency(),
-        getCommissionRate().multiply(new BigDecimal("100")));
+      MoneyUtils.formatAmount(requestAmount, fromCurrency), fromCurrency,
+      MoneyUtils.formatAmount(finalAmount, toCurrency), toCurrency,
+      exchangeRate,
+      MoneyUtils.formatAmount(commissionAmount, getCommissionCurrency()), getCommissionCurrency(),
+      getCommissionRate().multiply(new BigDecimal("100")));
   }
 
   // 수수료 청구 통화 (현재 정책: 항상 KRW)

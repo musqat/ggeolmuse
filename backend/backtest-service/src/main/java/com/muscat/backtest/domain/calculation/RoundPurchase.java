@@ -10,7 +10,7 @@ public record RoundPurchase(BigDecimal shares, BigDecimal feeUsd, BigDecimal cos
 
   // 원화 금액만큼 삼(수수료를 뺀 달러로 소수 주)
   public static RoundPurchase byAmount(BigDecimal amountKrw, BigDecimal priceUsd, BigDecimal fxRate,
-    BigDecimal feeRate) {
+                                       BigDecimal feeRate) {
     BigDecimal fee = BacktestCalculationUtils.calculatePurchaseFee(amountKrw, fxRate, feeRate);
     BigDecimal shares = BacktestCalculationUtils.calculateSharesAfterFee(amountKrw, fxRate, priceUsd, fee);
     return new RoundPurchase(shares, fee, amountKrw.divide(fxRate, 8, RoundingMode.HALF_UP), amountKrw);
@@ -27,7 +27,7 @@ public record RoundPurchase(BigDecimal shares, BigDecimal feeUsd, BigDecimal cos
 
   // 가진 달러로 살 수 있는 만큼(많아야 shares 주, 한 주도 못 사면 null)
   public static RoundPurchase withinUsd(int shares, BigDecimal usd, BigDecimal priceUsd, BigDecimal fxRate,
-    BigDecimal feeRate) {
+                                        BigDecimal feeRate) {
     BigDecimal rate = feeRate != null && Decimals.isPositive(feeRate) ? feeRate : BigDecimal.ZERO;
     BigDecimal perShare = priceUsd.multiply(BigDecimal.ONE.add(rate));
     // 수수료가 반올림으로 내려 한 주 더 살 수 있는 경우까지

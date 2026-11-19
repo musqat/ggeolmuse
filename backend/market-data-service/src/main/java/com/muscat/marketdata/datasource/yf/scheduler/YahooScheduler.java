@@ -26,89 +26,89 @@ import java.util.List;
 @RequiredArgsConstructor
 public class YahooScheduler {
 
-    private final AssetRepository assetRepository;
-    private final FxRateRepository fxRateRepository;
-    private final AssetEventProducer assetEventProducer;
-    private final MarketCapSource marketCapSource;
-    private final FxDataCollector fxDataCollector;
-    private final InitialCollectionCheck initialCollectionCheck;
+  private final AssetRepository assetRepository;
+  private final FxRateRepository fxRateRepository;
+  private final AssetEventProducer assetEventProducer;
+  private final MarketCapSource marketCapSource;
+  private final FxDataCollector fxDataCollector;
+  private final InitialCollectionCheck initialCollectionCheck;
 
-    // 평소 1년(전 기간 백필은 이 값을 크게 잡고 한 번 돌린 뒤 되돌림)
-    @Value("${yahoo.scheduler.candle.lookback-days:365}")
-    private int candleLookbackDays;
+  // 평소 1년(전 기간 백필은 이 값을 크게 잡고 한 번 돌린 뒤 되돌림)
+  @Value("${yahoo.scheduler.candle.lookback-days:365}")
+  private int candleLookbackDays;
 
-    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+  private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
-    /**
-     * 캔들 · 배당 업데이트 - 매일 오전 7시 KST (평일)
-     */
-    @Scheduled(cron = "${yahoo.scheduler.candle.cron:0 0 7 * * MON-FRI}",
-        zone = "${yahoo.scheduler.zone:Asia/Seoul}")
-    // 전 종목을 초당 10건으로 받으면 한 바퀴 25분 넘음
-    @SchedulerLock(name = "yahooUpdateCandles", lockAtMostFor = "50m", lockAtLeastFor = "1m")
-    public void updateCandles() {
-        if (initialCollectionCheck.inProgress()) {
-            log.info("=== [YF 스케줄러] 초기 수집 진행 중 - 캔들 업데이트 스킵 ===");
-            return;
-        }
-
-        log.info("=== [YF 스케줄러] 캔들 업데이트 시작 ===");
-
-        List<Asset> assets = assetRepository.findByActiveTrue();
-        log.info("[YF 스케줄러] 업데이트 대상 종목: {}개", assets.size());
-
-        LocalDate today = LocalDate.now(ZoneId.of("America/New_York"));
-        LocalDate from = today.minusDays(candleLookbackDays);
-
-        int published = 0;
-        for (Asset asset : assets) {
-            try {
-                assetEventProducer.publishAssetCreated(asset, true, from, today, true);
-                published++;
-            } catch (Exception e) {
-                log.warn("[YF 스케줄러] 캔들 이벤트 발행 실패: symbol={}", asset.getSymbol(), e);
-            }
-        }
-
-        log.info("=== [YF 스케줄러] 캔들 업데이트 완료: {}개 이벤트 발행 ===", published);
+  /**
+   * 캔들 · 배당 업데이트 - 매일 오전 7시 KST (평일)
+   */
+  @Scheduled(cron = "${yahoo.scheduler.candle.cron:0 0 7 * * MON-FRI}",
+    zone = "${yahoo.scheduler.zone:Asia/Seoul}")
+  // 전 종목을 초당 10건으로 받으면 한 바퀴 25분 넘음
+  @SchedulerLock(name = "yahooUpdateCandles", lockAtMostFor = "50m", lockAtLeastFor = "1m")
+  public void updateCandles() {
+    if (initialCollectionCheck.inProgress()) {
+      log.info("=== [YF 스케줄러] 초기 수집 진행 중 - 캔들 업데이트 스킵 ===");
+      return;
     }
 
-    /**
-     * 시가총액 업데이트 - 매일 오전 10시 KST (평일)
-     */
-    @Scheduled(cron = "${yahoo.scheduler.marketcap.cron:0 0 10 * * MON-FRI}",
-        zone = "${yahoo.scheduler.zone:Asia/Seoul}")
-    @SchedulerLock(name = "yahooUpdateMarketCaps", lockAtMostFor = "30m", lockAtLeastFor = "5m")
-    public void updateMarketCaps() {
-        if (initialCollectionCheck.inProgress()) {
-            log.info("=== [YF 스케줄러] 초기 수집 진행 중 - 시가총액 업데이트 스킵 ===");
-            return;
-        }
+    log.info("=== [YF 스케줄러] 캔들 업데이트 시작 ===");
 
-        log.info("=== [YF 스케줄러] 시가총액 업데이트 시작 ===");
+    List<Asset> assets = assetRepository.findByActiveTrue();
+    log.info("[YF 스케줄러] 업데이트 대상 종목: {}개", assets.size());
 
-        List<Asset> assets = assetRepository.findByActiveTrueAndAssetTypeNot(Asset.INDEX_TYPE);
-        int updated = marketCapSource.updateAllMarketCaps(assets);
+    LocalDate today = LocalDate.now(ZoneId.of("America/New_York"));
+    LocalDate from = today.minusDays(candleLookbackDays);
 
-        log.info("=== [YF 스케줄러] 시가총액 업데이트 완료: {}개 ===", updated);
+    int published = 0;
+    for (Asset asset : assets) {
+      try {
+        assetEventProducer.publishAssetCreated(asset, true, from, today, true);
+        published++;
+      } catch (Exception e) {
+        log.warn("[YF 스케줄러] 캔들 이벤트 발행 실패: symbol={}", asset.getSymbol(), e);
+      }
     }
 
-    /**
-     * 환율 업데이트 - 매일 오전 11:10 KST (평일)
-     */
-    @Scheduled(cron = "${yahoo.scheduler.fx.cron:0 10 11 * * MON-FRI}",
-        zone = "${yahoo.scheduler.zone:Asia/Seoul}")
-    @SchedulerLock(name = "yahooUpdateFxRates", lockAtMostFor = "10m", lockAtLeastFor = "1m")
-    public void updateFxRates() {
-        log.info("=== [YF 스케줄러] 환율 업데이트 시작 ===");
+    log.info("=== [YF 스케줄러] 캔들 업데이트 완료: {}개 이벤트 발행 ===", published);
+  }
 
-        LocalDate today = LocalDate.now(KST);
-        fxDataCollector.collectSingleDate(today, true).ifPresentOrElse(
-            fxRate -> {
-                fxRateRepository.save(fxRate);
-                log.info("[YF 스케줄러] 환율 업데이트 완료: {} -> {}", fxRate.getDate(), fxRate.getRate());
-            },
-            () -> log.warn("[YF 스케줄러] 환율 데이터를 가져올 수 없음: date={}", today)
-        );
+  /**
+   * 시가총액 업데이트 - 매일 오전 10시 KST (평일)
+   */
+  @Scheduled(cron = "${yahoo.scheduler.marketcap.cron:0 0 10 * * MON-FRI}",
+    zone = "${yahoo.scheduler.zone:Asia/Seoul}")
+  @SchedulerLock(name = "yahooUpdateMarketCaps", lockAtMostFor = "30m", lockAtLeastFor = "5m")
+  public void updateMarketCaps() {
+    if (initialCollectionCheck.inProgress()) {
+      log.info("=== [YF 스케줄러] 초기 수집 진행 중 - 시가총액 업데이트 스킵 ===");
+      return;
     }
+
+    log.info("=== [YF 스케줄러] 시가총액 업데이트 시작 ===");
+
+    List<Asset> assets = assetRepository.findByActiveTrueAndAssetTypeNot(Asset.INDEX_TYPE);
+    int updated = marketCapSource.updateAllMarketCaps(assets);
+
+    log.info("=== [YF 스케줄러] 시가총액 업데이트 완료: {}개 ===", updated);
+  }
+
+  /**
+   * 환율 업데이트 - 매일 오전 11:10 KST (평일)
+   */
+  @Scheduled(cron = "${yahoo.scheduler.fx.cron:0 10 11 * * MON-FRI}",
+    zone = "${yahoo.scheduler.zone:Asia/Seoul}")
+  @SchedulerLock(name = "yahooUpdateFxRates", lockAtMostFor = "10m", lockAtLeastFor = "1m")
+  public void updateFxRates() {
+    log.info("=== [YF 스케줄러] 환율 업데이트 시작 ===");
+
+    LocalDate today = LocalDate.now(KST);
+    fxDataCollector.collectSingleDate(today, true).ifPresentOrElse(
+      fxRate -> {
+        fxRateRepository.save(fxRate);
+        log.info("[YF 스케줄러] 환율 업데이트 완료: {} -> {}", fxRate.getDate(), fxRate.getRate());
+      },
+      () -> log.warn("[YF 스케줄러] 환율 데이터를 가져올 수 없음: date={}", today)
+    );
+  }
 }

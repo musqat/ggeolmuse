@@ -13,6 +13,7 @@ public enum KeycloakResponse implements ErrorCode {
   API_ERROR("Keycloak API 호출 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   USER_CREATE_FAILED("Keycloak 사용자 생성에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   USER_DELETE_FAILED("Keycloak 사용자 삭제에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+  ADMIN_CLIENT_SECRET_MISSING("사용자 관리 클라이언트 secret 이 없습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
 
   // 401 Unauthorized - 토큰 갱신 실패
   TOKEN_REFRESH_FAILED("토큰 갱신에 실패했습니다. 다시 로그인해주세요.", HttpStatus.UNAUTHORIZED),

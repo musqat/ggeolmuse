@@ -12,11 +12,7 @@ public class BusinessException extends BaseException {
   private final ErrorCode code;
 
   public BusinessException(ErrorCode code) {
-    this(code, code.getMessage());
-  }
-
-  public BusinessException(ErrorCode code, String message) {
-    super(code.name(), message);
+    super(code.name(), code.getMessage());
     this.code = code;
   }
 

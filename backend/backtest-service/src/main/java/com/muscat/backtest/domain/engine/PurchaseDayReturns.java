@@ -21,7 +21,8 @@ import java.util.function.Function;
 public final class PurchaseDayReturns {
 
   /** 매수 조건과 평가일 값(주식 수가 있으면 투자 금액 대신, 재투자 가격은 배당락일마다 미리 찾아 둔 값) */
-  public record Inputs(BigDecimal investmentKrw, Integer shares, BigDecimal feeRate, boolean reinvest, BigDecimal taxRate,
+  public record Inputs(BigDecimal investmentKrw, Integer shares, BigDecimal feeRate, boolean reinvest,
+                       BigDecimal taxRate,
                        DividendHistoryDto dividendHistory, Map<LocalDate, BigDecimal> exDatePrices,
                        BigDecimal valuationPriceUsd, BigDecimal currentFxRate, LocalDate valuationDate) {}
 
@@ -29,7 +30,7 @@ public final class PurchaseDayReturns {
 
   // 평가일 전의 쓸 수 있는 일봉마다 한 점(산 날 환율은 purchaseFx)
   public static List<PurchaseDayReturn> of(List<OHLCPriceDto> candles, Function<LocalDate, BigDecimal> purchaseFx,
-    Inputs in) {
+                                           Inputs in) {
     List<PurchaseDayReturn> points = new ArrayList<>();
     for (OHLCPriceDto candle : candles) {
       LocalDate date = candle.date();

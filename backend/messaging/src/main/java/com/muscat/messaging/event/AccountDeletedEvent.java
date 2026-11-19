@@ -14,18 +14,18 @@ import lombok.experimental.SuperBuilder;
 @EqualsAndHashCode(callSuper = true)
 public class AccountDeletedEvent extends BaseEvent {
 
-    // 삭제된 계좌의 사용자 ID
-    private String userId;
+  // 삭제된 계좌의 사용자 ID
+  private String userId;
 
-    // 삭제된 계좌 ID
-    private Long accountId;
+  // 삭제된 계좌 ID
+  private Long accountId;
 
-    // 삭제된 계좌 번호
-    private String accountNumber;
+  // 삭제된 계좌 번호
+  private String accountNumber;
 
-    // 계좌 이름
-    private String accountName;
+  // 계좌 이름
+  private String accountName;
 
-    // 삭제 사유
-    private String deletionReason;
+  // 삭제 사유
+  private String deletionReason;
 }

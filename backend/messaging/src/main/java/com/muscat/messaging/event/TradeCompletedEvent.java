@@ -16,35 +16,35 @@ import java.math.BigDecimal;
 @EqualsAndHashCode(callSuper = true)
 public class TradeCompletedEvent extends BaseEvent {
 
-    // 거래를 실행한 사용자 ID
-    private String userId;
+  // 거래를 실행한 사용자 ID
+  private String userId;
 
-    // 고유 거래 식별자
-    private Long tradeId;
+  // 고유 거래 식별자
+  private Long tradeId;
 
-    // 거래한 계좌 ID(user-service 가 이 계좌의 잔액을 바꿈)
-    private Long accountId;
+  // 거래한 계좌 ID(user-service 가 이 계좌의 잔액을 바꿈)
+  private Long accountId;
 
-    // 종목 심볼 (예: "AAPL", "GOOGL")
-    private String symbol;
+  // 종목 심볼 (예: "AAPL", "GOOGL")
+  private String symbol;
 
-    // 매수 · 매도
-    private TradeType tradeType;
+  // 매수 · 매도
+  private TradeType tradeType;
 
-    // 거래된 주식 수량
-    private BigDecimal quantity;
+  // 거래된 주식 수량
+  private BigDecimal quantity;
 
-    // 주당 체결 가격
-    private BigDecimal price;
+  // 주당 체결 가격
+  private BigDecimal price;
 
-    // 총 거래 금액 (수량 * 가격)
-    private BigDecimal totalAmount;
+  // 총 거래 금액 (수량 * 가격)
+  private BigDecimal totalAmount;
 
-    // 통화 코드 (예: "USD", "KRW")
-    private String currency;
+  // 통화 코드 (예: "USD", "KRW")
+  private String currency;
 
-    // 거래 수수료
-    private BigDecimal fee;
+  // 거래 수수료
+  private BigDecimal fee;
 
-    public enum TradeType { BUY, SELL }
+  public enum TradeType {BUY, SELL}
 }

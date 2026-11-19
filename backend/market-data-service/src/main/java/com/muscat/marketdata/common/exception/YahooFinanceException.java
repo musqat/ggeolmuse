@@ -1,15 +1,18 @@
 package com.muscat.marketdata.common.exception;
 
+import com.muscat.commonlib.exception.BusinessException;
+import com.muscat.marketdata.common.enums.response.MarketDataResponse;
+
 /**
- * Yahoo Finance API 호출 중 발생하는 예외
+ * Yahoo Finance 응답을 쓸 수 없을 때의 예외
  */
-public class YahooFinanceException extends RuntimeException {
+public class YahooFinanceException extends BusinessException {
 
-    public YahooFinanceException(String message) {
-        super(message);
-    }
+  public YahooFinanceException(MarketDataResponse response) {
+    super(response);
+  }
 
-    public YahooFinanceException(String message, Throwable cause) {
-        super(message, cause);
-    }
+  public YahooFinanceException(MarketDataResponse response, Throwable cause) {
+    super(response, cause);
+  }
 }

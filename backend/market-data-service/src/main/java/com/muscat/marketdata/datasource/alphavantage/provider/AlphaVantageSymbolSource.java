@@ -22,152 +22,152 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
-    name = "marketdata.provider",
-    havingValue = "alphavantage"
+  name = "marketdata.provider",
+  havingValue = "alphavantage"
 )
 @RequiredArgsConstructor
 public class AlphaVantageSymbolSource implements MarketDataProvider.SymbolSource,
-    MarketDataProvider.AssetInfoSource {
+  MarketDataProvider.AssetInfoSource {
 
-    private final AlphaVantageClient client;
-    private final AlphaVantageRateLimiter rateLimiter;
+  private final AlphaVantageClient client;
+  private final AlphaVantageRateLimiter rateLimiter;
 
-    @Value("${marketdata.symbol-listing.only-major-exchanges:true}")
-    private boolean onlyMajorExchanges;
+  @Value("${marketdata.symbol-listing.only-major-exchanges:true}")
+  private boolean onlyMajorExchanges;
 
-    @Value("${marketdata.symbol-listing.max-symbols:0}")
-    private int maxSymbols;
+  @Value("${marketdata.symbol-listing.max-symbols:0}")
+  private int maxSymbols;
 
-    // LISTING_STATUS 전체 목록(시가총액 없음)
-    @Override
-    public List<Asset> fetchSymbols() {
-        log.info("[AV-SymbolSource] LISTING_STATUS API 호출 시작");
+  // LISTING_STATUS 전체 목록(시가총액 없음)
+  @Override
+  public List<Asset> fetchSymbols() {
+    log.info("[AV-SymbolSource] LISTING_STATUS API 호출 시작");
 
-        rateLimiter.waitIfNeeded();
+    rateLimiter.waitIfNeeded();
 
-        try {
-            String csv = client.getCsv("LISTING_STATUS", Map.of());
+    try {
+      String csv = client.getCsv("LISTING_STATUS", Map.of());
 
-            List<SymbolListingDto> listings = parseCsv(csv);
-            log.info("[AV-SymbolSource] CSV 파싱 완료: 전체 {}개 종목", listings.size());
+      List<SymbolListingDto> listings = parseCsv(csv);
+      log.info("[AV-SymbolSource] CSV 파싱 완료: 전체 {}개 종목", listings.size());
 
-            // 필터링: Active 상태, 주요 거래소만
-            List<SymbolListingDto> filtered = listings.stream()
-                .filter(SymbolListingDto::isActive)
-                .filter(dto -> dto.isStock() || dto.isETF())
-                .filter(dto -> !onlyMajorExchanges || dto.isMajorExchange())
-                .limit(maxSymbols > 0 ? maxSymbols : Integer.MAX_VALUE)
-                .collect(Collectors.toList());
+      // 필터링: Active 상태, 주요 거래소만
+      List<SymbolListingDto> filtered = listings.stream()
+        .filter(SymbolListingDto::isActive)
+        .filter(dto -> dto.isStock() || dto.isETF())
+        .filter(dto -> !onlyMajorExchanges || dto.isMajorExchange())
+        .limit(maxSymbols > 0 ? maxSymbols : Integer.MAX_VALUE)
+        .collect(Collectors.toList());
 
-            long stockCount = filtered.stream().filter(SymbolListingDto::isStock).count();
-            long etfCount = filtered.stream().filter(SymbolListingDto::isETF).count();
-            log.info("[AV-SymbolSource] 필터링 완료: {}개 종목 (Stock: {}, ETF: {})",
-                     filtered.size(), stockCount, etfCount);
+      long stockCount = filtered.stream().filter(SymbolListingDto::isStock).count();
+      long etfCount = filtered.stream().filter(SymbolListingDto::isETF).count();
+      log.info("[AV-SymbolSource] 필터링 완료: {}개 종목 (Stock: {}, ETF: {})",
+        filtered.size(), stockCount, etfCount);
 
-            // ETF 샘플 출력 (디버깅용)
-            filtered.stream()
-                .filter(SymbolListingDto::isETF)
-                .limit(5)
-                .forEach(dto -> log.info("[AV-SymbolSource] ETF 샘플: symbol={}, name={}, assetType={}",
-                                          dto.getSymbol(), dto.getName(), dto.getAssetType()));
+      // ETF 샘플 출력 (디버깅용)
+      filtered.stream()
+        .filter(SymbolListingDto::isETF)
+        .limit(5)
+        .forEach(dto -> log.info("[AV-SymbolSource] ETF 샘플: symbol={}, name={}, assetType={}",
+          dto.getSymbol(), dto.getName(), dto.getAssetType()));
 
-            // Asset 엔티티로 변환 (marketCap은 null - 추후 수집)
-            List<Asset> assets = filtered.stream()
-                .map(this::toAsset)
-                .collect(Collectors.toList());
+      // Asset 엔티티로 변환 (marketCap은 null - 추후 수집)
+      List<Asset> assets = filtered.stream()
+        .map(this::toAsset)
+        .collect(Collectors.toList());
 
-            log.info("[AV-SymbolSource] Asset 변환 완료: {}개", assets.size());
-            return assets;
+      log.info("[AV-SymbolSource] Asset 변환 완료: {}개", assets.size());
+      return assets;
 
-        } catch (Exception e) {
-            log.error("[AV-SymbolSource] LISTING_STATUS API 호출 실패", e);
-            return List.of();
-        }
+    } catch (Exception e) {
+      log.error("[AV-SymbolSource] LISTING_STATUS API 호출 실패", e);
+      return List.of();
+    }
+  }
+
+  /**
+   * CSV를 파싱하여 SymbolListingDto 리스트로 변환
+   */
+  private List<SymbolListingDto> parseCsv(String csv) {
+    List<SymbolListingDto> result = new ArrayList<>();
+    String[] lines = csv.split("\n");
+
+    for (int i = 1; i < lines.length; i++) {
+      String line = lines[i].trim();
+      if (line.isEmpty()) continue;
+
+      SymbolListingDto dto = SymbolListingDto.fromCsvLine(line);
+      if (dto != null) {
+        result.add(dto);
+      }
     }
 
-    /**
-     * CSV를 파싱하여 SymbolListingDto 리스트로 변환
-     */
-    private List<SymbolListingDto> parseCsv(String csv) {
-        List<SymbolListingDto> result = new ArrayList<>();
-        String[] lines = csv.split("\n");
+    return result;
+  }
 
-        for (int i = 1; i < lines.length; i++) {
-            String line = lines[i].trim();
-            if (line.isEmpty()) continue;
+  /**
+   * SymbolListingDto를 Asset 엔티티로 변환
+   */
+  private Asset toAsset(SymbolListingDto dto) {
+    return Asset.builder()
+      .symbol(dto.getSymbol())
+      .name(dto.getName())
+      .country(mapExchangeToCountry(dto.getExchange()))
+      .currency("USD")
+      .assetType(AssetTypeRule.resolve(dto.isETF(), dto.getName()))
+      .marketCap(null)
+      .build();
+  }
 
-            SymbolListingDto dto = SymbolListingDto.fromCsvLine(line);
-            if (dto != null) {
-                result.add(dto);
-            }
-        }
+  private String mapExchangeToCountry(String exchange) {
+    if (exchange == null) return "US";
+    if (exchange.equalsIgnoreCase("NYSE") ||
+      exchange.equalsIgnoreCase("NASDAQ") ||
+      exchange.equalsIgnoreCase("NYSE ARCA")) {
+      return "US";
+    }
+    return "US";  // 기본값
+  }
 
-        return result;
+  @Override
+  public Asset getAsset(String symbol) {
+    rateLimiter.waitIfNeeded();
+
+    JsonNode response = client.get("OVERVIEW", Map.of("symbol", symbol));
+
+    if (!response.has("Symbol")) {
+      return null;
     }
 
-    /**
-     * SymbolListingDto를 Asset 엔티티로 변환
-     */
-    private Asset toAsset(SymbolListingDto dto) {
-        return Asset.builder()
-            .symbol(dto.getSymbol())
-            .name(dto.getName())
-            .country(mapExchangeToCountry(dto.getExchange()))
-            .currency("USD")
-            .assetType(AssetTypeRule.resolve(dto.isETF(), dto.getName()))
-            .marketCap(null)
-            .build();
+    return Asset.builder()
+      .symbol(getString(response, "Symbol"))
+      .name(getString(response, "Name"))
+      .country(mapCountry(getString(response, "Country")))
+      .currency(getString(response, "Currency"))
+      .assetType(AssetTypeRule.resolve("ETF".equals(getString(response, "AssetType")), getString(response, "Name")))
+      .marketCap(getLong(response, "MarketCapitalization"))
+      .build();
+  }
+
+  private String getString(JsonNode node, String field) {
+    return node.has(field) ? node.get(field).asText() : null;
+  }
+
+  private Long getLong(JsonNode node, String field) {
+    if (!node.has(field)) return null;
+    try {
+      return Long.parseLong(node.get(field).asText());
+    } catch (Exception e) {
+      return null;
     }
+  }
 
-    private String mapExchangeToCountry(String exchange) {
-        if (exchange == null) return "US";
-        if (exchange.equalsIgnoreCase("NYSE") ||
-            exchange.equalsIgnoreCase("NASDAQ") ||
-            exchange.equalsIgnoreCase("NYSE ARCA")) {
-            return "US";
-        }
-        return "US";  // 기본값
-    }
-
-    @Override
-    public Asset getAsset(String symbol) {
-        rateLimiter.waitIfNeeded();
-
-        JsonNode response = client.get("OVERVIEW", Map.of("symbol", symbol));
-
-        if (!response.has("Symbol")) {
-            return null;
-        }
-
-        return Asset.builder()
-            .symbol(getString(response, "Symbol"))
-            .name(getString(response, "Name"))
-            .country(mapCountry(getString(response, "Country")))
-            .currency(getString(response, "Currency"))
-            .assetType(AssetTypeRule.resolve("ETF".equals(getString(response, "AssetType")), getString(response, "Name")))
-            .marketCap(getLong(response, "MarketCapitalization"))
-            .build();
-    }
-
-    private String getString(JsonNode node, String field) {
-        return node.has(field) ? node.get(field).asText() : null;
-    }
-
-    private Long getLong(JsonNode node, String field) {
-        if (!node.has(field)) return null;
-        try {
-            return Long.parseLong(node.get(field).asText());
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private String mapCountry(String country) {
-        if (country == null) return "US";
-        if (country.contains("United States") || country.equals("USA")) return "US";
-        if (country.contains("Korea")) return "KR";
-        if (country.length() == 2) return country;
-        return country.substring(0, 2).toUpperCase();
-    }
+  private String mapCountry(String country) {
+    if (country == null) return "US";
+    if (country.contains("United States") || country.equals("USA")) return "US";
+    if (country.contains("Korea")) return "KR";
+    if (country.length() == 2) return country;
+    return country.substring(0, 2).toUpperCase();
+  }
 
 }

@@ -43,8 +43,8 @@ public class DividendHistoryDto {
     }
 
     history.setDividends(dividendList.stream()
-        .map(DividendPayment::from)
-        .toList());
+      .map(DividendPayment::from)
+      .toList());
 
     return history;
   }

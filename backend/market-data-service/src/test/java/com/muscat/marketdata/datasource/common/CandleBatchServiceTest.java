@@ -83,6 +83,18 @@ class CandleBatchServiceTest {
   }
 
   @Test
+  @DisplayName("재시도 횟수를 0 으로 두어도 종목마다 한 번은 받는다")
+  void zeroRetriesStillTriesOnce() {
+    ReflectionTestUtils.setField(service, "maxRetryAttempts", 0);
+    given(updateService.saveCandles(anyString(), any(), any())).willReturn(7);
+
+    BatchResult result = service.collectAll(FROM, TO, false);
+
+    assertThat(result).isEqualTo(new BatchResult(2, 2, 0, 14, FROM, TO));
+    verify(updateService, times(1)).saveCandles("AAPL", FROM, TO);
+  }
+
+  @Test
   @DisplayName("저장한 기록이 있으면 끝에 캔들 캐시를 한 번 비우고, 없으면 그대로 둔다")
   void evictsCandleCachesOnceWhenSaved() {
     given(updateService.saveCandles(anyString(), any(), any())).willReturn(7).willReturn(7).willReturn(0).willReturn(0);

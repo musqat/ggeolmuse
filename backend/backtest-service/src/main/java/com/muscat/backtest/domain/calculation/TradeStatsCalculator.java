@@ -120,7 +120,7 @@ public final class TradeStatsCalculator {
   private static BigDecimal average(List<BigDecimal> values, int scale) {
     return values.isEmpty() ? null
       : values.stream().reduce(BigDecimal.ZERO, BigDecimal::add)
-        .divide(BigDecimal.valueOf(values.size()), scale, RoundingMode.HALF_UP);
+      .divide(BigDecimal.valueOf(values.size()), scale, RoundingMode.HALF_UP);
   }
 
   // 소수 둘째 나눗셈(어느 쪽이 없거나 나누는 값이 0 이면 null)

@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 class AdminJobRunner {
 
   private final ThreadPoolExecutor executor = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
-      new ArrayBlockingQueue<>(1), job -> new Thread(job, "admin-job"));
+    new ArrayBlockingQueue<>(1), job -> new Thread(job, "admin-job"));
 
   // 실패한 일은 이름과 함께 로그로 남기고 다음 일을 받음
   boolean submit(String name, Runnable job) {

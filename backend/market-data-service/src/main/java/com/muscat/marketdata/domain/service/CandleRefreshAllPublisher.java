@@ -24,6 +24,6 @@ public class CandleRefreshAllPublisher {
       assetEventProducer.publishAssetCreated(asset, true, from, to, true);
     }
     log.info("전체 캔들 재수집 발행 끝: {}개, {}초, from={}",
-        assets.size(), (System.currentTimeMillis() - started) / 1000, from);
+      assets.size(), (System.currentTimeMillis() - started) / 1000, from);
   }
 }

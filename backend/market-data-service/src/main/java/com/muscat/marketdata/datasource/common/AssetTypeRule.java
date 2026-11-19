@@ -7,7 +7,7 @@ public final class AssetTypeRule {
 
   // ETF 낱말 · exchange traded fund · money market(Netflix 처럼 낱말 안에 든 etf 는 안 봄)
   private static final Pattern FUND_NAME =
-      Pattern.compile("\\b(etf|exchange traded fund|money market)\\b", Pattern.CASE_INSENSITIVE);
+    Pattern.compile("\\b(etf|exchange traded fund|money market)\\b", Pattern.CASE_INSENSITIVE);
 
   private AssetTypeRule() {
   }

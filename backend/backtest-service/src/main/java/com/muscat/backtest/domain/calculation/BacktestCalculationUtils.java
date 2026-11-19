@@ -19,7 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 public final class BacktestCalculationUtils {
 
   private BacktestCalculationUtils() {
-    throw new UnsupportedOperationException("이 클래스는 인스턴스를 생성할 수 없습니다");
   }
 
   // 스케일 상수
@@ -31,17 +30,15 @@ public final class BacktestCalculationUtils {
 
   // 매수 가능한 주식 수량
   public static BigDecimal calculateShares(BigDecimal investmentAmount, BigDecimal fxRate,
-    BigDecimal stockPrice) {
+                                           BigDecimal stockPrice) {
     if (investmentAmount == null || fxRate == null || stockPrice == null) {
-      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR,
-        "주식 수량 계산을 위한 투자금액, 환율, 주식가격은 null이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR);
     }
     if (Decimals.isZero(fxRate)) {
-      throw new BacktestException(BacktestResponse.FX_CONVERSION_ERROR, "환율은 0이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.FX_CONVERSION_ERROR);
     }
     if (Decimals.isZero(stockPrice)) {
-      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR,
-        "주식가격은 0이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR);
     }
 
     return investmentAmount
@@ -51,12 +48,12 @@ public final class BacktestCalculationUtils {
 
   // 평균 매수가(USD, totalFxRateSum 은 Σ(투자금액 × 환율)이라 가중평균 환율로 바꿔 나눔)
   public static BigDecimal calculateAveragePrice(BigDecimal totalInvestment,
-    BigDecimal totalFxRateSum, BigDecimal totalShares) {
+                                                 BigDecimal totalFxRateSum, BigDecimal totalShares) {
     if (totalInvestment == null || totalFxRateSum == null || totalShares == null) {
-      throw new IllegalArgumentException("모든 매개변수는 null이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.AVERAGE_PRICE_CALCULATION_ERROR);
     }
     if (Decimals.isZero(totalFxRateSum) || Decimals.isZero(totalShares)) {
-      throw new IllegalArgumentException("환율 합계와 총 주식 수량은 0이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.AVERAGE_PRICE_CALCULATION_ERROR);
     }
 
     BigDecimal averageFxRate = calculateAverageFxRate(totalFxRateSum, totalInvestment);
@@ -69,10 +66,10 @@ public final class BacktestCalculationUtils {
   // 투자금액 가중평균 환율(Σ(투자금액 × 환율) ÷ Σ투자금액)
   public static BigDecimal calculateAverageFxRate(BigDecimal totalFxRateSum, BigDecimal totalInvested) {
     if (totalFxRateSum == null) {
-      throw new IllegalArgumentException("환율 합계는 null이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.FX_CONVERSION_ERROR);
     }
     if (totalInvested == null || !Decimals.isPositive(totalInvested)) {
-      throw new IllegalArgumentException("총 투자금액은 0보다 커야 합니다");
+      throw new BacktestException(BacktestResponse.FX_CONVERSION_ERROR);
     }
 
     return totalFxRateSum.divide(totalInvested, USD_SCALE, HALF_UP);
@@ -81,7 +78,7 @@ public final class BacktestCalculationUtils {
   // 리스트의 중간값
   public static BigDecimal calculateMedian(List<BigDecimal> values) {
     if (values == null || values.isEmpty()) {
-      throw new IllegalArgumentException("값 리스트는 null이거나 비어있을 수 없습니다");
+      throw new BacktestException(BacktestResponse.RETURN_CALCULATION_ERROR);
     }
 
     List<BigDecimal> sorted = values.stream()
@@ -101,7 +98,7 @@ public final class BacktestCalculationUtils {
   // BigDecimal 값을 지정된 스케일로 반올림
   public static BigDecimal scaleValue(BigDecimal value, int scale) {
     if (value == null) {
-      throw new IllegalArgumentException("값은 null이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.DATA_PROCESSING_ERROR);
     }
 
     return value.setScale(scale, HALF_UP);
@@ -116,7 +113,7 @@ public final class BacktestCalculationUtils {
   // 총 투자 대비 평균 수익률
   public static BigDecimal calculateAverageReturn(List<BigDecimal> returnValues) {
     if (returnValues == null || returnValues.isEmpty()) {
-      throw new IllegalArgumentException("수익률 리스트는 null이거나 비어있을 수 없습니다");
+      throw new BacktestException(BacktestResponse.RETURN_CALCULATION_ERROR);
     }
 
     return returnValues.stream()
@@ -140,8 +137,8 @@ public final class BacktestCalculationUtils {
 
   // 기간 총 배당금(USD), 배당일마다 거래로 센 보유 주식 수 기준
   public static BigDecimal calculateTotalDividends(DividendHistoryDto dividendHistory,
-    List<StrategyTransaction> transactions,
-    LocalDate startDate, LocalDate endDate) {
+                                                   List<StrategyTransaction> transactions,
+                                                   LocalDate startDate, LocalDate endDate) {
 
     log.debug("배당금 계산 메서드 호출됨 (거래 목록 기반)");
 
@@ -186,8 +183,8 @@ public final class BacktestCalculationUtils {
 
   // 기간 총 배당금(USD), 고정 주식 수 기준(매수일이 배당락일인 배당은 제외)
   public static BigDecimal calculateTotalDividends(DividendHistoryDto dividendHistory,
-    BigDecimal shares,
-    LocalDate startDate, LocalDate endDate) {
+                                                   BigDecimal shares,
+                                                   LocalDate startDate, LocalDate endDate) {
 
     log.debug("배당금 계산 메서드 호출됨 (고정 주식수 기반)");
 
@@ -219,7 +216,7 @@ public final class BacktestCalculationUtils {
 
   // 연간 배당 수익률을 계산합니다 (%)
   public static BigDecimal calculateDividendYield(BigDecimal totalDividends, BigDecimal shares,
-    BigDecimal currentPrice) {
+                                                  BigDecimal currentPrice) {
     if (totalDividends == null || shares == null || currentPrice == null ||
       Decimals.isZero(shares) || Decimals.isZero(currentPrice)) {
       return BigDecimal.ZERO;
@@ -233,7 +230,7 @@ public final class BacktestCalculationUtils {
 
   // 매수 한 번의 수수료(USD, 투자금 KRW 를 받은 환율로 바꾼 달러 × 수수료율)
   public static BigDecimal calculatePurchaseFee(BigDecimal investmentAmount, BigDecimal fxRate,
-    BigDecimal feeRate) {
+                                                BigDecimal feeRate) {
     if (feeRate == null || !Decimals.isPositive(feeRate)) {
       return BigDecimal.ZERO;
     }
@@ -243,7 +240,7 @@ public final class BacktestCalculationUtils {
 
   // 수수료를 뺀 달러로 살 수 있는 주식 수(수수료 0 이면 calculateShares 와 같음)
   public static BigDecimal calculateSharesAfterFee(BigDecimal investmentAmount, BigDecimal fxRate,
-    BigDecimal stockPrice, BigDecimal feeUsd) {
+                                                   BigDecimal stockPrice, BigDecimal feeUsd) {
     BigDecimal shares = calculateShares(investmentAmount, fxRate, stockPrice);
     if (feeUsd == null || !Decimals.isPositive(feeUsd)) {
       return shares;
@@ -254,14 +251,12 @@ public final class BacktestCalculationUtils {
 
   // 수수료를 고려한 소수점 주식수 계산 (fractional shares)
   public static BigDecimal calculateSharesWithFee(BigDecimal usdAmount, BigDecimal stockPrice,
-    BigDecimal feeRate) {
+                                                  BigDecimal feeRate) {
     if (usdAmount == null || stockPrice == null || feeRate == null) {
-      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR,
-        "수수료 계산을 위한 파라미터는 null이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR);
     }
     if (Decimals.isZero(stockPrice)) {
-      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR,
-        "주식가격은 0이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR);
     }
 
     // 수수료 계산
@@ -270,9 +265,7 @@ public final class BacktestCalculationUtils {
 
     // 음수 방지
     if (!Decimals.isPositive(netAmount)) {
-      throw new BacktestException(BacktestResponse.INSUFFICIENT_INVESTMENT,
-        String.format("투자금액이 수수료보다 작습니다. 투자금액: $%.2f, 수수료: $%.2f",
-          usdAmount, feeAmount));
+      throw new BacktestException(BacktestResponse.INSUFFICIENT_INVESTMENT);
     }
 
     // 소수점 주식수 계산 (8자리 정밀도)
@@ -280,9 +273,7 @@ public final class BacktestCalculationUtils {
 
     // 주식을 전혀 살 수 없는 경우 (매우 작은 금액)
     if (Decimals.isZero(shares)) {
-      throw new BacktestException(BacktestResponse.INSUFFICIENT_INVESTMENT,
-        String.format("투자금액($%.2f)이 너무 작습니다. 주가: $%.2f",
-          netAmount, stockPrice));
+      throw new BacktestException(BacktestResponse.INSUFFICIENT_INVESTMENT);
     }
 
     return shares;
@@ -298,10 +289,9 @@ public final class BacktestCalculationUtils {
 
   // 실제 사용된 총 비용 계산 (주식구매비 + 수수료)
   public static BigDecimal calculateTotalCost(BigDecimal shares, BigDecimal stockPrice,
-    BigDecimal tradingFee) {
+                                              BigDecimal tradingFee) {
     if (shares == null || stockPrice == null) {
-      throw new BacktestException(BacktestResponse.TRADING_FEE_CALCULATION_ERROR,
-        "비용 계산을 위한 파라미터는 null이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.TRADING_FEE_CALCULATION_ERROR);
     }
 
     BigDecimal stockCost = shares.multiply(stockPrice);
@@ -312,8 +302,7 @@ public final class BacktestCalculationUtils {
   // 매수 후 잔액 계산 (USD)
   public static BigDecimal calculateRemainingCash(BigDecimal initialAmount, BigDecimal totalCost) {
     if (initialAmount == null || totalCost == null) {
-      throw new BacktestException(BacktestResponse.REMAINING_CASH_CALCULATION_ERROR,
-        "잔액 계산을 위한 파라미터는 null이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.REMAINING_CASH_CALCULATION_ERROR);
     }
 
     return initialAmount.subtract(totalCost).setScale(USD_SCALE, HALF_UP);

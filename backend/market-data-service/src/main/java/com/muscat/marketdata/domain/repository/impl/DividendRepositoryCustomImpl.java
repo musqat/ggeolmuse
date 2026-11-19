@@ -24,40 +24,40 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DividendRepositoryCustomImpl implements DividendRepositoryCustom {
 
-    private final JPAQueryFactory queryFactory;
-    private static final QDividend dividend = QDividend.dividend;
-    private static final QAsset asset = QAsset.asset;
+  private final JPAQueryFactory queryFactory;
+  private static final QDividend dividend = QDividend.dividend;
+  private static final QAsset asset = QAsset.asset;
 
-    @Override
-    public List<Dividend> findBySymbolsAndDateRange(List<String> symbols, LocalDate startDate, LocalDate endDate) {
-        return queryFactory
-            .selectFrom(dividend)
-            .where(dividend.symbol.in(symbols), exDateWithin(startDate, endDate))
-            .orderBy(dividend.symbol.asc(), dividend.exDate.desc())
-            .fetch();
-    }
+  @Override
+  public List<Dividend> findBySymbolsAndDateRange(List<String> symbols, LocalDate startDate, LocalDate endDate) {
+    return queryFactory
+      .selectFrom(dividend)
+      .where(dividend.symbol.in(symbols), exDateWithin(startDate, endDate))
+      .orderBy(dividend.symbol.asc(), dividend.exDate.desc())
+      .fetch();
+  }
 
-    @Override
-    public Map<String, BigDecimal> sumRegularAmountBySymbolsSince(Collection<String> symbols, LocalDate from, BigDecimal specialRatio) {
-        NumberExpression<BigDecimal> total = dividend.amount.sum();
-        return queryFactory
-            .select(dividend.symbol, total)
-            .from(dividend)
-            .join(asset).on(asset.symbol.eq(dividend.symbol))
-            .where(dividend.symbol.in(symbols),
-                dividend.exDate.goe(from),
-                dividend.amount.loe(asset.latestClose.multiply(specialRatio)))
-            .groupBy(dividend.symbol)
-            .fetch()
-            .stream()
-            .collect(Collectors.toMap(row -> row.get(dividend.symbol), row -> row.get(total)));
-    }
+  @Override
+  public Map<String, BigDecimal> sumRegularAmountBySymbolsSince(Collection<String> symbols, LocalDate from, BigDecimal specialRatio) {
+    NumberExpression<BigDecimal> total = dividend.amount.sum();
+    return queryFactory
+      .select(dividend.symbol, total)
+      .from(dividend)
+      .join(asset).on(asset.symbol.eq(dividend.symbol))
+      .where(dividend.symbol.in(symbols),
+        dividend.exDate.goe(from),
+        dividend.amount.loe(asset.latestClose.multiply(specialRatio)))
+      .groupBy(dividend.symbol)
+      .fetch()
+      .stream()
+      .collect(Collectors.toMap(row -> row.get(dividend.symbol), row -> row.get(total)));
+  }
 
-    // 빈 쪽 경계는 생략(둘 다 비면 조건 없음)
-    private static BooleanExpression exDateWithin(LocalDate startDate, LocalDate endDate) {
-        if (startDate == null && endDate == null) {
-            return null;
-        }
-        return dividend.exDate.between(startDate, endDate);
+  // 빈 쪽 경계는 생략(둘 다 비면 조건 없음)
+  private static BooleanExpression exDateWithin(LocalDate startDate, LocalDate endDate) {
+    if (startDate == null && endDate == null) {
+      return null;
     }
+    return dividend.exDate.between(startDate, endDate);
+  }
 }

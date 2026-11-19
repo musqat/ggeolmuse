@@ -23,7 +23,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.validation.BeanPropertyBindingResult;
@@ -56,21 +55,13 @@ class BaseExceptionHandlerTest {
     }
   }
 
-  // 서비스 처리기처럼 그 밖의 예외를 운영 문구와 함께 넘기는 처리기
+  // 서비스 처리기처럼 그 밖의 예외를 500 으로 넘기는 처리기
   static class CatchAllHandler extends BaseExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetail> handleGeneralException(Exception ex, HttpServletRequest request) {
-      return systemError(ex, request, "서비스에 문제가 발생했습니다.");
+      return systemError(ex, request);
     }
-  }
-
-  private static CatchAllHandler catchAll(String... profiles) {
-    MockEnvironment environment = new MockEnvironment();
-    environment.setActiveProfiles(profiles);
-    CatchAllHandler handler = new CatchAllHandler();
-    handler.setEnvironment(environment);
-    return handler;
   }
 
   @SuppressWarnings("unused")
@@ -133,16 +124,16 @@ class BaseExceptionHandlerTest {
   }
 
   @Test
-  @DisplayName("금액 검증 실패(ServiceException)는 400 과 그 메시지로 응답한다")
-  void serviceException_BadRequestWithMessage() {
-    ResponseEntity<ProblemDetail> response = handler.handleServiceException(
-      new ServiceException("EXCESSIVE_AMOUNT", "1회 최대 환전 금액은 50000000원입니다"),
+  @DisplayName("공통 코드의 금액 검사 실패는 그 코드의 상태 · 이름 · 문구로 응답한다")
+  void commonCode_BadRequestWithCodeMessage() {
+    ResponseEntity<ProblemDetail> response = handler.handleBusinessException(
+      new BusinessException(CommonResponse.EXCESSIVE_AMOUNT),
       new MockHttpServletRequest("POST", "/api/accounts/18/exchange"));
 
     ProblemDetail body = response.getBody();
     assertThat(response.getStatusCode().value()).isEqualTo(400);
     assertThat(body).isNotNull();
-    assertThat(body.getDetail()).isEqualTo("1회 최대 환전 금액은 50000000원입니다");
+    assertThat(body.getDetail()).isEqualTo("1회 최대 환전 금액을 넘었습니다");
     assertThat(body.getProperties()).containsEntry("errorCode", "EXCESSIVE_AMOUNT");
     assertThat(body.getProperties()).containsEntry("errorType", "BUSINESS");
   }
@@ -178,7 +169,7 @@ class BaseExceptionHandlerTest {
     Method method = SampleController.class.getDeclaredMethod("list", int.class, int.class);
     try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
       return new ConstraintViolationException(factory.getValidator().forExecutables()
-        .validateParameters(new SampleController(), method, new Object[] {page, size}));
+        .validateParameters(new SampleController(), method, new Object[]{page, size}));
     }
   }
 
@@ -189,11 +180,11 @@ class BaseExceptionHandlerTest {
     Method method = Objects.requireNonNull(new ExceptionHandlerMethodResolver(CatchAllHandler.class).resolveMethod(violation));
 
     @SuppressWarnings("unchecked")
-    ResponseEntity<ProblemDetail> response = (ResponseEntity<ProblemDetail>) method.invoke(catchAll("prod"), violation, request);
+    ResponseEntity<ProblemDetail> response = (ResponseEntity<ProblemDetail>) method.invoke(new CatchAllHandler(), violation, request);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     ProblemDetail body = Objects.requireNonNull(response.getBody());
-    assertThat(body.getDetail()).startsWith("요청 값이 올바르지 않습니다: ");
+    assertThat(body.getDetail()).isEqualTo("요청 값이 올바르지 않습니다");
     assertThat(body.getProperties())
       .containsEntry("errorCode", "INVALID_PARAMETER")
       .containsEntry("errorType", "VALIDATION");
@@ -212,6 +203,8 @@ class BaseExceptionHandlerTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getDetail()).isEqualTo("입력값 검증에 실패했습니다");
+    assertThat(response.getBody().getProperties()).containsEntry("errorCode", "VALIDATION_ERROR");
     assertThat(response.getBody().getProperties()).extractingByKey("validationErrors")
       .isEqualTo(Map.of(
         "quantity", "수량은 0보다 커야 합니다",
@@ -230,7 +223,7 @@ class BaseExceptionHandlerTest {
   }
 
   @Test
-  @DisplayName("필수 파라미터 누락은 400 과 빠진 파라미터 이름으로 응답한다")
+  @DisplayName("필수 파라미터 누락은 400 이고 빠진 파라미터 이름을 parameterName 에 싣는다")
   void missingParameter_BadRequest() {
     ResponseEntity<ProblemDetail> response = handler.handleMissingParameterException(
       new MissingServletRequestParameterException("startDate", "LocalDate"), request);
@@ -239,7 +232,7 @@ class BaseExceptionHandlerTest {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(body).isNotNull();
     assertThat(body.getStatus()).isEqualTo(400);
-    assertThat(body.getDetail()).isEqualTo("필수 파라미터가 누락되었습니다: startDate");
+    assertThat(body.getDetail()).isEqualTo("필수 파라미터가 누락되었습니다");
     assertThat(body.getTitle()).isEqualTo("Missing Parameter Error");
     assertThat(body.getProperties())
       .containsEntry("errorCode", "MISSING_PARAMETER")
@@ -248,7 +241,7 @@ class BaseExceptionHandlerTest {
   }
 
   @Test
-  @DisplayName("파라미터 타입 변환 실패와 읽을 수 없는 본문은 400 이고 입력값 · 파싱 오류는 detail 에 싣지 않는다")
+  @DisplayName("파라미터 타입 변환 실패는 parameterName 에 이름만 싣고, 읽을 수 없는 본문과 함께 400 이며 입력값 · 파싱 오류는 싣지 않는다")
   void unreadableInput_BadRequestWithoutInput() throws Exception {
     ResponseEntity<ProblemDetail> mismatch = handler.handleTypeMismatch(
       new MethodArgumentTypeMismatchException("abc", Long.class, "accountId", bodyParameter(), null), request);
@@ -258,8 +251,10 @@ class BaseExceptionHandlerTest {
 
     assertThat(mismatch.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(mismatch.getBody()).isNotNull();
-    assertThat(mismatch.getBody().getDetail()).isEqualTo("요청 파라미터 형식이 올바르지 않습니다");
-    assertThat(mismatch.getBody().getProperties()).containsEntry("errorCode", "INVALID_PARAMETER");
+    assertThat(mismatch.getBody().getDetail()).isEqualTo("요청 값이 올바르지 않습니다");
+    assertThat(mismatch.getBody().getProperties())
+      .containsEntry("errorCode", "INVALID_PARAMETER")
+      .containsEntry("parameterName", "accountId");
     assertThat(unreadable.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(unreadable.getBody()).isNotNull();
     assertThat(unreadable.getBody().getDetail()).isEqualTo("요청 본문을 읽을 수 없습니다");
@@ -267,35 +262,18 @@ class BaseExceptionHandlerTest {
   }
 
   @Test
-  @DisplayName("예상하지 못한 예외는 500 이고 운영에서는 서비스가 넘긴 문구만 detail 에 싣는다")
-  void systemError_ProductionMessage() {
+  @DisplayName("예상하지 못한 예외는 500 이고 공통 문구만 detail 에 싣는다")
+  void systemError_CommonMessage() {
     IllegalStateException leak = new IllegalStateException("jdbc:postgresql://db/secret");
 
-    ResponseEntity<ProblemDetail> prod = catchAll("prod").handleGeneralException(leak, request);
-    ResponseEntity<ProblemDetail> noEnvironment = new CatchAllHandler().handleGeneralException(leak, request);
+    ResponseEntity<ProblemDetail> response = new CatchAllHandler().handleGeneralException(leak, request);
 
-    assertThat(prod.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-    assertThat(prod.getBody()).isNotNull();
-    assertThat(prod.getBody().getDetail()).isEqualTo("서비스에 문제가 발생했습니다.");
-    assertThat(prod.getBody().getTitle()).isEqualTo("Internal Server Error");
-    assertThat(prod.getBody().getProperties())
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getDetail()).isEqualTo("서비스에 문제가 발생했습니다. 잠시 후 다시 시도해 주세요");
+    assertThat(response.getBody().getTitle()).isEqualTo("Internal Server Error");
+    assertThat(response.getBody().getProperties())
       .containsEntry("errorCode", "INTERNAL_SERVER_ERROR")
       .containsEntry("errorType", "SYSTEM");
-    assertThat(noEnvironment.getBody()).extracting(ProblemDetail::getDetail).isEqualTo("서비스에 문제가 발생했습니다.");
-  }
-
-  @ParameterizedTest(name = "{0} → {1}")
-  @CsvSource({
-    "dev, 원인 - IllegalStateException",
-    "local, 원인 - IllegalStateException",
-    "'no-file-logging,development', 원인 - IllegalStateException",
-    "'test,docker', 서비스에 문제가 발생했습니다."
-  })
-  @DisplayName("켜진 프로필 중 개발용이 있을 때만 500 detail 에 예외 메시지와 종류를 싣는다")
-  void systemError_DetailByProfile(String profiles, String detail) {
-    ResponseEntity<ProblemDetail> response = catchAll(profiles.split(","))
-      .handleGeneralException(new IllegalStateException("원인"), request);
-
-    assertThat(response.getBody()).extracting(ProblemDetail::getDetail).isEqualTo(detail);
   }
 }

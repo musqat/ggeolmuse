@@ -16,8 +16,8 @@ class GatewayDependencyTest {
   @DisplayName("기동 때 옛 설정 키를 새 이름으로 옮기는 도구가 클래스패스에 없다")
   void noPropertiesMigrator() {
     assertThat(ClassUtils.isPresent(
-        "org.springframework.boot.context.properties.migrator.PropertiesMigrationListener",
-        getClass().getClassLoader())).isFalse();
+      "org.springframework.boot.context.properties.migrator.PropertiesMigrationListener",
+      getClass().getClassLoader())).isFalse();
   }
 
   @Test

@@ -176,14 +176,14 @@ class AdminUserControllerTest {
     given(userService.adminVerifyEmail(USER_ID)).willReturn(user());
 
     expectSummary(mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/role"), """
-        {"role":"ADMIN"}
-        """)));
+      {"role":"ADMIN"}
+      """)));
     expectSummary(mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/enabled"), """
-        {"enabled":false}
-        """)));
+      {"enabled":false}
+      """)));
     expectSummary(mockMvc.perform(json(patch(BASE + "/" + USER_ID + "/nickname"), """
-        {"nickname":"새이름"}
-        """)));
+      {"nickname":"새이름"}
+      """)));
     expectSummary(mockMvc.perform(patch(BASE + "/" + USER_ID + "/verify-email").with(admin())));
 
     verify(userService).updateUserRole(USER_ID, UserRole.ADMIN, "kc-admin");
@@ -261,7 +261,7 @@ class AdminUserControllerTest {
   @DisplayName("배당 정산은 쪽마다 계좌 · 종목 · 배당락일 · 금액을 돌려주고 마지막 쪽인지 알린다")
   void getDividendSettlements() throws Exception {
     given(accountService.getDividendSettlements(1, 2)).willReturn(new PageImpl<>(List.of(DividendSettlement.of(
-        20L, "AAPL", LocalDate.of(2024, 2, 9), new BigDecimal("2.03"), LocalDateTime.of(2026, 10, 18, 9, 0))),
+      20L, "AAPL", LocalDate.of(2024, 2, 9), new BigDecimal("2.03"), LocalDateTime.of(2026, 10, 18, 9, 0))),
       PageRequest.of(1, 2), 3));
 
     mockMvc.perform(get(BASE + "/dividend-settlements").param("page", "1").param("size", "2").with(admin()))

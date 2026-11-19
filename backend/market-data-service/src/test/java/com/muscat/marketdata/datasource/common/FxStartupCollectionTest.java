@@ -53,7 +53,7 @@ class FxStartupCollectionTest {
       .withBean(FxRateRepository.class, () -> repository)
       .withBean(MarketDataProperties.class, () -> properties)
       // 이 파드가 기동 수집 락을 늘 얻음
-      .withBean(LockProvider.class, () -> config -> Optional.of(() -> { }))
+      .withBean(LockProvider.class, () -> config -> Optional.of(() -> {}))
       .withBean(FxDataCollector.class)
       .run(context -> {
         long begin = System.nanoTime();

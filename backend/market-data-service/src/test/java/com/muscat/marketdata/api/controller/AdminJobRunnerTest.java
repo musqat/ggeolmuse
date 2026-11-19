@@ -50,7 +50,7 @@ class AdminJobRunnerTest {
     AdminJobRunner runner = new AdminJobRunner();
     CountDownLatch next = new CountDownLatch(1);
 
-    assertThat(runner.submit("실패하는 일", () -> { throw new IllegalStateException("boom"); })).isTrue();
+    assertThat(runner.submit("실패하는 일", () -> {throw new IllegalStateException("boom");})).isTrue();
     assertThat(runner.submit("다음 일", next::countDown)).isTrue();
 
     assertThat(next.await(2, TimeUnit.SECONDS)).isTrue();

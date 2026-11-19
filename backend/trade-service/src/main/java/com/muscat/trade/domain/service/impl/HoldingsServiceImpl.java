@@ -139,7 +139,7 @@ public class HoldingsServiceImpl implements HoldingsService {
   }
 
   private PortfolioSummary summarize(String userId, List<Holdings> portfolio,
-    Map<String, BigDecimal> currentPrices) {
+                                     Map<String, BigDecimal> currentPrices) {
     log.debug("포트폴리오 종합 정보 계산: userId={}", userId);
 
     var summaryProjection = holdingsRepository.calculatePortfolioSummary(userId);

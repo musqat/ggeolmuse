@@ -1,6 +1,7 @@
 package com.muscat.commonlib.util;
 
-import com.muscat.commonlib.exception.ServiceException;
+import com.muscat.commonlib.exception.BusinessException;
+import com.muscat.commonlib.exception.CommonResponse;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +26,6 @@ public final class MoneyUtils {
   private static final BigDecimal MAX_EXCHANGE_RATE = new BigDecimal("2000");
 
   private MoneyUtils() {
-    throw new AssertionError("Utility class cannot be instantiated");
   }
 
   // KRW 금액 반올림 (소수점 제거)
@@ -68,54 +68,47 @@ public final class MoneyUtils {
   }
 
   // 양수 금액 검증
-  public static void validatePositiveAmount(BigDecimal amount, String fieldName) {
-    if (amount == null) {
-      throw new ServiceException("INVALID_AMOUNT", fieldName + "이(가) null입니다");
-    }
-    if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-      throw new ServiceException("INVALID_AMOUNT", fieldName + "은(는) 0보다 커야 합니다: " + amount);
+  public static void validatePositiveAmount(BigDecimal amount) {
+    if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+      throw new BusinessException(CommonResponse.INVALID_AMOUNT);
     }
   }
 
   // 환전 최소 금액 검증
   public static void validateMinimumExchangeAmount(BigDecimal amount, String currency) {
-    validatePositiveAmount(amount, "환전 금액");
+    validatePositiveAmount(amount);
 
     BigDecimal minimumAmount = switch (currency.toUpperCase()) {
       case "KRW" -> MIN_EXCHANGE_AMOUNT_KRW;
       case "USD" -> MIN_EXCHANGE_AMOUNT_USD;
-      default -> throw new ServiceException("INVALID_CURRENCY", "지원하지 않는 통화: " + currency);
+      default -> throw new BusinessException(CommonResponse.INVALID_CURRENCY);
     };
 
     if (amount.compareTo(minimumAmount) < 0) {
-      throw new ServiceException("INSUFFICIENT_AMOUNT",
-        String.format("최소 환전 금액은 %s %s입니다", minimumAmount, currency));
+      throw new BusinessException(CommonResponse.INSUFFICIENT_AMOUNT);
     }
   }
 
   // 환전 최대 금액 검증 (KRW 기준)
   public static void validateMaximumExchangeAmount(BigDecimal krwAmount) {
-    validatePositiveAmount(krwAmount, "환전 금액");
+    validatePositiveAmount(krwAmount);
 
     if (krwAmount.compareTo(MAX_SINGLE_EXCHANGE_KRW) > 0) {
-      throw new ServiceException("EXCESSIVE_AMOUNT",
-        String.format("1회 최대 환전 금액은 %s원입니다", MAX_SINGLE_EXCHANGE_KRW));
+      throw new BusinessException(CommonResponse.EXCESSIVE_AMOUNT);
     }
   }
 
   // 잔액 충분성 검증
   public static void validateSufficientBalance(BigDecimal currentBalance, BigDecimal requiredAmount,
-    String currency) {
-    validatePositiveAmount(requiredAmount, "필요 금액");
+                                               String currency) {
+    validatePositiveAmount(requiredAmount);
 
     if (currentBalance == null) {
       currentBalance = BigDecimal.ZERO;
     }
 
     if (currentBalance.compareTo(requiredAmount) < 0) {
-      throw new ServiceException("INSUFFICIENT_BALANCE",
-        String.format("잔액 부족: 현재 %s %s, 필요 %s %s",
-          currentBalance, currency, requiredAmount, currency));
+      throw new BusinessException(CommonResponse.INSUFFICIENT_BALANCE);
     }
   }
 
@@ -177,21 +170,19 @@ public final class MoneyUtils {
 
   // 기본 환전 입력값 검증
   private static void validateBasicExchangeInputs(BigDecimal amount, BigDecimal exchangeRate) {
-    if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-      throw new ServiceException("INVALID_AMOUNT", "금액은 0보다 커야 합니다: " + amount);
-    }
+    validatePositiveAmount(amount);
     if (exchangeRate == null || exchangeRate.compareTo(BigDecimal.ZERO) <= 0) {
-      throw new ServiceException("INVALID_EXCHANGE_RATE", "환율은 0보다 커야 합니다: " + exchangeRate);
+      throw new BusinessException(CommonResponse.INVALID_EXCHANGE_RATE);
     }
   }
 
   // 전체 환전 입력값 검증
   private static void validateExchangeInputs(BigDecimal amount, BigDecimal exchangeRate,
-    String fromCurrency, String toCurrency) {
-    validatePositiveAmount(amount, fromCurrency + " 금액");
+                                             String fromCurrency, String toCurrency) {
+    validatePositiveAmount(amount);
 
     if (exchangeRate == null || exchangeRate.compareTo(BigDecimal.ZERO) <= 0) {
-      throw new ServiceException("INVALID_EXCHANGE_RATE", "환율은 0보다 커야 합니다: " + exchangeRate);
+      throw new BusinessException(CommonResponse.INVALID_EXCHANGE_RATE);
     }
 
     if (("USD".equals(toCurrency) || "KRW".equals(toCurrency)) && !isExchangeRateInRange(exchangeRate)) {
@@ -208,7 +199,7 @@ public final class MoneyUtils {
   // 수익률 계산 (백분율) - (현재값 - 기준값) / 기준값 * 100
   public static BigDecimal calculateReturnRate(BigDecimal baseValue, BigDecimal currentValue) {
     if (baseValue == null || baseValue.compareTo(BigDecimal.ZERO) == 0) {
-      throw new ServiceException("INVALID_BASE_VALUE", "기준값은 null이거나 0이 될 수 없습니다");
+      throw new BusinessException(CommonResponse.INVALID_BASE_VALUE);
     }
     if (currentValue == null) {
       currentValue = BigDecimal.ZERO;
@@ -230,11 +221,10 @@ public final class MoneyUtils {
   // 환율 검증(0 이하거나 정상 범위 밖이면 예외)
   public static void validateExchangeRate(BigDecimal exchangeRate) {
     if (exchangeRate == null || exchangeRate.compareTo(BigDecimal.ZERO) <= 0) {
-      throw new ServiceException("INVALID_EXCHANGE_RATE", "환율은 0보다 커야 합니다: " + exchangeRate);
+      throw new BusinessException(CommonResponse.INVALID_EXCHANGE_RATE);
     }
     if (!isExchangeRateInRange(exchangeRate)) {
-      throw new ServiceException("INVALID_EXCHANGE_RATE",
-        "환율이 정상 범위(" + MIN_EXCHANGE_RATE + " ~ " + MAX_EXCHANGE_RATE + "원) 밖입니다: " + exchangeRate);
+      throw new BusinessException(CommonResponse.EXCHANGE_RATE_OUT_OF_RANGE);
     }
   }
 }

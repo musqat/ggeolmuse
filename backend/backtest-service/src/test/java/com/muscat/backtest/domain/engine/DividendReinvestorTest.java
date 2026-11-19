@@ -1,6 +1,7 @@
 package com.muscat.backtest.domain.engine;
 
 import com.muscat.backtest.common.enums.type.TransactionKind;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -38,8 +39,8 @@ class DividendReinvestorTest {
   @BeforeEach
   void stub() {
     OHLCPriceDto p = new OHLCPriceDto("AAPL", EX,
-        new BigDecimal("49"), new BigDecimal("51"), new BigDecimal("48"),
-        new BigDecimal("50"), new BigDecimal("50"), 1L, "USD", true);
+      new BigDecimal("49"), new BigDecimal("51"), new BigDecimal("48"),
+      new BigDecimal("50"), new BigDecimal("50"), 1L, "USD", true);
     lenient().when(client.getOHLCPriceRange(eq("AAPL"), any(), any())).thenReturn(List.of(p));
     Map<String, BigDecimal> fx = new HashMap<>();
     fx.put(EX.toString(), new BigDecimal("1300"));
@@ -59,10 +60,10 @@ class DividendReinvestorTest {
   private static List<StrategyTransaction> buyTransactions(double shares) {
     List<StrategyTransaction> txs = new ArrayList<>();
     txs.add(StrategyTransaction.builder().kind((BigDecimal.valueOf(shares)).signum() < 0 ? TransactionKind.SELL : TransactionKind.BUY)
-        .date(LocalDate.of(2025, 1, 1)).actualDate(LocalDate.of(2025, 1, 1))
-        .price(new BigDecimal("40")).shares(BigDecimal.valueOf(shares))
-        .amount(new BigDecimal("100000")).fxRate(new BigDecimal("1300")).trigger("월정액")
-        .build());
+      .date(LocalDate.of(2025, 1, 1)).actualDate(LocalDate.of(2025, 1, 1))
+      .price(new BigDecimal("40")).shares(BigDecimal.valueOf(shares))
+      .amount(new BigDecimal("100000")).fxRate(new BigDecimal("1300")).trigger("월정액")
+      .build());
     return txs;
   }
 
@@ -71,8 +72,8 @@ class DividendReinvestorTest {
   void reinvests() {
     var txs = buyTransactions(10);
     BigDecimal reinvested = DividendReinvestor.reinvest(
-        client, history(new BigDecimal("2")), txs, "AAPL", LocalDate.of(2025, 1, 1),
-        true, BigDecimal.ZERO, null, new BigDecimal("1300"));
+      client, history(new BigDecimal("2")), txs, "AAPL", LocalDate.of(2025, 1, 1),
+      true, BigDecimal.ZERO, null, new BigDecimal("1300"));
 
     assertThat(reinvested).isEqualByComparingTo("20");          // 10주 × $2
     assertThat(txs).hasSize(2);                                  // 매수 + 재투자
@@ -85,8 +86,8 @@ class DividendReinvestorTest {
   void appliesTax() {
     var txs = buyTransactions(10);
     BigDecimal reinvested = DividendReinvestor.reinvest(
-        client, history(new BigDecimal("2")), txs, "AAPL", LocalDate.of(2025, 1, 1),
-        true, new BigDecimal("0.154"), null, new BigDecimal("1300"));
+      client, history(new BigDecimal("2")), txs, "AAPL", LocalDate.of(2025, 1, 1),
+      true, new BigDecimal("0.154"), null, new BigDecimal("1300"));
 
     assertThat(reinvested).isEqualByComparingTo("16.92");        // 20 × (1-0.154)
   }
@@ -96,14 +97,14 @@ class DividendReinvestorTest {
   void boughtOnExDate_NoReinvest() {
     List<StrategyTransaction> txs = new ArrayList<>();
     txs.add(StrategyTransaction.builder().kind(TransactionKind.BUY)
-        .date(EX.minusDays(2)).actualDate(EX)
-        .price(new BigDecimal("40")).shares(BigDecimal.TEN)
-        .amount(new BigDecimal("100000")).fxRate(new BigDecimal("1300")).trigger("월정액")
-        .build());
+      .date(EX.minusDays(2)).actualDate(EX)
+      .price(new BigDecimal("40")).shares(BigDecimal.TEN)
+      .amount(new BigDecimal("100000")).fxRate(new BigDecimal("1300")).trigger("월정액")
+      .build());
 
     BigDecimal reinvested = DividendReinvestor.reinvest(
-        client, history(new BigDecimal("2")), txs, "AAPL", EX.minusDays(2),
-        true, BigDecimal.ZERO, null, new BigDecimal("1300"));
+      client, history(new BigDecimal("2")), txs, "AAPL", EX.minusDays(2),
+      true, BigDecimal.ZERO, null, new BigDecimal("1300"));
 
     assertThat(reinvested).isEqualByComparingTo("0");
     assertThat(txs).hasSize(1);
@@ -114,8 +115,8 @@ class DividendReinvestorTest {
   void disabled() {
     var txs = buyTransactions(10);
     BigDecimal reinvested = DividendReinvestor.reinvest(
-        client, history(new BigDecimal("2")), txs, "AAPL", LocalDate.of(2025, 1, 1),
-        false, BigDecimal.ZERO, null, new BigDecimal("1300"));
+      client, history(new BigDecimal("2")), txs, "AAPL", LocalDate.of(2025, 1, 1),
+      false, BigDecimal.ZERO, null, new BigDecimal("1300"));
 
     assertThat(reinvested).isEqualByComparingTo("0");
     assertThat(txs).hasSize(1);
@@ -140,7 +141,7 @@ class DividendReinvestorTest {
   void noDividends() {
     DividendHistoryDto nullList = new DividendHistoryDto();
 
-    for (DividendHistoryDto history : new DividendHistoryDto[] {null, nullList, historyOf()}) {
+    for (DividendHistoryDto history : new DividendHistoryDto[]{null, nullList, historyOf()}) {
       var txs = buyTransactions(10);
       assertThat(DividendReinvestor.reinvest(client, history, txs, "AAPL", LocalDate.of(2025, 1, 1),
         true, BigDecimal.ZERO, null, new BigDecimal("1300"))).isEqualByComparingTo("0");

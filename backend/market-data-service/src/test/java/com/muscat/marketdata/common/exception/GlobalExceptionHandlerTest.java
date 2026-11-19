@@ -2,6 +2,7 @@ package com.muscat.marketdata.common.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.muscat.commonlib.exception.CommonResponse;
 import com.muscat.marketdata.api.controller.AdminMarketController;
 import com.muscat.marketdata.api.controller.DataCollectionController;
 import com.muscat.marketdata.api.controller.InternalMarketController;
@@ -15,7 +16,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.bind.annotation.RestController;
@@ -37,7 +37,7 @@ import org.springframework.web.method.ControllerAdviceBean;
 @DisplayName("market-data 예외 응답 변환")
 class GlobalExceptionHandlerTest {
 
-  private final GlobalExceptionHandler handler = handlerWithProfiles();
+  private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
   @Test
   @DisplayName("서비스 예외 · 요청 값 오류는 공통 모듈에서 상속한 핸들러가, 외부 API 예외와 그 밖의 예외는 서비스 핸들러가 받는다")
@@ -51,8 +51,10 @@ class GlobalExceptionHandlerTest {
       .isEqualTo("handleMissingParameterException");
     assertThat(resolver.resolveMethod(new HttpMessageNotReadableException("JSON parse error", new MockHttpInputMessage(new byte[0]))).getName())
       .isEqualTo("handleNotReadable");
-    assertThat(resolver.resolveMethod(new YahooFinanceException("원인")).getName())
-      .isEqualTo("handleYahooFinanceException");
+    assertThat(resolver.resolveMethod(new YahooFinanceException(MarketDataResponse.YAHOO_RESPONSE_INVALID)).getName())
+      .isEqualTo("handleBusinessException");
+    assertThat(resolver.resolveMethod(new AlphaVantageException(MarketDataResponse.ALPHA_VANTAGE_ERROR)).getName())
+      .isEqualTo("handleBusinessException");
     assertThat(resolver.resolveMethod(new IllegalStateException("원인")).getName())
       .isEqualTo("handleGeneralException");
   }
@@ -101,49 +103,42 @@ class GlobalExceptionHandlerTest {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     ProblemDetail body = Objects.requireNonNull(response.getBody());
     assertThat(body.getStatus()).isEqualTo(400);
-    assertThat(body.getDetail()).isEqualTo("요청 값이 올바르지 않습니다: minAmount, symbol");
+    assertThat(body.getDetail()).isEqualTo("요청 값이 올바르지 않습니다");
     assertThat(body.getProperties()).containsEntry("parameterName", "minAmount, symbol").containsEntry("errorType", "VALIDATION");
   }
 
   @Test
-  @DisplayName("야후 · AlphaVantage · 수출입은행 오류는 502 이고 외부 서비스 오류로 표시한다")
+  @DisplayName("야후 · AlphaVantage 오류는 그 코드의 상태 · 이름 · 문구이고 외부 서비스 오류로 표시한다")
   void externalServiceErrors() {
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/market/price/AAPL");
 
-    ResponseEntity<ProblemDetail> yahoo = handler.handleYahooFinanceException(new YahooFinanceException("429"), request);
-    ResponseEntity<ProblemDetail> av = handler.handleAlphaVantageException(new AlphaVantageException("limit"), request);
-    ResponseEntity<ProblemDetail> fx = handler.handleFxRateException(new FxRateException("no data"), request);
+    ResponseEntity<ProblemDetail> yahoo = handler.handleBusinessException(
+      new YahooFinanceException(MarketDataResponse.YAHOO_RESPONSE_INVALID), request);
+    ResponseEntity<ProblemDetail> av = handler.handleBusinessException(
+      new AlphaVantageException(MarketDataResponse.ALPHA_VANTAGE_ERROR), request);
+    ResponseEntity<ProblemDetail> limited = handler.handleBusinessException(
+      new AlphaVantageException(MarketDataResponse.ALPHA_VANTAGE_RATE_LIMITED), request);
 
-    assertThat(List.of(yahoo, av, fx)).allSatisfy(response -> {
-      assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
-      assertThat(Objects.requireNonNull(response.getBody()).getProperties()).containsEntry("errorType", "EXTERNAL_SERVICE");
-    });
-    assertThat(Objects.requireNonNull(yahoo.getBody()).getDetail()).isEqualTo("Yahoo Finance 서비스 오류: 429");
-    assertThat(Objects.requireNonNull(av.getBody()).getDetail()).isEqualTo("Alpha Vantage 서비스 오류: limit");
-    assertThat(Objects.requireNonNull(fx.getBody()).getDetail()).isEqualTo("한국수출입은행 서비스 오류: no data");
+    assertThat(List.of(yahoo, av, limited)).allSatisfy(response ->
+      assertThat(Objects.requireNonNull(response.getBody()).getProperties()).containsEntry("errorType", "EXTERNAL_SERVICE"));
+    assertThat(yahoo.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+    assertThat(Objects.requireNonNull(yahoo.getBody()).getProperties()).containsEntry("errorCode", "YAHOO_RESPONSE_INVALID");
+    assertThat(av.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+    assertThat(Objects.requireNonNull(av.getBody()).getDetail()).isEqualTo("Alpha Vantage 서비스 오류");
+    assertThat(limited.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+    assertThat(Objects.requireNonNull(limited.getBody()).getProperties()).containsEntry("errorCode", "ALPHA_VANTAGE_RATE_LIMITED");
   }
 
   @Test
-  @DisplayName("예상하지 못한 예외는 운영 · 프로필 없음에서 내용을 감춘다")
-  void generalException_Production_HidesDetail() {
+  @DisplayName("그 밖의 예외는 내용을 싣지 않고 공통 500 문구로 응답한다")
+  void generalException_CommonMessage() {
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/market/price/AAPL");
     IllegalStateException leak = new IllegalStateException("jdbc:postgresql://db/secret");
-    String hidden = "시장 데이터 서비스에 문제가 발생했습니다.";
 
-    ResponseEntity<ProblemDetail> prod = handlerWithProfiles("prod").handleGeneralException(leak, request);
-    ResponseEntity<ProblemDetail> none = handlerWithProfiles().handleGeneralException(leak, request);
+    ResponseEntity<ProblemDetail> response = new GlobalExceptionHandler().handleGeneralException(leak, request);
 
-    assertThat(prod.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-    assertThat(Objects.requireNonNull(prod.getBody()).getDetail()).isEqualTo(hidden);
-    assertThat(Objects.requireNonNull(none.getBody()).getDetail()).isEqualTo(hidden);
-  }
-
-  private static GlobalExceptionHandler handlerWithProfiles(String... profiles) {
-    MockEnvironment environment = new MockEnvironment();
-    environment.setActiveProfiles(profiles);
-    GlobalExceptionHandler handler = new GlobalExceptionHandler();
-    handler.setEnvironment(environment);
-    return handler;
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    assertThat(Objects.requireNonNull(response.getBody()).getDetail()).isEqualTo(CommonResponse.INTERNAL_SERVER_ERROR.getMessage());
   }
 
   // 컨트롤러 패키지 밖에 둔 컨트롤러

@@ -14,10 +14,10 @@ import org.springframework.http.ResponseEntity;
 
 // config-server 관리 포트 · API 포트 인증
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT, properties = {
-    "spring.profiles.active=native",
-    "spring.cloud.config.server.native.search-locations=classpath:/config-repo/",
-    "management.server.port=0",
-    "CONFIG_SERVER_PASSWORD=test-password"})
+  "spring.profiles.active=native",
+  "spring.cloud.config.server.native.search-locations=classpath:/config-repo/",
+  "management.server.port=0",
+  "CONFIG_SERVER_PASSWORD=test-password"})
 class SecurityConfigTest {
 
   @Autowired
@@ -30,7 +30,7 @@ class SecurityConfigTest {
   @DisplayName("관리 포트의 health 는 인증 없이 열린다")
   void managementHealthIsOpen() {
     ResponseEntity<String> response = rest.getForEntity(
-        "http://localhost:" + managementPort + "/actuator/health", String.class);
+      "http://localhost:" + managementPort + "/actuator/health", String.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).contains("\"status\":\"UP\"");
@@ -56,7 +56,7 @@ class SecurityConfigTest {
   @DisplayName("인증한 설정 요청은 저장소의 값을 받는다")
   void configRequestWithAuthReturnsValues() {
     ResponseEntity<String> response = rest.withBasicAuth("config", "test-password")
-        .getForEntity("/demo-service/default", String.class);
+      .getForEntity("/demo-service/default", String.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).contains("\"demo.greeting\":\"hello\"");

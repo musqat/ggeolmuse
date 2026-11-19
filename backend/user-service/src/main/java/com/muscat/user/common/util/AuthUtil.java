@@ -38,7 +38,7 @@ public class AuthUtil {
   // Keycloak ID 로 찾은 활성 · 이메일 인증된 사용자 id
   public Long requireUserId(String keycloakId) {
     User user = userRepository.findByKeycloakId(keycloakId)
-        .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
+      .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
 
     // 이미 발급된 토큰도 여기서 차단(만료 전까지 유효)
     if (!user.isEnabled()) {

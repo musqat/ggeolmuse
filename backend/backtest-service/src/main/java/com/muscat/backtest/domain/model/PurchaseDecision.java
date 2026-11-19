@@ -4,8 +4,8 @@ import java.math.BigDecimal;
 
 // 매수 결정 정보
 public record PurchaseDecision(
-    boolean shouldBuy,
-    BigDecimal price,
-    String trigger
+  boolean shouldBuy,
+  BigDecimal price,
+  String trigger
 ) {
 }

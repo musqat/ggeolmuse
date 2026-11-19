@@ -30,7 +30,7 @@ public record DailyValue(
 
   // 날마다 같은 순서의 달러 · 원화 낙폭을 채운 목록
   public static List<DailyValue> withDrawdowns(List<DailyValue> values, List<BigDecimal> usd,
-    List<BigDecimal> krw) {
+                                               List<BigDecimal> krw) {
     List<DailyValue> result = new ArrayList<>();
     for (int i = 0; i < values.size(); i++) {
       DailyValue value = values.get(i);

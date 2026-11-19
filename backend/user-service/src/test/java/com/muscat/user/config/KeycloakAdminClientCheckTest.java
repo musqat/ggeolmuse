@@ -2,6 +2,8 @@ package com.muscat.user.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.muscat.user.common.enums.response.KeycloakResponse;
+import com.muscat.user.common.exception.KeycloakException;
 import java.io.IOException;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -32,7 +34,9 @@ class KeycloakAdminClientCheckTest {
   @Test
   @DisplayName("운영 프로필에서 secret 이 없으면 기동 실패")
   void prod_WithoutSecret_Fails() {
-    withProfiles("prod").run(context -> assertThat(context).hasFailed());
+    withProfiles("prod").run(context -> assertThat(context).getFailure().rootCause()
+      .isInstanceOf(KeycloakException.class)
+      .extracting("code").isEqualTo(KeycloakResponse.ADMIN_CLIENT_SECRET_MISSING));
   }
 
   @Test

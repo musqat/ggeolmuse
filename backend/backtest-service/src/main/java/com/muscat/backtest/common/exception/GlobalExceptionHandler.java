@@ -14,6 +14,6 @@ public class GlobalExceptionHandler extends BaseExceptionHandler {
 
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ProblemDetail> handleGeneralException(Exception e, HttpServletRequest request) {
-    return systemError(e, request, "백테스트 서비스에 문제가 발생했습니다. 관리자에게 문의해주세요.");
+    return systemError(e, request);
   }
 }

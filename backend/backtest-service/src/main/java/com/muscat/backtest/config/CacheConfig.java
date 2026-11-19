@@ -34,7 +34,7 @@ public class CacheConfig {
   }
 
   private org.springframework.cache.Cache buildCache(String name,
-    Caffeine<Object, Object> spec) {
+                                                     Caffeine<Object, Object> spec) {
     CaffeineCacheManager single = new CaffeineCacheManager(name);
     single.setCaffeine(spec);
     return single.getCache(name);

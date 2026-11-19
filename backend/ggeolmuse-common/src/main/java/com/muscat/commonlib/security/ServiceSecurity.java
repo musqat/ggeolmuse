@@ -43,7 +43,7 @@ public final class ServiceSecurity {
     String authServerUrl = environment.getProperty("KEYCLOAK_AUTH_SERVER_URL", "http://localhost:8080");
     String realm = environment.getProperty("KEYCLOAK_REALM", "muscathan");
     String realmUrl = authServerUrl + "/realms/" + realm;
-    List<String> issuers = List.of(environment.getProperty("keycloak.issuers", String[].class, new String[] {realmUrl}));
+    List<String> issuers = List.of(environment.getProperty("keycloak.issuers", String[].class, new String[]{realmUrl}));
     List<String> loginClientIds = List.of(environment.getProperty("keycloak.client-ids", String[].class, LOGIN_CLIENT_IDS));
     List<String> clientIds = Stream.concat(loginClientIds.stream(), Stream.of(ServiceTokenProvider.clientId(environment))).toList();
 

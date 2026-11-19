@@ -76,7 +76,7 @@ class CacheErrorConfigTest {
     @Bean
     CandleService candleService(CandleRepository candleRepository, CacheManager cacheManager) {
       return new CandleServiceImpl(candleRepository, mock(AssetRepository.class), mock(DividendRepository.class),
-          new MarketDataProperties(), mock(DividendYieldOrder.class), cacheManager);
+        new MarketDataProperties(), mock(DividendYieldOrder.class), cacheManager);
     }
   }
 

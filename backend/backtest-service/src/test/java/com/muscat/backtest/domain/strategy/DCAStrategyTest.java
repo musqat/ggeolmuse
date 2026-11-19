@@ -1,6 +1,7 @@
 package com.muscat.backtest.domain.strategy;
 
 import com.muscat.backtest.common.enums.type.TransactionKind;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
@@ -79,7 +80,7 @@ class DCAStrategyTest {
     lenient().when(marketDataClient.defaultFxRate()).thenReturn(new BigDecimal("1350"));
     // 응답 매퍼는 빈 응답(일별 가치 · 지표를 채우는 자리)
     lenient().when(responseMapper.toStrategyResponse(any(DcaStrategyRequest.class), any(), any(StrategyCalculationResult.class),
-      any(), any()))
+        any(), any()))
       .thenReturn(StrategyResponse.builder().build());
   }
 
@@ -341,7 +342,8 @@ class DCAStrategyTest {
       // when & then
       assertThatThrownBy(() -> dcaStrategy.execute(request))
         .isInstanceOf(com.muscat.backtest.common.exception.BacktestException.class)
-        .hasMessageContaining("적립식 투자 전략 실행 가능한 데이터가 없습니다");
+        .extracting("code")
+        .isEqualTo(BacktestResponse.DATA_NOT_FOUND);
     }
   }
 

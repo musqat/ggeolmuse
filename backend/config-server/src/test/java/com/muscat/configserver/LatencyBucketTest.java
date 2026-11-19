@@ -15,10 +15,10 @@ import org.springframework.boot.test.web.server.LocalManagementPort;
 
 // config-server 응답 시간 지표의 지연 구간
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT, properties = {
-    "spring.profiles.active=native",
-    "spring.cloud.config.server.native.search-locations=classpath:/config-repo/",
-    "management.server.port=0",
-    "CONFIG_SERVER_PASSWORD=test-password"})
+  "spring.profiles.active=native",
+  "spring.cloud.config.server.native.search-locations=classpath:/config-repo/",
+  "management.server.port=0",
+  "CONFIG_SERVER_PASSWORD=test-password"})
 class LatencyBucketTest {
 
   @Autowired
@@ -33,16 +33,16 @@ class LatencyBucketTest {
     rest.withBasicAuth("config", "test-password").getForEntity("/demo-service/default", String.class);
 
     await().atMost(Duration.ofSeconds(5))
-        .untilAsserted(() -> assertThat(configRequestBounds()).contains("0.1", "0.3", "1.0", "2.0", "5.0"));
+      .untilAsserted(() -> assertThat(configRequestBounds()).contains("0.1", "0.3", "1.0", "2.0", "5.0"));
   }
 
   private List<String> configRequestBounds() {
     String scrape = rest.getForObject(
-        "http://localhost:" + managementPort + "/actuator/prometheus", String.class);
+      "http://localhost:" + managementPort + "/actuator/prometheus", String.class);
     return scrape.lines()
-        .filter(line -> line.startsWith("http_server_requests_seconds_bucket{"))
-        .filter(line -> line.contains("uri=\"/{name}/{profiles"))
-        .map(line -> line.replaceAll(".*le=\"([^\"]+)\".*", "$1"))
-        .toList();
+      .filter(line -> line.startsWith("http_server_requests_seconds_bucket{"))
+      .filter(line -> line.contains("uri=\"/{name}/{profiles"))
+      .map(line -> line.replaceAll(".*le=\"([^\"]+)\".*", "$1"))
+      .toList();
   }
 }

@@ -103,7 +103,8 @@ class PortfolioStatsControllerTest {
   @DisplayName("기간 값이 1M · 3M · 1Y · ALL 이 아니거나 빠지면 400 이고 서비스까지 가지 않는다")
   void flow_InvalidPeriod_BadRequest() throws Exception {
     mockMvc.perform(get(FLOW).param("accountId", "all").param("period", "2W").with(jwt()))
-      .andExpect(status().isBadRequest());
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.errorCode").value("INVALID_PERIOD"));
     mockMvc.perform(get(FLOW).param("accountId", "all").param("period", "1m").with(jwt()))
       .andExpect(status().isBadRequest());
     mockMvc.perform(get(FLOW).param("accountId", "all").with(jwt()))
@@ -235,7 +236,7 @@ class PortfolioStatsControllerTest {
     given(portfolioStatsService.fx("user-1", "all", FlowPeriod.ALL)).willReturn(new FxStatsResponse(
       new BigDecimal("152000"), new BigDecimal("1385.20"), null, new BigDecimal("0.00"), new BigDecimal("3000000"),
       new BigDecimal("300.00"), 4, List.of(new Exchange(LocalDate.of(2024, 9, 2), 3L, Direction.KRW_TO_USD,
-        new BigDecimal("1300000"), new BigDecimal("1000.00"), new BigDecimal("1300.00"), new BigDecimal("85200")))));
+      new BigDecimal("1300000"), new BigDecimal("1000.00"), new BigDecimal("1300.00"), new BigDecimal("85200")))));
 
     mockMvc.perform(get(FX).param("accountId", "all").param("period", "ALL")
         .with(jwt().jwt(t -> t.subject("user-1"))))
@@ -302,7 +303,7 @@ class PortfolioStatsControllerTest {
   void market_ReturnsComparison() throws Exception {
     given(portfolioStatsService.market("user-1", "all", FlowPeriod.ONE_YEAR)).willReturn(new MarketComparisonResponse(
       "SPY", List.of(new MarketPoint(LocalDate.of(2024, 9, 18), new BigDecimal("-12000")),
-        new MarketPoint(LocalDate.of(2024, 9, 19), new BigDecimal("98000"))), new BigDecimal("98000")));
+      new MarketPoint(LocalDate.of(2024, 9, 19), new BigDecimal("98000"))), new BigDecimal("98000")));
 
     mockMvc.perform(get(MARKET).param("accountId", "all").param("period", "1Y")
         .with(jwt().jwt(t -> t.subject("user-1"))))

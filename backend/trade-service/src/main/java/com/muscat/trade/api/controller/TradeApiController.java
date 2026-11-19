@@ -33,25 +33,25 @@ public class TradeApiController {
   private final TradingService tradingService;
 
   @Operation(
-      summary = "종목별 거래 내역 조회",
-      description = "사용자의 특정 종목 거래 내역을 모두 조회합니다"
+    summary = "종목별 거래 내역 조회",
+    description = "사용자의 특정 종목 거래 내역을 모두 조회합니다"
   )
   @ApiResponses(value = {
-      @ApiResponse(
-          responseCode = "200",
-          description = "종목별 거래 내역 조회 성공",
-          content = @Content(
-              mediaType = "application/json",
-              schema = @Schema(implementation = TradeResponseDto.class)
-          )
+    @ApiResponse(
+      responseCode = "200",
+      description = "종목별 거래 내역 조회 성공",
+      content = @Content(
+        mediaType = "application/json",
+        schema = @Schema(implementation = TradeResponseDto.class)
       )
+    )
   })
   @GetMapping("/history/{symbol}")
   public ResponseEntity<List<TradeResponseDto>> getTradeHistoryBySymbol(
-      @Parameter(description = "JWT 토큰에서 추출되는 사용자 ID", hidden = true)
-      @AuthenticationPrincipal Jwt jwt,
-      @Parameter(description = "종목 코드", required = true, example = "AAPL")
-      @PathVariable("symbol") String symbol) {
+    @Parameter(description = "JWT 토큰에서 추출되는 사용자 ID", hidden = true)
+    @AuthenticationPrincipal Jwt jwt,
+    @Parameter(description = "종목 코드", required = true, example = "AAPL")
+    @PathVariable("symbol") String symbol) {
 
     String userId = jwt.getSubject();
 
@@ -61,27 +61,27 @@ public class TradeApiController {
   }
 
   @Operation(
-      summary = "거래 내역 조회 (페이지네이션)",
-      description = "사용자의 모든 거래 내역을 페이지네이션으로 조회합니다"
+    summary = "거래 내역 조회 (페이지네이션)",
+    description = "사용자의 모든 거래 내역을 페이지네이션으로 조회합니다"
   )
   @ApiResponses(value = {
-      @ApiResponse(
-          responseCode = "200",
-          description = "거래 내역 조회 성공",
-          content = @Content(
-              mediaType = "application/json",
-              schema = @Schema(implementation = TradeResponseDto.class)
-          )
+    @ApiResponse(
+      responseCode = "200",
+      description = "거래 내역 조회 성공",
+      content = @Content(
+        mediaType = "application/json",
+        schema = @Schema(implementation = TradeResponseDto.class)
       )
+    )
   })
   @GetMapping("/history")
   public ResponseEntity<List<TradeResponseDto>> getTradeHistory(
-      @Parameter(description = "JWT 토큰에서 추출되는 사용자 ID", hidden = true)
-      @AuthenticationPrincipal Jwt jwt,
-      @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
-      @RequestParam(value = "page", defaultValue = "0") @Min(0) int page,
-      @Parameter(description = "페이지 크기 (1~100)", example = "20")
-      @RequestParam(value = "size", defaultValue = "20") @Min(1) @Max(CommonConstants.MAX_PAGE_SIZE) int size) {
+    @Parameter(description = "JWT 토큰에서 추출되는 사용자 ID", hidden = true)
+    @AuthenticationPrincipal Jwt jwt,
+    @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
+    @RequestParam(value = "page", defaultValue = "0") @Min(0) int page,
+    @Parameter(description = "페이지 크기 (1~100)", example = "20")
+    @RequestParam(value = "size", defaultValue = "20") @Min(1) @Max(CommonConstants.MAX_PAGE_SIZE) int size) {
 
     String userId = jwt.getSubject();
 

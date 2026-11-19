@@ -10,13 +10,13 @@ import java.util.Map;
 
 //시뮬레이션 실행에 필요한 컨텍스트 데이터
 public record SimulationContext(
-    SimulationRequest request,
-    OHLCPriceDto purchaseData,
-    FxRateDto purchaseFxRate,
-    BigDecimal valuationPrice,    // 평가일 주가 (USD)
-    FxRateDto currentFxRate,
-    DividendHistoryDto dividendHistory,
-    LocalDate valuationDate,      // 평가일
-    Map<LocalDate, OHLCPriceDto> priceMap  // 매수일 5일 전 ~ 평가일 일봉
+  SimulationRequest request,
+  OHLCPriceDto purchaseData,
+  FxRateDto purchaseFxRate,
+  BigDecimal valuationPrice,    // 평가일 주가 (USD)
+  FxRateDto currentFxRate,
+  DividendHistoryDto dividendHistory,
+  LocalDate valuationDate,      // 평가일
+  Map<LocalDate, OHLCPriceDto> priceMap  // 매수일 5일 전 ~ 평가일 일봉
 ) {
 }

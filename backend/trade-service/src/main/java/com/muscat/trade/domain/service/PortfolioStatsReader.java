@@ -89,7 +89,7 @@ public class PortfolioStatsReader {
 
   // from 앞 14일부터 to 까지 종가
   public NavigableMap<LocalDate, BigDecimal> closes(String symbol, LocalDate from, LocalDate to,
-    LocalDate firstTrade) {
+                                                    LocalDate firstTrade) {
     LocalDate start = from.minusDays(CLOSE_LOOKBACK_DAYS);
     NavigableMap<LocalDate, BigDecimal> closes = closesBetween(symbol, start, to);
     // 앞 14일 안에 종가가 없는 종목(거래 정지 · 상장 폐지)은 첫 체결일부터 찾은 그 앞 마지막 종가

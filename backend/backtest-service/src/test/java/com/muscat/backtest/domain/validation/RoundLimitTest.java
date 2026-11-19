@@ -61,12 +61,11 @@ class RoundLimitTest {
       .amountPerPurchase(new BigDecimal("100000")).dropPercentage(new BigDecimal("0.05"));
   }
 
-  private static void assertRejected(ThrowingCallable call, String message) {
+  private static void assertRejected(ThrowingCallable call, BacktestResponse code) {
     assertThatThrownBy(call)
       .isInstanceOf(BacktestException.class)
-      .hasMessage(message)
       .extracting("code")
-      .isEqualTo(BacktestResponse.TOO_MANY_ROUNDS);
+      .isEqualTo(code);
   }
 
   @Nested
@@ -131,10 +130,10 @@ class RoundLimitTest {
     }
 
     @Test
-    @DisplayName("매일 4,001회면 TOO_MANY_ROUNDS 와 최대 몇 년인지 안내")
+    @DisplayName("매일 4,001회면 TOO_MANY_ROUNDS")
     void dailyOverLimit() {
       assertRejected(() -> RoundLimit.requireDca(dca(DcaFrequency.DAILY, startFor(4_001)).build(), TODAY),
-        "매일 적립은 최대 약 15년 — 기간 줄이기 · 주기 늘리기");
+        BacktestResponse.TOO_MANY_ROUNDS);
     }
 
     @Test
@@ -143,15 +142,15 @@ class RoundLimitTest {
       assertThatCode(() -> RoundLimit.requireDca(dca(DcaFrequency.WEEKLY, END.minusYears(34)).build(), TODAY))
         .doesNotThrowAnyException();
       assertRejected(() -> RoundLimit.requireDca(dca(DcaFrequency.WEEKLY, END.minusYears(36)).build(), TODAY),
-        "매주 적립은 최대 약 34년 — 기간 줄이기 · 주기 늘리기");
+        BacktestResponse.TOO_MANY_ROUNDS);
       assertThatCode(() -> RoundLimit.requireDca(dca(DcaFrequency.MONTHLY, END.minusYears(70)).build(), TODAY))
         .doesNotThrowAnyException();
       assertRejected(() -> RoundLimit.requireDca(
           dca(DcaFrequency.MONTHLY, END.minusYears(75)).investmentInterval(1).build(), TODAY),
-        "매달 적립은 최대 약 71년 — 기간 줄이기 · 주기 늘리기");
+        BacktestResponse.TOO_MANY_ROUNDS);
       assertRejected(() -> RoundLimit.requireDca(
           dca(DcaFrequency.MONTHLY, END.minusYears(130)).investmentInterval(3).build(), TODAY),
-        "3개월마다 적립은 최대 약 123년 — 기간 줄이기 · 주기 늘리기");
+        BacktestResponse.TOO_MANY_ROUNDS);
     }
 
     @Test
@@ -173,7 +172,7 @@ class RoundLimitTest {
       assertThat(RoundLimit.load(byAmount, TODAY)).isEqualTo(1_000L * RoundLimit.weekdays(END.minusYears(30), END, TODAY));
       assertThatCode(() -> RoundLimit.requireDca(byAmount, TODAY)).doesNotThrowAnyException();
       assertRejected(() -> RoundLimit.requireDca(byShares, TODAY),
-        "매일 적립은 최대 약 15년 — 기간 줄이기 · 주기 늘리기");
+        BacktestResponse.TOO_MANY_ROUNDS);
     }
 
     @Test
@@ -182,7 +181,7 @@ class RoundLimitTest {
       for (BigDecimal budget : HUGE_BUDGETS) {
         assertRejected(() -> RoundLimit.requireDca(
             dca(DcaFrequency.DAILY, startFor(4_001)).totalInvestmentLimit(budget).build(), TODAY),
-          "매일 적립은 최대 약 15년 — 기간 줄이기 · 주기 늘리기");
+          BacktestResponse.TOO_MANY_ROUNDS);
       }
     }
   }
@@ -197,7 +196,7 @@ class RoundLimitTest {
       assertThatCode(() -> RoundLimit.requireConditional(conditional(startFor(4_000)).build(), TODAY))
         .doesNotThrowAnyException();
       assertRejected(() -> RoundLimit.requireConditional(conditional(startFor(5_000)).build(), TODAY),
-        "이 기간이면 최대 매수 3,200회까지 — 최대 매수 횟수 정하기 · 기간 줄이기");
+        BacktestResponse.TOO_MANY_ROUNDS);
     }
 
     @Test
@@ -219,7 +218,7 @@ class RoundLimitTest {
       for (BigDecimal budget : HUGE_BUDGETS) {
         assertRejected(() -> RoundLimit.requireConditional(
             conditional(startFor(5_000)).totalInvestment(budget).build(), TODAY),
-          "이 기간이면 최대 매수 3,200회까지 — 최대 매수 횟수 정하기 · 기간 줄이기");
+          BacktestResponse.TOO_MANY_ROUNDS);
       }
     }
 
@@ -230,7 +229,7 @@ class RoundLimitTest {
         .totalInvestment(new BigDecimal("500000")).takeProfitRate(new BigDecimal("0.1")).build();
 
       assertRejected(() -> RoundLimit.requireConditional(request, TODAY),
-        "매도 규칙이 있는 조건부 매수는 최대 약 15년 — 기간 줄이기");
+        BacktestResponse.TOO_MANY_ROUNDS);
     }
   }
 
@@ -251,7 +250,7 @@ class RoundLimitTest {
         .doesNotThrowAnyException();
       assertRejected(() -> RoundLimit.requirePortfolio(
           portfolio(PortfolioMethod.DCA, startFor(4_001)).frequency(DcaFrequency.DAILY).build(), TODAY),
-        "매일 적립은 최대 약 15년 — 기간 줄이기 · 주기 늘리기");
+        BacktestResponse.TOO_MANY_ROUNDS);
     }
 
     @Test
@@ -277,20 +276,20 @@ class RoundLimitTest {
       assertThat(RequestLimit.MAX_COMPARISON_ROUND_LOAD).isEqualTo(3 * RequestLimit.MAX_ROUND_LOAD);
       assertThatCode(() -> RoundLimit.requireComparison(dailyChips(3, 4_000), TODAY)).doesNotThrowAnyException();
       assertRejected(() -> RoundLimit.requireComparison(dailyChips(4, 4_000), TODAY),
-        "칩 회차 합이 너무 많음 — 칩 빼기 · 기간 줄이기 · 주기 늘리기");
+        BacktestResponse.TOO_MANY_COMPARISON_ROUNDS);
     }
 
     @Test
-    @DisplayName("칩 하나가 상한을 넘으면 넘은 칩 안내, 회차 일정이 없는 칩은 세지 않음")
+    @DisplayName("칩 하나가 상한을 넘으면 TOO_MANY_ROUNDS, 회차 일정이 없는 칩은 세지 않음")
     void chip() {
       StrategyRequest maCross = MaCrossStrategyRequest.builder().symbol("SPY").startDate(END.minusYears(60))
         .endDate(END).investmentAmount(new BigDecimal("1000000")).build();
 
       assertThat(RoundLimit.load(maCross, TODAY)).isZero();
       assertRejected(() -> RoundLimit.requireComparison(List.of(maCross, dailyChips(1, 4_001).getFirst()), TODAY),
-        "매일 적립은 최대 약 15년 — 기간 줄이기 · 주기 늘리기");
+        BacktestResponse.TOO_MANY_ROUNDS);
       assertRejected(() -> RoundLimit.requireComparison(List.of(conditional(startFor(5_000)).build()), TODAY),
-        "이 기간이면 최대 매수 3,200회까지 — 최대 매수 횟수 정하기 · 기간 줄이기");
+        BacktestResponse.TOO_MANY_ROUNDS);
     }
 
     @Test
@@ -301,9 +300,9 @@ class RoundLimitTest {
         StrategyRequest atLimit = dca(DcaFrequency.DAILY, startFor(4_000)).totalInvestmentLimit(budget).build();
 
         assertRejected(() -> RoundLimit.requireComparison(List.of(over), TODAY),
-          "매일 적립은 최대 약 15년 — 기간 줄이기 · 주기 늘리기");
+          BacktestResponse.TOO_MANY_ROUNDS);
         assertRejected(() -> RoundLimit.requireComparison(Collections.nCopies(4, atLimit), TODAY),
-          "칩 회차 합이 너무 많음 — 칩 빼기 · 기간 줄이기 · 주기 늘리기");
+          BacktestResponse.TOO_MANY_COMPARISON_ROUNDS);
       }
     }
 
@@ -311,6 +310,7 @@ class RoundLimitTest {
     @DisplayName("상한을 넘은 요청은 400")
     void badRequest() {
       assertThat(BacktestResponse.TOO_MANY_ROUNDS.getHttpStatus().value()).isEqualTo(400);
+      assertThat(BacktestResponse.TOO_MANY_COMPARISON_ROUNDS.getHttpStatus().value()).isEqualTo(400);
     }
   }
 }

@@ -1,10 +1,7 @@
 package com.muscat.user.common.logging;
 
 import ch.qos.logback.classic.spi.ILoggingEvent;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
+import com.muscat.commonlib.util.Hashes;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -39,12 +36,6 @@ public class MaskedEmailJsonCustomizer implements StructuredLoggingJsonMembersCu
   }
 
   static String fingerprint(String email) {
-    try {
-      byte[] hash = MessageDigest.getInstance("SHA-256")
-        .digest(email.toLowerCase(Locale.ROOT).getBytes(StandardCharsets.UTF_8));
-      return HexFormat.of().formatHex(hash).substring(0, FINGERPRINT_LENGTH);
-    } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException(e);
-    }
+    return Hashes.sha256Hex(email.toLowerCase(Locale.ROOT)).substring(0, FINGERPRINT_LENGTH);
   }
 }

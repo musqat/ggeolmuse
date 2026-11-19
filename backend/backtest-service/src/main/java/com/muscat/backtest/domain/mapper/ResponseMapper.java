@@ -15,6 +15,8 @@ import com.muscat.backtest.domain.dto.response.DailyValue;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.model.ComparisonItem;
+import com.muscat.backtest.domain.model.OptimalTiming;
+import com.muscat.backtest.domain.model.SimulationCalculationResult;
 import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.commonlib.dto.StockPriceDto;
@@ -79,69 +81,45 @@ public class ResponseMapper {
   }
 
   public SimulationResponse toSimulationResponse(
-    SimulationRequest request,
-    BigDecimal purchasePriceUsd,
-    BigDecimal shares,
-    BigDecimal currentPriceUsd,
-    BigDecimal currentValueUsd,
-    BigDecimal currentValueKrw,
-    BigDecimal stockReturn,
-    BigDecimal stockReturnPercent,
-    BigDecimal purchaseFxRate,
-    BigDecimal currentFxRate,
-    BigDecimal fxReturn,
-    BigDecimal fxReturnPercent,
-    BigDecimal totalDividends,
-    BigDecimal dividendYield,
-    BigDecimal tradingFee,
-    BigDecimal remainingCash,
-    BigDecimal totalAssetKrw,
-    BigDecimal totalReturnKrw,
-    BigDecimal totalReturnPercent,
-    LocalDate optimalBuyDate,
-    BigDecimal optimalBuyPrice,
-    LocalDate optimalSellDate,
-    BigDecimal optimalSellPrice,
-    BigDecimal optimalReturnPercent,
-    BigDecimal dividendsReinvested,
-    List<LocalDate> dividendReinvestDates) {
+    SimulationRequest request, SimulationCalculationResult calculation, OptimalTiming timing) {
 
+    BigDecimal remainingCash = calculation.remainingCash();
     return SimulationResponse.builder()
       .symbol(request.getSymbol())
       .purchaseDate(request.getPurchaseDate())
       .currentDate(request.valuationDate(LocalDate.now()))
       .investmentAmount(request.getInvestmentAmount())
-      .purchasePrice(purchasePriceUsd)
-      .shares(shares.setScale(6, MoneyUtils.ROUND_MODE))
-      .currentPrice(currentPriceUsd)
-      .currentValue(MoneyUtils.roundUsd(currentValueUsd))
-      .stockReturn(MoneyUtils.roundUsd(stockReturn))
-      .stockReturnPercent(MoneyUtils.roundUsd(stockReturnPercent))
-      .purchaseFxRate(purchaseFxRate)
-      .currentFxRate(currentFxRate)
-      .fxReturn(MoneyUtils.roundUsd(fxReturn))
-      .fxReturnPercent(MoneyUtils.roundUsd(fxReturnPercent))
-      .totalDividends(MoneyUtils.roundUsd(totalDividends))
-      .dividendYield(MoneyUtils.roundUsd(dividendYield))
-      .tradingFee(MoneyUtils.roundUsd(tradingFee))
+      .purchasePrice(calculation.purchasePriceUsd())
+      .shares(calculation.shares().setScale(6, MoneyUtils.ROUND_MODE))
+      .currentPrice(calculation.currentPriceUsd())
+      .currentValue(MoneyUtils.roundUsd(calculation.currentValueUsd()))
+      .stockReturn(MoneyUtils.roundUsd(calculation.stockReturn()))
+      .stockReturnPercent(MoneyUtils.roundUsd(calculation.stockReturnPercent()))
+      .purchaseFxRate(calculation.purchaseFxRate())
+      .currentFxRate(calculation.currentFxRate())
+      .fxReturn(MoneyUtils.roundUsd(calculation.fxReturn()))
+      .fxReturnPercent(MoneyUtils.roundUsd(calculation.fxReturnPercent()))
+      .totalDividends(MoneyUtils.roundUsd(calculation.totalDividends()))
+      .dividendYield(MoneyUtils.roundUsd(calculation.dividendYield()))
+      .tradingFee(MoneyUtils.roundUsd(calculation.tradingFee()))
       .remainingCash(MoneyUtils.roundUsd(remainingCash))
-      .totalReturnPercent(MoneyUtils.roundUsd(totalReturnPercent))
-      .currentValueKrw(MoneyUtils.roundKrw(currentValueKrw))
+      .totalReturnPercent(MoneyUtils.roundUsd(calculation.totalReturnPercent()))
+      .currentValueKrw(MoneyUtils.roundKrw(calculation.currentValueKrw()))
       .remainingCashKrw(MoneyUtils.roundKrw(
         Decimals.isPositive(remainingCash)
-          ? MoneyUtils.convertUsdToKrw(remainingCash, currentFxRate)
+          ? MoneyUtils.convertUsdToKrw(remainingCash, calculation.currentFxRate())
           : BigDecimal.ZERO))
-      .totalAssetKrw(MoneyUtils.roundKrw(totalAssetKrw))
-      .totalReturnKrw(MoneyUtils.roundKrw(totalReturnKrw))
-      .optimalBuyDate(optimalBuyDate)
-      .optimalBuyPrice(optimalBuyPrice != null ? MoneyUtils.roundUsd(optimalBuyPrice) : null)
-      .optimalSellDate(optimalSellDate)
-      .optimalSellPrice(optimalSellPrice != null ? MoneyUtils.roundUsd(optimalSellPrice) : null)
+      .totalAssetKrw(MoneyUtils.roundKrw(calculation.totalAssetKrw()))
+      .totalReturnKrw(MoneyUtils.roundKrw(calculation.totalReturnKrw()))
+      .optimalBuyDate(timing.buyDate())
+      .optimalBuyPrice(timing.buyPrice() != null ? MoneyUtils.roundUsd(timing.buyPrice()) : null)
+      .optimalSellDate(timing.sellDate())
+      .optimalSellPrice(timing.sellPrice() != null ? MoneyUtils.roundUsd(timing.sellPrice()) : null)
       .optimalReturnPercent(
-        optimalReturnPercent != null ? MoneyUtils.roundUsd(optimalReturnPercent) : null)
+        timing.returnPercent() != null ? MoneyUtils.roundUsd(timing.returnPercent()) : null)
       .dividendsReinvested(
-        dividendsReinvested != null ? MoneyUtils.roundUsd(dividendsReinvested) : null)
-      .dividendReinvestDates(dividendReinvestDates)
+        calculation.dividendsReinvested() != null ? MoneyUtils.roundUsd(calculation.dividendsReinvested()) : null)
+      .dividendReinvestDates(calculation.dividendReinvestDates())
       .build();
   }
 
@@ -189,7 +167,7 @@ public class ResponseMapper {
 
   // 거래 · 평가일 가운데 기본 환율로 계산한 날(겹치지 않게 날짜순)
   private static List<LocalDate> defaultFxDates(List<StrategyTransaction> transactions,
-    StrategyCalculationResult calculation) {
+                                                StrategyCalculationResult calculation) {
     java.util.stream.Stream<LocalDate> traded = transactions.stream().map(StrategyTransaction::getDefaultFxDate);
     return java.util.stream.Stream.concat(traded, java.util.stream.Stream.of(calculation.getDefaultFxValuationDate()))
       .filter(java.util.Objects::nonNull)

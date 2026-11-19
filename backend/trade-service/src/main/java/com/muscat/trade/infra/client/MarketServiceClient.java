@@ -22,22 +22,22 @@ public interface MarketServiceClient {
 
   @GetMapping("/api/internal/market/ohlc/{symbol}")
   StockPriceDto getOHLCPrice(@PathVariable("symbol") String symbol,
-      @RequestParam("date") String date);
+                             @RequestParam("date") String date);
 
   @GetMapping("/api/internal/market/dividend/{symbol}")
   List<DividendDto> getDividends(@PathVariable("symbol") String symbol,
-      @RequestParam(value = "startDate", required = false) String startDate,
-      @RequestParam(value = "endDate", required = false) String endDate);
+                                 @RequestParam(value = "startDate", required = false) String startDate,
+                                 @RequestParam(value = "endDate", required = false) String endDate);
 
   @GetMapping("/api/internal/market/ohlc/{symbol}/range")
   List<OHLCPriceDto> getOHLCPriceRange(@PathVariable("symbol") String symbol,
-      @RequestParam("startDate") String startDate,
-      @RequestParam("endDate") String endDate);
+                                       @RequestParam("startDate") String startDate,
+                                       @RequestParam("endDate") String endDate);
 
   // 시작일부터 난 분할(날짜 순)
   @GetMapping("/api/internal/market/splits/{symbol}")
   List<SplitDto> getSplits(@PathVariable("symbol") String symbol,
-      @RequestParam("startDate") String startDate);
+                           @RequestParam("startDate") String startDate);
 
   // 각 날짜 이하 가장 늦은 환율(날짜 문자열 → USD/KRW)
   @PostMapping("/api/internal/market/fx/bulk")

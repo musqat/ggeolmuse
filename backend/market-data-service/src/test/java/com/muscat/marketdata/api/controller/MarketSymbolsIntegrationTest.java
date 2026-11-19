@@ -48,9 +48,9 @@ class MarketSymbolsIntegrationTest {
   void seed() {
     assetRepository.deleteAll();
     assetRepository.saveAll(List.of(
-        asset("MSFT", true),
-        asset("AAPL", true),
-        asset("DEAD", false)));
+      asset("MSFT", true),
+      asset("AAPL", true),
+      asset("DEAD", false)));
   }
 
   @AfterEach
@@ -60,13 +60,13 @@ class MarketSymbolsIntegrationTest {
 
   private static Asset asset(String symbol, boolean active) {
     return Asset.builder()
-        .symbol(symbol)
-        .name(symbol + " Inc.")
-        .country("US")
-        .currency("USD")
-        .assetType("EQUITY")
-        .active(active)
-        .build();
+      .symbol(symbol)
+      .name(symbol + " Inc.")
+      .country("US")
+      .currency("USD")
+      .assetType("EQUITY")
+      .active(active)
+      .build();
   }
 
   @Test
@@ -79,12 +79,12 @@ class MarketSymbolsIntegrationTest {
   @DisplayName("응답은 symbol 하나만 담은 배열이다")
   void responseCarriesSymbolOnly() throws Exception {
     mockMvc.perform(get("/api/market/symbols"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.length()").value(2))
-        .andExpect(jsonPath("$[0].symbol").value("AAPL"))
-        .andExpect(jsonPath("$[1].symbol").value("MSFT"))
-        .andExpect(jsonPath("$[0].length()").value(1))
-        .andExpect(jsonPath("$[*].name").doesNotExist())
-        .andExpect(jsonPath("$[?(@.symbol == 'DEAD')]").isEmpty());
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.length()").value(2))
+      .andExpect(jsonPath("$[0].symbol").value("AAPL"))
+      .andExpect(jsonPath("$[1].symbol").value("MSFT"))
+      .andExpect(jsonPath("$[0].length()").value(1))
+      .andExpect(jsonPath("$[*].name").doesNotExist())
+      .andExpect(jsonPath("$[?(@.symbol == 'DEAD')]").isEmpty());
   }
 }

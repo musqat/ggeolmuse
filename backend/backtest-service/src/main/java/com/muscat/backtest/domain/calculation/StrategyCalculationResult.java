@@ -10,22 +10,22 @@ import java.time.LocalDate;
 @Builder(toBuilder = true)
 public class StrategyCalculationResult {
 
-    private final BigDecimal totalInvested;
-    private final BigDecimal totalShares;
-    private final BigDecimal averagePrice;
-    private final BigDecimal averageFxRate;
-    private final BigDecimal currentValue;
-    private final BigDecimal currentValueKrw;
-    private final BigDecimal totalDividends;       // 총 배당금 (USD) - 재투자 시 0
-    private final BigDecimal dividendsReinvested;  // 재투자된 배당금 (USD)
-    private final BigDecimal totalAssetKrw;        // 총 자산 (주식+잔액+배당, KRW)
-    private final BigDecimal cashBalance;          // 매도로 남은 현금 (USD)
-    private final BigDecimal realizedProfit;       // 매도 실현 손익 합 (USD)
-    private final BigDecimal totalReturnPercent;
-    private final BigDecimal totalReturnKrw;
-    private final BigDecimal fxReturn;
-    private final BigDecimal fxReturnPercent;
-    private final BigDecimal currentFxRate;
-    private final LocalDate defaultFxValuationDate; // 평가일 환율이 기본값이면 그 날
-    private final boolean dividendsUnavailable;     // 배당 이력을 못 받아 배당 없이 계산했으면 true
+  private final BigDecimal totalInvested;
+  private final BigDecimal totalShares;
+  private final BigDecimal averagePrice;
+  private final BigDecimal averageFxRate;
+  private final BigDecimal currentValue;
+  private final BigDecimal currentValueKrw;
+  private final BigDecimal totalDividends;       // 총 배당금 (USD) - 재투자 시 0
+  private final BigDecimal dividendsReinvested;  // 재투자된 배당금 (USD)
+  private final BigDecimal totalAssetKrw;        // 총 자산 (주식+잔액+배당, KRW)
+  private final BigDecimal cashBalance;          // 매도로 남은 현금 (USD)
+  private final BigDecimal realizedProfit;       // 매도 실현 손익 합 (USD)
+  private final BigDecimal totalReturnPercent;
+  private final BigDecimal totalReturnKrw;
+  private final BigDecimal fxReturn;
+  private final BigDecimal fxReturnPercent;
+  private final BigDecimal currentFxRate;
+  private final LocalDate defaultFxValuationDate; // 평가일 환율이 기본값이면 그 날
+  private final boolean dividendsUnavailable;     // 배당 이력을 못 받아 배당 없이 계산했으면 true
 }

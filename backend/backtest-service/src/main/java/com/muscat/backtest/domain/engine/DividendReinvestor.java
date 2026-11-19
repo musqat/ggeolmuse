@@ -26,38 +26,38 @@ public final class DividendReinvestor {
   private DividendReinvestor() {}
 
   public static BigDecimal reinvest(
-      MarketDataPort marketData,
-      DividendHistoryDto dividendHistory,
-      List<StrategyTransaction> transactions,
-      String symbol,
-      LocalDate firstPurchaseDate,
-      boolean reinvestEnabled,
-      BigDecimal dividendTaxRate,
-      BigDecimal manualPurchaseFxRate,
-      BigDecimal currentFxRateValue) {
+    MarketDataPort marketData,
+    DividendHistoryDto dividendHistory,
+    List<StrategyTransaction> transactions,
+    String symbol,
+    LocalDate firstPurchaseDate,
+    boolean reinvestEnabled,
+    BigDecimal dividendTaxRate,
+    BigDecimal manualPurchaseFxRate,
+    BigDecimal currentFxRateValue) {
     return reinvest(marketData, dividendHistory, transactions, symbol, firstPurchaseDate, reinvestEnabled,
-        dividendTaxRate, manualPurchaseFxRate, currentFxRateValue, exDate -> { });
+      dividendTaxRate, manualPurchaseFxRate, currentFxRateValue, exDate -> {});
   }
 
   // 배당락일 순서로 재투자, 배당마다 먼저 배당락일을 beforeDividend 에 넘김
   public static BigDecimal reinvest(
-      MarketDataPort marketData,
-      DividendHistoryDto dividendHistory,
-      List<StrategyTransaction> transactions,
-      String symbol,
-      LocalDate firstPurchaseDate,
-      boolean reinvestEnabled,
-      BigDecimal dividendTaxRate,
-      BigDecimal manualPurchaseFxRate,
-      BigDecimal currentFxRateValue,
-      Consumer<LocalDate> beforeDividend) {
+    MarketDataPort marketData,
+    DividendHistoryDto dividendHistory,
+    List<StrategyTransaction> transactions,
+    String symbol,
+    LocalDate firstPurchaseDate,
+    boolean reinvestEnabled,
+    BigDecimal dividendTaxRate,
+    BigDecimal manualPurchaseFxRate,
+    BigDecimal currentFxRateValue,
+    Consumer<LocalDate> beforeDividend) {
 
     BigDecimal dividendsReinvested = BigDecimal.ZERO;
 
     if (!(reinvestEnabled
-        && dividendHistory != null
-        && dividendHistory.getDividends() != null
-        && !dividendHistory.getDividends().isEmpty())) {
+      && dividendHistory != null
+      && dividendHistory.getDividends() != null
+      && !dividendHistory.getDividends().isEmpty())) {
       return dividendsReinvested;
     }
 
@@ -72,29 +72,29 @@ public final class DividendReinvestor {
     // 배당락일 시세 · 환율을 한 번에 조회
     List<LocalDate> dividendDates = dividends.stream().map(DividendHistoryDto.DividendPayment::getExDate).toList();
     List<OHLCPriceDto> dividendPrices = marketData.getOHLCPriceRange(
-        symbol,
-        dividendDates.get(0).toString(),
-        dividendDates.get(dividendDates.size() - 1).toString());
+      symbol,
+      dividendDates.get(0).toString(),
+      dividendDates.get(dividendDates.size() - 1).toString());
 
     Map<LocalDate, OHLCPriceDto> dividendPriceMap = dividendPrices.stream()
-        .filter(OHLCPriceDto::available)
-        .collect(Collectors.toMap(OHLCPriceDto::date, p -> p, (existing, replacement) -> replacement));
+      .filter(OHLCPriceDto::available)
+      .collect(Collectors.toMap(OHLCPriceDto::date, p -> p, (existing, replacement) -> replacement));
 
     final FxRates dividendFxRateMap =
-        manualPurchaseFxRate == null
-            ? BacktestDataUtils.getBulkFxRates(marketData, dividendDates)
-            : FxRates.EMPTY;
+      manualPurchaseFxRate == null
+        ? BacktestDataUtils.getBulkFxRates(marketData, dividendDates)
+        : FxRates.EMPTY;
 
     log.info("배당 재투자 데이터 조회 완료: 가격 {}개, 환율 {}개",
-        dividendPriceMap.size(), dividendFxRateMap.size());
+      dividendPriceMap.size(), dividendFxRateMap.size());
 
     for (DividendHistoryDto.DividendPayment dividend : dividends) {
       beforeDividend.accept(dividend.getExDate());
       BigDecimal found = dividendFxRateMap.get(dividend.getExDate());
       BigDecimal fxRate = manualPurchaseFxRate != null ? manualPurchaseFxRate
-          : found != null ? found : currentFxRateValue;
+        : found != null ? found : currentFxRateValue;
       dividendsReinvested = dividendsReinvested.add(reinvestOne(dividend, transactions, dividendTaxRate,
-          dividendPriceMap.get(dividend.getExDate()), fxRate, dividendFxRateMap.isDefault(dividend.getExDate())));
+        dividendPriceMap.get(dividend.getExDate()), fxRate, dividendFxRateMap.isDefault(dividend.getExDate())));
     }
 
     log.info("배당금 재투자 완료: 총 ${} 재투자", dividendsReinvested);
@@ -103,35 +103,35 @@ public final class DividendReinvestor {
 
   // 첫 매수 뒤 오늘까지 배당락일이 온 배당(배당락일 순서)
   private static List<DividendHistoryDto.DividendPayment> receivable(DividendHistoryDto dividendHistory,
-      LocalDate firstPurchaseDate) {
+                                                                     LocalDate firstPurchaseDate) {
     return dividendHistory.getDividends().stream()
-        .filter(dividend -> dividend.getExDate() != null)
-        .filter(dividend -> BacktestCalculationUtils.receivesDividend(firstPurchaseDate, dividend.getExDate())
-            && !dividend.getExDate().isAfter(LocalDate.now()))
-        .sorted(Comparator.comparing(DividendHistoryDto.DividendPayment::getExDate))
-        .toList();
+      .filter(dividend -> dividend.getExDate() != null)
+      .filter(dividend -> BacktestCalculationUtils.receivesDividend(firstPurchaseDate, dividend.getExDate())
+        && !dividend.getExDate().isAfter(LocalDate.now()))
+      .sorted(Comparator.comparing(DividendHistoryDto.DividendPayment::getExDate))
+      .toList();
   }
 
   // 배당락일 보유 주식 수 × 주당 배당의 세후 금액으로 배당락일 종가에 더 산 거래를 남긴 재투자 금액(보유가 없거나 배당락일 시세가 없으면 0)
   private static BigDecimal reinvestOne(DividendHistoryDto.DividendPayment dividend,
-      List<StrategyTransaction> transactions, BigDecimal dividendTaxRate, OHLCPriceDto priceAtDividendDate,
-      BigDecimal fxRateAtDividendDate, boolean defaultFx) {
+                                        List<StrategyTransaction> transactions, BigDecimal dividendTaxRate, OHLCPriceDto priceAtDividendDate,
+                                        BigDecimal fxRateAtDividendDate, boolean defaultFx) {
     BigDecimal sharesAtDividendDate = transactions.stream()
-        .filter(tx -> BacktestCalculationUtils.receivesDividend(tx.tradedOn(), dividend.getExDate()))
-        .map(StrategyTransaction::getShares)
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
+      .filter(tx -> BacktestCalculationUtils.receivesDividend(tx.tradedOn(), dividend.getExDate()))
+      .map(StrategyTransaction::getShares)
+      .reduce(BigDecimal.ZERO, BigDecimal::add);
     if (!Decimals.isPositive(sharesAtDividendDate)) {
       return BigDecimal.ZERO;
     }
     BigDecimal dividendAmount = dividend.getAmount().multiply(sharesAtDividendDate)
-        .setScale(BacktestConstants.Money.SCALE, BacktestConstants.Money.ROUNDING_MODE);
+      .setScale(BacktestConstants.Money.SCALE, BacktestConstants.Money.ROUNDING_MODE);
 
     BigDecimal taxRate = dividendTaxRate;
     BigDecimal afterTaxDividend = BacktestCalculationUtils.afterDividendTax(dividendAmount, taxRate, true);
     if (taxRate != null && Decimals.isPositive(taxRate)) {
       log.debug("배당 원천징수: {} - 배당금 ${} → 세후 ${} (세율 {}%)",
-          dividend.getExDate(), dividendAmount, afterTaxDividend,
-          taxRate.multiply(BacktestConstants.Money.PERCENTAGE_MULTIPLIER));
+        dividend.getExDate(), dividendAmount, afterTaxDividend,
+        taxRate.multiply(BacktestConstants.Money.PERCENTAGE_MULTIPLIER));
     }
     if (priceAtDividendDate == null || !priceAtDividendDate.available()) {
       return BigDecimal.ZERO;
@@ -139,16 +139,16 @@ public final class DividendReinvestor {
 
     BigDecimal dividendDayPrice = PriceLookup.effectiveClose(priceAtDividendDate);
     BigDecimal additionalShares = afterTaxDividend.divide(
-        dividendDayPrice, BacktestConstants.Money.SHARES_SCALE,
-        BacktestConstants.Money.ROUNDING_MODE);
+      dividendDayPrice, BacktestConstants.Money.SHARES_SCALE,
+      BacktestConstants.Money.ROUNDING_MODE);
 
     transactions.add(StrategyTransaction.reinvestment(new StrategyTransaction.Order(null, null, dividend.getExDate(),
-        priceAtDividendDate.date(), dividendDayPrice, fxRateAtDividendDate, defaultFx ? dividend.getExDate() : null,
-        BacktestConstants.TransactionTrigger.DIVIDEND_REINVESTMENT), additionalShares, null));
+      priceAtDividendDate.date(), dividendDayPrice, fxRateAtDividendDate, defaultFx ? dividend.getExDate() : null,
+      BacktestConstants.TransactionTrigger.DIVIDEND_REINVESTMENT), additionalShares, null));
 
     log.debug("배당 재투자: {} - ${} ({}주 보유) -> {}주 추가 매수 @${}",
-        dividend.getExDate(), afterTaxDividend, sharesAtDividendDate,
-        additionalShares, dividendDayPrice);
+      dividend.getExDate(), afterTaxDividend, sharesAtDividendDate,
+      additionalShares, dividendDayPrice);
     return afterTaxDividend;
   }
 }

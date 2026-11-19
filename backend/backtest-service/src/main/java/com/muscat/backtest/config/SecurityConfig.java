@@ -32,18 +32,18 @@ public class SecurityConfig {
   @Order(1)
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     ServiceSecurity.statelessApi(http)
-        .authorizeHttpRequests(auth -> auth
-            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-            .requestMatchers(ServiceSecurity.SWAGGER_PATHS).permitAll()
-            // 백테스트(시뮬레이션 · 분석)는 비로그인 허용(gateway · 프론트와 같음), 히스토리 /api/backtest/** 는 인증
-            .requestMatchers(HttpMethod.POST, "/api/trading-simulation/**").permitAll()
-            .requestMatchers(HttpMethod.POST, "/api/analysis/**").permitAll()
-            .requestMatchers("/api/**").authenticated()
-            .anyRequest().denyAll()
-        )
-        .oauth2ResourceServer(oauth2 -> oauth2
-            .jwt(Customizer.withDefaults())
-        );
+      .authorizeHttpRequests(auth -> auth
+        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+        .requestMatchers(ServiceSecurity.SWAGGER_PATHS).permitAll()
+        // 백테스트(시뮬레이션 · 분석)는 비로그인 허용(gateway · 프론트와 같음), 히스토리 /api/backtest/** 는 인증
+        .requestMatchers(HttpMethod.POST, "/api/trading-simulation/**").permitAll()
+        .requestMatchers(HttpMethod.POST, "/api/analysis/**").permitAll()
+        .requestMatchers("/api/**").authenticated()
+        .anyRequest().denyAll()
+      )
+      .oauth2ResourceServer(oauth2 -> oauth2
+        .jwt(Customizer.withDefaults())
+      );
     return http.build();
   }
 }

@@ -1,6 +1,7 @@
 package com.muscat.backtest.domain.mapper;
 
 import com.muscat.backtest.common.enums.type.TransactionKind;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -24,6 +25,8 @@ import com.muscat.backtest.domain.dto.response.SignalChart;
 import com.muscat.backtest.domain.dto.response.SimulationResponse;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
 import com.muscat.backtest.domain.model.ComparisonItem;
+import com.muscat.backtest.domain.model.OptimalTiming;
+import com.muscat.backtest.domain.model.SimulationCalculationResult;
 import com.muscat.backtest.domain.model.SkippedRound;
 import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.commonlib.dto.StockPriceDto;
@@ -494,7 +497,7 @@ class ResponseMapperTest {
     }
 
     @Test
-    @DisplayName("최적 매매 정보가 있으면 USD 자릿수로 맞춘다")
+    @DisplayName("최적 매매 정보가 있으면 날짜는 그대로, 값은 USD 자릿수로 맞춘다")
     void 최적값_있음() {
       SimulationResponse result = simulate(
         BigDecimal.TEN,
@@ -502,6 +505,8 @@ class ResponseMapperTest {
         new BigDecimal("49.786"), new BigDecimal("7.891"),
         List.of(LocalDate.of(2024, 3, 1)));
 
+      assertThat(result.getOptimalBuyDate()).isEqualTo(LocalDate.of(2024, 2, 1));
+      assertThat(result.getOptimalSellDate()).isEqualTo(LocalDate.of(2024, 8, 1));
       assertThat(result.getOptimalBuyPrice()).isEqualByComparingTo("100.46");
       assertThat(result.getOptimalSellPrice()).isEqualByComparingTo("150.45");
       assertThat(result.getOptimalReturnPercent()).isEqualByComparingTo("49.79");
@@ -542,8 +547,8 @@ class ResponseMapperTest {
         .investmentAmount(new BigDecimal("1000000"))
         .build();
 
-      return mapper.toSimulationResponse(
-        request,
+      SimulationCalculationResult calculation = new SimulationCalculationResult(
+        new BigDecimal("1000000"),       // investmentKrw
         new BigDecimal("100.00"),        // purchasePriceUsd
         new BigDecimal("12.3456789"),    // shares
         new BigDecimal("120.50"),        // currentPriceUsd
@@ -562,13 +567,19 @@ class ResponseMapperTest {
         new BigDecimal("1667900.9"),     // totalAssetKrw
         new BigDecimal("667900.4"),      // totalReturnKrw
         new BigDecimal("23.456"),        // totalReturnPercent
+        dividendsReinvested,
+        reinvestDates,
+        List.of(),
+        List.of(),
+        null);
+      OptimalTiming timing = new OptimalTiming(
         optimalBuyPrice == null ? null : LocalDate.of(2024, 2, 1),
         optimalBuyPrice,
         optimalSellPrice == null ? null : LocalDate.of(2024, 8, 1),
         optimalSellPrice,
-        optimalReturnPercent,
-        dividendsReinvested,
-        reinvestDates);
+        optimalReturnPercent);
+
+      return mapper.toSimulationResponse(request, calculation, timing);
     }
   }
 

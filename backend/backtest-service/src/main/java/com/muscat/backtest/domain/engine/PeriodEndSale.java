@@ -25,7 +25,7 @@ public final class PeriodEndSale {
 
   // 평가일까지 마지막 일봉 종가(일봉이 없으면 평가일 시세)에 판 거래와 보유 원가(USD) 대비 실현 손익, 남은 주식이 없으면 null
   public static StrategyTransaction of(BigDecimal shares, BigDecimal costUsd, Map<LocalDate, OHLCPriceDto> priceMap,
-    LocalDate valuationDate, BigDecimal valuationPrice, BigDecimal feeRate, BigDecimal fxRate) {
+                                       LocalDate valuationDate, BigDecimal valuationPrice, BigDecimal feeRate, BigDecimal fxRate) {
     if (!Decimals.isPositive(shares)) {
       return null;
     }

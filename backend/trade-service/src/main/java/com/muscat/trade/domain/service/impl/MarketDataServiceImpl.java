@@ -1,6 +1,7 @@
 package com.muscat.trade.domain.service.impl;
 
 import com.muscat.commonlib.dto.StockPriceDto;
+import com.muscat.trade.common.constants.TradeConstants;
 import com.muscat.trade.common.enums.response.TradeResponse;
 import com.muscat.trade.common.enums.type.PriceType;
 import com.muscat.trade.common.exception.TradeException;
@@ -8,7 +9,11 @@ import com.muscat.trade.common.logging.TradeLogger;
 import com.muscat.trade.domain.service.MarketDataService;
 import com.muscat.trade.infra.client.MarketServiceClientWrapper;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,13 +24,55 @@ import org.springframework.stereotype.Service;
 public class MarketDataServiceImpl implements MarketDataService {
 
   private static final String MANUAL_VALIDATION = "MANUAL_VALIDATION";
+  private static final String TRADE_DATE = "TRADE_DATE";
+  // 일봉 날짜의 시간대(미국 장)
+  private static final ZoneId MARKET_ZONE = ZoneId.of("America/New_York");
+  // 주말에서 직전 거래일을 찾을 때 거슬러 보는 평일 수
+  private static final int MAX_BACKTRACK_DAYS = 5;
 
   private final MarketServiceClientWrapper marketServiceClientWrapper;
   private final TradeLogger tradeLogger;
+  private final Clock clock;
+
+  @Override
+  public LocalDate resolveTradeDate(String symbol, LocalDate requested) {
+    if (requested.isAfter(LocalDate.now(clock.withZone(MARKET_ZONE)))) {
+      throw failure(symbol, TRADE_DATE, "Future trade date: " + requested, TradeResponse.FUTURE_DATE_NOT_ALLOWED);
+    }
+    boolean weekend = isWeekend(requested);
+    LocalDate date = weekend ? previousWeekday(requested) : requested;
+    for (int tried = 0; tried < MAX_BACKTRACK_DAYS; tried++) {
+      if (fetch(symbol, date, TRADE_DATE).isPresent()) {
+        return date;
+      }
+      if (fetch(TradeConstants.MARKET_REFERENCE_SYMBOL, date, TRADE_DATE).isPresent()) {
+        throw failure(symbol, TRADE_DATE, "Market data not available", TradeResponse.PRICE_DATA_UNAVAILABLE);
+      }
+      if (!weekend) {
+        throw failure(symbol, TRADE_DATE, "Market holiday: " + date, TradeResponse.HOLIDAY_TRADING_NOT_ALLOWED);
+      }
+      date = previousWeekday(date);
+    }
+    throw failure(symbol, TRADE_DATE, "No trading day before " + requested, TradeResponse.PRICE_DATA_UNAVAILABLE);
+  }
+
+  private static boolean isWeekend(LocalDate date) {
+    DayOfWeek day = date.getDayOfWeek();
+    return day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY;
+  }
+
+  // 바로 앞 평일
+  private static LocalDate previousWeekday(LocalDate date) {
+    LocalDate previous = date.minusDays(1);
+    while (isWeekend(previous)) {
+      previous = previous.minusDays(1);
+    }
+    return previous;
+  }
 
   @Override
   public BigDecimal determineTradePrice(String symbol, LocalDate tradeDate, PriceType priceType,
-    BigDecimal manualPrice) {
+                                        BigDecimal manualPrice) {
     if (priceType == PriceType.MANUAL) {
       // 직접입력인 경우 가격 범위 검증
       return validateManualPrice(symbol, tradeDate, manualPrice);
@@ -60,7 +107,7 @@ public class MarketDataServiceImpl implements MarketDataService {
 
   @Override
   public BigDecimal validateManualPrice(String symbol, LocalDate tradeDate,
-    BigDecimal manualPrice) {
+                                        BigDecimal manualPrice) {
     StockPriceDto ohlc = fetchAvailable(symbol, tradeDate, MANUAL_VALIDATION);
     BigDecimal lowPrice = ohlc.lowPrice();
     BigDecimal highPrice = ohlc.highPrice();
@@ -81,6 +128,12 @@ public class MarketDataServiceImpl implements MarketDataService {
 
   // 그 날짜 시세를 받아 쓸 수 있는 것만(없으면 시세 없음, 조회 실패는 시세 서비스 오류)
   private StockPriceDto fetchAvailable(String symbol, LocalDate tradeDate, String label) {
+    return fetch(symbol, tradeDate, label).orElseThrow(() ->
+      failure(symbol, label, "Market data not available", TradeResponse.PRICE_DATA_UNAVAILABLE));
+  }
+
+  // 그 날짜의 쓸 수 있는 시세(없으면 빈 값, 조회 실패는 시세 서비스 오류)
+  private Optional<StockPriceDto> fetch(String symbol, LocalDate tradeDate, String label) {
     log.info("시장 데이터 조회 시도: symbol={}, date={}, 용도={}", symbol, tradeDate, label);
     StockPriceDto response;
     try {
@@ -92,10 +145,7 @@ public class MarketDataServiceImpl implements MarketDataService {
         symbol, tradeDate, label, e.getMessage());
       throw failure(symbol, label, e.getMessage(), TradeResponse.MARKET_DATA_SERVICE_ERROR);
     }
-    if (response == null || !response.available()) {
-      throw failure(symbol, label, "Market data not available", TradeResponse.PRICE_DATA_UNAVAILABLE);
-    }
-    return response;
+    return response == null || !response.available() ? Optional.empty() : Optional.of(response);
   }
 
   // 실패 로그를 남기고 돌려줄 예외

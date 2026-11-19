@@ -24,9 +24,9 @@ public interface AssetService {
 
   // 이름 · 국가 · 통화 · 유형이 비면 공급원에서 채움
   Asset createAsset(String symbol, String name, String country,
-    String currency, String assetType,
-    boolean collectData, LocalDate fromDate,
-    LocalDate toDate, boolean includeDividends);
+                    String currency, String assetType,
+                    boolean collectData, LocalDate fromDate,
+                    LocalDate toDate, boolean includeDividends);
 
   Optional<Asset> getAsset(String symbol);
 

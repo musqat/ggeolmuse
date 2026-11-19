@@ -17,19 +17,19 @@ import java.time.LocalDate;
 @EqualsAndHashCode(callSuper = true)
 public class AssetCreatedEvent extends BaseEvent implements Serializable {
 
-    private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 1L;
 
-    // Asset 정보
-    private String symbol;
-    private String name;
-    private String country;
-    private String currency;
-    private String assetType;
-    private Long marketCap;
+  // Asset 정보
+  private String symbol;
+  private String name;
+  private String country;
+  private String currency;
+  private String assetType;
+  private Long marketCap;
 
-    // 데이터 수집 옵션
-    private boolean collectData;
-    private LocalDate fromDate;
-    private LocalDate toDate;
-    private boolean includeDividends;
+  // 데이터 수집 옵션
+  private boolean collectData;
+  private LocalDate fromDate;
+  private LocalDate toDate;
+  private boolean includeDividends;
 }

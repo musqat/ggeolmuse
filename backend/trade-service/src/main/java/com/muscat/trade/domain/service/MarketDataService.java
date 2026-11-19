@@ -6,9 +6,12 @@ import java.time.LocalDate;
 
 public interface MarketDataService {
 
+  // 주문 날짜에서 체결할 거래일(미국 동부 오늘보다 뒤면 거절, 주말은 직전 거래일, 평일 휴장은 거절)
+  LocalDate resolveTradeDate(String symbol, LocalDate requested);
+
   // 거래 가격 결정 (MANUAL인 경우 검증, OHLC인 경우 조회)
   BigDecimal determineTradePrice(String symbol, LocalDate tradeDate, PriceType priceType,
-    BigDecimal manualPrice);
+                                 BigDecimal manualPrice);
 
   // OHLC 가격 조회 (OPEN, HIGH, LOW, CLOSE)
   BigDecimal getOHLCPrice(String symbol, LocalDate tradeDate, PriceType priceType);

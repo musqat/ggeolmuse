@@ -40,7 +40,7 @@ public final class FxPath {
 
   // 시작일 환율에서 평가일 환율까지 날짜에 비례해 이은 환율(기간 밖은 양끝 값)
   public static Function<LocalDate, BigDecimal> interpolated(LocalDate start, BigDecimal startRate, LocalDate end,
-    BigDecimal endRate) {
+                                                             BigDecimal endRate) {
     long span = ChronoUnit.DAYS.between(start, end);
     return date -> {
       if (span <= 0 || !date.isAfter(start)) {

@@ -92,25 +92,25 @@ public class SymbolCatalog {
     List<Asset> kept = excludeNonCommonStock(real);
 
     log.info("[종목목록] 조회 {}개 -> 중복 제거 {}개 -> 최종 {}개",
-        fetched.size(), deduped.size(), kept.size());
+      fetched.size(), deduped.size(), kept.size());
 
     Set<String> listed = fetched.stream()
-        .map(Asset::getSymbol)
-        .collect(Collectors.toSet());
+      .map(Asset::getSymbol)
+      .collect(Collectors.toSet());
 
     return new Listing(kept, listed, complete);
   }
 
   private List<Asset> dedupeBySymbol(List<Asset> assets) {
     return new ArrayList<>(
-        assets.stream()
-            .filter(a -> a.getSymbol() != null && !a.getSymbol().isBlank())
-            .collect(Collectors.toMap(
-                Asset::getSymbol,
-                a -> a,
-                (first, dup) -> first,
-                LinkedHashMap::new))
-            .values());
+      assets.stream()
+        .filter(a -> a.getSymbol() != null && !a.getSymbol().isBlank())
+        .collect(Collectors.toMap(
+          Asset::getSymbol,
+          a -> a,
+          (first, dup) -> first,
+          LinkedHashMap::new))
+        .values());
   }
 
   // 칸 길이를 넘거나 티커에 안 쓰는 글자가 든 심볼을 뺌
@@ -118,15 +118,15 @@ public class SymbolCatalog {
   List<Asset> excludeUnstorableSymbols(List<Asset> assets) {
     List<String> dropped = new ArrayList<>();
     List<Asset> kept = assets.stream()
-        .filter(a -> {
-          String symbol = a.getSymbol();
-          boolean storable = symbol.length() <= symbolMaxLength && TICKER.matcher(symbol).matches();
-          if (!storable) {
-            dropped.add(symbol);
-          }
-          return storable;
-        })
-        .toList();
+      .filter(a -> {
+        String symbol = a.getSymbol();
+        boolean storable = symbol.length() <= symbolMaxLength && TICKER.matcher(symbol).matches();
+        if (!storable) {
+          dropped.add(symbol);
+        }
+        return storable;
+      })
+      .toList();
 
     if (!dropped.isEmpty()) {
       log.info("[종목목록] 저장할 수 없는 심볼 제외: {}개 {}", dropped.size(), dropped);
@@ -137,8 +137,8 @@ public class SymbolCatalog {
 
   List<Asset> excludeTestIssues(List<Asset> assets) {
     List<Asset> bySymbol = assets.stream()
-        .filter(a -> !TEST_ISSUE_SYMBOL.matcher(a.getSymbol()).matches())
-        .toList();
+      .filter(a -> !TEST_ISSUE_SYMBOL.matcher(a.getSymbol()).matches())
+      .toList();
     List<Asset> kept = excludeByNamePatterns(bySymbol, TEST_ISSUE_NAMES);
 
     int removed = assets.size() - kept.size();
@@ -167,23 +167,23 @@ public class SymbolCatalog {
       return assets;
     }
     List<String> patterns = java.util.Arrays.stream(patternsCsv.split(","))
-        .map(String::toLowerCase)
-        .filter(p -> !p.isBlank())
-        .toList();
+      .map(String::toLowerCase)
+      .filter(p -> !p.isBlank())
+      .toList();
 
     if (patterns.isEmpty()) {
       return assets;
     }
 
     return assets.stream()
-        .filter(a -> {
-          String name = a.getName();
-          if (name == null) {
-            return true;   // 이름이 없으면 판단 근거가 없어 남김
-          }
-          String lower = name.toLowerCase();
-          return patterns.stream().noneMatch(lower::contains);
-        })
-        .toList();
+      .filter(a -> {
+        String name = a.getName();
+        if (name == null) {
+          return true;   // 이름이 없으면 판단 근거가 없어 남김
+        }
+        String lower = name.toLowerCase();
+        return patterns.stream().noneMatch(lower::contains);
+      })
+      .toList();
   }
 }

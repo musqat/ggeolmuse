@@ -51,7 +51,7 @@ public final class ComparisonRequestMapper {
     if (strategyType == StrategyType.MA_BAND) {
       return maBand(request, strategy);
     }
-    throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH, "비교할 수 없는 전략 타입: " + strategyType);
+    throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH);
   }
 
   // 비교 요청의 매도일(종료일) · 투자금 · 수수료 · 환율 · 배당 · 양도세 · 기간 끝 옵션으로 채운 단순 시뮬레이션 요청
@@ -94,7 +94,7 @@ public final class ComparisonRequestMapper {
 
   // 비교할 조건부 매수 요청(예산은 비교 투자 금액)
   private static ConditionalStrategyRequest conditional(StrategyComparisonRequest request,
-    StrategyParameter strategy) {
+                                                        StrategyParameter strategy) {
     boolean sells = strategy.getTakeProfitRate() != null || strategy.getStopLossRate() != null;
     return ConditionalStrategyRequest.builder()
       .symbol(request.getSymbol())

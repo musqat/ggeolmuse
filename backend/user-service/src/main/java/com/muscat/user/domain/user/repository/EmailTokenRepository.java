@@ -7,7 +7,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface EmailTokenRepository extends JpaRepository<EmailToken, Long>,
-    EmailTokenRepositoryCustom {
+  EmailTokenRepositoryCustom {
 
   // 사용자별 토큰 전체 삭제
   void deleteByUser(User user);

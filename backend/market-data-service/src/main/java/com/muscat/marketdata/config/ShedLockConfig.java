@@ -12,9 +12,9 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 @EnableSchedulerLock(defaultLockAtMostFor = "10m")
 public class ShedLockConfig {
 
-    //Redis에 분산 락을 저장하여 여러 Pod 간 동기화를 수행
-    @Bean
-    public LockProvider lockProvider(RedisConnectionFactory connectionFactory) {
-        return new RedisLockProvider(connectionFactory);
-    }
+  //Redis에 분산 락을 저장하여 여러 Pod 간 동기화를 수행
+  @Bean
+  public LockProvider lockProvider(RedisConnectionFactory connectionFactory) {
+    return new RedisLockProvider(connectionFactory);
+  }
 }

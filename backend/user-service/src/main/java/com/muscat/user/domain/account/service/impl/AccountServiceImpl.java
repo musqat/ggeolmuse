@@ -56,7 +56,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Slf4j
 public class AccountServiceImpl implements AccountService {
 
-  // 잔액 부족 오류 코드(MoneyUtils 의 ServiceException 과 AccountResponse 의 AccountException 이 같은 이름)
+  // 잔액 부족 오류 코드(MoneyUtils 의 CommonResponse 와 AccountResponse 가 같은 이름)
   private static final String INSUFFICIENT_BALANCE_CODE = "INSUFFICIENT_BALANCE";
 
   private final AccountRepository accountRepository;
@@ -178,7 +178,7 @@ public class AccountServiceImpl implements AccountService {
   // KRW → USD 환전 처리 (수수료 없음)
   @Override
   public void exchangeKrwToUsd(Long accountId, Long userId, BigDecimal krwAmount,
-    BigDecimal exchangeRate, IdempotencyKey key) {
+                               BigDecimal exchangeRate, IdempotencyKey key) {
     runOnce(userId, key, IdempotencyKey.fingerprint("EXCHANGE_KRW_TO_USD", accountId, krwAmount, exchangeRate),
       () -> validateExchangeRate(exchangeRate),
       () -> applyKrwToUsd(accountId, userId, krwAmount, exchangeRate));
@@ -192,7 +192,7 @@ public class AccountServiceImpl implements AccountService {
 
     exchangeRate = MoneyUtils.roundExchangeRate(exchangeRate);
 
-    // 잔액 검사의 ServiceException(MoneyUtils)은 메시지가 아니라 오류 코드로 구분
+    // 잔액 검사 실패(MoneyUtils)는 메시지가 아니라 오류 코드로 구분
     try {
       accountCalculator.validateExchangeRequest(account, krwAmount, "KRW");
     } catch (BaseException e) {
@@ -236,7 +236,7 @@ public class AccountServiceImpl implements AccountService {
   // USD → KRW 환전 처리
   @Override
   public void exchangeUsdToKrw(Long accountId, Long userId, BigDecimal usdAmount,
-    BigDecimal exchangeRate, IdempotencyKey key) {
+                               BigDecimal exchangeRate, IdempotencyKey key) {
     runOnce(userId, key, IdempotencyKey.fingerprint("EXCHANGE_USD_TO_KRW", accountId, usdAmount, exchangeRate),
       () -> validateExchangeRate(exchangeRate),
       () -> applyUsdToKrw(accountId, userId, usdAmount, exchangeRate));
@@ -291,13 +291,13 @@ public class AccountServiceImpl implements AccountService {
   @Override
   public void depositKrw(Long accountId, Long userId, BigDecimal krwAmount, IdempotencyKey key) {
     runOnce(userId, key, IdempotencyKey.fingerprint("DEPOSIT_KRW", accountId, krwAmount),
-      () -> { },
+      () -> {},
       () -> applyDepositKrw(accountId, userId, krwAmount));
   }
 
   // 키가 있으면 끝난 요청인지 먼저 보고 트랜잭션 첫 줄에서 키를 차지(키 충돌은 먼저 끝난 요청의 결과)
   private void runOnce(Long userId, IdempotencyKey key, String fingerprint,
-    Runnable beforeTransaction, Runnable inTransaction) {
+                       Runnable beforeTransaction, Runnable inTransaction) {
     if (key != null && idempotencyGuard.isDone(userId, key, fingerprint)) {
       return;
     }
@@ -345,14 +345,14 @@ public class AccountServiceImpl implements AccountService {
   @Override
   @Transactional
   public void updateUsdBalance(Long accountId, Long userId, BigDecimal usdAmount,
-    TransactionType type, String description) {
+                               TransactionType type, String description) {
     requireUsdBalanceType(type);
     changeUsdBalance(validateAccountAccess(accountId, userId), usdAmount, type, description, false);
   }
 
   // 잠금으로 읽은 계좌의 USD 잔액 변경 · 내역
   private void changeUsdBalance(Account account, BigDecimal usdAmount,
-    TransactionType type, String description, boolean allowNegative) {
+                                TransactionType type, String description, boolean allowNegative) {
     BigDecimal validatedAmount = validateUsdAmount(usdAmount);
 
     // 검증 + 상태 변경
@@ -513,8 +513,7 @@ public class AccountServiceImpl implements AccountService {
   private void validateExchangeRate(BigDecimal exchangeRate) {
     ExchangeRateRangeDto range = getExchangeRateRange();
     if (exchangeRate == null || exchangeRate.compareTo(range.min()) < 0 || exchangeRate.compareTo(range.max()) > 0) {
-      throw new AccountException(AccountResponse.INVALID_EXCHANGE_RATE,
-        String.format("환율은 %s ~ %s원 사이로 넣어 주세요.", range.min().toPlainString(), range.max().toPlainString()));
+      throw new AccountException(AccountResponse.INVALID_EXCHANGE_RATE);
     }
   }
 
@@ -572,7 +571,7 @@ public class AccountServiceImpl implements AccountService {
 
   // 거래 내역 생성
   private void createTradeHistory(Account account, BigDecimal usdAmount,
-    BigDecimal newBalance, TransactionType transactionType, String description) {
+                                  BigDecimal newBalance, TransactionType transactionType, String description) {
     String referenceId = generateReferenceId(transactionType);
 
     AccountHistory history = AccountHistory.builder()
@@ -589,7 +588,7 @@ public class AccountServiceImpl implements AccountService {
   }
 
 
- //사용자 ID 해석 (Long ID 또는 Keycloak UUID 지원)
+  //사용자 ID 해석 (Long ID 또는 Keycloak UUID 지원)
 
   // 이벤트의 사용자 식별자(토큰 sub)로 로컬 사용자 ID
   private Long resolveUserId(String keycloakId) {

@@ -16,6 +16,8 @@ public final class TradeConstants {
   public static final int MIN_SYMBOL_LENGTH = 1;
   // 지수 심볼 앞 글자(^GSPC · ^NDX)
   public static final String INDEX_SYMBOL_PREFIX = "^";
+  // 그날 미국 장이 열렸는지 보는 기준 종목(S&P 500 지수)
+  public static final String MARKET_REFERENCE_SYMBOL = "^GSPC";
 
   private TradeConstants() {
   }

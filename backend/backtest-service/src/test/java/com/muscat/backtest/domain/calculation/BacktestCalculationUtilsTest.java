@@ -1,6 +1,7 @@
 package com.muscat.backtest.domain.calculation;
 
 import com.muscat.backtest.common.enums.type.TransactionKind;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -48,7 +49,8 @@ class BacktestCalculationUtilsTest {
         BacktestCalculationUtils.calculateShares(null, new BigDecimal("1300"),
           new BigDecimal("100")))
         .isInstanceOf(BacktestException.class)
-        .hasMessageContaining("null");
+        .extracting("code")
+        .isEqualTo(BacktestResponse.SHARES_CALCULATION_ERROR);
     }
 
     @Test
@@ -59,7 +61,8 @@ class BacktestCalculationUtilsTest {
         BacktestCalculationUtils.calculateShares(new BigDecimal("1300000"), BigDecimal.ZERO,
           new BigDecimal("100")))
         .isInstanceOf(BacktestException.class)
-        .hasMessageContaining("환율");
+        .extracting("code")
+        .isEqualTo(BacktestResponse.FX_CONVERSION_ERROR);
     }
 
     @Test
@@ -70,7 +73,8 @@ class BacktestCalculationUtilsTest {
         BacktestCalculationUtils.calculateShares(new BigDecimal("1300000"), new BigDecimal("1300"),
           BigDecimal.ZERO))
         .isInstanceOf(BacktestException.class)
-        .hasMessageContaining("주식가격");
+        .extracting("code")
+        .isEqualTo(BacktestResponse.SHARES_CALCULATION_ERROR);
     }
   }
 
@@ -102,7 +106,8 @@ class BacktestCalculationUtilsTest {
       assertThatThrownBy(() ->
         BacktestCalculationUtils.calculateAveragePrice(
           new BigDecimal("2600000"), BigDecimal.ZERO, new BigDecimal("20")))
-        .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(BacktestException.class)
+        .extracting("code").isEqualTo(BacktestResponse.AVERAGE_PRICE_CALCULATION_ERROR);
     }
   }
 
@@ -132,7 +137,8 @@ class BacktestCalculationUtilsTest {
       // when & then
       assertThatThrownBy(() ->
         BacktestCalculationUtils.calculateAverageFxRate(new BigDecimal("5300000"), BigDecimal.ZERO))
-        .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(BacktestException.class)
+        .extracting("code").isEqualTo(BacktestResponse.FX_CONVERSION_ERROR);
     }
   }
 
@@ -183,7 +189,8 @@ class BacktestCalculationUtilsTest {
       // when & then
       assertThatThrownBy(() ->
         BacktestCalculationUtils.calculateMedian(Collections.emptyList()))
-        .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(BacktestException.class)
+        .extracting("code").isEqualTo(BacktestResponse.RETURN_CALCULATION_ERROR);
     }
   }
 
@@ -210,7 +217,8 @@ class BacktestCalculationUtilsTest {
       // when & then
       assertThatThrownBy(() ->
         BacktestCalculationUtils.scaleValue(null, 2))
-        .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(BacktestException.class)
+        .extracting("code").isEqualTo(BacktestResponse.DATA_PROCESSING_ERROR);
     }
   }
 
@@ -259,7 +267,8 @@ class BacktestCalculationUtilsTest {
       // when & then
       assertThatThrownBy(() ->
         BacktestCalculationUtils.calculateAverageReturn(Collections.emptyList()))
-        .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(BacktestException.class)
+        .extracting("code").isEqualTo(BacktestResponse.RETURN_CALCULATION_ERROR);
     }
   }
 
@@ -596,9 +605,11 @@ class BacktestCalculationUtilsTest {
     @DisplayName("평균 단가 · 평균 환율은 null 을 받지 않는다")
     void rejectsNull() {
       assertThatThrownBy(() -> BacktestCalculationUtils.calculateAveragePrice(null, BigDecimal.ONE, BigDecimal.ONE))
-        .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(BacktestException.class)
+        .extracting("code").isEqualTo(BacktestResponse.AVERAGE_PRICE_CALCULATION_ERROR);
       assertThatThrownBy(() -> BacktestCalculationUtils.calculateAverageFxRate(null, BigDecimal.ONE))
-        .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(BacktestException.class)
+        .extracting("code").isEqualTo(BacktestResponse.FX_CONVERSION_ERROR);
     }
 
     @Test

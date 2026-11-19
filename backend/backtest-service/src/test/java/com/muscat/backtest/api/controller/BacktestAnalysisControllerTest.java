@@ -220,7 +220,7 @@ class BacktestAnalysisControllerTest {
   @DisplayName("전략이 실패하면 종류 conditional · 실패로 한 건 남는다")
   void conditional_RecordsFailureMetric() throws Exception {
     given(backtestAnalysisService.runConditionalStrategy(any()))
-      .willThrow(new BacktestException(BacktestResponse.INVALID_REQUEST));
+      .willThrow(new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH));
 
     postJson("/strategy/conditional", "{\"symbol\":\"TSLA\"," + PERIOD + ",\"amountPerPurchase\":100000,\"totalInvestment\":1000000,\"dropPercentage\":5}")
       .andExpect(status().isBadRequest());

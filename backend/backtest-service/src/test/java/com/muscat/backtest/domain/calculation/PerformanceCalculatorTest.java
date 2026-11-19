@@ -3,6 +3,8 @@ package com.muscat.backtest.domain.calculation;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.muscat.backtest.common.enums.response.BacktestResponse;
+import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.dto.response.PerformanceMetrics;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -49,7 +51,8 @@ class PerformanceCalculatorTest {
   @DisplayName("날짜와 지수의 길이가 다르면 받지 않는다")
   void sizeMismatch() {
     assertThatThrownBy(() -> compute(days(3), List.of(1.0, 1.1)))
-      .isInstanceOf(IllegalArgumentException.class);
+      .isInstanceOf(BacktestException.class)
+      .extracting("code").isEqualTo(BacktestResponse.PERFORMANCE_CALCULATION_ERROR);
   }
 
   @Test

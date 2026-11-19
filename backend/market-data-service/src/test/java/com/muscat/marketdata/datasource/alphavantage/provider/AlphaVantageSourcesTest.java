@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.muscat.marketdata.common.enums.response.MarketDataResponse;
 import com.muscat.marketdata.common.exception.AlphaVantageException;
 import com.muscat.marketdata.datasource.alphavantage.client.AlphaVantageClient;
 import com.muscat.marketdata.datasource.alphavantage.client.AlphaVantageRateLimiter;
@@ -116,7 +117,7 @@ class AlphaVantageSourcesTest {
       given(client.get(anyString(), anyMap()))
         .willReturn(json("{\"Time Series (Daily)\":{\"2024-03-05\":{\"4. close\":\"1\"},\"2024-03-04\":{\"7. dividend amount\":\"x\"}}}"))
         .willReturn(json("{}"))
-        .willThrow(new AlphaVantageException("API rate limit exceeded"));
+        .willThrow(new AlphaVantageException(MarketDataResponse.ALPHA_VANTAGE_RATE_LIMITED));
 
       for (int i = 0; i < 3; i++) {
         assertThat(source.fetchDividends("AAPL", LocalDate.of(2024, 1, 1), LocalDate.of(2024, 12, 31))).isEmpty();
@@ -201,7 +202,7 @@ class AlphaVantageSourcesTest {
     @DisplayName("목록 호출이 실패하면 빈 목록")
     void listingFailure() {
       configure(true, 0);
-      given(client.getCsv("LISTING_STATUS", Map.of())).willThrow(new AlphaVantageException("API rate limit exceeded"));
+      given(client.getCsv("LISTING_STATUS", Map.of())).willThrow(new AlphaVantageException(MarketDataResponse.ALPHA_VANTAGE_RATE_LIMITED));
 
       assertThat(source.fetchSymbols()).isEmpty();
     }

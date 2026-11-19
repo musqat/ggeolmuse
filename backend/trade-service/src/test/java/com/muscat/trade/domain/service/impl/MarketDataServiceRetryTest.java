@@ -10,6 +10,7 @@ import com.muscat.commonlib.dto.StockPriceDto;
 import com.muscat.trade.common.enums.type.PriceType;
 import com.muscat.trade.common.exception.TradeException;
 import com.muscat.trade.common.logging.TradeLogger;
+import com.muscat.trade.config.ClockConfig;
 import com.muscat.trade.infra.client.MarketServiceClient;
 import com.muscat.trade.infra.client.MarketServiceClientWrapper;
 import feign.FeignException;
@@ -31,7 +32,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 // 거래 가격 조회를 실제 래퍼와 함께(재시도 예외 목록은 설정 리포의 marketService 와 같게)
-@SpringBootTest(classes = {MarketDataServiceImpl.class, MarketServiceClientWrapper.class}, properties = {
+@SpringBootTest(classes = {MarketDataServiceImpl.class, MarketServiceClientWrapper.class, ClockConfig.class}, properties = {
   "resilience4j.retry.instances.marketService.maxAttempts=3",
   "resilience4j.retry.instances.marketService.waitDuration=10ms",
   "resilience4j.retry.instances.marketService.retryExceptions[0]=feign.FeignException$FeignServerException",

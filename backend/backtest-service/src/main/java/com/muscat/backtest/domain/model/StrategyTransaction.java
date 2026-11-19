@@ -57,20 +57,20 @@ public class StrategyTransaction {
 
   // 정한 주식을 산 거래(새로 넣은 원화 · 쓴 현금(USD)이 없으면 null)
   public static StrategyTransaction buy(Order order, BigDecimal shares, BigDecimal fee, BigDecimal amount,
-    BigDecimal cashUsed) {
+                                        BigDecimal cashUsed) {
     return of(TransactionKind.BUY, order).shares(shares).fee(fee).amount(amount).cashUsed(cashUsed).build();
   }
 
   // 정한 주식을 판 거래(수량은 음수, 판 돈은 수수료 뺀 USD)
   public static StrategyTransaction sell(Order order, BigDecimal shares, BigDecimal fee, BigDecimal proceeds,
-    BigDecimal realizedProfit) {
+                                         BigDecimal realizedProfit) {
     return of(TransactionKind.SELL, order).shares(shares.negate()).fee(fee).amount(BigDecimal.ZERO).proceeds(proceeds)
       .realizedProfit(realizedProfit).build();
   }
 
   // 받은 날짜에 현금에서 낸 양도세(수량 · 값 · 수수료 0)
   public static StrategyTransaction taxPayment(LocalDate date, BigDecimal fxRate, BigDecimal taxPaid,
-    LocalDate defaultFxDate) {
+                                               LocalDate defaultFxDate) {
     return of(TransactionKind.TAX_PAYMENT,
       new Order(null, null, date, date, BigDecimal.ZERO, fxRate, defaultFxDate,
         TransactionTrigger.CAPITAL_GAINS_TAX_PAYMENT))
@@ -85,7 +85,7 @@ public class StrategyTransaction {
 
   // 연말 정리로 판 거래(수량은 음수)
   public static StrategyTransaction harvestSale(Order order, BigDecimal shares, BigDecimal fee, BigDecimal proceeds,
-    BigDecimal realizedProfit) {
+                                                BigDecimal realizedProfit) {
     return of(TransactionKind.HARVEST_SELL, order).shares(shares.negate()).fee(fee).amount(BigDecimal.ZERO)
       .proceeds(proceeds).realizedProfit(realizedProfit).build();
   }

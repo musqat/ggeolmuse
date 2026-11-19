@@ -49,7 +49,7 @@ public class StructuredLogger {
   }
 
   public void logError(String errorType, String message, String userId,
-    Map<String, Object> context) {
+                       Map<String, Object> context) {
     Map<String, Object> errorLog = new HashMap<>();
     errorLog.put("eventType", "ERROR");
     errorLog.put("errorType", errorType);

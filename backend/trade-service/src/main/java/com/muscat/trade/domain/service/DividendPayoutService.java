@@ -45,7 +45,7 @@ public class DividendPayoutService {
   // resend 면 바뀌지 않은 몫도 다시 보냄(settledExDates 는 user 가 넣은 배당락일, 목표가 없으면 0 몫)
   // 배당 목록은 트랜잭션 밖에서 받고 몫 저장 · 발행만 트랜잭션 안
   public int reconcile(String userId, Long accountId, String symbol, boolean resend,
-    Collection<LocalDate> settledExDates) {
+                       Collection<LocalDate> settledExDates) {
     List<Trade> trades = tradeRepository.findByUserIdAndAccountIdAndSymbolAndStatusOrderByExecutedAtAscIdAsc(
       userId, accountId, symbol, TradeStatus.COMPLETED);
     Map<LocalDate, DividendAmounts> targets = new TreeMap<>(trades.isEmpty()
@@ -57,7 +57,7 @@ public class DividendPayoutService {
   }
 
   private int apply(String userId, Long accountId, String symbol, boolean resend,
-    Collection<LocalDate> settledExDates, Map<LocalDate, DividendAmounts> targets) {
+                    Collection<LocalDate> settledExDates, Map<LocalDate, DividendAmounts> targets) {
     Map<LocalDate, DividendPayout> existing = dividendPayoutRepository.findByAccountIdAndSymbol(accountId, symbol)
       .stream()
       .collect(Collectors.toMap(DividendPayout::getExDate, Function.identity(), (a, b) -> a, TreeMap::new));

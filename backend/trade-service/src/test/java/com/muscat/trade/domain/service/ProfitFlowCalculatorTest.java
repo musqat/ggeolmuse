@@ -32,7 +32,7 @@ class ProfitFlowCalculatorTest {
   private static long ids = 1;
 
   static Trade trade(TradeType type, String symbol, String quantity, String price, String fee,
-    LocalDate tradeDate, TradeStatus status) {
+                     LocalDate tradeDate, TradeStatus status) {
     return Trade.builder()
       .id(ids++)
       .userId("user-1")
