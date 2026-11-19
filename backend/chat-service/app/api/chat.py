@@ -5,11 +5,11 @@ import hashlib
 import logging
 import time
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from app.api.auth import current_user_id
 from app.api.deps import get_chat_service
-from app.api.errors import error_code, error_response, log_detail, log_level, log_value
+from app.api.errors import INTERNAL_ERROR, error_code, error_response, log_detail, log_level, log_value
 from app.api.schemas import AskRequest, AskResponse, QuotaResponse, StartRequest, StartResponse
 from app.core.chat_service import ChatService, Rejected
 
@@ -29,6 +29,7 @@ def _ms(started: float) -> int:
 @router.post("/api/chat/conversations", status_code=201, response_model=StartResponse)
 async def start_conversation(
     req: StartRequest,
+    request: Request,
     user_id: str = Depends(current_user_id),
     service: ChatService = Depends(get_chat_service),
 ):
@@ -38,11 +39,11 @@ async def start_conversation(
         result = await service.start(user_id, req.symbol)
     except Exception as exc:
         code = error_code(exc)[1]
-        outcome = code if code == "symbol_not_found" else f"error:{code}"
+        outcome = code if code == "SYMBOL_NOT_FOUND" else f"error:{code}"
         log.log(log_level(exc), "start user=%s symbol=%s outcome=%s ms=%d%s",
                 fingerprint(user_id), log_value(symbol), outcome, _ms(started), log_detail(exc),
-                exc_info=code == "internal_error")
-        return error_response(exc)
+                exc_info=code == INTERNAL_ERROR)
+        return error_response(exc, request.url.path)
     log.info("start user=%s symbol=%s outcome=started ms=%d", fingerprint(user_id), log_value(symbol),
              _ms(started))
     conversation = result.conversation
@@ -53,6 +54,7 @@ async def start_conversation(
 @router.post("/api/chat", response_model=AskResponse)
 async def ask(
     req: AskRequest,
+    request: Request,
     user_id: str = Depends(current_user_id),
     service: ChatService = Depends(get_chat_service),
 ):
@@ -63,8 +65,8 @@ async def ask(
         code = error_code(exc)[1]
         log.log(log_level(exc), "ask user=%s conv=%s outcome=error:%s ms=%d%s",
                 fingerprint(user_id), log_value(req.conversation_id), code, _ms(started), log_detail(exc),
-                exc_info=code == "internal_error")
-        return error_response(exc)
+                exc_info=code == INTERNAL_ERROR)
+        return error_response(exc, request.url.path)
     outcome = result.outcome
     rejected = outcome.reason if isinstance(outcome, Rejected) else None
     log.info(
@@ -79,6 +81,7 @@ async def ask(
 
 @router.get("/api/chat/quota", response_model=QuotaResponse)
 async def quota(
+    request: Request,
     user_id: str = Depends(current_user_id),
     service: ChatService = Depends(get_chat_service),
 ):
@@ -89,7 +92,7 @@ async def quota(
         code = error_code(exc)[1]
         log.log(log_level(exc), "quota user=%s outcome=error:%s ms=%d%s",
                 fingerprint(user_id), code, _ms(started), log_detail(exc),
-                exc_info=code == "internal_error")
-        return error_response(exc)
+                exc_info=code == INTERNAL_ERROR)
+        return error_response(exc, request.url.path)
     log.info("quota user=%s remaining=%d ms=%d", fingerprint(user_id), remaining, _ms(started))
     return QuotaResponse(remaining=remaining)

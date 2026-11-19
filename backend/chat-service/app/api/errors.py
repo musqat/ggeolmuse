@@ -1,9 +1,12 @@
-"""도메인 예외 → HTTP 상태와 본문 {code, message}"""
+"""도메인 예외 → HTTP 상태와 ProblemDetail 본문"""
 from __future__ import annotations
 
 import logging
+from datetime import datetime
+from http import HTTPStatus
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.core.messages import ERRORS
@@ -18,36 +21,61 @@ from app.core.models import (
 
 log = logging.getLogger("chat")
 
+PROBLEM_BASE_URL = "https://api.muscat.com/problems/"
+
 
 class Unauthorized(Exception):
     """토큰이 없거나 틀림"""
 
 
 ERROR_CODES: dict[type[Exception], tuple[int, str]] = {
-    SymbolNotFound: (404, "symbol_not_found"),
-    ConversationNotFound: (404, "conversation_not_found"),
-    QuotaExceeded: (429, "quota_exceeded"),
-    Unauthorized: (401, "unauthorized"),
-    AuthUnavailable: (503, "auth_unavailable"),
-    MarketUnavailable: (503, "market_unavailable"),
-    AiUnavailable: (503, "ai_unavailable"),
+    SymbolNotFound: (404, "SYMBOL_NOT_FOUND"),
+    ConversationNotFound: (404, "CONVERSATION_NOT_FOUND"),
+    QuotaExceeded: (429, "QUOTA_EXCEEDED"),
+    Unauthorized: (401, "UNAUTHORIZED"),
+    AuthUnavailable: (503, "AUTH_UNAVAILABLE"),
+    MarketUnavailable: (503, "MARKET_UNAVAILABLE"),
+    AiUnavailable: (503, "AI_UNAVAILABLE"),
 }
 
 
-OUTAGES = ("auth_unavailable", "market_unavailable", "ai_unavailable")
+OUTAGES = ("AUTH_UNAVAILABLE", "MARKET_UNAVAILABLE", "AI_UNAVAILABLE")
+
+INTERNAL_ERROR = "INTERNAL_SERVER_ERROR"
 
 
 def error_code(exc: Exception) -> tuple[int, str]:
-    """예외의 상태와 코드(모르는 예외는 500 internal_error)"""
+    """예외의 상태와 코드(모르는 예외는 500 INTERNAL_SERVER_ERROR)"""
     for kind, value in ERROR_CODES.items():
         if isinstance(exc, kind):
             return value
-    return 500, "internal_error"
+    return 500, INTERNAL_ERROR
 
 
-def error_response(exc: Exception) -> JSONResponse:
+# 상태별 오류 분류(목록 밖 상태는 SYSTEM)
+ERROR_TYPES = {401: "UNAUTHORIZED", 404: "NOT_FOUND", 429: "RATE_LIMIT", 503: "EXTERNAL_SERVICE"}
+
+
+def problem_response(status: int, code: str, path: str, title: str | None = None,
+                     error_type: str | None = None, **properties) -> JSONResponse:
+    """오류 코드의 문구로 만든 ProblemDetail 응답"""
+    body = {
+        "type": PROBLEM_BASE_URL + code.lower().replace("_", "-"),
+        "title": title or HTTPStatus(status).phrase,
+        "status": status,
+        "detail": ERRORS[code],
+        "instance": path,
+        "errorCode": code,
+        "errorType": error_type or ERROR_TYPES.get(status, "SYSTEM"),
+        "timestamp": datetime.now().isoformat(),
+        **properties,
+    }
+    return JSONResponse(status_code=status, content=body, media_type="application/problem+json")
+
+
+def error_response(exc: Exception, path: str) -> JSONResponse:
     status, code = error_code(exc)
-    return JSONResponse(status_code=status, content={"code": code, "message": ERRORS[code]})
+    return problem_response(status, code, path)
 
 
 def log_value(value: str) -> str:
@@ -63,19 +91,25 @@ def log_detail(exc: Exception) -> str:
 def log_level(exc: Exception) -> int:
     """장애(5xx)는 WARNING, 예상하지 못한 예외는 ERROR, 나머지는 INFO"""
     status, code = error_code(exc)
-    if code == "internal_error":
+    if code == INTERNAL_ERROR:
         return logging.ERROR
     return logging.WARNING if status >= 500 else logging.INFO
 
 
 def register_error_handlers(app: FastAPI) -> None:
-    """엔드포인트 밖(인증 의존성)에서 난 도메인 예외 → 같은 본문"""
+    """엔드포인트 밖(인증 의존성 · 본문 검사)에서 난 예외 → 같은 모양의 본문"""
 
     async def handle(request: Request, exc: Exception) -> JSONResponse:
         if error_code(exc)[0] >= 500:
             log.warning("request path=%s outcome=error:%s%s", request.url.path, error_code(exc)[1],
                         log_detail(exc))
-        return error_response(exc)
+        return error_response(exc, request.url.path)
+
+    async def invalid_body(request: Request, exc: RequestValidationError) -> JSONResponse:
+        fields = {str(error["loc"][-1]): error["msg"] for error in exc.errors()}
+        return problem_response(400, "VALIDATION_ERROR", request.url.path, title="Validation Error",
+                                error_type="VALIDATION", validationErrors=fields)
 
     for kind in ERROR_CODES:
         app.add_exception_handler(kind, handle)
+    app.add_exception_handler(RequestValidationError, invalid_body)
