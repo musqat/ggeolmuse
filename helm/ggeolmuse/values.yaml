@@ -448,7 +448,7 @@ services:
   backtestService:
     enabled: true
     name: backtest-service
-    xmx: 320m
+    xmx: 768m
     replicaCount: 1
     image:
       repository: backtest-service
