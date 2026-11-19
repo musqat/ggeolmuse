@@ -72,7 +72,7 @@ class TradeRepositoryTest {
     Trade saved = trade(null);
     LocalDateTime publishedAt = LocalDateTime.of(2026, 10, 8, 9, 0);
 
-    int updated = tradeRepository.markEventPublished(saved.getId(), publishedAt);
+    long updated = tradeRepository.markEventPublished(saved.getId(), publishedAt);
     entityManager.clear();
 
     assertThat(updated).isEqualTo(1);

@@ -23,7 +23,7 @@ public class BacktestHistoryServiceImpl implements BacktestHistoryService {
   @Transactional
   public Page<BacktestHistoryDto> getUserBacktestHistory(String owner, String legacyOwner, Pageable pageable) {
     if (legacyOwner != null && !legacyOwner.equals(owner)) {
-      int moved = backtestHistoryRepository.reassignOwner(legacyOwner, owner);
+      long moved = backtestHistoryRepository.reassignOwner(legacyOwner, owner);
       if (moved > 0) {
         log.info("이메일로 남은 백테스트 이력 {}건을 사용자 식별자로 옮김", moved);
       }

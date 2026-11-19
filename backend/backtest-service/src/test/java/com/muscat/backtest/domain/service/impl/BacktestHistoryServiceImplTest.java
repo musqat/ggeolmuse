@@ -259,7 +259,7 @@ class BacktestHistoryServiceImplTest {
     @DisplayName("이메일로 남은 이력을 사용자 식별자로 옮긴 뒤 조회한다")
     void movesLegacyOwnerFirst() {
       Pageable pageable = PageRequest.of(0, 10);
-      given(backtestHistoryRepository.reassignOwner("old@example.com", TEST_USER_ID)).willReturn(2);
+      given(backtestHistoryRepository.reassignOwner("old@example.com", TEST_USER_ID)).willReturn(2L);
       given(backtestHistoryRepository.findByUserIdOrderByCreatedAtDesc(TEST_USER_ID, pageable))
         .willReturn(new PageImpl<>(List.of(testHistory), pageable, 1));
 
