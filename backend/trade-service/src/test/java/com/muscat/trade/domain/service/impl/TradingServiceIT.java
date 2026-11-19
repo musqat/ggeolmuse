@@ -135,6 +135,8 @@ class TradingServiceIT {
       .commissionRate(new BigDecimal("0.001"))
       .build();
 
+    // 거래일 확정은 받은 날짜 그대로(시세 서비스는 목)
+    given(marketDataService.resolveTradeDate(any(), any())).willAnswer(invocation -> invocation.getArgument(1));
     given(marketDataService.determineTradePrice(eq(TEST_SYMBOL), any(LocalDate.class),
       any(PriceType.class), any())).willReturn(STOCK_PRICE);
     given(userServiceClientWrapper.getAccountBalance(any(Long.class)))
