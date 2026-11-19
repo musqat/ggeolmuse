@@ -6,6 +6,7 @@ import { toBackendPriceType, type PriceType } from "@/utils/priceUtils";
 import { Spinner } from "../common/Spinner";
 import { formatShares, formatUsd } from "@/utils/format";
 import { queryKeys } from "@/services/queryKeys";
+import { staleTimes } from '@services/queryKeys';
 
 interface TradingCapacityPanelProps {
   accountId: number | null;
@@ -47,7 +48,7 @@ const TradingCapacityPanel: React.FC<TradingCapacityPanelProps> = ({
       }
     },
     enabled: !!accountId && !!symbol && !!tradeDate && currentPrice > 0,
-    staleTime: 30 * 1000,
+    staleTime: staleTimes.capacity,
   });
 
   if (!accountId) {

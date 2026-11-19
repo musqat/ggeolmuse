@@ -13,6 +13,7 @@ import {
   ROW_CARD_TABLE,
   ROW_CARD_TITLE,
 } from '../components/common/rowCards';
+import { staleTimes } from '../services/queryKeys';
 
 const CELL = `${ROW_CARD_CELL} sm:py-3 sm:px-4`;
 
@@ -50,7 +51,7 @@ const Stocks: React.FC = () => {
       );
       return response.data;
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: staleTimes.recent,
   });
 
   // 응답 데이터 파싱

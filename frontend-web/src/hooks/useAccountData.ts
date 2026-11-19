@@ -7,6 +7,7 @@ import {
   type PortfolioSummaryResponse
 } from '../services/api';
 import { accountListQuery } from './useAccounts';
+import { staleTimes } from '@services/queryKeys';
 
 interface UseAccountDataReturn {
   accounts: AccountSummary[];
@@ -110,7 +111,7 @@ export const useAccountData = (isAuthenticated: boolean): UseAccountDataReturn =
       };
     },
     enabled: isAuthenticated,
-    staleTime: 1 * 60 * 1000,
+    staleTime: staleTimes.balance,
   });
 
   const accountBalances = data?.accountBalances || new Map<number, AccountBalance>();

@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useState } from 'react'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render as baseRender, screen, within } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactElement } from 'react'
 import userEvent from '@testing-library/user-event'
 import { usePeriod } from './period'
 import { PeriodField } from './PeriodField'
@@ -20,6 +22,14 @@ import { SignalSymbolField } from './SignalSymbolField'
 import { ExecutionTimingField } from './ExecutionTimingField'
 import type { AmountUnitState } from '../shared/amountUnit'
 import type { TakeProfitStep } from '../shared/partialTakeProfit'
+
+// 종목 검색 결과를 담는 조회 캐시(테스트마다 새로)
+function render(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return baseRender(ui, {
+    wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+  })
+}
 
 // 기대값은 TZ=Asia/Seoul 전제 (vitest.config.ts 에서 고정)
 const dayButton = (day: string) =>

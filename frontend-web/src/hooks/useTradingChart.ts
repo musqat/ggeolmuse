@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { stockApi } from '../services/api';
-import { queryKeys } from '../services/queryKeys';
+import { queryKeys, staleTimes } from '../services/queryKeys';
 import { convertOHLCToCandlestick, type CandlestickChartData } from '../types/ohlc';
 import { getDateRangeForTimeframe, getTodayString, subtractDays, type Timeframe } from '../utils/dateUtils';
 
@@ -41,7 +41,7 @@ export const useTradingChart = ({ symbol, timeframe, customStartDate, customEndD
       return Array.isArray(response.data) ? convertOHLCToCandlestick(response.data) : [];
     },
     enabled: !!symbol && !!dateRange,
-    staleTime: 5 * 60 * 1000,
+    staleTime: staleTimes.chart,
   });
 
   // 새로 받은 차트의 마지막 거래일로 거래일을 옮김
@@ -91,7 +91,7 @@ export const useTradingChart = ({ symbol, timeframe, customStartDate, customEndD
         const response = await stockApi.getOHLCData(symbol, date, date);
         return Array.isArray(response.data) ? convertOHLCToCandlestick(response.data) : [];
       },
-      staleTime: 5 * 60 * 1000,
+      staleTime: staleTimes.chart,
     });
     const candle = candles.find((d) => d.time === date);
     if (!candle) {

@@ -5,6 +5,7 @@ import { accountListQuery } from '../../hooks/useAccounts';
 import { TradeHistoryList } from './history/TradeHistoryList';
 import { historyRefetchInterval } from './history/tradeHistory';
 import { Spinner } from '../common/Spinner';
+import { staleTimes } from '@services/queryKeys';
 
 // 거래 화면의 거래 내역 탭(거래 내역 페이지와 같은 목록)
 const TradeHistoryTab: React.FC = () => {
@@ -21,7 +22,7 @@ const TradeHistoryTab: React.FC = () => {
       const response = await tradeApi.history();
       return response.data || [];
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: staleTimes.recent,
     refetchInterval: (query) => historyRefetchInterval(query.state.data),
   });
 

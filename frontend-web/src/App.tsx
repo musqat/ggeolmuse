@@ -14,11 +14,12 @@ import AiChatButton from '@components/chat/AiChatButton';
 import AdminLayout from '@components/layout/AdminLayout';
 import RequireAuth from '@components/RequireAuth';
 import './styles/datepicker.css';
+import { staleTimes } from '@services/queryKeys';
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,
+      staleTime: staleTimes.chart,
       gcTime: 10 * 60 * 1000,
       retry: 1,                  // 실패 시 1번 재시도
       refetchOnWindowFocus: false, // 윈도우 포커스 시 자동 재요청 비활성화

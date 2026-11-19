@@ -6,6 +6,7 @@ import type { OHLCData } from '../types/ohlc';
 import { getTodayString, subtractDays } from '../utils/dateUtils';
 import { formatPercent, formatUsd, NO_VALUE } from '../utils/format';
 import { LoadError } from '../components/common/LoadError';
+import { staleTimes } from '@services/queryKeys';
 
 const Home: React.FC = () => {
   // 시총 상위 5개
@@ -22,7 +23,7 @@ const Home: React.FC = () => {
           currentPrice: s.currentPrice as number,
         }));
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: staleTimes.recent,
   });
 
   const topStocks: { symbol: string; name: string; currentPrice: number }[] = topStocksRaw ?? [];
@@ -38,7 +39,7 @@ const Home: React.FC = () => {
       return res.data as Record<string, { changePercent: number }>;
     },
     enabled: topStocks.length > 0,
-    staleTime: 2 * 60 * 1000,
+    staleTime: staleTimes.recent,
   });
 
   // 스파크라인용 OHLC (최근 30일)
@@ -50,7 +51,7 @@ const Home: React.FC = () => {
       return (res.data ?? []) as OHLCData[];
     },
     enabled: !!topSymbol,
-    staleTime: 5 * 60 * 1000,
+    staleTime: staleTimes.chart,
   });
 
   // SVG 스파크라인 path 생성

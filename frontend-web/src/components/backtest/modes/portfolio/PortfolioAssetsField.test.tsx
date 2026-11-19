@@ -1,10 +1,20 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
 import { useState } from 'react'
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render as baseRender, screen, within } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactElement } from 'react'
 import userEvent from '@testing-library/user-event'
 import type { PortfolioAllocation } from '@services/api'
 import { PortfolioAssetsField, type PortfolioAssetsFieldProps } from './PortfolioAssetsField'
 import { newRow, type PortfolioRow } from '../../shared/portfolioRows'
+
+// 종목 검색 결과를 담는 조회 캐시(테스트마다 새로)
+function render(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return baseRender(ui, {
+    wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+  })
+}
 
 const ok = {
   symbol: null,
