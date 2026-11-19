@@ -16,6 +16,8 @@ import com.muscat.backtest.domain.model.StrategyTransaction;
 import com.muscat.backtest.domain.port.MarketDataPort;
 import com.muscat.backtest.domain.dto.market.DividendHistoryDto;
 import com.muscat.backtest.domain.dto.market.FxRateDto;
+import com.muscat.backtest.domain.dto.request.RequestOptions;
+import com.muscat.backtest.domain.dto.request.StrategyRequest;
 import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
 import java.math.BigDecimal;
@@ -58,10 +60,8 @@ public final class StrategyFinalizer {
     }
   }
 
-  private StrategyFinalizer() {}
-
-  public static Result run(
-    MarketDataPort marketData,
+  // 마무리 계산에 쓰는 요청 값(종목 · 기간 · 수동 환율 · 배당 재투자 · 세율 · 수수료 · 기간 끝 · 연말 정리)
+  public record Settings(
     String symbol,
     LocalDate requestStart,
     LocalDate valuationDate,
@@ -69,12 +69,37 @@ public final class StrategyFinalizer {
     BigDecimal manualPurchaseFxRate,
     boolean reinvestEnabled,
     BigDecimal dividendTaxRate,
-    List<StrategyTransaction> transactions,
-    Map<LocalDate, OHLCPriceDto> priceMap,
-    FxRates dailyFx,
     PeriodEnd periodEnd,
     BigDecimal tradingFeeRate,
     boolean yearEndHarvest) {
+
+    // 요청 공통 옵션으로 만든 설정(배당 재투자 · 연말 정리는 전략마다 정함)
+    public static <R extends RequestOptions & StrategyRequest> Settings of(
+      R request, LocalDate valuationDate, boolean reinvestEnabled, boolean yearEndHarvest) {
+      return new Settings(request.getSymbol(), request.getStartDate(), valuationDate, request.getCurrentFxRate(),
+        request.getPurchaseFxRate(), reinvestEnabled, request.getDividendTaxRate(), request.getPeriodEnd(),
+        request.getTradingFeeRate(), yearEndHarvest);
+    }
+  }
+
+  private StrategyFinalizer() {}
+
+  public static Result run(
+    MarketDataPort marketData,
+    Settings settings,
+    List<StrategyTransaction> transactions,
+    Map<LocalDate, OHLCPriceDto> priceMap,
+    FxRates dailyFx) {
+    String symbol = settings.symbol();
+    LocalDate requestStart = settings.requestStart();
+    LocalDate valuationDate = settings.valuationDate();
+    BigDecimal manualCurrentFxRate = settings.manualCurrentFxRate();
+    BigDecimal manualPurchaseFxRate = settings.manualPurchaseFxRate();
+    boolean reinvestEnabled = settings.reinvestEnabled();
+    BigDecimal dividendTaxRate = settings.dividendTaxRate();
+    PeriodEnd periodEnd = settings.periodEnd();
+    BigDecimal tradingFeeRate = settings.tradingFeeRate();
+    boolean yearEndHarvest = settings.yearEndHarvest();
 
     StockPriceDto currentPrice = BacktestDataUtils.getPriceAt(
       marketData, symbol, valuationDate);

@@ -78,10 +78,10 @@ public class DCAStrategy implements InvestmentStrategy {
 
       // 마무리(평가일 시세/환율/배당재투자/계산) — 공통 로직 위임
       StrategyFinalizer.Result finalized = StrategyFinalizer.run(
-        marketData, request.getSymbol(), request.getStartDate(), actualEndDate, request.getCurrentFxRate(),
-        request.getPurchaseFxRate(), Boolean.TRUE.equals(request.getReinvestDividends()),
-        request.getDividendTaxRate(), transactions, purchases.priceMap(), purchases.dailyFx(), request.getPeriodEnd(),
-        request.getTradingFeeRate(), YearEndHarvest.enabled(request.getCapitalGainsTax(), request.getYearEndHarvest()));
+        marketData,
+        StrategyFinalizer.Settings.of(request, actualEndDate, Boolean.TRUE.equals(request.getReinvestDividends()),
+          YearEndHarvest.enabled(request.getCapitalGainsTax(), request.getYearEndHarvest())),
+        transactions, purchases.priceMap(), purchases.dailyFx());
 
       log.info("DCA 전략 실행 완료: {} - {}회 투자, 수익률 {}%",
         request.getSymbol(), finalized.transactions().size(),

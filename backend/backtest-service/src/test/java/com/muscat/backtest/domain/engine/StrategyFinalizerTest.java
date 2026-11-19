@@ -89,8 +89,8 @@ class StrategyFinalizerTest {
       .willReturn(new OHLCPriceDto("AAPL", VALUATION, close, close, close, close, close, 1_000L, "USD", true));
     given(marketData.getFxRate(anyString())).willReturn(new FxRateDto(VALUATION, new BigDecimal("1350")));
 
-    StrategyFinalizer.Result result = StrategyFinalizer.run(marketData, "AAPL", FIRST, VALUATION, null, null, false,
-      BigDecimal.ZERO, new ArrayList<>(), Map.of(), FxRates.EMPTY, PeriodEnd.SELL_AT_END, BigDecimal.ZERO, false);
+    StrategyFinalizer.Result result = StrategyFinalizer.run(marketData, settings(PeriodEnd.SELL_AT_END, BigDecimal.ZERO),
+      new ArrayList<>(), Map.of(), FxRates.EMPTY);
     ConditionalStrategyRequest request = ConditionalStrategyRequest.builder().symbol("AAPL").startDate(FIRST)
       .endDate(VALUATION).build();
     StrategyResponse response = result.fill(new ResponseMapper().toStrategyResponse(request, result.transactions(),
@@ -124,8 +124,8 @@ class StrategyFinalizerTest {
       given(marketData.getOHLCPrice(eq("AAPL"), anyString())).willReturn(candle(VALUATION, "120"));
       given(marketData.getFxRate(anyString())).willReturn(new FxRateDto(VALUATION, new BigDecimal("1350")));
       given(marketData.getDividendHistory(eq("AAPL"), anyString(), anyString())).willReturn(List.of());
-      return StrategyFinalizer.run(marketData, "AAPL", FIRST, VALUATION, null, null, false, BigDecimal.ZERO,
-        new ArrayList<>(transactions), priceMap, FxRates.EMPTY, periodEnd, new BigDecimal("0.01"), false);
+      return StrategyFinalizer.run(marketData, settings(periodEnd, new BigDecimal("0.01")), new ArrayList<>(transactions),
+        priceMap, FxRates.EMPTY);
     }
 
     private OHLCPriceDto candle(LocalDate date, String close) {
@@ -197,15 +197,32 @@ class StrategyFinalizerTest {
     given(marketData.getFxRate(anyString())).willReturn(new FxRateDto(VALUATION, new BigDecimal("1350")));
     given(marketData.getDividendHistory(eq("AAPL"), anyString(), anyString())).willReturn(null).willReturn(List.of());
 
-    StrategyFinalizer.Result missing = StrategyFinalizer.run(marketData, "AAPL", FIRST, VALUATION, null, null, false,
-      BigDecimal.ZERO, new ArrayList<>(List.of(buy("1350"))), Map.of(), FxRates.EMPTY, PeriodEnd.HOLD, BigDecimal.ZERO,
-      false);
-    StrategyFinalizer.Result received = StrategyFinalizer.run(marketData, "AAPL", FIRST, VALUATION, null, null, false,
-      BigDecimal.ZERO, new ArrayList<>(List.of(buy("1350"))), Map.of(), FxRates.EMPTY, PeriodEnd.HOLD, BigDecimal.ZERO,
-      false);
+    StrategyFinalizer.Result missing = StrategyFinalizer.run(marketData, settings(PeriodEnd.HOLD, BigDecimal.ZERO),
+      new ArrayList<>(List.of(buy("1350"))), Map.of(), FxRates.EMPTY);
+    StrategyFinalizer.Result received = StrategyFinalizer.run(marketData, settings(PeriodEnd.HOLD, BigDecimal.ZERO),
+      new ArrayList<>(List.of(buy("1350"))), Map.of(), FxRates.EMPTY);
 
     assertThat(missing.calculation().isDividendsUnavailable()).isTrue();
     assertThat(missing.calculation().getTotalDividends()).isEqualByComparingTo("0");
     assertThat(received.calculation().isDividendsUnavailable()).isFalse();
+  }
+
+  // 수동 환율 · 배당 재투자 · 연말 정리 없는 AAPL FIRST ~ VALUATION 마무리 설정
+  private static StrategyFinalizer.Settings settings(PeriodEnd periodEnd, BigDecimal tradingFeeRate) {
+    return new StrategyFinalizer.Settings("AAPL", FIRST, VALUATION, null, null, false, BigDecimal.ZERO, periodEnd,
+      tradingFeeRate, false);
+  }
+
+  @Test
+  @DisplayName("요청의 종목 · 시작일 · 수동 환율 · 세율 · 수수료 · 기간 끝을 마무리 설정으로 옮긴다")
+  void settings_fromRequestOptions() {
+    ConditionalStrategyRequest request = ConditionalStrategyRequest.builder().symbol("AAPL").startDate(FIRST)
+      .currentFxRate(new BigDecimal("1400")).purchaseFxRate(new BigDecimal("1300"))
+      .dividendTaxRate(new BigDecimal("0.15")).tradingFeeRate(new BigDecimal("0.001")).periodEnd(PeriodEnd.HOLD).build();
+
+    StrategyFinalizer.Settings settings = StrategyFinalizer.Settings.of(request, VALUATION, true, false);
+
+    assertThat(settings).isEqualTo(new StrategyFinalizer.Settings("AAPL", FIRST, VALUATION, new BigDecimal("1400"),
+      new BigDecimal("1300"), true, new BigDecimal("0.15"), PeriodEnd.HOLD, new BigDecimal("0.001"), false));
   }
 }

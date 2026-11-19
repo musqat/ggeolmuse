@@ -161,33 +161,7 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
                                                      Function<LocalDate, BigDecimal> fx) {
     OptimalTiming optimalTiming = calculateOptimalTiming(candles, fxRates);
 
-    SimulationResponse response = responseMapper.toSimulationResponse(
-      context.request(),
-      calculation.purchasePriceUsd(),
-      calculation.shares(),
-      calculation.currentPriceUsd(),
-      calculation.currentValueUsd(),
-      calculation.currentValueKrw(),
-      calculation.stockReturn(),
-      calculation.stockReturnPercent(),
-      calculation.purchaseFxRate(),
-      calculation.currentFxRate(),
-      calculation.fxReturn(),
-      calculation.fxReturnPercent(),
-      calculation.totalDividends(),
-      calculation.dividendYield(),
-      calculation.tradingFee(),
-      calculation.remainingCash(),
-      calculation.totalAssetKrw(),
-      calculation.totalReturnKrw(),
-      calculation.totalReturnPercent(),
-      optimalTiming.buyDate(),
-      optimalTiming.buyPrice(),
-      optimalTiming.sellDate(),
-      optimalTiming.sellPrice(),
-      optimalTiming.returnPercent(),
-      calculation.dividendsReinvested(),
-      calculation.dividendReinvestDates());
+    SimulationResponse response = responseMapper.toSimulationResponse(context.request(), calculation, optimalTiming);
     // 응답의 매수일은 실제로 산 날, 투자 금액은 주식 수로 샀으면 산 날 비용
     response.setPurchaseDate(context.purchaseData().date());
     response.setInvestmentAmount(calculation.investmentKrw());

@@ -15,6 +15,7 @@ import com.muscat.backtest.common.util.Decimals;
 import com.muscat.backtest.common.util.FxRates;
 import com.muscat.backtest.common.util.PriceLookup;
 import com.muscat.backtest.domain.validation.BacktestRequestValidator;
+import com.muscat.backtest.domain.dto.request.RequestOptions;
 import com.muscat.backtest.domain.dto.request.SignalStrategyRequest;
 import com.muscat.backtest.domain.dto.request.StrategyRequest;
 import com.muscat.backtest.domain.dto.response.StrategyResponse;
@@ -33,7 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 
 // 신호 전략 공통 매매: 매매 종목 일봉마다 신호대로 가진 돈 전부로 사거나 전량 팜(처음 매수는 원금, 이후 매수는 판 돈, 트레일링 스탑 · 부분 익절은 정한 몫)
 @Slf4j
-abstract class SignalStrategy<R extends SignalStrategyRequest> implements InvestmentStrategy {
+abstract class SignalStrategy<R extends RequestOptions & SignalStrategyRequest> implements InvestmentStrategy {
 
   // 모의 계좌 · 보유 · 트레일링 스탑 · 부분 익절과 첫 매수를 했는지
   private static final class Book {
@@ -140,9 +141,8 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
       StrategyPurchases trades = trade(request, priceMap, prices, signal, actualEndDate, taxPayer);
 
       StrategyFinalizer.Result finalized = StrategyFinalizer.run(
-        marketData, request.getSymbol(), request.getStartDate(), actualEndDate, request.getCurrentFxRate(),
-        request.getPurchaseFxRate(), false, request.getDividendTaxRate(), trades.transactions(), trades.priceMap(),
-        trades.dailyFx(), request.getPeriodEnd(), request.getTradingFeeRate(), false);
+        marketData, StrategyFinalizer.Settings.of(request, actualEndDate, false, false), trades.transactions(),
+        trades.priceMap(), trades.dailyFx());
 
       log.info("{} 전략 실행 완료: {} - 거래 {}건, 수익률 {}%",
         label(), request.getSymbol(), finalized.transactions().size(), finalized.calculation().getTotalReturnPercent());
