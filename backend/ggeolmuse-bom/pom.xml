@@ -25,7 +25,7 @@
         <lombok.version>1.18.34</lombok.version>
         <springdoc.version>2.8.17</springdoc.version>
         <testcontainers.version>1.20.4</testcontainers.version>
-        <resilience4j.version>2.2.0</resilience4j.version>
+        <resilience4j.version>2.4.0</resilience4j.version>
 
         <!-- 보안 패치.  Spring Boot BOM 의 버전은 프로퍼티로 못 바꿔 아래 dependencyManagement 항목과 짝으로 둠 -->
         <netty.version>4.1.139.Final</netty.version>
@@ -58,6 +58,14 @@
                 <groupId>com.fasterxml.jackson</groupId>
                 <artifactId>jackson-bom</artifactId>
                 <version>${jackson-bom.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- resilience4j 모듈 버전 맞추기(Spring Cloud BOM 의 옛 버전보다 앞) -->
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-bom</artifactId>
+                <version>${resilience4j.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
