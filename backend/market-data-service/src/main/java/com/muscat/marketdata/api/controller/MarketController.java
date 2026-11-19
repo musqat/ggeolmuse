@@ -2,6 +2,8 @@ package com.muscat.marketdata.api.controller;
 
 import com.muscat.commonlib.constants.CommonConstants;
 import com.muscat.marketdata.common.enums.StockSort;
+import com.muscat.marketdata.common.enums.response.MarketDataResponse;
+import com.muscat.marketdata.common.exception.MarketDataException;
 import com.muscat.marketdata.domain.dto.OHLCPriceDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
 import com.muscat.marketdata.domain.dto.SymbolDto;
@@ -293,6 +295,9 @@ public class MarketController {
     @Parameter(description = "종료 날짜", example = "2024-12-31", required = true)
     @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
     log.debug("다중 OHLC 조회 요청: symbols={}, startDate={}, endDate={}", symbols, startDate, endDate);
+    if (startDate.isAfter(endDate)) {
+      throw new MarketDataException(MarketDataResponse.INVALID_DATE_RANGE);
+    }
 
     List<OHLCPriceDto> result = candleService.getMultipleOHLCPrices(symbols, startDate, endDate);
 
