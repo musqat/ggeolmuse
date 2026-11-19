@@ -433,6 +433,10 @@ jobs:
           go vet ./...
           go test -count=1 ./...
 
+      # 백엔드 예외 생성식 · 오류 코드 enum 검사
+      - name: 오류 코드
+        run: go run ./cmd/error-codes ../backend
+
       # 워크플로 · 액션 문법과 run 스크립트(shellcheck) 검사
       - name: actionlint
         working-directory: .

@@ -189,3 +189,8 @@ func TestReleaseStartsOnlyFromCIOrByHand(t *testing.T) {
 		t.Errorf("release.yml 시작 조건 %v, 기대 %v", triggers, want)
 	}
 }
+
+// 예외 생성식 · 오류 코드 enum 검사
+func TestToolsJobChecksErrorCodes(t *testing.T) {
+	mustContain(t, "tools 잡", job(t, workflow(t, "ci.yml"), "tools"), "go run ./cmd/error-codes ../backend")
+}

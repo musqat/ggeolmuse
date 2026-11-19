@@ -55,7 +55,7 @@ class GlobalExceptionHandlerTest {
     binding.addError(new FieldError("dcaStrategyRequest", "symbol", "종목 코드는 필수입니다"));
     MethodParameter parameter = new MethodParameter(GlobalExceptionHandlerTest.class.getDeclaredMethod("dca", Object.class), 0);
 
-    assertThat(handlerFor(new BacktestException(BacktestResponse.INVALID_REQUEST))).isEqualTo("handleBusinessException");
+    assertThat(handlerFor(new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH))).isEqualTo("handleBusinessException");
     assertThat(handlerFor(new MissingServletRequestParameterException("userId", "String")))
       .isEqualTo("handleMissingParameterException");
     assertThat(handlerFor(new MethodArgumentNotValidException(parameter, binding))).isEqualTo("handleValidationException");

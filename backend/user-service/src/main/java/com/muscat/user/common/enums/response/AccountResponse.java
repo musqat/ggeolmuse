@@ -9,30 +9,13 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 public enum AccountResponse implements ErrorCode {
 
-  // 성공 응답 (200, 201)
-  ACCOUNT_CREATED("계좌가 생성되었습니다.", HttpStatus.CREATED),
-  ACCOUNT_FOUND("계좌 조회가 완료되었습니다.", HttpStatus.OK),
-  DEPOSIT_SUCCESS("입금이 완료되었습니다.", HttpStatus.OK),
-  ACCOUNT_UPDATED("계좌 정보가 수정되었습니다.", HttpStatus.OK),
-  ACCOUNT_DELETED("계좌가 삭제되었습니다.", HttpStatus.OK),
-  EXCHANGE_SUCCESS("환전이 완료되었습니다.", HttpStatus.OK),
-  UPDATE_SUCCESS("계좌 업데이트가 완료되었습니다.", HttpStatus.OK),
-  EXCHANGE_RATE_FOUND("환율 조회가 완료되었습니다.", HttpStatus.OK),
-
   // 400 Bad Request
-  INVALID_ACCOUNT_NAME("계좌명을 확인해주세요.", HttpStatus.BAD_REQUEST),
   INVALID_DEPOSIT_AMOUNT("입금액이 유효하지 않습니다.", HttpStatus.BAD_REQUEST),
-  INVALID_COMMISSION_RATE("수수료율이 유효하지 않습니다.", HttpStatus.BAD_REQUEST),
   INSUFFICIENT_BALANCE("잔액이 부족합니다.", HttpStatus.BAD_REQUEST),
   INSUFFICIENT_USD_BALANCE("USD 잔액이 부족합니다.", HttpStatus.BAD_REQUEST),
   INVALID_EXCHANGE_RATE("환율이 유효하지 않습니다.", HttpStatus.BAD_REQUEST),
-  MAX_ACCOUNT_LIMIT_EXCEEDED("계좌 생성 한도를 초과했습니다.", HttpStatus.BAD_REQUEST),
   INVALID_CURRENCY("지원하지 않는 통화입니다.", HttpStatus.BAD_REQUEST),
-  INVALID_REQUEST("잘못된 요청입니다.", HttpStatus.BAD_REQUEST),
   INVALID_TRANSACTION_TYPE("유효하지 않은 거래 타입입니다.", HttpStatus.BAD_REQUEST),
-  INVALID_AMOUNT("금액이 유효하지 않습니다.", HttpStatus.BAD_REQUEST),
-  NEGATIVE_AMOUNT("금액은 0보다 커야 합니다.", HttpStatus.BAD_REQUEST),
-  CURRENCY_MISMATCH("통화가 일치하지 않습니다.", HttpStatus.BAD_REQUEST),
   INVALID_IDEMPOTENCY_KEY("중복 요청 키는 64자 이하의 영문 · 숫자 · 하이픈입니다.", HttpStatus.BAD_REQUEST),
 
   // 403 Forbidden

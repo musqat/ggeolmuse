@@ -9,15 +9,7 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 public enum MarketDataResponse implements ErrorCode {
 
-  // 성공 응답
-  PRICE_DATA_RETRIEVED("가격 데이터 조회 성공", HttpStatus.OK),
-  CANDLE_DATA_RETRIEVED("캔들 데이터 조회 성공", HttpStatus.OK),
-  DIVIDEND_DATA_RETRIEVED("배당 데이터 조회 성공", HttpStatus.OK),
-  FX_RATE_RETRIEVED("환율 데이터 조회 성공", HttpStatus.OK),
-  HISTORICAL_DATA_GENERATED("과거 데이터 생성 성공", HttpStatus.OK),
-
   // 클라이언트 오류
-  INVALID_SYMBOL("유효하지 않은 종목 코드입니다", HttpStatus.BAD_REQUEST),
   INVALID_DATE_RANGE("유효하지 않은 날짜 범위입니다", HttpStatus.BAD_REQUEST),
   INVALID_SORT("유효하지 않은 정렬 기준입니다", HttpStatus.BAD_REQUEST),
   ASSET_NAME_REQUIRED("종목 이름이 비어 있습니다", HttpStatus.BAD_REQUEST),
@@ -26,16 +18,10 @@ public enum MarketDataResponse implements ErrorCode {
   // 리소스 없음
   SYMBOL_NOT_FOUND("종목을 찾을 수 없습니다", HttpStatus.NOT_FOUND),
   PRICE_DATA_NOT_FOUND("가격 데이터를 찾을 수 없습니다", HttpStatus.NOT_FOUND),
-  DIVIDEND_DATA_NOT_FOUND("배당 데이터를 찾을 수 없습니다", HttpStatus.NOT_FOUND),
   FX_RATE_NOT_FOUND("환율 데이터를 찾을 수 없습니다", HttpStatus.NOT_FOUND),
 
-  // 유효성 검증 오류
-  MISSING_REQUIRED_FIELDS("필수 필드가 누락되었습니다", HttpStatus.UNPROCESSABLE_ENTITY),
-
   // 외부 서비스 오류 - 실제 사용되는 것들
-  YAHOO_FINANCE_ERROR("Yahoo Finance 서비스 오류", HttpStatus.BAD_GATEWAY),
   ALPHA_VANTAGE_ERROR("Alpha Vantage 서비스 오류", HttpStatus.BAD_GATEWAY),
-  KOREA_EXIM_ERROR("한국수출입은행 서비스 오류", HttpStatus.BAD_GATEWAY),
   YAHOO_NO_DATA("Yahoo Finance 응답에 시세가 없습니다", HttpStatus.NOT_FOUND),
   YAHOO_RESPONSE_INVALID("Yahoo Finance 응답을 읽지 못했습니다", HttpStatus.BAD_GATEWAY),
   ALPHA_VANTAGE_RATE_LIMITED("Alpha Vantage 요청 한도를 넘었습니다", HttpStatus.SERVICE_UNAVAILABLE),
