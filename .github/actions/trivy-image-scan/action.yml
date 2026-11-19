@@ -52,7 +52,7 @@ runs:
         sarif_file: trivy-results-${{ inputs.name }}.sarif
         category: trivy-${{ inputs.name }}
 
-    # 고친 버전이 있는 CRITICAL 이면 실패(예외는 저장소 루트의 .trivyignore)
+    # 리포트에 남은 CRITICAL 이면 실패(스캔이 고친 버전 없는 것을 뺌, 예외는 저장소 루트의 .trivyignore)
     - name: 고친 버전이 나온 CRITICAL 판정
       shell: bash
       working-directory: ${{ github.workspace }}
@@ -61,4 +61,7 @@ runs:
           echo "::warning title=Trivy::${{ inputs.name }} 스캔 리포트 없음(설치 · DB 받기 실패), 판정 건너뜀"
           exit 0
         fi
-        python3 .github/scripts/trivy_gate.py trivy-${{ inputs.name }}.json
+        trivy convert --format table --severity CRITICAL --exit-code 1 trivy-${{ inputs.name }}.json || {
+          echo "::error title=Trivy::${{ inputs.name }} 에 고친 버전이 나온 CRITICAL(버전을 올리거나 .trivyignore 에 까닭과 함께)"
+          exit 1
+        }
