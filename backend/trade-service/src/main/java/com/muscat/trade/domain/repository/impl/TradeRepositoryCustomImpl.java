@@ -3,6 +3,7 @@ package com.muscat.trade.domain.repository.impl;
 import com.muscat.trade.common.enums.type.TradeStatus;
 import com.muscat.trade.common.enums.type.TradeType;
 import com.muscat.trade.domain.dto.TradePosition;
+import com.muscat.trade.domain.entity.Trade;
 import com.muscat.trade.domain.entity.QTrade;
 import com.muscat.trade.domain.repository.TradeRepositoryCustom;
 import com.querydsl.core.Tuple;
@@ -11,13 +12,16 @@ import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.DateExpression;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -61,6 +65,24 @@ public class TradeRepositoryCustomImpl implements TradeRepositoryCustom {
       .where(trade.symbol.eq(symbol), trade.status.eq(status), trade.tradeDate.lt(before))
       .orderBy(trade.accountId.asc())
       .fetch();
+  }
+
+  @Override
+  public Optional<Trade> findByIdForUpdate(Long id) {
+    return Optional.ofNullable(queryFactory
+      .selectFrom(trade)
+      .where(trade.id.eq(id))
+      .setLockMode(LockModeType.PESSIMISTIC_WRITE)
+      .fetchOne());
+  }
+
+  @Override
+  public long markEventPublished(Long id, LocalDateTime publishedAt) {
+    return queryFactory
+      .update(trade)
+      .set(trade.eventPublishedAt, publishedAt)
+      .where(trade.id.eq(id))
+      .execute();
   }
 
   // 매도일까지 누적 보유와 매도일 뒤 체결마다의 누적 보유(거래일 → 체결 시각 순) 가운데 최솟값(팔아도 뒤 보유가 음수가 아닌 양)

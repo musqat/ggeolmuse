@@ -8,9 +8,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -46,11 +43,6 @@ public interface TradeRepository extends JpaRepository<Trade, Long>, TradeReposi
   // 계좌 주인 찾기용(취소된 체결 포함)
   Optional<Trade> findFirstByAccountIdOrderByIdAsc(Long accountId);
 
-  // 같은 체결의 동시 취소를 막는 잠금 읽기
-  @Lock(LockModeType.PESSIMISTIC_WRITE)
-  @Query("select t from Trade t where t.id = :id")
-  Optional<Trade> findByIdForUpdate(@Param("id") Long id);
-
   // 받은 날짜 전 한 종목의 가장 이른 체결(모든 상태)
   Optional<Trade> findFirstBySymbolAndTradeDateBeforeOrderByTradeDateAsc(String symbol, LocalDate before);
 
@@ -73,9 +65,4 @@ public interface TradeRepository extends JpaRepository<Trade, Long>, TradeReposi
 
   // 기준 시각 전에 만들고 아직 그 상태인 체결 수 (trade.buys.pending)
   long countByTradeTypeAndStatusAndCreatedAtBefore(TradeType tradeType, TradeStatus status, LocalDateTime cutoff);
-
-  // 체결 이벤트 발행 시각 저장
-  @Modifying
-  @Query("update Trade t set t.eventPublishedAt = :publishedAt where t.id = :id")
-  int markEventPublished(@Param("id") Long id, @Param("publishedAt") LocalDateTime publishedAt);
 }
