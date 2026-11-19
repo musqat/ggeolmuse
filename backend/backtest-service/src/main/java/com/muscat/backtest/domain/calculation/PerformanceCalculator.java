@@ -1,5 +1,7 @@
 package com.muscat.backtest.domain.calculation;
 
+import com.muscat.backtest.common.enums.response.BacktestResponse;
+import com.muscat.backtest.common.exception.BacktestException;
 import com.muscat.backtest.domain.dto.response.PerformanceMetrics;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -27,7 +29,7 @@ public final class PerformanceCalculator {
   // 일별 지수(원금 1 기준, 첫 점 매수일 · 마지막 점 평가일)의 수익 · 위험 지표
   public static PerformanceMetrics compute(List<LocalDate> dates, List<Double> index, LocalDate requestStart) {
     if (dates.size() != index.size()) {
-      throw new IllegalArgumentException("날짜와 지수의 길이가 다름: " + dates.size() + " · " + index.size());
+      throw new BacktestException(BacktestResponse.PERFORMANCE_CALCULATION_ERROR);
     }
     if (index.size() < 2) {
       return PerformanceMetrics.empty();

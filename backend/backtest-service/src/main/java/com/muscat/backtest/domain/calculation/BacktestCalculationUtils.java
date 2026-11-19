@@ -19,7 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 public final class BacktestCalculationUtils {
 
   private BacktestCalculationUtils() {
-    throw new UnsupportedOperationException("이 클래스는 인스턴스를 생성할 수 없습니다");
   }
 
   // 스케일 상수
@@ -51,10 +50,10 @@ public final class BacktestCalculationUtils {
   public static BigDecimal calculateAveragePrice(BigDecimal totalInvestment,
                                                  BigDecimal totalFxRateSum, BigDecimal totalShares) {
     if (totalInvestment == null || totalFxRateSum == null || totalShares == null) {
-      throw new IllegalArgumentException("모든 매개변수는 null이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.AVERAGE_PRICE_CALCULATION_ERROR);
     }
     if (Decimals.isZero(totalFxRateSum) || Decimals.isZero(totalShares)) {
-      throw new IllegalArgumentException("환율 합계와 총 주식 수량은 0이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.AVERAGE_PRICE_CALCULATION_ERROR);
     }
 
     BigDecimal averageFxRate = calculateAverageFxRate(totalFxRateSum, totalInvestment);
@@ -67,10 +66,10 @@ public final class BacktestCalculationUtils {
   // 투자금액 가중평균 환율(Σ(투자금액 × 환율) ÷ Σ투자금액)
   public static BigDecimal calculateAverageFxRate(BigDecimal totalFxRateSum, BigDecimal totalInvested) {
     if (totalFxRateSum == null) {
-      throw new IllegalArgumentException("환율 합계는 null이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.FX_CONVERSION_ERROR);
     }
     if (totalInvested == null || !Decimals.isPositive(totalInvested)) {
-      throw new IllegalArgumentException("총 투자금액은 0보다 커야 합니다");
+      throw new BacktestException(BacktestResponse.FX_CONVERSION_ERROR);
     }
 
     return totalFxRateSum.divide(totalInvested, USD_SCALE, HALF_UP);
@@ -79,7 +78,7 @@ public final class BacktestCalculationUtils {
   // 리스트의 중간값
   public static BigDecimal calculateMedian(List<BigDecimal> values) {
     if (values == null || values.isEmpty()) {
-      throw new IllegalArgumentException("값 리스트는 null이거나 비어있을 수 없습니다");
+      throw new BacktestException(BacktestResponse.RETURN_CALCULATION_ERROR);
     }
 
     List<BigDecimal> sorted = values.stream()
@@ -99,7 +98,7 @@ public final class BacktestCalculationUtils {
   // BigDecimal 값을 지정된 스케일로 반올림
   public static BigDecimal scaleValue(BigDecimal value, int scale) {
     if (value == null) {
-      throw new IllegalArgumentException("값은 null이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.DATA_PROCESSING_ERROR);
     }
 
     return value.setScale(scale, HALF_UP);
@@ -114,7 +113,7 @@ public final class BacktestCalculationUtils {
   // 총 투자 대비 평균 수익률
   public static BigDecimal calculateAverageReturn(List<BigDecimal> returnValues) {
     if (returnValues == null || returnValues.isEmpty()) {
-      throw new IllegalArgumentException("수익률 리스트는 null이거나 비어있을 수 없습니다");
+      throw new BacktestException(BacktestResponse.RETURN_CALCULATION_ERROR);
     }
 
     return returnValues.stream()

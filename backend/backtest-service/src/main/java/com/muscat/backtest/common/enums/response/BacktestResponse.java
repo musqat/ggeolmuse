@@ -89,6 +89,7 @@ public enum BacktestResponse implements ErrorCode {
   RETURN_CALCULATION_ERROR("수익률 계산 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   FX_CONVERSION_ERROR("환율 변환 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   SHARES_CALCULATION_ERROR("주식 수량 계산 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+  AVERAGE_PRICE_CALCULATION_ERROR("평균 매수가 계산 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   TRADING_FEE_CALCULATION_ERROR("거래 수수료 계산 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   REMAINING_CASH_CALCULATION_ERROR("잔액 계산 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   PORTFOLIO_CALCULATION_ERROR("포트폴리오 계산 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),

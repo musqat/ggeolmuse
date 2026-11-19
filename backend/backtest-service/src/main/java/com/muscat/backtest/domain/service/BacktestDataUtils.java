@@ -22,7 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 public final class BacktestDataUtils {
 
   private BacktestDataUtils() {
-    throw new AssertionError("유틸리티 클래스는 인스턴스화할 수 없습니다");
   }
 
   /**
