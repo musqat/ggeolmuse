@@ -15,7 +15,7 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: [version-update:semver-major]
-      # 2025.1 부터는 Boot 4 용 판이라 Boot 3.5 에서 앱이 안 뜸(Boot 4 로 올릴 때 같이)
+      # 2025.1 부터는 Boot 4 용 버전이라 Boot 3.5 에서 앱이 안 뜸(Boot 4 로 올릴 때 같이)
       - dependency-name: org.springframework.cloud:spring-cloud-dependencies
         versions: [">= 2025.1.0"]
     commit-message:
@@ -44,6 +44,9 @@ updates:
       time: "09:00"
       timezone: Asia/Seoul
     groups:
+      # sdk 와 instrumentation(0.xxbN 버전)은 짝이 맞아야 설치돼서 한 PR 로
+      opentelemetry:
+        patterns: ["opentelemetry-*"]
       minor-and-patch:
         update-types: [minor, patch]
     open-pull-requests-limit: 5
@@ -86,10 +89,13 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
-    # 태그 끝의 JDK · 파이썬 판이 바뀌어도 부 버전으로 잡혀 수 버전 · digest 만
+    # 파이썬 · node 버전이 바뀌는 부 버전은 막고 수 버전 · digest 만
     ignore:
       - dependency-name: "*"
         update-types: [version-update:semver-major, version-update:semver-minor]
+      # maven 빌드 이미지는 태그 끝 JDK 버전(21 → 26)이 수 버전으로 잡혀 digest 만
+      - dependency-name: maven
+        update-types: [version-update:semver-patch]
     commit-message:
       prefix: chore(deps)
 
