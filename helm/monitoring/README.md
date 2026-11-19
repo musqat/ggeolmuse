@@ -109,7 +109,7 @@ kafka-exporter 디플로이먼트(브로커 수 · 토픽 오프셋 · 소비자
 규칙을 고치면 멀티 노드 차트 사본(`k8s/helm/ggeolmuse`)의 같은 파일도 고치고 [`alert-rules-test.yaml`](alert-rules-test.yaml) 에
 경우를 더한다. 새 알림은 RUNBOOK 에 같은 이름 제목을 둔다. CI `scan-manifests` 잡이 두 차트를 운영 값으로 렌더한 규칙마다
 promtool 로 문법 검사하고 이 테스트를 돌린 뒤, `runbook_url`(`#<알림 이름 소문자>`)이나 울리는 테스트가 없는 알림이 있으면
-멈춘다(`.github/scripts/alert_rules_coverage.py`). 로컬에서는 저장소 루트에서 같은 명령을 쓴다. `MSYS_NO_PATHCONV=1` 은
+멈춘다(`tools/cmd/alert-rules-coverage`). 로컬에서는 저장소 루트에서 같은 명령을 쓴다. `MSYS_NO_PATHCONV=1` 은
 Git Bash 의 경로 변환을 끄는 값이다(다른 셸에서는 영향 없음).
 
 ```bash
@@ -118,7 +118,7 @@ helm template ggeolmuse helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml \
   | awk 'spec { sub(/^  /, ""); print } /^spec:$/ { spec = 1 }' > alert-rules.yaml
 MSYS_NO_PATHCONV=1 docker run --rm --network none -v "$PWD:/w" -w /w --entrypoint promtool prom/prometheus:v3.1.0 check rules alert-rules.yaml
 MSYS_NO_PATHCONV=1 docker run --rm --network none -v "$PWD:/w" -w /w --entrypoint promtool prom/prometheus:v3.1.0 test rules helm/monitoring/alert-rules-test.yaml
-python3 .github/scripts/alert_rules_coverage.py alert-rules.yaml helm/monitoring/alert-rules-test.yaml
+(cd tools && go run ./cmd/alert-rules-coverage ../alert-rules.yaml ../helm/monitoring/alert-rules-test.yaml)
 ```
 
 반복 주기는 critical 1시간, 나머지 4시간. `groupWait` 30초, `groupInterval` 5분.

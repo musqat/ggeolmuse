@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -53,12 +54,12 @@ func repoFiles(t *testing.T, dir string, keep func(name string) bool) []string {
 	return found
 }
 
-// 리포 루트 기준 경로의 파일 내용
+// 리포 루트 기준 경로의 파일 내용(줄 끝은 LF 로)
 func readRepoFile(t *testing.T, rel string) string {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join(repoRoot(t), rel))
 	if err != nil {
 		t.Fatal(err)
 	}
-	return string(data)
+	return strings.ReplaceAll(string(data), "\r\n", "\n")
 }
