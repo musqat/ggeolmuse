@@ -52,6 +52,8 @@ spec:
       labels:
         app: kafka
     spec:
+      securityContext:
+        {{- include "ggeolmuse.podSecurityContext" . | nindent 8 }}
       containers:
         - name: kafka
           image: {{ .Values.infrastructure.kafka.image }}
@@ -88,13 +90,15 @@ spec:
               value: "{{ .Values.infrastructure.kafka.env.logSegmentBytes }}"
             # JVM 힙 메모리
             - name: KAFKA_HEAP_OPTS
-              value: "-Xmx512m -Xms512m"
+              value: "{{ .Values.infrastructure.kafka.env.heapOpts }}"
           resources:
             {{- toYaml .Values.infrastructure.kafka.resources | nindent 12 }}
           securityContext:
-            {{- include "ggeolmuse.baseSecurityContext" . | nindent 12 }}
-            readOnlyRootFilesystem: true
+            {{- include "ggeolmuse.securityContext" . | nindent 12 }}
           volumeMounts:
+            # 데이터 볼륨의 상위 폴더(이미지 폴더는 appuser · root 그룹만 들어감)
+            - name: var-lib-kafka
+              mountPath: /var/lib/kafka
             - name: kafka-data
               mountPath: /var/lib/kafka/data
             {{- include "ggeolmuse.confluentWritableMounts" . | nindent 12 }}
@@ -113,6 +117,8 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 3
       volumes:
+        - name: var-lib-kafka
+          emptyDir: {}
         {{- include "ggeolmuse.confluentWritableVolumes" . | nindent 8 }}
   volumeClaimTemplates:
     - metadata:
