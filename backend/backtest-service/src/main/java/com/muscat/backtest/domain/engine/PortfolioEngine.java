@@ -101,7 +101,7 @@ public class PortfolioEngine {
       .filter(candle -> !candle.date().isBefore(start))
       .forEach(candle -> candles.put(candle.date(), candle));
     if (candles.isEmpty()) {
-      throw new BacktestException(BacktestResponse.DATA_NOT_FOUND, symbol + " 의 기간 안 시세가 없습니다");
+      throw new BacktestException(BacktestResponse.DATA_NOT_FOUND);
     }
     DividendHistoryDto history = BacktestDataUtils.getDividendHistory(marketData, symbol, request.getStartDate(),
       valuationDate);

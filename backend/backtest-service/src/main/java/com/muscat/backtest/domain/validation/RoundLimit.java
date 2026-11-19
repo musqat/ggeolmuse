@@ -22,8 +22,6 @@ import java.util.List;
  */
 public final class RoundLimit {
 
-  private static final double WEEKDAYS_PER_YEAR = 365.25 * 5 / 7;
-  private static final double WEEKS_PER_YEAR = 365.25 / 7;
   private static final BigDecimal LONG_MAX = BigDecimal.valueOf(Long.MAX_VALUE);
 
   private RoundLimit() {}
@@ -86,14 +84,14 @@ public final class RoundLimit {
   /** 적립식 회차 × 기간 평일 수가 상한을 넘으면 TOO_MANY_ROUNDS */
   public static void requireDca(DcaStrategyRequest request, LocalDate today) {
     if (dcaLoad(request, today) > RequestLimit.MAX_ROUND_LOAD) {
-      throw tooMany(dcaMessage(request.getFrequency(), request.getInvestmentInterval()));
+      throw new BacktestException(BacktestResponse.TOO_MANY_ROUNDS);
     }
   }
 
   /** 조건부 매수 회차 × 기간 평일 수가 상한을 넘으면 TOO_MANY_ROUNDS */
   public static void requireConditional(ConditionalStrategyRequest request, LocalDate today) {
     if (conditionalLoad(request, today) > RequestLimit.MAX_ROUND_LOAD) {
-      throw tooMany(conditionalMessage(request, today));
+      throw new BacktestException(BacktestResponse.TOO_MANY_ROUNDS);
     }
   }
 
@@ -106,11 +104,11 @@ public final class RoundLimit {
     long rounds = dcaRounds(orMonthly(request.getFrequency()), orOne(request.getInvestmentInterval()), first,
       request.getEndDate(), request.getPurchaseDay(), today);
     if (rounds * weekdays(first, request.getEndDate(), today) > RequestLimit.MAX_ROUND_LOAD) {
-      throw tooMany(dcaMessage(request.getFrequency(), request.getInvestmentInterval()));
+      throw new BacktestException(BacktestResponse.TOO_MANY_ROUNDS);
     }
   }
 
-  /** 전략 비교 칩마다 상한, 칩 합은 비교 상한을 넘으면 TOO_MANY_ROUNDS */
+  /** 전략 비교 칩마다 상한, 칩 합은 비교 상한을 넘으면 TOO_MANY_COMPARISON_ROUNDS */
   public static void requireComparison(List<StrategyRequest> chips, LocalDate today) {
     long total = 0;
     for (StrategyRequest chip : chips) {
@@ -122,7 +120,7 @@ public final class RoundLimit {
       total += load(chip, today);
     }
     if (total > RequestLimit.MAX_COMPARISON_ROUND_LOAD) {
-      throw tooMany("칩 회차 합이 너무 많음 — 칩 빼기 · 기간 줄이기 · 주기 늘리기");
+      throw new BacktestException(BacktestResponse.TOO_MANY_COMPARISON_ROUNDS);
     }
   }
 
@@ -154,36 +152,6 @@ public final class RoundLimit {
     }
     BigDecimal rounds = budget.divide(amount, 0, RoundingMode.DOWN);
     return rounds.compareTo(LONG_MAX) >= 0 ? Long.MAX_VALUE : rounds.longValue();
-  }
-
-  private static String dcaMessage(DcaFrequency frequency, Integer interval) {
-    DcaFrequency cadence = orMonthly(frequency);
-    int months = orOne(interval);
-    double roundsPerYear = switch (cadence) {
-      case DAILY -> WEEKDAYS_PER_YEAR;
-      case WEEKLY -> WEEKS_PER_YEAR;
-      case MONTHLY -> 12.0 / months;
-    };
-    return "%s 적립은 최대 약 %d년 — 기간 줄이기 · 주기 늘리기".formatted(cadence.every(months),
-      maxYears(roundsPerYear));
-  }
-
-  private static String conditionalMessage(ConditionalStrategyRequest request, LocalDate today) {
-    if (request.sells()) {
-      return "매도 규칙이 있는 조건부 매수는 최대 약 %d년 — 기간 줄이기".formatted(maxYears(WEEKDAYS_PER_YEAR));
-    }
-    long days = weekdays(request.getStartDate(), request.getEndDate(), today);
-    return "이 기간이면 최대 매수 %,d회까지 — 최대 매수 횟수 정하기 · 기간 줄이기"
-      .formatted(RequestLimit.MAX_ROUND_LOAD / days);
-  }
-
-  // 1년 회차 수로 상한 안에 드는 햇수
-  private static long maxYears(double roundsPerYear) {
-    return (long) Math.floor(Math.sqrt(RequestLimit.MAX_ROUND_LOAD / (roundsPerYear * WEEKDAYS_PER_YEAR)));
-  }
-
-  private static BacktestException tooMany(String message) {
-    return new BacktestException(BacktestResponse.TOO_MANY_ROUNDS, message);
   }
 
   // 끝날과 어제 가운데 이른 날

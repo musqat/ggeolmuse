@@ -51,8 +51,7 @@ public class DCAStrategy implements InvestmentStrategy {
   public StrategyResponse execute(StrategyRequest request) {
     // null 은 검증이 막음
     if (request != null && !(request instanceof DcaStrategyRequest)) {
-      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH,
-        "적립식 전략에 다른 요청이 왔습니다: " + request.getStrategyType());
+      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH);
     }
     return runDca((DcaStrategyRequest) request);
   }
@@ -134,8 +133,7 @@ public class DCAStrategy implements InvestmentStrategy {
     Map<LocalDate, OHLCPriceDto> priceMap = BacktestDataUtils.buildPriceMap(
       marketData, request.getSymbol(), request.getStartDate(), actualEndDate);
     if (priceMap.values().stream().noneMatch(PriceLookup::isUsable)) {
-      throw new BacktestException(BacktestResponse.DATA_NOT_FOUND,
-        "적립식 투자 전략 실행 가능한 데이터가 없습니다");
+      throw new BacktestException(BacktestResponse.DATA_NOT_FOUND);
     }
 
     LocalDate first = request.getFirstPurchaseDate() != null ? request.getFirstPurchaseDate() : request.getStartDate();

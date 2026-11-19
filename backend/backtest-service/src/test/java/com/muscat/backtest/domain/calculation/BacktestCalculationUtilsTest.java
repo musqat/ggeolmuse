@@ -49,7 +49,8 @@ class BacktestCalculationUtilsTest {
         BacktestCalculationUtils.calculateShares(null, new BigDecimal("1300"),
           new BigDecimal("100")))
         .isInstanceOf(BacktestException.class)
-        .hasMessageContaining("null");
+        .extracting("code")
+        .isEqualTo(BacktestResponse.SHARES_CALCULATION_ERROR);
     }
 
     @Test
@@ -60,7 +61,8 @@ class BacktestCalculationUtilsTest {
         BacktestCalculationUtils.calculateShares(new BigDecimal("1300000"), BigDecimal.ZERO,
           new BigDecimal("100")))
         .isInstanceOf(BacktestException.class)
-        .hasMessageContaining("환율");
+        .extracting("code")
+        .isEqualTo(BacktestResponse.FX_CONVERSION_ERROR);
     }
 
     @Test
@@ -71,7 +73,8 @@ class BacktestCalculationUtilsTest {
         BacktestCalculationUtils.calculateShares(new BigDecimal("1300000"), new BigDecimal("1300"),
           BigDecimal.ZERO))
         .isInstanceOf(BacktestException.class)
-        .hasMessageContaining("주식가격");
+        .extracting("code")
+        .isEqualTo(BacktestResponse.SHARES_CALCULATION_ERROR);
     }
   }
 

@@ -57,7 +57,8 @@ class PriceLookupTest {
   void withFallback_throws() {
     assertThatThrownBy(() -> PriceLookup.withFallback((sym, dt) -> null, "AAPL", d("2025-06-05"), 5))
       .isInstanceOf(BacktestException.class)
-      .hasMessageContaining("주가 데이터를 찾을 수 없습니다 (5일 검색)");
+      .extracting("code")
+      .isEqualTo(BacktestResponse.STOCK_DATA_NOT_FOUND);
   }
 
   @Test

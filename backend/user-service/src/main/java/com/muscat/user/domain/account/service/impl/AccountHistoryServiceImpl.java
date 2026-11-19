@@ -115,7 +115,7 @@ public class AccountHistoryServiceImpl implements AccountHistoryService {
 
   // 금액 유효성 검증
   private void validateAmount(BigDecimal amount) {
-    MoneyUtils.validatePositiveAmount(amount, "거래 금액");
+    MoneyUtils.validatePositiveAmount(amount);
   }
 
   // 통화 유효성 검증

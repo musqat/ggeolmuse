@@ -110,8 +110,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
   public StrategyResponse execute(StrategyRequest request) {
     // null 은 검증이 막음
     if (request != null && !requestType.isInstance(request)) {
-      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH,
-        label() + " 전략에 다른 요청이 왔습니다: " + request.getStrategyType());
+      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH);
     }
     return run(requestType.cast(request));
   }
@@ -184,7 +183,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
   private SignalPrices signalPrices(String symbol, LocalDate from, LocalDate start, LocalDate end) {
     SignalPrices prices = SignalPrices.of(BacktestDataUtils.buildPriceMap(marketData, symbol, from, end));
     if (prices.candles().isEmpty() || prices.candles().getLast().date().isBefore(start)) {
-      throw new BacktestException(BacktestResponse.DATA_NOT_FOUND, "신호 종목 시세가 없습니다");
+      throw new BacktestException(BacktestResponse.SIGNAL_DATA_NOT_FOUND);
     }
     return prices;
   }
@@ -269,8 +268,7 @@ abstract class SignalStrategy<R extends SignalStrategyRequest> implements Invest
       .map(OHLCPriceDto::date)
       .filter(date -> !date.isBefore(start))
       .findFirst()
-      .orElseThrow(() -> new BacktestException(BacktestResponse.DATA_NOT_FOUND,
-        label() + " 전략 실행 가능한 데이터가 없습니다"));
+      .orElseThrow(() -> new BacktestException(BacktestResponse.DATA_NOT_FOUND));
     if (request.getPurchaseFxRate() != null) {
       return FxRates.EMPTY;
     }

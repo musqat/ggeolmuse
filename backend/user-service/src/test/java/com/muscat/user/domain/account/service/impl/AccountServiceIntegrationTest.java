@@ -8,7 +8,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.commonlib.dto.FxRateDto;
-import com.muscat.commonlib.exception.ServiceException;
+import com.muscat.commonlib.exception.BusinessException;
 import com.muscat.user.common.enums.response.AccountResponse;
 import com.muscat.user.common.enums.type.TransactionType;
 import com.muscat.user.common.exception.AccountException;
@@ -247,7 +247,7 @@ class AccountServiceIntegrationTest {
       assertThatThrownBy(() ->
         accountService.exchangeKrwToUsd(
           testAccount.getId(), testUserId, excessiveAmount, TEST_EXCHANGE_RATE))
-        .isInstanceOf(ServiceException.class);
+        .isInstanceOf(BusinessException.class);
 
       // 잔액이 변경되지 않았는지 확인 (rollback)
       Account unchangedAccount = accountRepository.findById(testAccount.getId()).orElseThrow();
@@ -679,7 +679,7 @@ class AccountServiceIntegrationTest {
 
       assertThatThrownBy(() -> accountService.exchangeKrwToUsd(
         account.getId(), testUserId, amount, TEST_EXCHANGE_RATE, key))
-        .isInstanceOf(ServiceException.class);
+        .isInstanceOf(BusinessException.class);
       accountService.depositKrw(account.getId(), testUserId, new BigDecimal("1000000"));
       accountService.exchangeKrwToUsd(account.getId(), testUserId, amount, TEST_EXCHANGE_RATE, key);
 

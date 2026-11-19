@@ -41,8 +41,7 @@ public final class BacktestDataUtils {
     var response = marketData.getCurrentPrice(symbol);
 
     if (response == null || !response.available()) {
-      throw new BacktestException(BacktestResponse.STOCK_DATA_NOT_FOUND,
-        "현재 주가 데이터를 찾을 수 없습니다: " + symbol);
+      throw new BacktestException(BacktestResponse.STOCK_DATA_NOT_FOUND);
     }
 
     return response;

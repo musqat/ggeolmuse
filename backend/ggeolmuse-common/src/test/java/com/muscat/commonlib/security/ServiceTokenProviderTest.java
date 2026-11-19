@@ -9,6 +9,8 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withUnauthorizedRequest;
 
+import com.muscat.commonlib.exception.BusinessException;
+import com.muscat.commonlib.exception.CommonResponse;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -81,7 +83,8 @@ class ServiceTokenProviderTest {
 
     assertThatThrownBy(provider::token).isInstanceOf(RestClientException.class);
     clock.advance(Duration.ofSeconds(5));
-    assertThatThrownBy(provider::token).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(provider::token).isInstanceOf(BusinessException.class)
+      .extracting("code").isEqualTo(CommonResponse.SERVICE_TOKEN_MISSING);
     clock.advance(Duration.ofSeconds(5));
     assertThat(provider.token()).isEqualTo("t1");
     keycloak.verify();
@@ -95,7 +98,8 @@ class ServiceTokenProviderTest {
 
     assertThatThrownBy(provider::token).isInstanceOf(RestClientException.class);
     clock.advance(Duration.ofSeconds(4));
-    assertThatThrownBy(provider::token).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(provider::token).isInstanceOf(BusinessException.class)
+      .extracting("code").isEqualTo(CommonResponse.SERVICE_TOKEN_RETRY_WAIT);
     clock.advance(Duration.ofSeconds(1));
     assertThat(provider.token()).isEqualTo("t1");
     keycloak.verify();

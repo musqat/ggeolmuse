@@ -56,7 +56,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Slf4j
 public class AccountServiceImpl implements AccountService {
 
-  // 잔액 부족 오류 코드(MoneyUtils 의 ServiceException 과 AccountResponse 의 AccountException 이 같은 이름)
+  // 잔액 부족 오류 코드(MoneyUtils 의 CommonResponse 와 AccountResponse 가 같은 이름)
   private static final String INSUFFICIENT_BALANCE_CODE = "INSUFFICIENT_BALANCE";
 
   private final AccountRepository accountRepository;
@@ -192,7 +192,7 @@ public class AccountServiceImpl implements AccountService {
 
     exchangeRate = MoneyUtils.roundExchangeRate(exchangeRate);
 
-    // 잔액 검사의 ServiceException(MoneyUtils)은 메시지가 아니라 오류 코드로 구분
+    // 잔액 검사 실패(MoneyUtils)는 메시지가 아니라 오류 코드로 구분
     try {
       accountCalculator.validateExchangeRequest(account, krwAmount, "KRW");
     } catch (BaseException e) {
@@ -513,8 +513,7 @@ public class AccountServiceImpl implements AccountService {
   private void validateExchangeRate(BigDecimal exchangeRate) {
     ExchangeRateRangeDto range = getExchangeRateRange();
     if (exchangeRate == null || exchangeRate.compareTo(range.min()) < 0 || exchangeRate.compareTo(range.max()) > 0) {
-      throw new AccountException(AccountResponse.INVALID_EXCHANGE_RATE,
-        String.format("환율은 %s ~ %s원 사이로 넣어 주세요.", range.min().toPlainString(), range.max().toPlainString()));
+      throw new AccountException(AccountResponse.INVALID_EXCHANGE_RATE);
     }
   }
 

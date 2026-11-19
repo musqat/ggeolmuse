@@ -172,8 +172,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
       (symbol, e) -> log.warn("종목 {} 시뮬레이션 실패: {}", symbol, e.getMessage())
     );
 
-    ComparisonResponse response = buildComparisonResponse(request, items,
-      "모든 종목의 데이터를 찾을 수 없습니다");
+    ComparisonResponse response = buildComparisonResponse(request, items, BacktestResponse.ALL_SYMBOLS_DATA_NOT_FOUND);
     recordComparisonHistory(request);
     return response;
   }
@@ -196,8 +195,7 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         e.getMessage())
     );
 
-    ComparisonResponse response = buildComparisonResponse(request, items,
-      "모든 전략의 실행에 실패했습니다");
+    ComparisonResponse response = buildComparisonResponse(request, items, BacktestResponse.ALL_STRATEGIES_FAILED);
     recordComparisonHistory(request);
     return response;
   }
@@ -223,16 +221,15 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
   private StrategyResponse execute(StrategyRequest request) {
     InvestmentStrategy strategy = strategyMap.get(request.getStrategyType());
     if (strategy == null) {
-      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH,
-        "등록된 전략이 없습니다: " + request.getStrategyType());
+      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH);
     }
     return strategy.execute(request);
   }
 
   private ComparisonResponse buildComparisonResponse(BaseComparisonRequest request,
-                                                     List<ComparisonItem> items, String emptyDataMessage) {
+                                                     List<ComparisonItem> items, BacktestResponse emptyCode) {
     if (items.isEmpty()) {
-      throw new BacktestException(BacktestResponse.DATA_NOT_FOUND, emptyDataMessage);
+      throw new BacktestException(emptyCode);
     }
 
     ComparisonCalculationResult calculation = ComparisonCalculator.calculate(items);

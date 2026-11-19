@@ -17,7 +17,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.muscat.commonlib.dto.FxRateDto;
 import com.muscat.commonlib.dto.FxRateRangeDto;
-import com.muscat.commonlib.exception.ServiceException;
+import com.muscat.commonlib.exception.BusinessException;
+import com.muscat.commonlib.exception.CommonResponse;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import com.muscat.user.common.enums.response.AccountResponse;
 import com.muscat.user.common.enums.type.TransactionType;
@@ -552,8 +553,6 @@ class AccountServiceImplTest {
   @DisplayName("환전 환율 범위 (저장된 환율 최저 −5% ~ 최고 +5%)")
   class ExchangeRateRangeTests {
 
-    private static final String RANGE_MESSAGE = "환율은 1000 ~ 1633원 사이로 넣어 주세요.";
-
     // 최저 1053.37 · 최고 1554.40 → ×0.95 · ×1.05 = 1000.70 · 1632.12 → 최저 내림 · 최고 올림으로 1000 ~ 1633
     @BeforeEach
     void storedRange() {
@@ -562,15 +561,15 @@ class AccountServiceImplTest {
     }
 
     @Test
-    @DisplayName("범위 밖이거나 비면 계좌를 보기 전에 거절하고 범위를 알려준다")
+    @DisplayName("범위 밖이거나 비면 계좌를 보기 전에 환율 오류로 거절한다")
     void outOfRange_RejectedBeforeAccountLookup() {
       for (String rate : new String[]{"1", "999.99", "1633.01"}) {
         assertThatThrownBy(() -> accountService.exchangeKrwToUsd(accountId, userId, new BigDecimal("10000"), new BigDecimal(rate)))
           .isInstanceOf(AccountException.class)
-          .hasMessage(RANGE_MESSAGE);
+          .extracting("code").isEqualTo(AccountResponse.INVALID_EXCHANGE_RATE);
         assertThatThrownBy(() -> accountService.exchangeUsdToKrw(accountId, userId, new BigDecimal("10"), new BigDecimal(rate)))
           .isInstanceOf(AccountException.class)
-          .hasMessage(RANGE_MESSAGE);
+          .extracting("code").isEqualTo(AccountResponse.INVALID_EXCHANGE_RATE);
       }
       assertThatThrownBy(() -> accountService.exchangeKrwToUsd(accountId, userId, new BigDecimal("10000"), null))
         .isInstanceOf(AccountException.class);
@@ -604,7 +603,7 @@ class AccountServiceImplTest {
       given(accountRepository.findByIdAndUserIdWithLock(accountId, userId)).willReturn(Optional.empty());
 
       assertThatThrownBy(() -> accountService.exchangeKrwToUsd(accountId, userId, new BigDecimal("10000"), new BigDecimal("999.99")))
-        .hasMessage("환율은 1000 ~ 1650원 사이로 넣어 주세요.");
+        .extracting("code").isEqualTo(AccountResponse.INVALID_EXCHANGE_RATE);
       assertThatThrownBy(() -> accountService.exchangeKrwToUsd(accountId, userId, new BigDecimal("10000"), new BigDecimal("1650")))
         .hasMessage(AccountResponse.ACCOUNT_NOT_FOUND.getMessage());
     }
@@ -1094,8 +1093,8 @@ class AccountServiceImplTest {
   class FailureAndBoundaryTests {
 
     // MoneyUtils.validateSufficientBalance 가 실제로 내는 예외
-    private ServiceException insufficient() {
-      return new ServiceException("INSUFFICIENT_BALANCE", "잔액 부족: 현재 1000000 KRW, 필요 2000000 KRW");
+    private BusinessException insufficient() {
+      return new BusinessException(CommonResponse.INSUFFICIENT_BALANCE);
     }
 
     private void lockedAccount() {
@@ -1110,7 +1109,7 @@ class AccountServiceImplTest {
       doThrow(insufficient()).when(accountCalculator).validateExchangeRequest(testAccount, amount, "KRW");
 
       assertThatThrownBy(() -> accountService.exchangeKrwToUsd(accountId, userId, amount, new BigDecimal("1300")))
-        .isInstanceOf(ServiceException.class);
+        .isInstanceOf(BusinessException.class);
 
       verify(userLogger).logInsufficientBalance(accountId, "KRW", amount, new BigDecimal("1000000"));
       assertThat(testAccount.getBalanceKrw()).isEqualByComparingTo("1000000");
@@ -1125,7 +1124,7 @@ class AccountServiceImplTest {
       doThrow(insufficient()).when(accountCalculator).validateExchangeRequest(testAccount, amount, "USD");
 
       assertThatThrownBy(() -> accountService.exchangeUsdToKrw(accountId, userId, amount, new BigDecimal("1300")))
-        .isInstanceOf(ServiceException.class);
+        .isInstanceOf(BusinessException.class);
 
       verify(userLogger).logInsufficientBalance(accountId, "USD", amount, BigDecimal.ZERO);
       verifyNoInteractions(accountHistoryService);
@@ -1136,11 +1135,11 @@ class AccountServiceImplTest {
     void otherValidationFailure_NoInsufficientLog() {
       lockedAccount();
       BigDecimal amount = new BigDecimal("100");
-      doThrow(new ServiceException("BELOW_MINIMUM_EXCHANGE", "최소 환전 금액 미만"))
+      doThrow(new BusinessException(CommonResponse.INSUFFICIENT_AMOUNT))
         .when(accountCalculator).validateExchangeRequest(testAccount, amount, "KRW");
 
       assertThatThrownBy(() -> accountService.exchangeKrwToUsd(accountId, userId, amount, new BigDecimal("1300")))
-        .isInstanceOf(ServiceException.class);
+        .isInstanceOf(BusinessException.class);
 
       verify(userLogger, never()).logInsufficientBalance(any(), any(), any(), any());
     }
@@ -1150,7 +1149,7 @@ class AccountServiceImplTest {
     void rateOutOfRange_RejectedBeforeLock() {
       assertThatThrownBy(() -> accountService.exchangeKrwToUsd(accountId, userId, new BigDecimal("10000"), BigDecimal.ONE))
         .isInstanceOf(AccountException.class)
-        .hasMessageContaining("1000 ~ 1650");
+        .extracting("code").isEqualTo(AccountResponse.INVALID_EXCHANGE_RATE);
 
       verify(accountRepository, never()).findByIdAndUserIdWithLock(any(), any());
     }

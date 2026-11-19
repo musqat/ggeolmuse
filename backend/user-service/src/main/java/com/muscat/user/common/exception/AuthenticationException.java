@@ -8,17 +8,10 @@ import com.muscat.user.common.enums.response.UserResponse;
  */
 public class AuthenticationException extends BusinessException {
 
-  // UserResponse를 받는 편의 생성자
   public AuthenticationException(UserResponse response) {
     super(response);
   }
 
-  // UserResponse + Custom Message
-  public AuthenticationException(UserResponse response, String customMessage) {
-    super(response, customMessage);
-  }
-
-  // UserResponse + Cause
   public AuthenticationException(UserResponse response, Throwable cause) {
     super(response, cause);
   }

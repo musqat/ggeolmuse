@@ -33,15 +33,13 @@ public final class BacktestCalculationUtils {
   public static BigDecimal calculateShares(BigDecimal investmentAmount, BigDecimal fxRate,
                                            BigDecimal stockPrice) {
     if (investmentAmount == null || fxRate == null || stockPrice == null) {
-      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR,
-        "주식 수량 계산을 위한 투자금액, 환율, 주식가격은 null이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR);
     }
     if (Decimals.isZero(fxRate)) {
-      throw new BacktestException(BacktestResponse.FX_CONVERSION_ERROR, "환율은 0이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.FX_CONVERSION_ERROR);
     }
     if (Decimals.isZero(stockPrice)) {
-      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR,
-        "주식가격은 0이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR);
     }
 
     return investmentAmount
@@ -256,12 +254,10 @@ public final class BacktestCalculationUtils {
   public static BigDecimal calculateSharesWithFee(BigDecimal usdAmount, BigDecimal stockPrice,
                                                   BigDecimal feeRate) {
     if (usdAmount == null || stockPrice == null || feeRate == null) {
-      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR,
-        "수수료 계산을 위한 파라미터는 null이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR);
     }
     if (Decimals.isZero(stockPrice)) {
-      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR,
-        "주식가격은 0이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.SHARES_CALCULATION_ERROR);
     }
 
     // 수수료 계산
@@ -270,9 +266,7 @@ public final class BacktestCalculationUtils {
 
     // 음수 방지
     if (!Decimals.isPositive(netAmount)) {
-      throw new BacktestException(BacktestResponse.INSUFFICIENT_INVESTMENT,
-        String.format("투자금액이 수수료보다 작습니다. 투자금액: $%.2f, 수수료: $%.2f",
-          usdAmount, feeAmount));
+      throw new BacktestException(BacktestResponse.INSUFFICIENT_INVESTMENT);
     }
 
     // 소수점 주식수 계산 (8자리 정밀도)
@@ -280,9 +274,7 @@ public final class BacktestCalculationUtils {
 
     // 주식을 전혀 살 수 없는 경우 (매우 작은 금액)
     if (Decimals.isZero(shares)) {
-      throw new BacktestException(BacktestResponse.INSUFFICIENT_INVESTMENT,
-        String.format("투자금액($%.2f)이 너무 작습니다. 주가: $%.2f",
-          netAmount, stockPrice));
+      throw new BacktestException(BacktestResponse.INSUFFICIENT_INVESTMENT);
     }
 
     return shares;
@@ -300,8 +292,7 @@ public final class BacktestCalculationUtils {
   public static BigDecimal calculateTotalCost(BigDecimal shares, BigDecimal stockPrice,
                                               BigDecimal tradingFee) {
     if (shares == null || stockPrice == null) {
-      throw new BacktestException(BacktestResponse.TRADING_FEE_CALCULATION_ERROR,
-        "비용 계산을 위한 파라미터는 null이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.TRADING_FEE_CALCULATION_ERROR);
     }
 
     BigDecimal stockCost = shares.multiply(stockPrice);
@@ -312,8 +303,7 @@ public final class BacktestCalculationUtils {
   // 매수 후 잔액 계산 (USD)
   public static BigDecimal calculateRemainingCash(BigDecimal initialAmount, BigDecimal totalCost) {
     if (initialAmount == null || totalCost == null) {
-      throw new BacktestException(BacktestResponse.REMAINING_CASH_CALCULATION_ERROR,
-        "잔액 계산을 위한 파라미터는 null이 될 수 없습니다");
+      throw new BacktestException(BacktestResponse.REMAINING_CASH_CALCULATION_ERROR);
     }
 
     return initialAmount.subtract(totalCost).setScale(USD_SCALE, HALF_UP);

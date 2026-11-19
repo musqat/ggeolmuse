@@ -71,6 +71,6 @@ public class GlobalExceptionHandler extends BaseExceptionHandler {
 
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ProblemDetail> handleGeneralException(Exception e, HttpServletRequest request) {
-    return systemError(e, request, "시장 데이터 서비스에 문제가 발생했습니다.");
+    return systemError(e, request);
   }
 }

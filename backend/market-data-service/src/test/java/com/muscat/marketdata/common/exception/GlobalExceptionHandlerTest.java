@@ -2,6 +2,7 @@ package com.muscat.marketdata.common.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.muscat.commonlib.exception.CommonResponse;
 import com.muscat.marketdata.api.controller.AdminMarketController;
 import com.muscat.marketdata.api.controller.DataCollectionController;
 import com.muscat.marketdata.api.controller.InternalMarketController;
@@ -15,7 +16,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.bind.annotation.RestController;
@@ -37,7 +37,7 @@ import org.springframework.web.method.ControllerAdviceBean;
 @DisplayName("market-data 예외 응답 변환")
 class GlobalExceptionHandlerTest {
 
-  private final GlobalExceptionHandler handler = handlerWithProfiles();
+  private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
   @Test
   @DisplayName("서비스 예외 · 요청 값 오류는 공통 모듈에서 상속한 핸들러가, 외부 API 예외와 그 밖의 예외는 서비스 핸들러가 받는다")
@@ -101,7 +101,7 @@ class GlobalExceptionHandlerTest {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     ProblemDetail body = Objects.requireNonNull(response.getBody());
     assertThat(body.getStatus()).isEqualTo(400);
-    assertThat(body.getDetail()).isEqualTo("요청 값이 올바르지 않습니다: minAmount, symbol");
+    assertThat(body.getDetail()).isEqualTo("요청 값이 올바르지 않습니다");
     assertThat(body.getProperties()).containsEntry("parameterName", "minAmount, symbol").containsEntry("errorType", "VALIDATION");
   }
 
@@ -124,26 +124,15 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
-  @DisplayName("예상하지 못한 예외는 운영 · 프로필 없음에서 내용을 감춘다")
-  void generalException_Production_HidesDetail() {
+  @DisplayName("그 밖의 예외는 내용을 싣지 않고 공통 500 문구로 응답한다")
+  void generalException_CommonMessage() {
     MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/market/price/AAPL");
     IllegalStateException leak = new IllegalStateException("jdbc:postgresql://db/secret");
-    String hidden = "시장 데이터 서비스에 문제가 발생했습니다.";
 
-    ResponseEntity<ProblemDetail> prod = handlerWithProfiles("prod").handleGeneralException(leak, request);
-    ResponseEntity<ProblemDetail> none = handlerWithProfiles().handleGeneralException(leak, request);
+    ResponseEntity<ProblemDetail> response = new GlobalExceptionHandler().handleGeneralException(leak, request);
 
-    assertThat(prod.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-    assertThat(Objects.requireNonNull(prod.getBody()).getDetail()).isEqualTo(hidden);
-    assertThat(Objects.requireNonNull(none.getBody()).getDetail()).isEqualTo(hidden);
-  }
-
-  private static GlobalExceptionHandler handlerWithProfiles(String... profiles) {
-    MockEnvironment environment = new MockEnvironment();
-    environment.setActiveProfiles(profiles);
-    GlobalExceptionHandler handler = new GlobalExceptionHandler();
-    handler.setEnvironment(environment);
-    return handler;
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    assertThat(Objects.requireNonNull(response.getBody()).getDetail()).isEqualTo(CommonResponse.INTERNAL_SERVER_ERROR.getMessage());
   }
 
   // 컨트롤러 패키지 밖에 둔 컨트롤러

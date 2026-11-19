@@ -217,12 +217,13 @@ class BacktestAnalysisServiceImplTest {
         .build();
 
       given(dcaStrategy.execute(request))
-        .willThrow(new BacktestException(BacktestResponse.DATA_NOT_FOUND, "데이터 없음"));
+        .willThrow(new BacktestException(BacktestResponse.DATA_NOT_FOUND));
 
       // When & Then
       assertThatThrownBy(() -> backtestAnalysisService.runDcaStrategy(request))
         .isInstanceOf(BacktestException.class)
-        .hasMessageContaining("데이터 없음");
+        .extracting("code")
+        .isEqualTo(BacktestResponse.DATA_NOT_FOUND);
     }
   }
 
@@ -415,12 +416,14 @@ class BacktestAnalysisServiceImplTest {
       request.setUserId("user123");
 
       given(tradingSimulationService.runSimulation(any(), eq(false)))
-        .willThrow(new BacktestException(BacktestResponse.DATA_NOT_FOUND, "데이터 없음"));
+        .willThrow(new BacktestException(BacktestResponse.DATA_NOT_FOUND));
 
       // When & Then
       assertThatThrownBy(() -> backtestAnalysisService.compareSymbols(request))
         .isInstanceOf(BacktestException.class)
-        .hasMessageContaining("모든 종목의 데이터를 찾을 수 없습니다");
+        .hasMessage("모든 종목의 데이터를 찾을 수 없습니다")
+        .extracting("code")
+        .isEqualTo(BacktestResponse.ALL_SYMBOLS_DATA_NOT_FOUND);
     }
 
     @Test
@@ -455,7 +458,7 @@ class BacktestAnalysisServiceImplTest {
 
       given(tradingSimulationService.runSimulation(any(), eq(false)))
         .willReturn(aaplResponse)
-        .willThrow(new BacktestException(BacktestResponse.DATA_NOT_FOUND, "데이터 없음"))
+        .willThrow(new BacktestException(BacktestResponse.DATA_NOT_FOUND))
         .willReturn(msftResponse);
 
       given(responseMapper.toComparisonItemFromSimulation(aaplResponse, "AAPL"))
@@ -585,6 +588,30 @@ class BacktestAnalysisServiceImplTest {
       assertThat(result.getBestPerformer()).isEqualTo(dcaItem);
       verify(responseMapper).toComparisonResponse(eq(request), argThat(items -> items.size() == 1 && items.get(0) == dcaItem), any());
       verify(tradingSimulationService, never()).runSimulation(any(), eq(false));
+    }
+
+    @Test
+    @DisplayName("모든 전략이 실패하면 ALL_STRATEGIES_FAILED")
+    void compareStrategies_AllStrategiesFailure_ThrowsException() {
+      StrategyParameter dcaConfig = new StrategyParameter();
+      dcaConfig.setStrategyType(StrategyType.DCA);
+      dcaConfig.setName("DCA 전략");
+      dcaConfig.setAmountPerPurchase(BigDecimal.valueOf(1000));
+      dcaConfig.setPurchaseDay(1);
+      StrategyComparisonRequest request = new StrategyComparisonRequest();
+      request.setSymbol("AAPL");
+      request.setStartDate(LocalDate.of(2023, 1, 1));
+      request.setEndDate(LocalDate.of(2024, 1, 1));
+      request.setInvestmentAmount(BigDecimal.valueOf(10000));
+      request.setUserId("user123");
+      request.setStrategies(List.of(dcaConfig));
+      given(dcaStrategy.execute(any())).willThrow(new BacktestException(BacktestResponse.DATA_NOT_FOUND));
+
+      assertThatThrownBy(() -> backtestAnalysisService.compareStrategies(request))
+        .isInstanceOf(BacktestException.class)
+        .hasMessage("모든 전략의 실행에 실패했습니다")
+        .extracting("code")
+        .isEqualTo(BacktestResponse.ALL_STRATEGIES_FAILED);
     }
 
     @Test
@@ -791,7 +818,7 @@ class BacktestAnalysisServiceImplTest {
     }
 
     @Test
-    @DisplayName("칩마다는 상한 안이어도 칩 회차 합이 상한을 넘으면 어느 칩도 돌리기 전에 TOO_MANY_ROUNDS")
+    @DisplayName("칩마다는 상한 안이어도 칩 회차 합이 상한을 넘으면 어느 칩도 돌리기 전에 TOO_MANY_COMPARISON_ROUNDS")
     void compareStrategies_TooManyRoundsInTotal() {
       StrategyParameter daily = strategy(StrategyType.DCA);
       daily.setAmountPerPurchase(BigDecimal.valueOf(10_000));
@@ -804,7 +831,7 @@ class BacktestAnalysisServiceImplTest {
       assertThatThrownBy(() -> backtestAnalysisService.compareStrategies(request))
         .isInstanceOf(BacktestException.class)
         .extracting("code")
-        .isEqualTo(BacktestResponse.TOO_MANY_ROUNDS);
+        .isEqualTo(BacktestResponse.TOO_MANY_COMPARISON_ROUNDS);
       verify(dcaStrategy, never()).execute(any());
     }
 
@@ -987,7 +1014,7 @@ class BacktestAnalysisServiceImplTest {
     @Test
     @DisplayName("조건부 매수 전략이 실패하면 같은 예외를 올리고 이력은 남기지 않는다")
     void conditionalFailureRethrows() {
-      BacktestException failure = new BacktestException(BacktestResponse.DATA_NOT_FOUND, "no data");
+      BacktestException failure = new BacktestException(BacktestResponse.DATA_NOT_FOUND);
       given(conditionalPurchaseStrategy.execute(any())).willThrow(failure);
 
       assertThatThrownBy(() -> backtestAnalysisService.runConditionalStrategy(conditionalRequest())).isSameAs(failure);

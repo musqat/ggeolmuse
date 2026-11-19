@@ -67,8 +67,7 @@ public final class PriceLookup {
     if (!answered && lastError != null) {
       throw new BacktestException(BacktestResponse.MARKET_DATA_UNAVAILABLE, lastError);
     }
-    throw new BacktestException(BacktestResponse.STOCK_DATA_NOT_FOUND,
-      "주가 데이터를 찾을 수 없습니다 (" + maxDays + "일 검색): " + symbol + ", " + date);
+    throw new BacktestException(BacktestResponse.STOCK_DATA_NOT_FOUND);
   }
 
   /**

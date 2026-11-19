@@ -3,7 +3,7 @@ package com.muscat.user.common.util;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.muscat.commonlib.exception.ServiceException;
+import com.muscat.commonlib.exception.BusinessException;
 import com.muscat.user.domain.account.dto.response.ExchangeCalculationResult;
 import com.muscat.user.domain.account.entity.Account;
 import java.math.BigDecimal;
@@ -197,7 +197,7 @@ class AccountCalculatorUtilTest {
       // when & then
       assertThatThrownBy(() ->
         accountCalculatorUtil.validateExchangeRequest(account, amount, "KRW"))
-        .isInstanceOf(ServiceException.class)
+        .isInstanceOf(BusinessException.class)
         .hasMessageContaining("잔액");
     }
 
@@ -210,7 +210,7 @@ class AccountCalculatorUtilTest {
       // when & then
       assertThatThrownBy(() ->
         accountCalculatorUtil.validateExchangeRequest(testAccount, negativeAmount, "KRW"))
-        .isInstanceOf(ServiceException.class);
+        .isInstanceOf(BusinessException.class);
     }
   }
 

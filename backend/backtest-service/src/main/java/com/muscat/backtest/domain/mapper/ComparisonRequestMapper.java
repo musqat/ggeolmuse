@@ -51,7 +51,7 @@ public final class ComparisonRequestMapper {
     if (strategyType == StrategyType.MA_BAND) {
       return maBand(request, strategy);
     }
-    throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH, "비교할 수 없는 전략 타입: " + strategyType);
+    throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH);
   }
 
   // 비교 요청의 매도일(종료일) · 투자금 · 수수료 · 환율 · 배당 · 양도세 · 기간 끝 옵션으로 채운 단순 시뮬레이션 요청

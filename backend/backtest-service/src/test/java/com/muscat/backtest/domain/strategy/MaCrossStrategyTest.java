@@ -744,7 +744,7 @@ class MaCrossStrategyTest {
           .isInstanceOf(BacktestException.class)
           .hasMessage("신호 종목 시세가 없습니다")
           .extracting("code")
-          .isEqualTo(BacktestResponse.DATA_NOT_FOUND);
+          .isEqualTo(BacktestResponse.SIGNAL_DATA_NOT_FOUND);
       }
     }
   }

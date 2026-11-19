@@ -104,7 +104,7 @@ public class AssetServiceImpl implements AssetService {
     String finalSymbol = symbol.toUpperCase();
 
     if (assetRepository.findById(finalSymbol).isPresent()) {
-      throw new MarketDataException(MarketDataResponse.ASSET_ALREADY_EXISTS, finalSymbol);
+      throw new MarketDataException(MarketDataResponse.ASSET_ALREADY_EXISTS);
     }
 
     // 정보가 부족하면 SymbolSource에서 조회
@@ -115,7 +115,7 @@ public class AssetServiceImpl implements AssetService {
 
       Asset fetched = assetInfoSource.getAsset(finalSymbol);
       if (fetched == null) {
-        throw new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, finalSymbol);
+        throw new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND);
       }
 
       name = name != null ? name : fetched.getName();
@@ -229,7 +229,7 @@ public class AssetServiceImpl implements AssetService {
 
     // Asset 존재 확인
     Asset asset = assetRepository.findById(upperSymbol)
-      .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, upperSymbol));
+      .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND));
 
     if (candleSource == null) {
       log.warn("CandleSource가 활성화되지 않음");
@@ -244,7 +244,7 @@ public class AssetServiceImpl implements AssetService {
 
     // 야후 404 로그는 YahooFinanceClient 에
     if (candles.isEmpty()) {
-      throw new MarketDataException(MarketDataResponse.PRICE_DATA_NOT_FOUND, upperSymbol);
+      throw new MarketDataException(MarketDataResponse.PRICE_DATA_NOT_FOUND);
     }
 
     // 기존 데이터와 중복 확인하여 저장
@@ -278,7 +278,7 @@ public class AssetServiceImpl implements AssetService {
 
     // Asset 존재 확인
     assetRepository.findById(upperSymbol)
-      .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, upperSymbol));
+      .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND));
 
     if (marketCapSource == null) {
       log.warn("시가총액 소스가 활성화되지 않음");
@@ -288,7 +288,7 @@ public class AssetServiceImpl implements AssetService {
     // 활성 provider(Yahoo/AlphaVantage)에 위임
     boolean ok = marketCapSource.updateMarketCap(upperSymbol);
     if (!ok) {
-      throw new MarketDataException(MarketDataResponse.MARKET_CAP_UNAVAILABLE, upperSymbol);
+      throw new MarketDataException(MarketDataResponse.MARKET_CAP_UNAVAILABLE);
     }
   }
 
@@ -314,7 +314,7 @@ public class AssetServiceImpl implements AssetService {
 
     String upperSymbol = symbol.toUpperCase();
     Asset asset = assetRepository.findById(upperSymbol)
-      .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, upperSymbol));
+      .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND));
 
     asset.setName(name.trim());
     Asset saved = assetRepository.save(asset);
@@ -332,7 +332,7 @@ public class AssetServiceImpl implements AssetService {
     String upperSymbol = symbol.toUpperCase();
 
     Asset asset = assetRepository.findById(upperSymbol)
-      .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, upperSymbol));
+      .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND));
 
     // Soft delete: active를 false로 설정하고 delistedDate 기록
     asset.setActive(false);
@@ -350,7 +350,7 @@ public class AssetServiceImpl implements AssetService {
     String upperSymbol = symbol.toUpperCase();
 
     Asset asset = assetRepository.findById(upperSymbol)
-      .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND, upperSymbol));
+      .orElseThrow(() -> new MarketDataException(MarketDataResponse.SYMBOL_NOT_FOUND));
 
     asset.setActive(true);
     asset.setDelistedDate(null);

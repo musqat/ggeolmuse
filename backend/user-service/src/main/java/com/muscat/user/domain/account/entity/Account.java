@@ -1,6 +1,8 @@
 package com.muscat.user.domain.account.entity;
 
 import com.muscat.commonlib.util.MoneyUtils;
+import com.muscat.user.common.enums.response.AccountResponse;
+import com.muscat.user.common.exception.AccountException;
 import com.muscat.user.domain.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -108,23 +110,23 @@ public class Account {
   // 잔액 검증
   public void validateSufficientKrwBalance(BigDecimal amount) {
     if (this.balanceKrw.compareTo(amount) < 0) {
-      throw new com.muscat.user.common.exception.AccountException(
-        com.muscat.user.common.enums.response.AccountResponse.INSUFFICIENT_BALANCE
+      throw new AccountException(
+        AccountResponse.INSUFFICIENT_BALANCE
       );
     }
   }
 
   public void validateSufficientUsdBalance(BigDecimal amount) {
     if (this.balanceUsd.compareTo(amount) < 0) {
-      throw new com.muscat.user.common.exception.AccountException(
-        com.muscat.user.common.enums.response.AccountResponse.INSUFFICIENT_USD_BALANCE
+      throw new AccountException(
+        AccountResponse.INSUFFICIENT_USD_BALANCE
       );
     }
   }
 
   // KRW 입금
   public void depositKrw(BigDecimal amount) {
-    com.muscat.commonlib.util.MoneyUtils.validatePositiveAmount(amount, "입금 금액");
+    MoneyUtils.validatePositiveAmount(amount);
     this.balanceKrw = this.balanceKrw.add(amount);
   }
 
@@ -133,8 +135,8 @@ public class Account {
     BigDecimal newBalance = this.balanceUsd.add(amount);
 
     if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
-      throw new com.muscat.user.common.exception.AccountException(
-        com.muscat.user.common.enums.response.AccountResponse.INSUFFICIENT_USD_BALANCE
+      throw new AccountException(
+        AccountResponse.INSUFFICIENT_USD_BALANCE
       );
     }
 

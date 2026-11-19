@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.muscat.commonlib.exception.ServiceException;
+import com.muscat.commonlib.exception.BusinessException;
+import com.muscat.commonlib.exception.CommonResponse;
 import java.math.BigDecimal;
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -14,6 +16,11 @@ import org.junit.jupiter.api.Test;
 class MoneyUtilsTest {
 
   private static final BigDecimal RATE = new BigDecimal("1300");
+
+  // 공통 오류 코드로 막힘
+  private static void rejects(ThrowingCallable call, CommonResponse code) {
+    assertThatThrownBy(call).isInstanceOf(BusinessException.class).extracting("code").isEqualTo(code);
+  }
 
   @Test
   @DisplayName("500 ~ 2000원은 경계를 포함해 정상 범위이고, 밖이거나 없으면 아니다")
@@ -29,10 +36,8 @@ class MoneyUtilsTest {
   @DisplayName("환율 검증은 0 이하와 정상 범위 밖을 예외로 막는다")
   void validateExchangeRate() {
     assertThatCode(() -> MoneyUtils.validateExchangeRate(new BigDecimal("1331.5"))).doesNotThrowAnyException();
-    assertThatThrownBy(() -> MoneyUtils.validateExchangeRate(BigDecimal.ZERO))
-      .isInstanceOf(ServiceException.class).hasMessageContaining("0보다 커야");
-    assertThatThrownBy(() -> MoneyUtils.validateExchangeRate(new BigDecimal("13.315")))
-      .isInstanceOf(ServiceException.class).hasMessageContaining("정상 범위");
+    rejects(() -> MoneyUtils.validateExchangeRate(BigDecimal.ZERO), CommonResponse.INVALID_EXCHANGE_RATE);
+    rejects(() -> MoneyUtils.validateExchangeRate(new BigDecimal("13.315")), CommonResponse.EXCHANGE_RATE_OUT_OF_RANGE);
   }
 
   @Nested
@@ -67,25 +72,18 @@ class MoneyUtilsTest {
     @Test
     @DisplayName("금액이나 환율이 없거나 0 이하이면 막는다")
     void rejectsMissingOrNonPositiveInputs() {
-      assertThatThrownBy(() -> MoneyUtils.convertKrwToUsd(BigDecimal.ZERO, RATE))
-        .isInstanceOf(ServiceException.class).hasMessageContaining("금액은 0보다 커야");
-      assertThatThrownBy(() -> MoneyUtils.convertUsdToKrw(BigDecimal.ONE, null))
-        .isInstanceOf(ServiceException.class).hasMessageContaining("환율은 0보다 커야");
-      assertThatThrownBy(() -> MoneyUtils.calculateKrwToUsd(null, RATE))
-        .isInstanceOf(ServiceException.class).hasMessageContaining("KRW 금액이(가) null");
-      assertThatThrownBy(() -> MoneyUtils.calculateUsdToKrw(BigDecimal.TEN, BigDecimal.ZERO))
-        .isInstanceOf(ServiceException.class).hasMessageContaining("환율은 0보다 커야");
+      rejects(() -> MoneyUtils.convertKrwToUsd(BigDecimal.ZERO, RATE), CommonResponse.INVALID_AMOUNT);
+      rejects(() -> MoneyUtils.convertUsdToKrw(BigDecimal.ONE, null), CommonResponse.INVALID_EXCHANGE_RATE);
+      rejects(() -> MoneyUtils.calculateKrwToUsd(null, RATE), CommonResponse.INVALID_AMOUNT);
+      rejects(() -> MoneyUtils.calculateUsdToKrw(BigDecimal.TEN, BigDecimal.ZERO), CommonResponse.INVALID_EXCHANGE_RATE);
     }
 
     @Test
     @DisplayName("통화별 최소 금액과 원화 1회 최대 금액을 넘는 환전은 막는다")
     void enforcesExchangeLimits() {
-      assertThatThrownBy(() -> MoneyUtils.calculateKrwToUsd(new BigDecimal("999"), RATE))
-        .isInstanceOf(ServiceException.class).hasMessageContaining("최소 환전 금액은 1000 KRW");
-      assertThatThrownBy(() -> MoneyUtils.calculateUsdToKrw(new BigDecimal("0.99"), RATE))
-        .isInstanceOf(ServiceException.class).hasMessageContaining("최소 환전 금액은 1.00 USD");
-      assertThatThrownBy(() -> MoneyUtils.calculateKrwToUsd(new BigDecimal("50000001"), RATE))
-        .isInstanceOf(ServiceException.class).hasMessageContaining("1회 최대 환전 금액은 50000000원");
+      rejects(() -> MoneyUtils.calculateKrwToUsd(new BigDecimal("999"), RATE), CommonResponse.INSUFFICIENT_AMOUNT);
+      rejects(() -> MoneyUtils.calculateUsdToKrw(new BigDecimal("0.99"), RATE), CommonResponse.INSUFFICIENT_AMOUNT);
+      rejects(() -> MoneyUtils.calculateKrwToUsd(new BigDecimal("50000001"), RATE), CommonResponse.EXCESSIVE_AMOUNT);
       assertThatCode(() -> MoneyUtils.calculateKrwToUsd(new BigDecimal("50000000"), RATE)).doesNotThrowAnyException();
     }
 
@@ -98,8 +96,7 @@ class MoneyUtilsTest {
     @Test
     @DisplayName("지원하지 않는 통화의 최소 금액 검사는 막는다")
     void rejectsUnsupportedCurrency() {
-      assertThatThrownBy(() -> MoneyUtils.validateMinimumExchangeAmount(BigDecimal.TEN, "EUR"))
-        .isInstanceOf(ServiceException.class).hasMessageContaining("지원하지 않는 통화: EUR");
+      rejects(() -> MoneyUtils.validateMinimumExchangeAmount(BigDecimal.TEN, "EUR"), CommonResponse.INVALID_CURRENCY);
     }
   }
 
@@ -110,10 +107,8 @@ class MoneyUtilsTest {
     @Test
     @DisplayName("잔액이 없거나 필요 금액보다 적으면 막고 같거나 많으면 통과한다")
     void requiresSufficientBalance() {
-      assertThatThrownBy(() -> MoneyUtils.validateSufficientBalance(null, BigDecimal.ONE, "USD"))
-        .isInstanceOf(ServiceException.class).hasMessageContaining("잔액 부족: 현재 0 USD, 필요 1 USD");
-      assertThatThrownBy(() -> MoneyUtils.validateSufficientBalance(new BigDecimal("0.99"), BigDecimal.ONE, "USD"))
-        .isInstanceOf(ServiceException.class).hasMessageContaining("잔액 부족");
+      rejects(() -> MoneyUtils.validateSufficientBalance(null, BigDecimal.ONE, "USD"), CommonResponse.INSUFFICIENT_BALANCE);
+      rejects(() -> MoneyUtils.validateSufficientBalance(new BigDecimal("0.99"), BigDecimal.ONE, "USD"), CommonResponse.INSUFFICIENT_BALANCE);
       assertThatCode(() -> MoneyUtils.validateSufficientBalance(BigDecimal.ONE, BigDecimal.ONE, "USD"))
         .doesNotThrowAnyException();
     }
@@ -121,8 +116,7 @@ class MoneyUtilsTest {
     @Test
     @DisplayName("필요 금액이 0 이하이면 막는다")
     void rejectsNonPositiveRequiredAmount() {
-      assertThatThrownBy(() -> MoneyUtils.validateSufficientBalance(BigDecimal.TEN, BigDecimal.ZERO, "USD"))
-        .isInstanceOf(ServiceException.class).hasMessageContaining("필요 금액은(는) 0보다 커야");
+      rejects(() -> MoneyUtils.validateSufficientBalance(BigDecimal.TEN, BigDecimal.ZERO, "USD"), CommonResponse.INVALID_AMOUNT);
     }
   }
 
@@ -165,10 +159,8 @@ class MoneyUtilsTest {
     void returnRate() {
       assertThat(MoneyUtils.calculateReturnRate(new BigDecimal("100"), new BigDecimal("112.345"))).isEqualByComparingTo("12.35");
       assertThat(MoneyUtils.calculateReturnRate(new BigDecimal("100"), null)).isEqualByComparingTo("-100");
-      assertThatThrownBy(() -> MoneyUtils.calculateReturnRate(BigDecimal.ZERO, BigDecimal.ONE))
-        .isInstanceOf(ServiceException.class).hasMessageContaining("기준값은");
-      assertThatThrownBy(() -> MoneyUtils.calculateReturnRate(null, BigDecimal.ONE))
-        .isInstanceOf(ServiceException.class).hasMessageContaining("기준값은");
+      rejects(() -> MoneyUtils.calculateReturnRate(BigDecimal.ZERO, BigDecimal.ONE), CommonResponse.INVALID_BASE_VALUE);
+      rejects(() -> MoneyUtils.calculateReturnRate(null, BigDecimal.ONE), CommonResponse.INVALID_BASE_VALUE);
     }
   }
 }

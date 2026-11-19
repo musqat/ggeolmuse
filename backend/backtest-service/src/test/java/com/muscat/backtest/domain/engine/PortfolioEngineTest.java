@@ -250,7 +250,6 @@ class PortfolioEngineTest {
 
       assertThatThrownBy(() -> engine.run(request(day(0), asset("AAA", "1300000"), asset("BBB", "1300000")).build()))
         .isInstanceOf(BacktestException.class)
-        .hasMessage("BBB 의 기간 안 시세가 없습니다")
         .extracting("code")
         .isEqualTo(BacktestResponse.DATA_NOT_FOUND);
     }

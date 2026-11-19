@@ -45,10 +45,14 @@ public enum BacktestResponse implements ErrorCode {
   INVALID_PORTFOLIO_AMOUNT("금액 방식은 줄마다 0보다 큰 원 단위 금액을, 비율 방식은 원 단위 총액과 줄마다 0보다 크고 합이 100% 인 비율을 넣어 주세요.", HttpStatus.BAD_REQUEST),
   INVALID_TAX_SALE("직접 순서는 종목마다 1 ~ 종목 수의 서로 다른 순서를 넣어 주세요.", HttpStatus.BAD_REQUEST),
   TOO_MANY_ROUNDS("적립 · 매수 회차가 너무 많습니다. 기간을 줄이거나 주기를 늘려 주세요.", HttpStatus.BAD_REQUEST),
+  TOO_MANY_COMPARISON_ROUNDS("칩 회차 합이 너무 많음 — 칩 빼기 · 기간 줄이기 · 주기 늘리기", HttpStatus.BAD_REQUEST),
 
 
   // === 리소스 없음 (404) ===
   DATA_NOT_FOUND("백테스트에 필요한 데이터를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+  SIGNAL_DATA_NOT_FOUND("신호 종목 시세가 없습니다", HttpStatus.NOT_FOUND),
+  ALL_SYMBOLS_DATA_NOT_FOUND("모든 종목의 데이터를 찾을 수 없습니다", HttpStatus.NOT_FOUND),
+  ALL_STRATEGIES_FAILED("모든 전략의 실행에 실패했습니다", HttpStatus.NOT_FOUND),
   STOCK_DATA_NOT_FOUND("주가 데이터를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
 
   // === 충돌 오류 (409) ===

@@ -44,15 +44,6 @@ class BusinessExceptionTest {
   }
 
   @Test
-  @DisplayName("메시지를 따로 주면 그 메시지를 쓴다")
-  void customMessage() {
-    BusinessException e = new BusinessException(TestCode.ITEM_NOT_FOUND, "AAPL 항목이 없습니다");
-
-    assertThat(e.getErrorCode()).isEqualTo("ITEM_NOT_FOUND");
-    assertThat(e.getMessage()).isEqualTo("AAPL 항목이 없습니다");
-  }
-
-  @Test
   @DisplayName("원인 예외를 담는다")
   void cause() {
     IllegalStateException cause = new IllegalStateException("원인");

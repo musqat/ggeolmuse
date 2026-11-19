@@ -36,7 +36,7 @@ public class AccountCalculatorUtil {
 
   // 환전 요청 유효성 검증
   public void validateExchangeRequest(Account account, BigDecimal amount, String fromCurrency) {
-    MoneyUtils.validatePositiveAmount(amount, fromCurrency + " 환전 금액");
+    MoneyUtils.validatePositiveAmount(amount);
     MoneyUtils.validateMinimumExchangeAmount(amount, fromCurrency);
 
     BigDecimal currentBalance = getBalanceByCurrency(account, fromCurrency);

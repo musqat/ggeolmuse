@@ -1,6 +1,8 @@
 package com.muscat.commonlib.security;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.muscat.commonlib.exception.BusinessException;
+import com.muscat.commonlib.exception.CommonResponse;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -66,12 +68,12 @@ public class ServiceTokenProvider {
         return token;
       }
       if (now.isBefore(retryAt)) {
-        return unexpiredOr(now, new IllegalStateException("서비스 토큰 받기 실패 뒤 대기"));
+        return unexpiredOr(now, new BusinessException(CommonResponse.SERVICE_TOKEN_RETRY_WAIT));
       }
       try {
         TokenResponse response = requestToken();
         if (response == null || response.accessToken() == null || response.accessToken().isBlank()) {
-          throw new IllegalStateException("서비스 토큰 응답에 access_token 없음");
+          throw new BusinessException(CommonResponse.SERVICE_TOKEN_MISSING);
         }
         token = response.accessToken();
         expiresAt = now.plusSeconds(response.expiresIn());

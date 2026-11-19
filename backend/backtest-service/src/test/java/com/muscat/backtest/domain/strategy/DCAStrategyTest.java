@@ -342,7 +342,8 @@ class DCAStrategyTest {
       // when & then
       assertThatThrownBy(() -> dcaStrategy.execute(request))
         .isInstanceOf(com.muscat.backtest.common.exception.BacktestException.class)
-        .hasMessageContaining("적립식 투자 전략 실행 가능한 데이터가 없습니다");
+        .extracting("code")
+        .isEqualTo(BacktestResponse.DATA_NOT_FOUND);
     }
   }
 

@@ -51,8 +51,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
   public StrategyResponse execute(StrategyRequest request) {
     // null 은 검증이 막음
     if (request != null && !(request instanceof ConditionalStrategyRequest)) {
-      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH,
-        "조건부 매수 전략에 다른 요청이 왔습니다: " + request.getStrategyType());
+      throw new BacktestException(BacktestResponse.STRATEGY_TYPE_MISMATCH);
     }
     return runConditional((ConditionalStrategyRequest) request);
   }
@@ -194,8 +193,7 @@ public class ConditionalPurchaseStrategy implements InvestmentStrategy {
     java.util.Map<LocalDate, OHLCPriceDto> priceMap = BacktestDataUtils.buildPriceMap(
       marketData, request.getSymbol(), request.getStartDate(), actualEndDate);
     if (priceMap.values().stream().noneMatch(PriceLookup::isUsable)) {
-      throw new BacktestException(BacktestResponse.DATA_NOT_FOUND,
-        "조건부 매수 전략 실행 가능한 데이터가 없습니다");
+      throw new BacktestException(BacktestResponse.DATA_NOT_FOUND);
     }
     return priceMap;
   }
