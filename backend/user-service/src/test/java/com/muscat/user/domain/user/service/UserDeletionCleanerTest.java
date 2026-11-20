@@ -76,6 +76,15 @@ class UserDeletionCleanerTest {
   }
 
   @Test
+  @DisplayName("탈퇴 기록이 있는 Keycloak ID 만 탈퇴한 사용자로 본다")
+  void wasDeleted_ByRecord() {
+    given(repository.existsById("kc-1")).willReturn(true);
+
+    assertThat(cleaner.wasDeleted("kc-1")).isTrue();
+    assertThat(cleaner.wasDeleted("kc-2")).isFalse();
+  }
+
+  @Test
   @DisplayName("기록을 읽다가 실패해도 탈퇴 응답으로 예외를 넘기지 않는다")
   void cleanUp_RepositoryFailure_Swallowed() {
     given(repository.findById("kc-1")).willThrow(new IllegalStateException("db down"));

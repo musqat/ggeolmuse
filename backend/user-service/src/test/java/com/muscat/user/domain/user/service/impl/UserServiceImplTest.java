@@ -529,6 +529,19 @@ class UserServiceImplTest {
     }
 
     @Test
+    @DisplayName("탈퇴 기록이 남은 Keycloak ID 는 남은 토큰으로 불러도 다시 만들지 않고 USER_NOT_FOUND 다")
+    void getOrCreateProfile_DeletedUser_NotRecreated() {
+      given(userRepository.findByKeycloakId(keycloakId)).willReturn(Optional.empty());
+      given(userDeletionCleaner.wasDeleted(keycloakId)).willReturn(true);
+
+      assertThatThrownBy(() -> userService.getOrCreateProfile(keycloakId, testEmail, testNickname, true))
+        .isInstanceOf(UserException.class)
+        .hasMessage(UserResponse.USER_NOT_FOUND.getMessage());
+      verify(userRepository, never()).save(any());
+      verify(userMapper, never()).createLocalUser(any(), any(), any());
+    }
+
+    @Test
     @DisplayName("email_verified 클레임이 거짓이면 미인증으로 만든다")
     void getOrCreateProfile_UnverifiedEmailClaim_CreatesUnverified() {
       User created = User.builder().id(2L).keycloakId(keycloakId).email(testEmail).nickname(testNickname).build();

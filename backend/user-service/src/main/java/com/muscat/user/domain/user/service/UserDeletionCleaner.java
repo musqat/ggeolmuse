@@ -30,6 +30,11 @@ public class UserDeletionCleaner {
     userDeletionRepository.save(UserDeletion.of(keycloakId, LocalDateTime.now(clock)));
   }
 
+  // 탈퇴 기록이 남은 Keycloak ID 인지(끝난 뒤 하루까지)
+  public boolean wasDeleted(String keycloakId) {
+    return userDeletionRepository.existsById(keycloakId);
+  }
+
   // 탈퇴 커밋 뒤 바로 한 번(실패는 로그만, 남은 단계는 다시 정리가 맡음)
   public void cleanUp(String keycloakId) {
     try {

@@ -246,6 +246,11 @@ public class UserServiceImpl implements UserService {
       if (email == null || email.isBlank()) {
         throw new UserException(UserResponse.USER_NOT_FOUND);
       }
+      // 탈퇴한 사용자의 남은 토큰으로는 다시 만들지 않음
+      if (userDeletionCleaner.wasDeleted(keycloakId)) {
+        log.warn("탈퇴한 사용자의 토큰으로 프로필 요청 - 만들지 않음: keycloakId={}", keycloakId);
+        throw new UserException(UserResponse.USER_NOT_FOUND);
+      }
       return createUserFromKeycloak(keycloakId, email, nickname, emailVerified);
     }
 
