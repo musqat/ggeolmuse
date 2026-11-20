@@ -164,20 +164,20 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 ## 테스트
 
-백엔드 **3,045 개**, 프론트 **1,764 개**, E2E **72 개**.
+백엔드 **3,064 개**, 프론트 **1,765 개**, E2E **72 개**.
 
 | 서비스 | 테스트 |
 |---|---|
 | market-data-service | 622 |
-| user-service | 486 |
-| backtest-service | 1,119 |
-| trade-service | 489 |
+| user-service | 497 |
+| backtest-service | 1,122 |
+| trade-service | 494 |
 | gateway-server | 50 |
 | config-server | 5 |
 | ggeolmuse-common | 74 |
 | messaging | 26 |
 | chat-service | 174 |
-| frontend-web | 1,764 |
+| frontend-web | 1,765 |
 | E2E (Playwright) | 72 |
 
 저장소 테스트는 Flyway 로 만든 Postgres 컨테이너에서 돌아서 로컬 `mvn test` 에도 Docker 가 필요하다.
@@ -298,6 +298,10 @@ EC2 는 Cloudflare 대역에서 온 요청만 받아서 밖에서 이 헤더를 
 
 **응답 · 로그** — 로그인 실패는 가입 여부와 상관없이 같은 401 이다([가입 여부 노출](docs/problem-solving.md#로그인-응답이-가입-여부를-드러냈다)).
 로그의 이메일은 가린다. 관리자 쓰기 요청은 토큰 사용자(sub) · 메서드 · 경로 · 응답 코드를 한 줄로 남긴다(실패와 보안 체인이 401 · 403 으로 막은 요청은 경고).
+
+**탈퇴** — 계좌 · 거래 · 백테스트 기록을 지운다. user-service 가 탈퇴 기록(Keycloak ID 만)을 남기고 사용자 삭제 이벤트 · Keycloak 계정 삭제를
+끝날 때까지 다시 하며, trade · backtest 가 그 이벤트로 자기 데이터를 지운다. 탈퇴한 사용자의 남은 토큰으로는 계정이 다시 생기지 않는다.
+AI 대화는 5시간 TTL 로 사라지고, 백업 · 이벤트 기록에는 보존 기간만큼 남는다.
 
 **브라우저** — nginx 가 CSP · X-Frame-Options · X-Content-Type-Options(nosniff) · Referrer-Policy 를 응답에 넣는다.
 

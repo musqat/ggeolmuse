@@ -83,6 +83,8 @@ export const DeleteAccountDialog: React.FC<DeleteAccountDialogProps> = ({ hasPas
           <ul className="text-sm text-danger space-y-1 list-disc list-inside">
             <li>모든 계좌 정보가 삭제됩니다</li>
             <li>거래 내역이 모두 삭제됩니다</li>
+            <li>백테스트 기록이 모두 삭제됩니다</li>
+            <li>AI 대화는 5시간 안에 사라집니다</li>
             <li>이 작업은 되돌릴 수 없습니다</li>
           </ul>
         </div>
