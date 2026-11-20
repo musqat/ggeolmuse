@@ -427,6 +427,25 @@ class BacktestAnalysisServiceImplTest {
     }
 
     @Test
+    @DisplayName("시세 서비스 장애는 그 종목만 빼지 않고 비교 전체를 MARKET_DATA_UNAVAILABLE 로 끝낸다")
+    void compareSymbols_MarketDataUnavailable_Rethrown() {
+      SymbolComparisonRequest request = new SymbolComparisonRequest();
+      request.setSymbols(Arrays.asList("AAPL", "MSFT"));
+      request.setStartDate(LocalDate.of(2023, 1, 1));
+      request.setInvestmentAmount(BigDecimal.valueOf(10000));
+      request.setUserId("user123");
+      given(tradingSimulationService.runSimulation(any(), eq(false)))
+        .willThrow(new BacktestException(BacktestResponse.MARKET_DATA_UNAVAILABLE))
+        .willReturn(SimulationResponse.builder().symbol("MSFT").build());
+
+      assertThatThrownBy(() -> backtestAnalysisService.compareSymbols(request))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.MARKET_DATA_UNAVAILABLE);
+      verify(backtestHistoryUtils, never()).saveBacktestHistory(any(), any(), any());
+    }
+
+    @Test
     @DisplayName("일부 종목만 성공해도 비교 가능")
     void compareSymbols_PartialSuccess() {
       // Given
@@ -612,6 +631,27 @@ class BacktestAnalysisServiceImplTest {
         .hasMessage("모든 전략의 실행에 실패했습니다")
         .extracting("code")
         .isEqualTo(BacktestResponse.ALL_STRATEGIES_FAILED);
+    }
+
+    @Test
+    @DisplayName("시세 서비스 장애는 모든 전략 실패로 바꾸지 않고 MARKET_DATA_UNAVAILABLE 그대로 낸다")
+    void compareStrategies_MarketDataUnavailable_Rethrown() {
+      StrategyParameter simple = new StrategyParameter();
+      simple.setStrategyType(StrategyType.SIMPLE);
+      simple.setName("단순 매수");
+      StrategyComparisonRequest request = new StrategyComparisonRequest();
+      request.setSymbol("AAPL");
+      request.setStartDate(LocalDate.of(2023, 1, 1));
+      request.setEndDate(LocalDate.of(2024, 1, 1));
+      request.setInvestmentAmount(BigDecimal.valueOf(10000));
+      request.setStrategies(List.of(simple));
+      given(tradingSimulationService.runSimulation(any(), eq(false)))
+        .willThrow(new BacktestException(BacktestResponse.MARKET_DATA_UNAVAILABLE));
+
+      assertThatThrownBy(() -> backtestAnalysisService.compareStrategies(request))
+        .isInstanceOf(BacktestException.class)
+        .extracting("code")
+        .isEqualTo(BacktestResponse.MARKET_DATA_UNAVAILABLE);
     }
 
     @Test
