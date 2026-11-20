@@ -24,7 +24,8 @@ export const useTradingChart = ({ symbol, timeframe, customStartDate, customEndD
   const queryClient = useQueryClient();
   const [tradeDate, setTradeDate] = useState(() => subtractDays(getTodayString(), 1));
   // 차트 기간 밖에서 고른 날의 봉
-  const [outsideCandle, setOutsideCandle] = useState<CandlestickChartData | null>(null);
+  // 차트 기간 밖에서 따로 받은 봉과 그 종목
+  const [outsideCandle, setOutsideCandle] = useState<{ symbol: string; candle: CandlestickChartData } | null>(null);
   const [tradeDateNotice, setTradeDateNotice] = useState<string | null>(null);
 
   const dateRange = useMemo(
@@ -99,7 +100,7 @@ export const useTradingChart = ({ symbol, timeframe, customStartDate, customEndD
       return;
     }
     setTradeDate(date);
-    setOutsideCandle(candle);
+    setOutsideCandle({ symbol, candle });
     setTradeDateNotice(null);
   }, [chartData, dateRange, queryClient, symbol]);
 
@@ -108,8 +109,8 @@ export const useTradingChart = ({ symbol, timeframe, customStartDate, customEndD
     if (!tradeDate) return null;
     const inChart = chartData.find((d) => d.time === tradeDate);
     if (inChart) return inChart;
-    return outsideCandle?.time === tradeDate ? outsideCandle : null;
-  }, [tradeDate, chartData, outsideCandle]);
+    return outsideCandle?.symbol === symbol && outsideCandle.candle.time === tradeDate ? outsideCandle.candle : null;
+  }, [tradeDate, chartData, outsideCandle, symbol]);
 
   return {
     chartData,

@@ -25,6 +25,7 @@ const Account: React.FC = () => {
     accountBalances,
     currentExchangeRate,
     totalAssets,
+    stocksUnavailable,
     loading,
     error,
     refetch
@@ -75,6 +76,7 @@ const Account: React.FC = () => {
           accountCount={accounts.length}
           currentExchangeRate={currentExchangeRate}
           formatBalance={formatBalance}
+          stocksUnavailable={stocksUnavailable}
         />
 
         {/* 계좌 목록 */}

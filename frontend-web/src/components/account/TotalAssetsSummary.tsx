@@ -7,6 +7,8 @@ export interface TotalAssetsSummaryProps {
   accountCount: number;
   currentExchangeRate: number;
   formatBalance: (amount: number, currency: 'KRW' | 'USD') => string;
+  // 주식 평가액을 못 받아 총자산이 현금만이면 안내
+  stocksUnavailable?: boolean;
 }
 
 /**
@@ -16,7 +18,8 @@ export const TotalAssetsSummary: React.FC<TotalAssetsSummaryProps> = ({
   totalAssets,
   accountCount,
   currentExchangeRate,
-  formatBalance
+  formatBalance,
+  stocksUnavailable = false
 }) => {
   return (
     <div className="bg-brand rounded-xl shadow-sm p-6 text-brand-ink">
@@ -25,6 +28,9 @@ export const TotalAssetsSummary: React.FC<TotalAssetsSummaryProps> = ({
           <p className="text-brand-ink/90 text-sm font-medium">총 자산</p>
           <p className="text-3xl font-bold">{formatBalance(totalAssets, 'KRW')}</p>
           <p className="text-brand-ink/90 text-sm mt-1">{accountCount}개 계좌</p>
+          {stocksUnavailable && (
+            <p className="text-brand-ink/90 text-xs mt-1">주식 평가액을 불러오지 못해 현금만 셌습니다</p>
+          )}
         </div>
       </div>
       {currentExchangeRate > 0 && (

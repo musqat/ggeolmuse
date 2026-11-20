@@ -164,7 +164,7 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 ## 테스트
 
-백엔드 **3,076 개**, 프론트 **1,765 개**, E2E **72 개**.
+백엔드 **3,076 개**, 프론트 **1,772 개**, E2E **72 개**.
 
 | 서비스 | 테스트 |
 |---|---|
@@ -177,7 +177,7 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 | ggeolmuse-common | 75 |
 | messaging | 26 |
 | chat-service | 176 |
-| frontend-web | 1,765 |
+| frontend-web | 1,772 |
 | E2E (Playwright) | 72 |
 
 저장소 테스트는 Flyway 로 만든 Postgres 컨테이너에서 돌아서 로컬 `mvn test` 에도 Docker 가 필요하다.

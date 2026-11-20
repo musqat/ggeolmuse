@@ -4,10 +4,10 @@ import { accountsApi, portfolioApi, type HoldingResponse } from '../services/api
 import { queryKeys, staleTimes } from '../services/queryKeys';
 import { summarizeHoldings } from '../utils/accountSummary';
 
-const DEFAULT_EXCHANGE_RATE = 1400;
+const DEFAULT_EXCHANGE_RATE = 1350;
 const NO_HOLDINGS: HoldingResponse[] = [];
 
-// 계좌의 보유 종목 · 그 보유로 낸 요약 · 잔액, 환율은 잔액 응답의 현재 환율(없으면 1400)
+// 계좌의 보유 종목 · 그 보유로 낸 요약 · 잔액, 환율은 잔액 응답의 현재 환율(없으면 1350)
 export const usePortfolioData = (accountId: string | null, enabled: boolean) => {
   const ready = enabled && !!accountId;
 
@@ -36,8 +36,8 @@ export const usePortfolioData = (accountId: string | null, enabled: boolean) => 
     balance,
     exchangeRate: balance?.currentExchangeRate ? Number(balance.currentExchangeRate) : DEFAULT_EXCHANGE_RATE,
     loading: holdingsQuery.isLoading || balanceQuery.isLoading,
-    // 보유나 잔액을 못 받음(빈 보유와 구분)
-    failed: holdingsQuery.isError || balanceQuery.isError,
+    // 보유나 잔액을 한 번도 못 받음(빈 보유와 구분, 다시 받기만 실패하면 받아 둔 값을 그대로 보여 줌)
+    failed: (holdingsQuery.isError && !holdingsQuery.data) || (balanceQuery.isError && !balanceQuery.data),
     retry: () => {
       void holdingsQuery.refetch();
       void balanceQuery.refetch();
