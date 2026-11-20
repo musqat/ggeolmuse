@@ -121,12 +121,12 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
       request.getPurchaseDate(), valuationDate, priceMap);
     LocalDate tradeDate = purchaseData.date();
 
-    // 수동 환율이 설정되어 있으면 사용, 없으면 실제로 산 날 환율
+    // 수동 환율이 설정되어 있으면 사용, 없으면 실제로 산 날 환율(그날 환율이 없으면 기본 환율)
     FxRateDto purchaseFxRate;
     if (request.getPurchaseFxRate() != null) {
       purchaseFxRate = new FxRateDto(tradeDate, request.getPurchaseFxRate());
     } else {
-      purchaseFxRate = marketDataPort.getFxRate(tradeDate.toString());
+      purchaseFxRate = BacktestDataUtils.getHistoricalFxRate(marketDataPort, tradeDate);
     }
 
     // 평가일 시세(오늘이면 현재가, 과거면 평가일 조정 종가)
@@ -138,9 +138,9 @@ public class TradingSimulationServiceImpl implements TradingSimulationService {
     if (request.getCurrentFxRate() != null) {
       currentFxRate = new FxRateDto(valuationDate, request.getCurrentFxRate());
     } else if (valuedToday) {
-      currentFxRate = marketDataPort.getLatestFxRate();
+      currentFxRate = BacktestDataUtils.getCurrentFxRate(marketDataPort);
     } else {
-      currentFxRate = marketDataPort.getFxRate(valuationDate.toString());
+      currentFxRate = BacktestDataUtils.getHistoricalFxRate(marketDataPort, valuationDate);
     }
 
     // 배당 이력 조회 (실제 매수일 ~ 평가일, 기간 끝에 팔면 판 날까지)
