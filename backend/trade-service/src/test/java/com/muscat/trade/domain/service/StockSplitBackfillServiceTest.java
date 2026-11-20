@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -30,6 +31,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import net.javacrumbs.shedlock.core.LockProvider;
+import net.javacrumbs.shedlock.core.SimpleLock;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -38,7 +42,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("지난 분할 백필")
@@ -55,6 +58,12 @@ class StockSplitBackfillServiceTest {
   @Mock
   private StockSplitService stockSplitService;
 
+  @Mock
+  private LockProvider lockProvider;
+
+  @Mock
+  private SimpleLock simpleLock;
+
   private final List<Runnable> queued = new ArrayList<>();
   private StockSplitBackfillService service;
   private SimpleMeterRegistry registry;
@@ -63,8 +72,8 @@ class StockSplitBackfillServiceTest {
   void setUp() {
     registry = new SimpleMeterRegistry();
     service = new StockSplitBackfillService(tradeRepository, marketServiceClientWrapper, stockSplitService,
-      queued::add, Clock.fixed(Instant.parse("2026-11-13T03:00:00Z"), ZoneId.of("Asia/Seoul")), registry);
-    ReflectionTestUtils.setField(service, "self", service);
+      queued::add, Clock.fixed(Instant.parse("2026-11-13T03:00:00Z"), ZoneId.of("Asia/Seoul")), registry, lockProvider);
+    lenient().when(lockProvider.lock(any())).thenReturn(Optional.of(simpleLock));
   }
 
   private static Map<String, LocalDate> firstTradeDates(Object... pairs) {
@@ -138,6 +147,16 @@ class StockSplitBackfillServiceTest {
     queued.getFirst().run();
 
     assertThat(service.status()).isEqualTo(new Status(false, new Result(0, 0, 0, NOW)));
+    verify(simpleLock).unlock();
+  }
+
+  @Test
+  @DisplayName("잠금이 잡혀 있으면(다른 파드 실행 · 방금 끝난 정오 실행) 실행기에 넘기지 않고 돌지 않음으로 답함")
+  void start_LockHeld_NotStarted() {
+    given(lockProvider.lock(any())).willReturn(Optional.empty());
+
+    assertThat(service.start()).isEqualTo(new Status(false, null));
+    assertThat(queued).isEmpty();
   }
 
   @Test
