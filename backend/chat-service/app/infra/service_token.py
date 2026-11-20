@@ -44,7 +44,7 @@ class ServiceTokenAuth(httpx.Auth):
                 if not token:
                     raise httpx.HTTPError("서비스 토큰 응답에 access_token 없음")
             except httpx.HTTPError as e:
-                self._retry_at = now + RETRY_AFTER_FAILURE_SECONDS
+                self._retry_at = self._clock() + RETRY_AFTER_FAILURE_SECONDS
                 return self._unexpired_or(now, e)
             self._token = token
             self._expires_at = now + float(body.get("expires_in", 0))

@@ -80,7 +80,7 @@ public class ServiceTokenProvider {
         refreshAt = expiresAt.minus(REFRESH_MARGIN);
         return token;
       } catch (RuntimeException e) {
-        retryAt = now.plus(RETRY_AFTER_FAILURE);
+        retryAt = clock.instant().plus(RETRY_AFTER_FAILURE);
         return unexpiredOr(now, e);
       }
     } finally {

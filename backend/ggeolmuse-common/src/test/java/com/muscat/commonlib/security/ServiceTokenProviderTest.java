@@ -106,6 +106,21 @@ class ServiceTokenProviderTest {
   }
 
   @Test
+  @DisplayName("Keycloak 이 느리게 실패해도 5초 기다림은 실패한 시각부터 센다")
+  void slowFailureWaitsFromFailure() {
+    keycloak.expect(once(), requestTo(TOKEN_URL)).andRespond(request -> {
+      clock.advance(Duration.ofSeconds(10));
+      return withUnauthorizedRequest().createResponse(request);
+    });
+
+    assertThatThrownBy(provider::token).isInstanceOf(RestClientException.class);
+    clock.advance(Duration.ofSeconds(4));
+    assertThatThrownBy(provider::token).isInstanceOf(BusinessException.class)
+      .extracting("code").isEqualTo(CommonResponse.SERVICE_TOKEN_RETRY_WAIT);
+    keycloak.verify();
+  }
+
+  @Test
   @DisplayName("새로 받기에 실패해도 받아 둔 토큰이 만료 전이면 받아 둔 토큰을 쓴다")
   void refreshFailureKeepsUnexpiredToken() {
     keycloak.expect(once(), requestTo(TOKEN_URL)).andRespond(withSuccess(tokenBody("t1", 300), MediaType.APPLICATION_JSON));
