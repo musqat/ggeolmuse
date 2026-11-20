@@ -109,7 +109,7 @@ async def test_follow_up_sees_previous_turn():
     await env.service.ask("u1", conversation_id, "RSI 어때?")
     await env.service.ask("u1", conversation_id, "왜?")
 
-    assert "직전 질문: RSI 어때?" in env.model.chosen[1][0]["content"]
+    assert env.model.chosen[1][1] == {"role": "user", "content": "RSI 어때?"}
     assert [m["content"] for m in env.model.answered[1][1:3]] == [
         "RSI 어때?", "상승 경향으로 해석될 수 있습니다."]
 
