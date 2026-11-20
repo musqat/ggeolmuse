@@ -59,9 +59,11 @@ ArgoCD 가 태그 커밋을 보고 롤아웃하고, 릴리스 끝의 `rollout` �
 - 검사나 E2E 가 실패 · 취소된 머지는 릴리스를 부르지 않는다. 그 push 실행의 실패한 작업을 다시 돌려 둘 다 초록이 되면 끝의 `release` 잡이 돈다
 - push 실행 없는 머지(Actions 장애로 CI 가 안 뜬 머지 등)는 릴리스도 없다. 그 커밋에서 CI 를 다시 띄울 수 없으면 아래 수동 실행으로 낸다
 - 보류된 서비스는 손으로도 낼 수 있다. Actions 의 `릴리스` 를 master 에서 Run workflow 로 돌리고, 서비스와 버전을 쉼표로 적는다
-  (`backtest-service 1.8.0, frontend-web`). CI 가 초록인 가장 최근 master 커밋을 내고, 검사는 PR 칸과 같다
+  (`backtest-service 1.8.0, frontend-web`). 필수 검사(`ci-result` · `E2E`)가 초록인 가장 최근 master 커밋을 내고(릴리스 잡만 실패한
+  머지도 고름), 검사는 PR 칸과 같다
 - 더 새 커밋이 나간 서비스는 건너뛴다(옛 실행을 다시 돌려도 안 되돌아감)
 - Hub 에 같은 태그가 있으면 이미지 레이블의 커밋을 대조해 같으면 빌드를 건너뛰고, 다르면 실패한다
+- 이미지 스캔 리포트가 없으면(Trivy 설치 · DB 받기 실패) 푸시하지 않고 실패한다. 그 작업만 다시 돌린다(PR 검사의 스캔은 경고만)
 - 태그 커밋 직전에 버전 하한과 이미지 레이블을 다시 본다
 - 봇 커밋 제목은 `chore(release): backtest-service 1.8.0 · frontend-web (8fbaacf)` 모양이고, 끝 괄호가 빌드한 커밋이다.
   본문의 `[skip ci]` 로 봇 커밋에서는 CI · E2E · 릴리스가 돌지 않는다
@@ -74,6 +76,9 @@ ArgoCD 가 태그 커밋을 보고 롤아웃하고, 릴리스 끝의 `rollout` �
 처음 머지 전 준비: Deploy keys 에 쓰기 키 하나 등록 → 환경 `release`(배포 브랜치 master)에 `RELEASE_DEPLOY_KEY` →
 ruleset `master` 우회 대상에 Deploy keys(Always), 규칙은 삭제 · 강제 푸시 금지 · PR 필수 · 필수 검사 `ci-result`(CI 잡
 결과를 모은 잡) · `E2E` → enforcement Active.
+
+Keycloak 구글 로그인: `muscathan` realm 의 Identity providers → google 에서 Trust email 을 켠다. 꺼져 있으면 구글 로그인 토큰의
+`email_verified` 가 false 라 게이트웨이 · 서비스가 모두 401 로 막는다. realm 템플릿에는 구글 IdP 가 없어(클라이언트 secret 때문) 콘솔에서 만든다.
 
 Java 서비스는 멀티스테이지 Dockerfile 이고 빌드 컨텍스트가 레포 루트다.
 `ggeolmuse-bom` 을 먼저 설치해야 해서다. frontend 와 chat-service 만 자기 폴더가
@@ -122,4 +127,5 @@ PR 이 기존 데이터를 다시 계산하거나 다시 쌓아야 하면 그 PR
 - 주식 분할을 체결 · 보유에 반영하게 바꾼 배포(trade V14): `flyway_schema_history` 에 V14 가 success 인지 보고,
   관리자 토큰으로 `POST /api/admin/trade/splits/backfill`(202)을 한 번 부른다. 같은 경로의 `GET` 이 `running: false` 가 될 때까지 보고
   `last` 의 `changed`(맞춘 체결 수) · `failed`(실패한 종목 수) · `reconcileFailed`(보내지 못한 배당 재계산 요청 수)를 본다.
-  진행 상태는 요청을 받은 파드 것이고, 같은 분할은 두 번 반영하지 않아서 다시 불러도 된다
+  진행 상태는 요청을 받은 파드 것이고, 같은 분할은 두 번 반영하지 않아서 다시 불러도 된다. 정오 실행이 방금 끝나 잠금이 남아 있으면
+  `running: false` 로 바로 답하니 1분 뒤 다시 부른다

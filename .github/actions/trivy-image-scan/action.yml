@@ -8,11 +8,15 @@ inputs:
   name:
     description: 리포트 파일명과 Security 탭 카테고리에 쓸 이름
     required: true
+  require-report:
+    description: true 면 리포트가 없을 때(설치 · DB 받기 실패) 실패, 아니면 경고만
+    required: false
+    default: 'false'
 
 runs:
   using: composite
   steps:
-    # 설치 · DB 받기 실패는 판정 단계에서 경고만(리포트가 없음)
+    # 설치 · DB 받기 실패는 판정 단계에서 경고(require-report 면 실패)
     - uses: ./.github/actions/install-trivy
       continue-on-error: true
 
@@ -58,6 +62,10 @@ runs:
       working-directory: ${{ github.workspace }}
       run: |
         if [ ! -f trivy-${{ inputs.name }}.json ]; then
+          if [ "${{ inputs.require-report }}" = true ]; then
+            echo "::error title=Trivy::${{ inputs.name }} 스캔 리포트 없음(설치 · DB 받기 실패), 스캔 없이 넘기지 않음"
+            exit 1
+          fi
           echo "::warning title=Trivy::${{ inputs.name }} 스캔 리포트 없음(설치 · DB 받기 실패), 판정 건너뜀"
           exit 0
         fi

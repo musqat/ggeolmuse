@@ -52,7 +52,7 @@ jobs:
           go-version-file: tools/go.mod
           cache: false
 
-      # 머지는 실행을 부른 머지 커밋, 수동 실행은 CI 가 성공한 가장 최근 master 커밋
+      # 머지는 실행을 부른 머지 커밋, 수동 실행은 필수 검사(ci-result · E2E)가 성공한 가장 최근 master 커밋(릴리스 잡만 실패한 머지도 고름)
       - name: 릴리스할 커밋
         env:
           GH_TOKEN: ${{ github.token }}
@@ -60,10 +60,15 @@ jobs:
         run: |
           sha=$RUN_SHA
           if [ -z "$sha" ]; then
-            sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=master&event=push&status=success&per_page=1" \
-              --jq '.workflow_runs[0].head_sha // empty')
+            runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=master&event=push&status=completed&per_page=20" \
+              --jq '.workflow_runs[] | "\(.id) \(.head_sha)"')
+            while read -r id head; do
+              passed=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs?per_page=100" \
+                --jq '[.jobs[] | select((.name == "ci-result" or .name == "E2E") and .conclusion == "success")] | length')
+              if [ "$passed" = 2 ]; then sha=$head; break; fi
+            done <<< "$runs"
           fi
-          if [ -z "$sha" ]; then echo "CI 가 성공한 master 커밋 없음"; exit 1; fi
+          if [ -z "$sha" ]; then echo "필수 검사가 성공한 master 커밋 없음(최근 20회)"; exit 1; fi
           echo "SHA=$sha" >> "$GITHUB_ENV"
 
       # 머지 커밋의 PR 본문(PR 없는 직접 커밋은 본문이 비어 빌드할 서비스 없음, 본문은 파일로만 넘김)
@@ -188,6 +193,7 @@ jobs:
         with:
           image: muscathan/${{ matrix.service }}:${{ fromJSON(needs.plan.outputs.tags)[matrix.service] }}
           name: release-${{ matrix.service }}
+          require-report: 'true'
 
       - name: Hub 에 푸시
         if: steps.hub.outputs.skip != 'true'

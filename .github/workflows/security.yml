@@ -111,3 +111,4 @@ jobs:
         with:
           image: ${{ matrix.image }}
           name: ${{ steps.name.outputs.name }}
+          require-report: 'true'

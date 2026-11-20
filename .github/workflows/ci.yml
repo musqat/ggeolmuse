@@ -697,6 +697,7 @@ jobs:
           echo "number=$(jq -r '.number // ""' "$RUNNER_TEMP/pr.json")" >> "$GITHUB_OUTPUT"
       - id: check
         working-directory: tools
+        shell: bash
         run: go run ./cmd/release-plan -checked "$RUNNER_TEMP/pr-body.md" | tee -a "$GITHUB_OUTPUT"
 
   # master push 의 검사 · E2E 가 둘 다 성공하고 체크한 서비스가 있으면 릴리스(release.yml)
