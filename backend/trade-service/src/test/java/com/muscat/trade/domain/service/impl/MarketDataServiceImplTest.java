@@ -9,6 +9,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
 import com.muscat.trade.common.constants.TradeConstants;
 import com.muscat.trade.common.enums.type.PriceType;
@@ -20,6 +21,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -323,6 +325,16 @@ class MarketDataServiceImplTest {
       given(marketServiceClientWrapper.getOHLCPrice(symbol, date)).willReturn(ohlc(available));
     }
 
+    // 기준 종목이 그 날 뒤(미국 동부 오늘까지)에 시세가 있는지
+    private void referenceAfter(String date, boolean collected) {
+      LocalDate next = LocalDate.parse(date).plusDays(1);
+      given(marketServiceClientWrapper.getOHLCPriceRange(TradeConstants.MARKET_REFERENCE_SYMBOL, next.toString(), "2026-11-18"))
+        .willReturn(collected
+          ? List.of(new OHLCPriceDto(TradeConstants.MARKET_REFERENCE_SYMBOL, next, BigDecimal.ONE, BigDecimal.ONE,
+            BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, 1L, "USD", true))
+          : List.of());
+    }
+
     @Test
     @DisplayName("미국 동부 날짜로 오늘보다 뒤면 시세를 묻지 않고 미래 날짜로 거절한다")
     void futureDate() {
@@ -363,6 +375,7 @@ class MarketDataServiceImplTest {
     void weekendSkipsHolidayFriday() {
       price(SYMBOL, "2024-03-29", false);
       price(TradeConstants.MARKET_REFERENCE_SYMBOL, "2024-03-29", false);
+      referenceAfter("2024-03-29", true);
       price(SYMBOL, "2024-03-28", true);
 
       assertThat(service.resolveTradeDate(SYMBOL, LocalDate.of(2024, 3, 30))).isEqualTo("2024-03-28");
@@ -373,10 +386,48 @@ class MarketDataServiceImplTest {
     void weekdayHoliday() {
       price(SYMBOL, "2024-07-04", false);
       price(TradeConstants.MARKET_REFERENCE_SYMBOL, "2024-07-04", false);
+      referenceAfter("2024-07-04", true);
 
       assertThatThrownBy(() -> service.resolveTradeDate(SYMBOL, LocalDate.of(2024, 7, 4)))
         .isInstanceOf(TradeException.class)
         .hasFieldOrPropertyWithValue("errorCode", "HOLIDAY_TRADING_NOT_ALLOWED");
+    }
+
+    @Test
+    @DisplayName("기준 종목도 그 뒤 날 시세가 없으면 휴장이 아니라 아직 수집 전이라 시세 없음으로 거절한다")
+    void weekdayNotCollectedYet() {
+      price(SYMBOL, "2026-11-13", false);
+      price(TradeConstants.MARKET_REFERENCE_SYMBOL, "2026-11-13", false);
+      referenceAfter("2026-11-13", false);
+
+      assertThatThrownBy(() -> service.resolveTradeDate(SYMBOL, LocalDate.of(2026, 11, 13)))
+        .isInstanceOf(TradeException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "PRICE_DATA_UNAVAILABLE");
+    }
+
+    @Test
+    @DisplayName("주말 앞 금요일이 아직 수집 전이면 목요일 시세로 가지 않고 시세 없음으로 거절한다")
+    void weekendFridayNotCollectedYet() {
+      price(SYMBOL, "2026-11-13", false);
+      price(TradeConstants.MARKET_REFERENCE_SYMBOL, "2026-11-13", false);
+      referenceAfter("2026-11-13", false);
+
+      assertThatThrownBy(() -> service.resolveTradeDate(SYMBOL, LocalDate.of(2026, 11, 14)))
+        .isInstanceOf(TradeException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "PRICE_DATA_UNAVAILABLE");
+      verify(marketServiceClientWrapper, never()).getOHLCPrice(SYMBOL, "2026-11-12");
+    }
+
+    @Test
+    @DisplayName("미국 동부의 오늘이 기준 종목까지 비어 있으면 그 뒤 날을 묻지 않고 시세 없음으로 거절한다")
+    void todayNotCollectedYet() {
+      price(SYMBOL, "2026-11-18", false);
+      price(TradeConstants.MARKET_REFERENCE_SYMBOL, "2026-11-18", false);
+
+      assertThatThrownBy(() -> service.resolveTradeDate(SYMBOL, LocalDate.of(2026, 11, 18)))
+        .isInstanceOf(TradeException.class)
+        .hasFieldOrPropertyWithValue("errorCode", "PRICE_DATA_UNAVAILABLE");
+      verify(marketServiceClientWrapper, never()).getOHLCPriceRange(anyString(), anyString(), anyString());
     }
 
     @Test
