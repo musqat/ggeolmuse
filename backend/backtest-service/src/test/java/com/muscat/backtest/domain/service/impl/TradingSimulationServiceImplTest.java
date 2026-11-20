@@ -123,6 +123,26 @@ class TradingSimulationServiceImplTest {
     }
 
     @Test
+    @DisplayName("산 날 · 평가일이 첫 저장 환율보다 일러 환율이 없으면 기본 환율로 계산하고 두 날을 응답에 싣는다")
+    void runSimulation_NoFxBeforeFirstStored_UsesDefault() {
+      SimulationRequest pastSale = testSimulationRequest.toBuilder().saleDate(LocalDate.of(2024, 3, 15)).build();
+      OHLCPriceDto purchasePrice = createOHLCPrice(TEST_SYMBOL, pastSale.getPurchaseDate(), new BigDecimal("180.00"), true);
+      OHLCPriceDto salePrice = createOHLCPrice(TEST_SYMBOL, pastSale.getSaleDate(), new BigDecimal("200.00"), true);
+      given(marketDataPort.getFxRate(anyString())).willReturn(null);
+      given(marketDataPort.getDividendHistory(eq(TEST_SYMBOL), anyString(), anyString()))
+        .willReturn(Collections.emptyList());
+      given(marketDataPort.getOHLCPriceRange(eq(TEST_SYMBOL), anyString(), anyString()))
+        .willReturn(List.of(purchasePrice, salePrice));
+      given(responseMapper.toSimulationResponse(any(SimulationRequest.class), any(SimulationCalculationResult.class),
+        any(OptimalTiming.class)))
+        .willReturn(createSimulationResponse());
+
+      SimulationResponse result = tradingSimulationService.runSimulation(pastSale);
+
+      assertThat(result.getDefaultFxDates()).containsExactly(pastSale.getPurchaseDate(), pastSale.getSaleDate());
+    }
+
+    @Test
     @DisplayName("배당 이력을 못 받으면 배당 0 으로 계산하고 배당 못 받은 종목에 요청 종목을 실음")
     void runSimulation_DividendsUnavailable_ListsSymbol() {
       OHLCPriceDto purchasePrice = createOHLCPrice(TEST_SYMBOL,

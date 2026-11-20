@@ -263,6 +263,12 @@ public class BacktestAnalysisServiceImpl implements BacktestAnalysisService {
         if (item != null) {
           items.add(item);
         }
+      } catch (BacktestException e) {
+        // 시세 서비스 장애는 남은 항목도 같은 결과라 비교 전체를 그 오류로 끝냄
+        if (e.getCode() == BacktestResponse.MARKET_DATA_UNAVAILABLE) {
+          throw e;
+        }
+        errorHandler.accept(source, e);
       } catch (Exception e) {
         errorHandler.accept(source, e);
       }
