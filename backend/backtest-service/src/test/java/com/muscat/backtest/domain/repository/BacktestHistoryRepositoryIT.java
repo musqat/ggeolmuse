@@ -16,12 +16,12 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-// 운영과 같은 Postgres 에서 백테스트 이력 주인 바꾸기
+// 운영과 같은 Postgres 에서 한 사용자의 백테스트 이력 지우기
 @SpringBootTest
 @ActiveProfiles("test")
 @Testcontainers
 @Transactional
-@DisplayName("백테스트 이력 주인 바꾸기")
+@DisplayName("백테스트 이력 지우기")
 class BacktestHistoryRepositoryIT {
 
   @Container
@@ -37,19 +37,18 @@ class BacktestHistoryRepositoryIT {
   }
 
   @Test
-  @DisplayName("옛 주인의 행만 새 주인으로 옮기고 먼저 읽어 둔 행도 새 주인으로 다시 읽는다")
-  void reassignOwner_MovesOnlyLegacyRows() {
-    BacktestHistory legacy = saved("old@example.com");
-    saved("other@example.com");
-    assertThat(backtestHistoryRepository.findById(legacy.getId())).get()
-      .extracting(BacktestHistory::getUserId).isEqualTo("old@example.com");
+  @DisplayName("한 사용자의 이력만 지우고 다른 사용자 · 비로그인 이력은 남긴다")
+  void deleteByUserId_OnlyThatUser() {
+    saved("user-1");
+    saved("user-1");
+    saved("user-2");
+    saved(null);
 
-    long moved = backtestHistoryRepository.reassignOwner("old@example.com", "user-1");
+    long deleted = backtestHistoryRepository.deleteByUserId("user-1");
 
-    assertThat(moved).isEqualTo(1);
-    assertThat(backtestHistoryRepository.findById(legacy.getId())).get()
-      .extracting(BacktestHistory::getUserId).isEqualTo("user-1");
-    assertThat(backtestHistoryRepository.findByUserIdOrderByCreatedAtDesc("other@example.com", Pageable.unpaged())
+    assertThat(deleted).isEqualTo(2);
+    assertThat(backtestHistoryRepository.count()).isEqualTo(2);
+    assertThat(backtestHistoryRepository.findByUserIdOrderByCreatedAtDesc("user-2", Pageable.unpaged())
       .getTotalElements()).isEqualTo(1);
   }
 }

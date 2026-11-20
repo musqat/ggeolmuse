@@ -15,6 +15,9 @@ public interface AccountProfitDailyRepository extends JpaRepository<AccountProfi
 
   void deleteByAccountId(Long accountId);
 
+  // 탈퇴한 사용자의 행 전부 삭제(Keycloak ID)
+  void deleteByUserId(String userId);
+
   // 계좌 ID 를 키로 트랜잭션 끝까지 잡는 Postgres 어드바이저리 잠금
   @Query(value = "select 1 from pg_advisory_xact_lock(:accountId)", nativeQuery = true)
   Integer lockAccount(@Param("accountId") Long accountId);

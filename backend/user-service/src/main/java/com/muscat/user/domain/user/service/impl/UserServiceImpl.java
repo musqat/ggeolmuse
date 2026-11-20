@@ -20,6 +20,7 @@ import com.muscat.user.domain.user.repository.EmailTokenRepository;
 import com.muscat.user.domain.user.repository.PasswordResetTokenRepository;
 import com.muscat.user.domain.user.repository.UserRepository;
 import com.muscat.user.domain.user.service.KeycloakService;
+import com.muscat.user.domain.user.service.UserDeletionCleaner;
 import com.muscat.user.domain.user.service.UserService;
 import com.muscat.user.infra.kafka.AccountEventProducer;
 import java.time.Duration;
@@ -56,6 +57,7 @@ public class UserServiceImpl implements UserService {
   private final RateLimitService rateLimitService;
   private final AccountEventProducer accountEventProducer;
   private final TransactionTemplate transactionTemplate;
+  private final UserDeletionCleaner userDeletionCleaner;
 
   // 비밀번호 없는 사용자(구글)의 탈퇴 허용 로그인 시간(훔친 access token 만으로는 탈퇴 불가)
   private static final Duration REAUTH_WINDOW = Duration.ofMinutes(5);
@@ -244,6 +246,11 @@ public class UserServiceImpl implements UserService {
       if (email == null || email.isBlank()) {
         throw new UserException(UserResponse.USER_NOT_FOUND);
       }
+      // 탈퇴한 사용자의 남은 토큰으로는 다시 만들지 않음
+      if (userDeletionCleaner.wasDeleted(keycloakId)) {
+        log.warn("탈퇴한 사용자의 토큰으로 프로필 요청 - 만들지 않음: keycloakId={}", keycloakId);
+        throw new UserException(UserResponse.USER_NOT_FOUND);
+      }
       return createUserFromKeycloak(keycloakId, email, nickname, emailVerified);
     }
 
@@ -278,7 +285,7 @@ public class UserServiceImpl implements UserService {
 
       removeLocalUser(user);
     });
-    deleteKeycloakUserQuietly(keycloakId);
+    userDeletionCleaner.cleanUp(keycloakId);
 
     log.info("계정 삭제 완료: keycloakId={}", keycloakId);
   }
@@ -449,7 +456,7 @@ public class UserServiceImpl implements UserService {
     log.info("비밀번호 재설정 완료: {}", user.getEmail());
   }
 
-  // 탈퇴 · 강제 탈퇴의 DB 삭제(잔액은 가상 머니라 안 봄, 계좌마다 삭제 이벤트, 계좌 내역은 ON DELETE CASCADE)
+  // 탈퇴 · 강제 탈퇴의 DB 삭제와 탈퇴 기록(잔액은 가상 머니라 안 봄, 계좌마다 삭제 이벤트, 계좌 내역은 ON DELETE CASCADE)
   private void removeLocalUser(User user) {
     emailTokenRepository.deleteByUser(user);
     passwordResetTokenRepository.deleteByUser(user);
@@ -461,6 +468,7 @@ public class UserServiceImpl implements UserService {
     log.debug("사용자 계좌 삭제: userId={}, 계좌수={}", user.getId(), accounts.size());
 
     userRepository.delete(user);
+    userDeletionCleaner.record(user.getKeycloakId());
   }
 
   // 비밀번호가 바뀐 사용자의 Keycloak 세션 종료(실패하면 로그만, 비밀번호는 이미 바뀜)
@@ -656,7 +664,7 @@ public class UserServiceImpl implements UserService {
       removeLocalUser(found);
       return found;
     }));
-    deleteKeycloakUserQuietly(user.getKeycloakId());
+    userDeletionCleaner.cleanUp(user.getKeycloakId());
 
     log.info("사용자 강제 탈퇴 완료: {}", user.getEmail());
   }
