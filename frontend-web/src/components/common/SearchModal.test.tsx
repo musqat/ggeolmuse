@@ -128,6 +128,20 @@ describe('SearchModal', () => {
     expect(screen.getByText('/charts/MSFT')).toBeInTheDocument()
   })
 
+  it('검색 결과가 서버 결과로 줄어들면 고른 줄을 범위 안으로 되돌려 Enter 로 남은 종목을 고른다', async () => {
+    search.mockResolvedValue({ data: [{ symbol: 'V', name: 'Visa Inc' }] } as never)
+    const user = userEvent.setup()
+    const onSelectStock = vi.fn()
+    renderModal({ onSelectStock })
+
+    await user.type(searchInput(), 'v')
+    await user.keyboard('{ArrowDown}{ArrowDown}')
+    await screen.findByText('Visa Inc')
+    await user.keyboard('{Enter}')
+
+    expect(onSelectStock).toHaveBeenCalledWith('V')
+  })
+
   it('onSelectStock 이 있으면 이동 대신 넘긴다', async () => {
     const user = userEvent.setup()
     const onSelectStock = vi.fn()

@@ -20,6 +20,8 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
   const optionId = (index: number) => `${listId}-${index}`;
 
   const { matches: filteredStocks, failed: searchFailed } = useSymbolSearch(searchTerm, supportedSymbols, 10);
+  // 결과가 서버 결과로 바뀌어 줄어도 범위 안의 줄
+  const activeIndex = Math.min(selectedIndex, Math.max(filteredStocks.length - 1, 0));
 
   // 검색어가 바뀌면 첫 결과를 고름
   const changeSearchTerm = (term: string) => {
@@ -39,13 +41,13 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIndex(prev => Math.min(prev + 1, filteredStocks.length - 1));
+      setSelectedIndex(Math.min(activeIndex + 1, filteredStocks.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setSelectedIndex(prev => Math.max(prev - 1, 0));
+      setSelectedIndex(Math.max(activeIndex - 1, 0));
     } else if (e.key === 'Enter' && filteredStocks.length > 0) {
       e.preventDefault();
-      handleSelectStock(filteredStocks[selectedIndex]);
+      handleSelectStock(filteredStocks[activeIndex]);
     }
   };
 
@@ -91,7 +93,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
           aria-autocomplete="list"
           aria-expanded={filteredStocks.length > 0}
           aria-controls={filteredStocks.length > 0 ? listId : undefined}
-          aria-activedescendant={filteredStocks[selectedIndex] ? optionId(selectedIndex) : undefined}
+          aria-activedescendant={filteredStocks[activeIndex] ? optionId(activeIndex) : undefined}
           value={searchTerm}
           onChange={(e) => changeSearchTerm(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -121,10 +123,10 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, supportedSym
                 key={stock.symbol}
                 id={optionId(index)}
                 role="option"
-                aria-selected={index === selectedIndex}
+                aria-selected={index === activeIndex}
                 onClick={() => handleSelectStock(stock)}
                 className={`cursor-pointer px-4 py-3 transition-colors ${
-                  index === selectedIndex
+                  index === activeIndex
                     ? 'bg-brand-bg border-l-4 border-brand'
                     : 'hover:bg-surface/50'
                 }`}

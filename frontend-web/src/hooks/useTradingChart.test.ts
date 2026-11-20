@@ -23,7 +23,8 @@ const renderChart = () =>
 
 beforeEach(() => {
   vi.clearAllMocks()
-  vi.mocked(stockApi.getOHLCData).mockImplementation(async (_symbol: string, start?: string, end?: string) => {
+  vi.mocked(stockApi.getOHLCData).mockImplementation(async (symbol: string, start?: string, end?: string) => {
+    if (symbol === 'MSFT') return { data: [] } as never
     if (start === '2026-06-01' && end === '2026-06-01') return { data: [bar('2026-06-01', 50)] } as never
     if (start === end) return { data: [] } as never
     return { data: CHART } as never
@@ -31,6 +32,21 @@ beforeEach(() => {
 })
 
 describe('useTradingChart 거래일', () => {
+  it('종목을 바꾸면 앞 종목에서 따로 받은 기간 밖 봉을 새 종목 시세로 쓰지 않는다', async () => {
+    const { result, rerender } = renderHook(
+      ({ symbol }) => useTradingChart({ symbol, timeframe: '직접설정', customStartDate: '2026-10-01', customEndDate: '2026-10-12' }),
+      { wrapper, initialProps: { symbol: 'AAPL' } },
+    )
+    await waitFor(() => expect(result.current.tradeDate).toBe('2026-10-09'))
+    await act(async () => { await result.current.selectTradeDate('2026-06-01') })
+    expect(result.current.selectedDateOHLC?.close).toBe(50)
+
+    rerender({ symbol: 'MSFT' })
+
+    await waitFor(() => expect(stockApi.getOHLCData).toHaveBeenCalledWith('MSFT', '2026-10-01', '2026-10-12'))
+    expect(result.current.selectedDateOHLC).toBeNull()
+  })
+
   it('차트 기간 밖 날짜를 고르면 그날 봉을 따로 받아 그날 시세로 보인다', async () => {
     const { result } = renderChart()
     await waitFor(() => expect(result.current.tradeDate).toBe('2026-10-09'))
