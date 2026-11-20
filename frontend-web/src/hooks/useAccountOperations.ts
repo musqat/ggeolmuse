@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { accountsApi } from '../services/api';
 import { getApiErrorMessage } from '../utils/apiError';
 import { createIdempotencyKeys } from '../utils/idempotencyKey';
@@ -39,6 +40,7 @@ export const useAccountOperations = (
   onSuccess?: () => Promise<void>
 ): UseAccountOperationsReturn => {
   const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
   // 입금 · 환전의 중복 요청 키(실패한 요청을 그대로 다시 보내면 같은 키)
   const keys = useRef(createIdempotencyKeys()).current;
 
@@ -47,6 +49,11 @@ export const useAccountOperations = (
     try {
       setLoading(true);
       await call();
+      // 계좌별 잔액 · 주문 가능 수량 캐시(계좌 목록은 onSuccess 가 다시 불러옴)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['account', 'balance'] }),
+        queryClient.invalidateQueries({ queryKey: ['trade', 'capacity'] }),
+      ]);
 
       if (onSuccess) {
         await onSuccess();

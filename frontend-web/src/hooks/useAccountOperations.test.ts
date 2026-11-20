@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
+import { createElement, type ReactNode } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { accountsApi } from '../services/api'
 import { notify } from '@/components/common/notify'
 import { useAccountOperations } from './useAccountOperations'
@@ -11,9 +13,13 @@ vi.mock('../services/api', () => ({
 type Operations = ReturnType<typeof useAccountOperations>
 
 let onSuccess: Mock<() => Promise<void>>
+let client: QueryClient
+
+const wrapper = ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client }, children)
 
 beforeEach(() => {
   vi.clearAllMocks()
+  client = new QueryClient()
   onSuccess = vi.fn<() => Promise<void>>().mockResolvedValue(undefined)
   vi.spyOn(notify, 'success').mockImplementation(() => {})
   vi.spyOn(notify, 'error').mockImplementation(() => {})
@@ -21,9 +27,20 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('useAccountOperations', () => {
+  it('입금 · 환전 · 삭제가 끝나면 계좌별 잔액과 주문 가능 수량 캐시를 비운다', async () => {
+    vi.mocked(accountsApi.depositKrw).mockResolvedValue({} as never)
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    const { result } = renderHook(() => useAccountOperations(onSuccess), { wrapper })
+
+    await act(() => result.current.depositKrw({ accountId: 3, amount: 1000 }))
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['account', 'balance'] })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['trade', 'capacity'] })
+  })
+
   it('입금하면 알리고 다시 불러온다', async () => {
     vi.mocked(accountsApi.depositKrw).mockResolvedValue({} as never)
-    const { result } = renderHook(() => useAccountOperations(onSuccess))
+    const { result } = renderHook(() => useAccountOperations(onSuccess), { wrapper })
 
     await act(() => result.current.depositKrw({ accountId: 3, amount: 1000 }))
 
@@ -34,7 +51,7 @@ describe('useAccountOperations', () => {
 
   it('실패하면 실패 알림 뒤 그 오류가 그대로 난다', async () => {
     vi.mocked(accountsApi.depositKrw).mockRejectedValue(new Error('down'))
-    const { result } = renderHook(() => useAccountOperations(onSuccess))
+    const { result } = renderHook(() => useAccountOperations(onSuccess), { wrapper })
 
     await expect(act(() => result.current.depositKrw({ accountId: 3, amount: 1000 }))).rejects.toThrow('down')
 
@@ -54,7 +71,7 @@ describe('useAccountOperations', () => {
 
   it.each(cases)('%s: 성공하면 다시 불러온 뒤 알린다', async (_name, call, method, successText) => {
     vi.mocked(accountsApi[method]).mockResolvedValue({} as never)
-    const { result } = renderHook(() => useAccountOperations(onSuccess))
+    const { result } = renderHook(() => useAccountOperations(onSuccess), { wrapper })
 
     await act(() => call(result.current))
 
@@ -64,7 +81,7 @@ describe('useAccountOperations', () => {
 
   it.each(cases)('%s: 실패하면 실패 알림 뒤 그 오류가 그대로 난다', async (_name, call, method, _success, failureText) => {
     vi.mocked(accountsApi[method]).mockRejectedValue(new Error('down'))
-    const { result } = renderHook(() => useAccountOperations(onSuccess))
+    const { result } = renderHook(() => useAccountOperations(onSuccess), { wrapper })
 
     await expect(act(() => call(result.current))).rejects.toThrow('down')
 
@@ -79,7 +96,7 @@ describe('useAccountOperations', () => {
       vi.mocked(accountsApi.depositKrw)
         .mockRejectedValueOnce(new Error('timeout'))
         .mockResolvedValue({} as never)
-      const { result } = renderHook(() => useAccountOperations(onSuccess))
+      const { result } = renderHook(() => useAccountOperations(onSuccess), { wrapper })
 
       await expect(act(() => result.current.depositKrw({ accountId: 3, amount: 1000 }))).rejects.toThrow('timeout')
       await act(() => result.current.depositKrw({ accountId: 3, amount: 1000 }))
@@ -93,7 +110,7 @@ describe('useAccountOperations', () => {
     it('금액이 바뀌거나 환전으로 바꾸면 새 키를 싣는다', async () => {
       vi.mocked(accountsApi.depositKrw).mockRejectedValue(new Error('down'))
       vi.mocked(accountsApi.exchangeCurrency).mockRejectedValue(new Error('down'))
-      const { result } = renderHook(() => useAccountOperations(onSuccess))
+      const { result } = renderHook(() => useAccountOperations(onSuccess), { wrapper })
 
       await expect(act(() => result.current.depositKrw({ accountId: 3, amount: 1000 }))).rejects.toThrow('down')
       await expect(act(() => result.current.depositKrw({ accountId: 3, amount: 2000 }))).rejects.toThrow('down')
@@ -108,7 +125,7 @@ describe('useAccountOperations', () => {
 
   it('생성은 수수료 · 슬리피지를 소수로 보낸다', async () => {
     vi.mocked(accountsApi.createAccount).mockResolvedValue({} as never)
-    const { result } = renderHook(() => useAccountOperations(onSuccess))
+    const { result } = renderHook(() => useAccountOperations(onSuccess), { wrapper })
 
     await act(() => result.current.createAccount({ accountName: '연습', commissionRate: 0.25, slippageRate: 0.1 }))
 
