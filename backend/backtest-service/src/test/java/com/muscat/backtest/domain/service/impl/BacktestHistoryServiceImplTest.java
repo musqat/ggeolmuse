@@ -1,11 +1,8 @@
 package com.muscat.backtest.domain.service.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.verify;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.never;
 
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.domain.dto.response.BacktestHistoryDto;
@@ -19,7 +16,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -90,7 +86,7 @@ class BacktestHistoryServiceImplTest {
 
       // when
       Page<BacktestHistoryDto> result = backtestHistoryService.getUserBacktestHistory(
-        TEST_USER_ID, null, pageable);
+        TEST_USER_ID, pageable);
 
       // then
       assertThat(result).isNotNull();
@@ -125,7 +121,7 @@ class BacktestHistoryServiceImplTest {
 
       // when
       Page<BacktestHistoryDto> result = backtestHistoryService.getUserBacktestHistory(
-        TEST_USER_ID, null, pageable);
+        TEST_USER_ID, pageable);
 
       // then
       assertThat(result).isNotNull();
@@ -161,7 +157,7 @@ class BacktestHistoryServiceImplTest {
 
       // when
       Page<BacktestHistoryDto> result = backtestHistoryService.getUserBacktestHistory(
-        TEST_USER_ID, null, pageable);
+        TEST_USER_ID, pageable);
 
       // then
       assertThat(result).isNotNull();
@@ -215,7 +211,7 @@ class BacktestHistoryServiceImplTest {
 
       // when
       Page<BacktestHistoryDto> result = backtestHistoryService.getUserBacktestHistory(
-        TEST_USER_ID, null, pageable);
+        TEST_USER_ID, pageable);
 
       // then
       assertThat(result.getContent()).hasSize(3);
@@ -240,7 +236,7 @@ class BacktestHistoryServiceImplTest {
 
       // when
       Page<BacktestHistoryDto> result = backtestHistoryService.getUserBacktestHistory(
-        TEST_USER_ID, null, pageable);
+        TEST_USER_ID, pageable);
 
       // then
       assertThat(result.getContent()).hasSize(1);
@@ -255,34 +251,5 @@ class BacktestHistoryServiceImplTest {
       assertThat(dto.createdAt()).isEqualTo(testHistory.getCreatedAt());
     }
 
-    @Test
-    @DisplayName("이메일로 남은 이력을 사용자 식별자로 옮긴 뒤 조회한다")
-    void movesLegacyOwnerFirst() {
-      Pageable pageable = PageRequest.of(0, 10);
-      given(backtestHistoryRepository.reassignOwner("old@example.com", TEST_USER_ID)).willReturn(2L);
-      given(backtestHistoryRepository.findByUserIdOrderByCreatedAtDesc(TEST_USER_ID, pageable))
-        .willReturn(new PageImpl<>(List.of(testHistory), pageable, 1));
-
-      Page<BacktestHistoryDto> result = backtestHistoryService.getUserBacktestHistory(
-        TEST_USER_ID, "old@example.com", pageable);
-
-      assertThat(result.getContent()).hasSize(1);
-      InOrder order = inOrder(backtestHistoryRepository);
-      order.verify(backtestHistoryRepository).reassignOwner("old@example.com", TEST_USER_ID);
-      order.verify(backtestHistoryRepository).findByUserIdOrderByCreatedAtDesc(TEST_USER_ID, pageable);
-    }
-
-    @Test
-    @DisplayName("이메일이 없거나 식별자와 같으면 옮기지 않는다")
-    void skipsMoveWithoutLegacyOwner() {
-      Pageable pageable = PageRequest.of(0, 10);
-      given(backtestHistoryRepository.findByUserIdOrderByCreatedAtDesc(TEST_USER_ID, pageable))
-        .willReturn(new PageImpl<>(List.of(), pageable, 0));
-
-      backtestHistoryService.getUserBacktestHistory(TEST_USER_ID, null, pageable);
-      backtestHistoryService.getUserBacktestHistory(TEST_USER_ID, TEST_USER_ID, pageable);
-
-      verify(backtestHistoryRepository, never()).reassignOwner(any(), any());
-    }
   }
 }
