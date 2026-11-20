@@ -21,4 +21,7 @@ public interface HoldingsRepository extends JpaRepository<Holdings, Long>, Holdi
 
   // 계좌 삭제 시 모든 보유 자산 삭제
   void deleteByAccountId(Long accountId);
+
+  // 탈퇴한 사용자의 행 전부 삭제(Keycloak ID)
+  void deleteByUserId(String userId);
 }

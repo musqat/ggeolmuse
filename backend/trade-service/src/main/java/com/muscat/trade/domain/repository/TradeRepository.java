@@ -53,6 +53,9 @@ public interface TradeRepository extends JpaRepository<Trade, Long>, TradeReposi
   // 계좌 삭제 시 모든 거래 내역 삭제
   void deleteByAccountId(Long accountId);
 
+  // 탈퇴한 사용자의 행 전부 삭제(Keycloak ID)
+  void deleteByUserId(String userId);
+
   // 기준 시각 전에 만들고 발행 시각이 빈 체결 100건 (id 순)
   List<Trade> findTop100ByEventPublishedAtIsNullAndCreatedAtBeforeOrderByIdAsc(LocalDateTime before);
 

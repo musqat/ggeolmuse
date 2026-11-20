@@ -5,6 +5,7 @@ import com.muscat.messaging.event.DividendUpdatedEvent;
 import com.muscat.messaging.event.StockSplitEvent;
 import com.muscat.messaging.event.TradeRejectedEvent;
 import com.muscat.messaging.event.TradeSettledEvent;
+import com.muscat.messaging.event.UserDeletedEvent;
 import com.muscat.messaging.kafka.KafkaFactories;
 import com.muscat.trade.domain.event.DividendReconcileRequest;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -97,6 +98,17 @@ public class KafkaConsumerConfig {
   public ConcurrentKafkaListenerContainerFactory<String, TradeSettledEvent>
   tradeSettledEventKafkaListenerContainerFactory() {
     return KafkaFactories.manualAckContainer(tradeSettledEventConsumerFactory(), 1, kafkaErrorHandler());
+  }
+
+  @Bean
+  public ConsumerFactory<String, UserDeletedEvent> userDeletedEventConsumerFactory() {
+    return consumerFactory(UserDeletedEvent.class, "-user-deleted-consumer");
+  }
+
+  @Bean
+  public ConcurrentKafkaListenerContainerFactory<String, UserDeletedEvent>
+  userDeletedEventKafkaListenerContainerFactory() {
+    return KafkaFactories.manualAckContainer(userDeletedEventConsumerFactory(), 1, kafkaErrorHandler());
   }
 
   /**
