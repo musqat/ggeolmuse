@@ -4,6 +4,7 @@ package com.muscat.user.common.util;
 import com.muscat.user.common.exception.AuthenticationException;
 import com.muscat.user.common.exception.UserException;
 import com.muscat.user.common.enums.response.UserResponse;
+import com.muscat.user.common.enums.type.UserRole;
 import com.muscat.user.domain.user.entity.User;
 import com.muscat.user.domain.user.repository.UserRepository;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -23,20 +24,35 @@ public class AuthUtil {
 
   // 토큰 sub(Keycloak ID)로 찾은 사용자 id
   public Long requireUserId(Jwt jwt) {
-    if (jwt == null) {
-      throw new AuthenticationException(UserResponse.AUTHENTICATION_FAILED);
-    }
+    return requireUserId(subject(jwt));
+  }
 
-    String keycloakId = jwt.getSubject();
-    if (keycloakId == null || keycloakId.isBlank()) {
-      throw new AuthenticationException(UserResponse.USER_NOT_FOUND);
+  // 토큰 sub 로 찾은 사용자 가운데 DB 역할이 관리자인 사용자 id
+  public Long requireAdminId(Jwt jwt) {
+    User user = requireActiveUser(subject(jwt));
+    if (user.getRole() != UserRole.ADMIN) {
+      throw new UserException(UserResponse.ADMIN_ROLE_REQUIRED);
     }
-
-    return requireUserId(keycloakId);
+    return user.getId();
   }
 
   // Keycloak ID 로 찾은 활성 · 이메일 인증된 사용자 id
   public Long requireUserId(String keycloakId) {
+    return requireActiveUser(keycloakId).getId();
+  }
+
+  private static String subject(Jwt jwt) {
+    if (jwt == null) {
+      throw new AuthenticationException(UserResponse.AUTHENTICATION_FAILED);
+    }
+    String keycloakId = jwt.getSubject();
+    if (keycloakId == null || keycloakId.isBlank()) {
+      throw new AuthenticationException(UserResponse.USER_NOT_FOUND);
+    }
+    return keycloakId;
+  }
+
+  private User requireActiveUser(String keycloakId) {
     User user = userRepository.findByKeycloakId(keycloakId)
       .orElseThrow(() -> new UserException(UserResponse.USER_NOT_FOUND));
 
@@ -50,7 +66,7 @@ public class AuthUtil {
       throw new UserException(UserResponse.EMAIL_NOT_VERIFIED);
     }
 
-    return user.getId();
+    return user;
   }
 
 }

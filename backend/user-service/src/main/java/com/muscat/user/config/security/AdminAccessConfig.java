@@ -12,7 +12,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-// 관리자 API 는 토큰이 유효해도 정지되거나 DB 에 없는 사용자를 막음
+// 관리자 API 는 토큰이 유효해도 정지되거나 DB 에 없거나 DB 역할이 관리자가 아닌 사용자를 막음
 @Configuration
 @RequiredArgsConstructor
 public class AdminAccessConfig implements WebMvcConfigurer, HandlerInterceptor {
@@ -28,7 +28,7 @@ public class AdminAccessConfig implements WebMvcConfigurer, HandlerInterceptor {
   public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     if (authentication != null && authentication.getPrincipal() instanceof Jwt jwt) {
-      authUtil.requireUserId(jwt);
+      authUtil.requireAdminId(jwt);
     }
     return true;
   }

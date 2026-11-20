@@ -9,6 +9,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.muscat.user.common.enums.response.UserResponse;
+import com.muscat.user.common.enums.type.UserRole;
 import com.muscat.user.common.exception.AuthenticationException;
 import com.muscat.user.common.exception.UserException;
 import com.muscat.user.domain.user.entity.User;
@@ -93,5 +94,26 @@ class AuthUtilTest {
     assertThatThrownBy(() -> authUtil.requireUserId(jwt(b -> b.claim("email", "user@example.com"))))
       .isInstanceOfSatisfying(UserException.class,
         e -> assertThat(e.getCode()).isEqualTo(UserResponse.ACCOUNT_DISABLED));
+  }
+
+  @Test
+  @DisplayName("관리자 확인은 DB 역할로 하고, USER 면 ADMIN_ROLE_REQUIRED · 비활성 관리자면 ACCOUNT_DISABLED")
+  void requireAdminId_ByDbRole() {
+    User disabledAdmin = User.builder().id(9L).role(UserRole.ADMIN).emailVerified(true).build();
+    disabledAdmin.changeEnabledStatus(false);
+    given(userRepository.findByKeycloakId("kc-1"))
+      .willReturn(Optional.of(User.builder().id(7L).role(UserRole.ADMIN).emailVerified(true).build()));
+    given(userRepository.findByKeycloakId("kc-2"))
+      .willReturn(Optional.of(User.builder().id(8L).role(UserRole.USER).emailVerified(true).build()));
+    given(userRepository.findByKeycloakId("kc-3")).willReturn(Optional.of(disabledAdmin));
+
+    assertThat(authUtil.requireAdminId(jwt(b -> { }))).isEqualTo(7L);
+    assertThatThrownBy(() -> authUtil.requireAdminId(jwt(b -> b.subject("kc-2"))))
+      .isInstanceOfSatisfying(UserException.class,
+        e -> assertThat(e.getCode()).isEqualTo(UserResponse.ADMIN_ROLE_REQUIRED));
+    assertThatThrownBy(() -> authUtil.requireAdminId(jwt(b -> b.subject("kc-3"))))
+      .isInstanceOfSatisfying(UserException.class,
+        e -> assertThat(e.getCode()).isEqualTo(UserResponse.ACCOUNT_DISABLED));
+    assertThatThrownBy(() -> authUtil.requireAdminId(null)).isInstanceOf(AuthenticationException.class);
   }
 }

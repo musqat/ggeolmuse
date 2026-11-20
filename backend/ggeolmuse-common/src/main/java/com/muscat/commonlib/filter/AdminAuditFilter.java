@@ -38,7 +38,20 @@ public class AdminAuditFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
-    return !WRITE_METHODS.contains(request.getMethod()) || !request.getRequestURI().startsWith(ADMIN_PREFIX);
+    return !isAdminWrite(request);
+  }
+
+  // 보안 체인이 401 · 403 으로 막아 이 필터까지 오지 않은 관리자 쓰기 요청 한 줄
+  public static void logRejected(HttpServletRequest request, int status) {
+    if (isAdminWrite(request)) {
+      log.warn("관리자 요청: actor={} {} {} status={} 보안 체인에서 막음",
+        actor(SecurityContextHolder.getContext().getAuthentication()), request.getMethod(), request.getRequestURI(),
+        status);
+    }
+  }
+
+  private static boolean isAdminWrite(HttpServletRequest request) {
+    return WRITE_METHODS.contains(request.getMethod()) && request.getRequestURI().startsWith(ADMIN_PREFIX);
   }
 
   @Override

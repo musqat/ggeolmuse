@@ -1,5 +1,6 @@
 package com.muscat.marketdata.api.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
@@ -18,6 +19,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+import com.muscat.commonlib.filter.AdminAuditFilter;
 import com.muscat.marketdata.common.enums.response.MarketDataResponse;
 import com.muscat.marketdata.common.exception.GlobalExceptionHandler;
 import com.muscat.marketdata.common.exception.MarketDataException;
@@ -44,6 +49,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.data.domain.PageImpl;
@@ -500,5 +506,25 @@ class AdminMarketControllerWebTest {
 
       verify(fxCollectionService, never()).start(any());
     }
+  }
+
+  @Test
+  @DisplayName("보안 체인이 막은 관리자 쓰기 요청도 기록에 남긴다")
+  void rejectedWrite_Audited() throws Exception {
+    Logger logger = (Logger) LoggerFactory.getLogger(AdminAuditFilter.class);
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    logger.addAppender(appender);
+    try {
+      mockMvc.perform(post(BASE + "/assets/bulk-delete")).andExpect(status().isUnauthorized());
+      mockMvc.perform(post(BASE + "/assets/bulk-delete").header(HttpHeaders.AUTHORIZATION, "Bearer user-token"))
+        .andExpect(status().isForbidden());
+    } finally {
+      logger.detachAppender(appender);
+    }
+
+    assertThat(appender.list).extracting(ILoggingEvent::getFormattedMessage).containsExactly(
+      "관리자 요청: actor=anonymous POST /api/admin/market/assets/bulk-delete status=401 보안 체인에서 막음",
+      "관리자 요청: actor=user-1 POST /api/admin/market/assets/bulk-delete status=403 보안 체인에서 막음");
   }
 }

@@ -121,4 +121,18 @@ class AdminAuditFilterTest {
     assertThat(appender.list).singleElement()
       .satisfies(event -> assertThat(event.getFormattedMessage()).startsWith("관리자 요청: actor=anonymous POST"));
   }
+
+  @Test
+  @DisplayName("보안 체인이 막은 관리자 쓰기 요청은 경고 한 줄로 남기고, 조회 · 관리자 밖 경로는 남기지 않는다")
+  void logRejected_OnlyAdminWrites() {
+    AdminAuditFilter.logRejected(new MockHttpServletRequest("DELETE", "/api/admin/users/42"), 403);
+    AdminAuditFilter.logRejected(new MockHttpServletRequest("GET", "/api/admin/users"), 401);
+    AdminAuditFilter.logRejected(new MockHttpServletRequest("POST", "/api/trade/orders"), 401);
+
+    assertThat(appender.list).singleElement().satisfies(event -> {
+      assertThat(event.getLevel()).isEqualTo(Level.WARN);
+      assertThat(event.getFormattedMessage())
+        .isEqualTo("관리자 요청: actor=admin-1 DELETE /api/admin/users/42 status=403 보안 체인에서 막음");
+    });
+  }
 }

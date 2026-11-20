@@ -1,5 +1,7 @@
 package com.muscat.commonlib.security;
 
+import com.muscat.commonlib.filter.AdminAuditFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import java.util.stream.Stream;
 import org.springframework.context.ApplicationContext;
@@ -19,7 +21,11 @@ import org.springframework.security.oauth2.jwt.JwtClaimValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
+import org.springframework.security.oauth2.server.resource.web.access.BearerTokenAccessDeniedHandler;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 
 // 서블릿 서비스가 같이 쓰는 보안 설정 조각(서비스는 경로 규칙만 정함)
 public final class ServiceSecurity {
@@ -124,7 +130,27 @@ public final class ServiceSecurity {
       )
       .oauth2ResourceServer(oauth2 -> oauth2
         .jwt(jwt -> jwt.jwtAuthenticationConverter(converter))
+        .authenticationEntryPoint(auditedEntryPoint())
+        .accessDeniedHandler(auditedAccessDeniedHandler())
       );
     return http.build();
+  }
+
+  // Bearer 기본 401 응답 뒤 막힌 관리자 쓰기 요청을 기록하는 진입점
+  public static AuthenticationEntryPoint auditedEntryPoint() {
+    AuthenticationEntryPoint delegate = new BearerTokenAuthenticationEntryPoint();
+    return (request, response, exception) -> {
+      delegate.commence(request, response, exception);
+      AdminAuditFilter.logRejected(request, HttpServletResponse.SC_UNAUTHORIZED);
+    };
+  }
+
+  // Bearer 기본 403 응답 뒤 막힌 관리자 쓰기 요청을 기록하는 처리기
+  public static AccessDeniedHandler auditedAccessDeniedHandler() {
+    AccessDeniedHandler delegate = new BearerTokenAccessDeniedHandler();
+    return (request, response, exception) -> {
+      delegate.handle(request, response, exception);
+      AdminAuditFilter.logRejected(request, HttpServletResponse.SC_FORBIDDEN);
+    };
   }
 }
