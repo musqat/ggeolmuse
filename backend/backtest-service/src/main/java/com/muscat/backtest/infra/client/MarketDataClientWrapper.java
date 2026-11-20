@@ -116,8 +116,11 @@ public class MarketDataClientWrapper implements MarketDataPort {
     throw new BacktestException(BacktestResponse.MARKET_DATA_UNAVAILABLE, ex);
   }
 
-  // 4xx 는 장애가 아님(서비스 불가로 바꾸지 않고 그대로)
+  // 401 · 403 을 뺀 4xx 는 장애가 아님(서비스 불가로 바꾸지 않고 그대로, 401 · 403 은 서비스 토큰 문제)
   private static void rethrowClientError(Exception ex) {
+    if (ex instanceof FeignException.Unauthorized || ex instanceof FeignException.Forbidden) {
+      return;
+    }
     if (ex instanceof FeignException.FeignClientException clientError) {
       throw clientError;
     }
