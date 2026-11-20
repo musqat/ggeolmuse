@@ -107,6 +107,23 @@ async def test_failure_waits_5_seconds_before_requesting_again(market, clock):
 
 
 @respx.mock
+async def test_slow_failure_waits_5_seconds_from_when_it_failed(market, clock):
+    def slow_reject(request):
+        clock.now += 10
+        return httpx.Response(401)
+
+    token = respx.post(TOKEN_URL).mock(side_effect=[slow_reject, _token("t1")])
+    respx.get(f"{BASE}/api/internal/market/price/AAPL").mock(return_value=_price())
+
+    with pytest.raises(MarketUnavailable):
+        await market.quote("AAPL")
+    clock.now += 4
+    with pytest.raises(MarketUnavailable):
+        await market.quote("AAPL")
+    assert token.call_count == 1
+
+
+@respx.mock
 @pytest.mark.parametrize("response", [httpx.Response(401), httpx.Response(200, json={}), httpx.ConnectError("down")])
 async def test_token_failure_becomes_market_unavailable(market, response):
     route = respx.post(TOKEN_URL)

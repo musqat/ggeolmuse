@@ -100,12 +100,13 @@ class FeignConfigTest {
   }
 
   @Test
-  @DisplayName("서비스 토큰을 못 받으면 토큰 없이 보낸다")
-  void serviceTokenFailure_NoToken() {
+  @DisplayName("서비스 토큰을 못 받으면 내부 경로 호출을 토큰 없이 보내지 않고 그 오류를 낸다")
+  void serviceTokenFailure_NotSent() {
     given(serviceTokens.token()).willThrow(new IllegalStateException("keycloak down"));
+    RequestTemplate template = new RequestTemplate().uri("/api/internal/market/fx/latest");
 
-    RequestTemplate template = send("/api/internal/market/fx/latest");
-
+    assertThatThrownBy(() -> interceptor.apply(template)).isInstanceOf(IllegalStateException.class)
+      .hasMessage("keycloak down");
     assertThat(template.headers()).doesNotContainKey("Authorization");
   }
 }

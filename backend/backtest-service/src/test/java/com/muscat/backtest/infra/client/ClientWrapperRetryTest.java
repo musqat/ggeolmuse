@@ -27,6 +27,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.autoconfigure.aop.AopAutoConfiguration;
@@ -102,10 +103,28 @@ class ClientWrapperRetryTest {
     verify(marketClient, times(3)).getOHLCPrice("AAPL", "2024-09-16");
   }
 
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(ints = {401, 403})
+  @DisplayName("내부 호출이 401 · 403 이면 토큰 문제라 그대로 내지 않고 시세 서비스 사용 불가로 낸다")
+  void fxRate_AuthRejected_Unavailable(int status) {
+    given(marketClient.getFxRate("2024-09-16")).willThrow(clientError(status));
+
+    assertThatThrownBy(() -> marketWrapper.getFxRate("2024-09-16"))
+      .isInstanceOf(BacktestException.class)
+      .hasFieldOrPropertyWithValue("errorCode", "MARKET_DATA_UNAVAILABLE");
+  }
+
   @Test
   @DisplayName("기본 환율은 설정 값을 쓴다")
   void defaultFxRate_FromConfig() {
     assertThat(marketWrapper.defaultFxRate()).isEqualByComparingTo("1400");
+  }
+
+  private static FeignException clientError(int status) {
+    Request request = Request.create(Request.HttpMethod.GET, "/api/internal", Map.of(), null,
+      StandardCharsets.UTF_8, null);
+    return FeignException.errorStatus("ServiceClient#call",
+      Response.builder().status(status).reason("rejected").request(request).headers(Map.of()).build());
   }
 
   private static FeignException serverError() {

@@ -34,15 +34,15 @@ public class FeignConfig {
     return ServiceTokenProvider.fromEnvironment(environment);
   }
 
-  // 내부 경로는 서비스 토큰, 나머지 경로는 요청한 사용자의 토큰
+  // 내부 경로는 서비스 토큰(못 받으면 보내지 않고 그 오류), 나머지 경로는 요청한 사용자의 토큰
   @Bean
   public RequestInterceptor jwtTokenInterceptor(ServiceTokenProvider serviceTokenProvider) {
     return requestTemplate -> {
+      if (requestTemplate.path().startsWith(INTERNAL_PATH)) {
+        requestTemplate.header("Authorization", "Bearer " + serviceTokenProvider.token());
+        return;
+      }
       try {
-        if (requestTemplate.path().startsWith(INTERNAL_PATH)) {
-          requestTemplate.header("Authorization", "Bearer " + serviceTokenProvider.token());
-          return;
-        }
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof Jwt jwt) {
           String token = jwt.getTokenValue();

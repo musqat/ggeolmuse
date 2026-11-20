@@ -32,7 +32,7 @@ class Router:
         skills = "\n".join(f"- {s.name}: {s.description}" for s in self._skills.values())
         name = f" ({conversation.name})" if conversation.name else ""
         last = conversation.last_turn
-        previous = f"직전 스킬: {last.skill}\n직전 질문: {last.question}" if last else "직전 질문 없음"
+        previous = f"직전 스킬: {last.skill}" if last else "직전 질문 없음"
         system = (
             f"너는 주식 질문을 분류한다. 이 대화의 종목은 {conversation.symbol}{name}이다.\n"
             f"스킬 목록:\n{skills}\n{previous}\n"
@@ -41,7 +41,12 @@ class Router:
             f'{conversation.symbol} 이 아닌 다른 종목을 물으면 {{"skill": null, "reason": "other_symbol"}}\n'
             '시세 · 지표 · 배당과 관계없는 질문이면 {"skill": null, "reason": "off_topic"}'
         )
-        return [{"role": "system", "content": system}, {"role": "user", "content": question}]
+        # 직전 질문은 사용자 글이라 시스템 메시지 밖의 앞 대화로
+        history = [
+            {"role": "user", "content": last.question},
+            {"role": "assistant", "content": json.dumps({"skill": last.skill}, ensure_ascii=False)},
+        ] if last else []
+        return [{"role": "system", "content": system}, *history, {"role": "user", "content": question}]
 
     def _parse(self, text: str) -> tuple[Skill | None, str | None]:
         """JSON 이 아니거나 모르는 스킬이면 off_topic"""
