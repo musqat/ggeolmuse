@@ -5,18 +5,21 @@ import com.muscat.trade.domain.service.StockSplitService.Outcome;
 import com.muscat.trade.domain.service.StockSplitService.Split;
 import com.muscat.trade.infra.client.MarketServiceClientWrapper;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.core.LockConfiguration;
+import net.javacrumbs.shedlock.core.LockProvider;
+import net.javacrumbs.shedlock.core.SimpleLock;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +29,8 @@ import org.springframework.stereotype.Service;
 public class StockSplitBackfillService {
 
   static final String LOCK_NAME = "stock-split-backfill";
+  // 관리자 시작이 잡는 잠금의 최대 시간(정오 실행과 같음)
+  private static final Duration ADMIN_LOCK_AT_MOST = Duration.ofMinutes(30);
 
   private final TradeRepository tradeRepository;
   private final MarketServiceClientWrapper marketServiceClientWrapper;
@@ -33,23 +38,21 @@ public class StockSplitBackfillService {
   private final Executor executor;
   private final Clock clock;
   private final MeterRegistry meterRegistry;
+  private final LockProvider lockProvider;
   private final AtomicBoolean running = new AtomicBoolean();
   private volatile Result last;
 
-  // 관리자 시작도 @SchedulerLock 잠금을 거치는 자기 참조
-  @Lazy
-  @Autowired
-  private StockSplitBackfillService self;
-
   public StockSplitBackfillService(TradeRepository tradeRepository,
                                    MarketServiceClientWrapper marketServiceClientWrapper, StockSplitService stockSplitService,
-                                   @Qualifier("applicationTaskExecutor") Executor executor, Clock clock, MeterRegistry meterRegistry) {
+                                   @Qualifier("applicationTaskExecutor") Executor executor, Clock clock, MeterRegistry meterRegistry,
+                                   LockProvider lockProvider) {
     this.tradeRepository = tradeRepository;
     this.marketServiceClientWrapper = marketServiceClientWrapper;
     this.stockSplitService = stockSplitService;
     this.executor = executor;
     this.clock = clock;
     this.meterRegistry = meterRegistry;
+    this.lockProvider = lockProvider;
   }
 
   // changed 는 맞춘 체결 수, failed 는 분할 목록을 못 받았거나 반영이 실패한 종목 수, reconcileFailed 는 보내지 못한 배당 몫 재계산 요청 수
@@ -60,11 +63,24 @@ public class StockSplitBackfillService {
   public record Status(boolean running, Result last) {
   }
 
-  // 실행기로 시작(현재 파드에서 이미 진행 중이면 새로 넘기지 않음)
+  // 정오 실행과 같은 잠금을 먼저 잡고 실행기로 시작(이미 진행 중이면 넘기지 않음, 잠금이 잡혀 있으면 돌지 않음으로 답함)
   public Status start() {
-    if (!running.get()) {
-      executor.execute(self::run);
+    if (running.get()) {
+      return new Status(true, last);
     }
+    Optional<SimpleLock> lock = lockProvider.lock(
+      new LockConfiguration(clock.instant(), LOCK_NAME, ADMIN_LOCK_AT_MOST, Duration.ZERO));
+    if (lock.isEmpty()) {
+      log.info("지난 분할 백필 잠금이 잡혀 있어 관리자 시작을 넘기지 않음");
+      return new Status(false, last);
+    }
+    executor.execute(() -> {
+      try {
+        runOnce();
+      } finally {
+        lock.get().unlock();
+      }
+    });
     return new Status(true, last);
   }
 
@@ -76,6 +92,11 @@ public class StockSplitBackfillService {
   @Scheduled(cron = "${trade.split-backfill.cron:0 0 12 * * MON-FRI}", zone = "Asia/Seoul")
   @SchedulerLock(name = LOCK_NAME, lockAtMostFor = "30m", lockAtLeastFor = "1m")
   public void run() {
+    runOnce();
+  }
+
+  // 현재 파드에서 한 번(이미 진행 중이면 건너뜀)
+  private void runOnce() {
     if (!running.compareAndSet(false, true)) {
       return;
     }

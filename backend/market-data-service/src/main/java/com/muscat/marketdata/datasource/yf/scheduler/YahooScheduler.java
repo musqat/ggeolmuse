@@ -40,9 +40,9 @@ public class YahooScheduler {
   private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
   /**
-   * 캔들 · 배당 업데이트 - 매일 오전 7시 KST (평일)
+   * 캔들 · 배당 업데이트 - 평일 오전 7시 30분 KST
    */
-  @Scheduled(cron = "${yahoo.scheduler.candle.cron:0 0 7 * * MON-FRI}",
+  @Scheduled(cron = "${yahoo.scheduler.candle.cron:0 30 7 * * MON-FRI}",
     zone = "${yahoo.scheduler.zone:Asia/Seoul}")
   // 전 종목을 초당 10건으로 받으면 한 바퀴 25분 넘음
   @SchedulerLock(name = "yahooUpdateCandles", lockAtMostFor = "50m", lockAtLeastFor = "1m")

@@ -1,5 +1,6 @@
 package com.muscat.trade.domain.service.impl;
 
+import com.muscat.commonlib.dto.OHLCPriceDto;
 import com.muscat.commonlib.dto.StockPriceDto;
 import com.muscat.trade.common.constants.TradeConstants;
 import com.muscat.trade.common.enums.response.TradeResponse;
@@ -13,6 +14,7 @@ import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +38,8 @@ public class MarketDataServiceImpl implements MarketDataService {
 
   @Override
   public LocalDate resolveTradeDate(String symbol, LocalDate requested) {
-    if (requested.isAfter(LocalDate.now(clock.withZone(MARKET_ZONE)))) {
+    LocalDate today = LocalDate.now(clock.withZone(MARKET_ZONE));
+    if (requested.isAfter(today)) {
       throw failure(symbol, TRADE_DATE, "Future trade date: " + requested, TradeResponse.FUTURE_DATE_NOT_ALLOWED);
     }
     boolean weekend = isWeekend(requested);
@@ -48,12 +51,32 @@ public class MarketDataServiceImpl implements MarketDataService {
       if (fetch(TradeConstants.MARKET_REFERENCE_SYMBOL, date, TRADE_DATE).isPresent()) {
         throw failure(symbol, TRADE_DATE, "Market data not available", TradeResponse.PRICE_DATA_UNAVAILABLE);
       }
+      if (!referenceCollectedAfter(date, today)) {
+        throw failure(symbol, TRADE_DATE, "Market data not collected yet: " + date, TradeResponse.PRICE_DATA_UNAVAILABLE);
+      }
       if (!weekend) {
         throw failure(symbol, TRADE_DATE, "Market holiday: " + date, TradeResponse.HOLIDAY_TRADING_NOT_ALLOWED);
       }
       date = previousWeekday(date);
     }
     throw failure(symbol, TRADE_DATE, "No trading day before " + requested, TradeResponse.PRICE_DATA_UNAVAILABLE);
+  }
+
+  // 기준 종목이 그 날 뒤(오늘까지)에 시세가 있는지(있으면 그 날은 휴장, 없으면 아직 수집 전)
+  private boolean referenceCollectedAfter(LocalDate date, LocalDate today) {
+    if (!date.isBefore(today)) {
+      return false;
+    }
+    try {
+      List<OHLCPriceDto> after = marketServiceClientWrapper.getOHLCPriceRange(TradeConstants.MARKET_REFERENCE_SYMBOL,
+        date.plusDays(1).toString(), today.toString());
+      return after != null && !after.isEmpty();
+    } catch (TradeException e) {
+      throw e;
+    } catch (RuntimeException e) {
+      log.error("기준 종목 기간 시세 조회 실패: date={}, error={}", date, e.getMessage());
+      throw failure(TradeConstants.MARKET_REFERENCE_SYMBOL, TRADE_DATE, e.getMessage(), TradeResponse.MARKET_DATA_SERVICE_ERROR);
+    }
   }
 
   private static boolean isWeekend(LocalDate date) {
