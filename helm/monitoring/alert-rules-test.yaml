@@ -524,7 +524,7 @@ tests:
               category: collection
             exp_annotations:
               summary: "오늘 캔들 갱신 없음"
-              description: '평일 10시(KST)까지 오늘 7시 캔들 수집이 끝나지 않음 · market-data 로그의 "수집 완료" 줄 · Yahoo 응답 확인'
+              description: '평일 10시(KST)까지 오늘 7시 30분 캔들 수집이 끝나지 않음 · market-data 로그의 "수집 완료" 줄 · Yahoo 응답 확인'
               runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/helm/monitoring/RUNBOOK.md#candlecollectionmissing"
       # 토요일 11:00 KST
       - eval_time: 50h
@@ -554,6 +554,25 @@ tests:
       - eval_time: 26h
         alertname: CandleCollectionMissing
         exp_alerts: []
+
+  # 금요일 07:05 KST 에 EC2 와 함께 뜬 파드, 07:30 수집이 끝나지 않음
+  - interval: 2m
+    input_series:
+      - series: 'marketdata_collection_last_completed_seconds{job="market-data-service", instance="10.42.0.20:9090"}'
+        values: '1800x800'
+      - series: 'process_start_time_seconds{job="market-data-service", instance="10.42.0.20:9090"}'
+        values: '79500x800'
+    alert_rule_test:
+      - eval_time: 26h
+        alertname: CandleCollectionMissing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: collection
+            exp_annotations:
+              summary: "오늘 캔들 갱신 없음"
+              description: '평일 10시(KST)까지 오늘 7시 30분 캔들 수집이 끝나지 않음 · market-data 로그의 "수집 완료" 줄 · Yahoo 응답 확인'
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/helm/monitoring/RUNBOOK.md#candlecollectionmissing"
 
   # Redis · Kafka 브로커 응답 없음(exporter 값 0)
   - interval: 1m

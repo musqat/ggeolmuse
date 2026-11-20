@@ -196,9 +196,9 @@ userId 로 넣는다. 기록이 없으면 user-service 가 아직 그 체결을 
 
 ### CandleCollectionMissing
 
-평일 10시(KST)인데 그날 7시 캔들 수집의 완료 기록이 없다. market-data 가 1분 동안 처리한 종목 수가 그대로면 완료로
-보고 `marketdata_collection_last_completed_seconds` 에 그 시각을 남긴다. 7시 뒤에 다시 뜬 파드는 그 전 수집을 알 수
-없어 보지 않는다.
+평일 10시(KST)인데 그날 7시 30분 캔들 수집의 완료 기록이 없다. market-data 가 1분 동안 처리한 종목 수가 그대로면 완료로
+보고 `marketdata_collection_last_completed_seconds` 에 그 시각을 남긴다. 7시 30분 뒤에 다시 뜬 파드는 그 전 수집을
+알 수 없어 보지 않는다(EC2 가 07:00 에 켜져 07:05 무렵 뜬 파드는 본다).
 
 ```bash
 kubectl logs deploy/market-data-service --since=4h | grep -E "YF 스케줄러|수집 (진행|완료)"
