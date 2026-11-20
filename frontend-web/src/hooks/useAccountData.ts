@@ -18,6 +18,8 @@ interface UseAccountDataReturn {
   cashKrw: number;
   // 현금 + 주식 평가액(원화)
   totalAssets: number;
+  // 주식 평가액(포트폴리오 요약)을 못 받아 총자산이 현금만인지
+  stocksUnavailable: boolean;
   // 계좌 하나의 현금 + 그 계좌 보유 평가액(원화)
   assetsOf: (accountId: number) => number;
   loading: boolean;
@@ -107,6 +109,7 @@ export const useAccountData = (isAuthenticated: boolean): UseAccountDataReturn =
         accounts: accountList,
         accountBalances: balanceMap,
         portfolioSummary,
+        stocksUnavailable: portfolioSummary === null,
         currentExchangeRate: exchangeRate
       };
     },
@@ -125,6 +128,7 @@ export const useAccountData = (isAuthenticated: boolean): UseAccountDataReturn =
     currentExchangeRate,
     cashKrw: calculateCash(accountBalances, currentExchangeRate),
     totalAssets: calculateTotalAssets(accountBalances, portfolioSummary, currentExchangeRate),
+    stocksUnavailable: data?.stocksUnavailable ?? false,
     assetsOf: (accountId) => calculateAccountAssets(accountId, accountBalances, portfolioSummary, currentExchangeRate),
     loading,
     error: queryError ? '계좌 정보를 불러오는데 실패했습니다.' : null,

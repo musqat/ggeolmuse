@@ -55,6 +55,7 @@ describe('useAccountData 총자산', () => {
     const { result } = renderHook(() => useAccountData(true), { wrapper })
 
     await waitFor(() => expect(result.current.totalAssets).toBe(1_905_000))
+    expect(result.current.stocksUnavailable).toBe(false)
     expect(portfolioApi.getPortfolio).not.toHaveBeenCalled()
     expect(portfolioApi.getPortfolioSummary).toHaveBeenCalledTimes(1)
     expect(portfolioApi.getPortfolioSummary).toHaveBeenCalledWith()
@@ -81,6 +82,7 @@ describe('useAccountData 총자산', () => {
     const { result } = renderHook(() => useAccountData(true), { wrapper })
 
     await waitFor(() => expect(result.current.totalAssets).toBe(1_635_000))
+    expect(result.current.stocksUnavailable).toBe(true)
   })
 
   it('로그인 전이면 계좌를 묻지 않고 총자산은 0 이다', () => {
