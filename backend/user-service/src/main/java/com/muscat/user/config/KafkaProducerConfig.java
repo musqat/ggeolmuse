@@ -4,6 +4,7 @@ import com.muscat.messaging.event.AccountDeletedEvent;
 import com.muscat.messaging.event.EmailSendEvent;
 import com.muscat.messaging.event.TradeRejectedEvent;
 import com.muscat.messaging.event.TradeSettledEvent;
+import com.muscat.messaging.event.UserDeletedEvent;
 import com.muscat.messaging.kafka.KafkaFactories;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.Map;
@@ -63,6 +64,16 @@ public class KafkaProducerConfig {
   @Bean
   public KafkaTemplate<String, TradeSettledEvent> tradeSettledKafkaTemplate() {
     return new KafkaTemplate<>(tradeSettledEventProducerFactory());
+  }
+
+  @Bean
+  public ProducerFactory<String, UserDeletedEvent> userDeletedEventProducerFactory() {
+    return KafkaFactories.producerFactory(fastFailProps(), meterRegistry);
+  }
+
+  @Bean
+  public KafkaTemplate<String, UserDeletedEvent> userDeletedKafkaTemplate() {
+    return new KafkaTemplate<>(userDeletedEventProducerFactory());
   }
 
   private Map<String, Object> gzipProps() {

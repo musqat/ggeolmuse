@@ -94,6 +94,9 @@ class UserServiceImplTest {
   @Mock
   private com.muscat.user.infra.kafka.AccountEventProducer accountEventProducer;
 
+  @Mock
+  private com.muscat.user.domain.user.service.UserDeletionCleaner userDeletionCleaner;
+
   @org.mockito.Spy
   private org.springframework.transaction.support.TransactionTemplate transactionTemplate =
     new org.springframework.transaction.support.TransactionTemplate(
@@ -673,15 +676,15 @@ class UserServiceImplTest {
       given(userRepository.findByKeycloakIdWithAccounts(keycloakId)).willReturn(Optional.of(testUser));
       given(passwordEncoder.matches(testPassword, testUser.getPasswordHash())).willReturn(true);
       given(accountRepository.findByUserIdWithLock(testUser.getId())).willReturn(new ArrayList<>());
-      doNothing().when(keycloakService).deleteUser(keycloakId);
-
       // when
       userService.deleteAccount(keycloakId, testPassword, null);
 
       // then
       verify(emailTokenRepository).deleteByUser(testUser);
-      verify(keycloakService).deleteUser(keycloakId);
       verify(userRepository).delete(testUser);
+      verify(userDeletionCleaner).record(keycloakId);
+      verify(userDeletionCleaner).cleanUp(keycloakId);
+      verify(keycloakService, never()).deleteUser(any());
     }
 
     @Test
@@ -759,23 +762,20 @@ class UserServiceImplTest {
     }
 
     @Test
-    @DisplayName("Keycloak 삭제 실패 시에도 로컬 계정은 삭제된다")
-    void deleteAccount_KeycloakDeleteFailure_StillDeletesLocal() {
-      // given
+    @DisplayName("탈퇴 기록은 로컬 삭제와 같은 트랜잭션에서 남기고, 정리는 커밋 뒤에 한다")
+    void deleteAccount_RecordsInTransactionAndCleansUpAfter() {
       testUser.setPasswordHash("$2a$10$encodedPassword");
       testUser.setAccounts(new ArrayList<>());
-
       given(userRepository.findByKeycloakIdWithAccounts(keycloakId)).willReturn(Optional.of(testUser));
       given(passwordEncoder.matches(testPassword, testUser.getPasswordHash())).willReturn(true);
       given(accountRepository.findByUserIdWithLock(testUser.getId())).willReturn(new ArrayList<>());
-      doThrow(new RuntimeException("Keycloak unavailable"))
-        .when(keycloakService).deleteUser(keycloakId);
 
-      // when
       userService.deleteAccount(keycloakId, testPassword, null);
 
-      // then
-      verify(userRepository).delete(testUser);
+      org.mockito.InOrder order = org.mockito.Mockito.inOrder(userRepository, userDeletionCleaner);
+      order.verify(userRepository).delete(testUser);
+      order.verify(userDeletionCleaner).record(keycloakId);
+      order.verify(userDeletionCleaner).cleanUp(keycloakId);
     }
   }
 
@@ -1331,7 +1331,6 @@ class UserServiceImplTest {
       willDoNothing().given(emailTokenRepository).deleteByUser(testUser);
       willDoNothing().given(passwordResetTokenRepository).deleteByUser(testUser);
       willDoNothing().given(accountRepository).deleteAll(any());
-      willDoNothing().given(keycloakService).deleteUser(keycloakId);
       willDoNothing().given(userRepository).delete(testUser);
 
       // when
@@ -1342,7 +1341,9 @@ class UserServiceImplTest {
       verify(passwordResetTokenRepository).deleteByUser(testUser);
       verify(accountRepository).findByUserIdWithLock(userId);
       verify(accountEventProducer).publishAccountDeleted(account, "회원 탈퇴");
-      verify(keycloakService).deleteUser(keycloakId);
+      verify(userDeletionCleaner).record(keycloakId);
+      verify(userDeletionCleaner).cleanUp(keycloakId);
+      verify(keycloakService, never()).deleteUser(any());
       verify(userRepository).delete(testUser);
     }
   }

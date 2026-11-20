@@ -60,6 +60,7 @@ spec:
               user.email.send                     3      604800000
               user.trade.rejected                 3      2592000000
               user.trade.settled                  3      2592000000
+              user.deleted                        3      2592000000
 
               # 구독하는 토픽마다 하나씩, DeadLetterPublishingRecoverer 가 보내는 곳
               trading.trade.completed.DLT         3      2592000000
@@ -72,6 +73,7 @@ spec:
               user.email.send.DLT                 3      2592000000
               user.trade.rejected.DLT             3      2592000000
               user.trade.settled.DLT              3      2592000000
+              user.deleted.DLT                    3      2592000000
 
               '
               echo "$TOPICS" > /tmp/topics.txt
