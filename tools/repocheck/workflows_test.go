@@ -194,3 +194,25 @@ func TestReleaseStartsOnlyFromCIOrByHand(t *testing.T) {
 func TestToolsJobChecksErrorCodes(t *testing.T) {
 	mustContain(t, "tools 잡", job(t, workflow(t, "ci.yml"), "tools"), "go run ./cmd/error-codes ../backend")
 }
+
+// 수동 릴리스는 실행 결론 말고 필수 검사 잡(ci-result · E2E) 결론으로 최신 master 커밋을 고름(릴리스 잡만 실패한 머지를 건너뛰지 않게)
+func TestManualReleasePicksCommitByRequiredCheckJobs(t *testing.T) {
+	plan := job(t, workflow(t, "release.yml"), "plan")
+	mustContain(t, "release.yml plan", plan, `.name == "ci-result"`, `.name == "E2E"`)
+	if strings.Contains(plan, "status=success") {
+		t.Errorf("release.yml plan 이 아직 실행 결론(status=success)으로 커밋을 고름")
+	}
+}
+
+// release-plan 이 실패하면 tee 로 가려지지 않게 파이프 실패를 보는 셸
+func TestReleaseCheckPlanFailureIsNotMasked(t *testing.T) {
+	mustContain(t, "ci.yml release-check", job(t, workflow(t, "ci.yml"), "release-check"), "shell: bash")
+}
+
+// 릴리스 · 주간 운영 이미지 스캔은 리포트가 없으면(설치 · DB 받기 실패) 통과로 넘기지 않음
+func TestReleaseAndWeeklyScansRequireReport(t *testing.T) {
+	mustContain(t, "release.yml build", job(t, workflow(t, "release.yml"), "build"), "require-report: 'true'")
+	mustContain(t, "security.yml", workflow(t, "security.yml"), "require-report: 'true'")
+	action := readRepoFile(t, ".github/actions/trivy-image-scan/action.yml")
+	mustContain(t, "trivy-image-scan", action, "require-report:", "inputs.require-report")
+}
