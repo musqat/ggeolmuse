@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
@@ -83,5 +84,27 @@ class HoldingsAdminControllerTest {
 
     assertThat(appender.list).singleElement().satisfies(event -> assertThat(event.getFormattedMessage())
       .startsWith("관리자 요청: actor=admin-1 POST /api/admin/trade/holdings/rebuild status=200"));
+  }
+
+  @Test
+  @DisplayName("보안 체인이 401 · 403 으로 막은 관리자 쓰기 요청도 행위자 · 응답 코드와 같이 경고로 남긴다")
+  void rejected_Audited() throws Exception {
+    Logger logger = (Logger) LoggerFactory.getLogger(AdminAuditFilter.class);
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    logger.addAppender(appender);
+    try {
+      mockMvc.perform(post(BASE + "/rebuild")).andExpect(status().isUnauthorized());
+      mockMvc.perform(post(BASE + "/rebuild").with(jwt().jwt(token -> token.subject("user-1"))))
+        .andExpect(status().isForbidden());
+    } finally {
+      logger.detachAppender(appender);
+    }
+
+    assertThat(appender.list).extracting(ILoggingEvent::getFormattedMessage).containsExactly(
+      "관리자 요청: actor=anonymous POST /api/admin/trade/holdings/rebuild status=401 보안 체인에서 막음",
+      "관리자 요청: actor=user-1 POST /api/admin/trade/holdings/rebuild status=403 보안 체인에서 막음");
+    assertThat(appender.list).allSatisfy(event -> assertThat(event.getLevel()).isEqualTo(Level.WARN));
+    verifyNoInteractions(holdingsBackfillService);
   }
 }

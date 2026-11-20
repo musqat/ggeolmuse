@@ -164,17 +164,17 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 ## 테스트
 
-백엔드 **3,038 개**, 프론트 **1,764 개**, E2E **72 개**.
+백엔드 **3,045 개**, 프론트 **1,764 개**, E2E **72 개**.
 
 | 서비스 | 테스트 |
 |---|---|
-| market-data-service | 621 |
-| user-service | 482 |
+| market-data-service | 622 |
+| user-service | 486 |
 | backtest-service | 1,119 |
-| trade-service | 488 |
+| trade-service | 489 |
 | gateway-server | 50 |
 | config-server | 5 |
-| ggeolmuse-common | 73 |
+| ggeolmuse-common | 74 |
 | messaging | 26 |
 | chat-service | 174 |
 | frontend-web | 1,764 |
@@ -288,6 +288,7 @@ user · trade · market-data · backtest 도 같은 허용 목록으로 다시 �
 서비스 클라이언트로 받은 토큰(realm 역할 `service`)만 받는다. access token 은 15분이다. refresh token 은 httpOnly 쿠키로 주고,
 재발급할 때마다 새것으로 바꿔 옛것은 다시 쓰지 못한다.
 게이트웨이와 서비스는 가입 뒤 이메일 인증 전인 사용자의 토큰(`email_verified` 가 false)을 받지 않는다.
+user-service 관리자 API 는 토큰의 admin 권한과 함께 DB 역할 · 정지 여부를 보아, 역할을 내리거나 정지한 사용자는 남은 토큰으로도 쓰지 못한다.
 
 **요청 상한** — 게이트웨이가 Redis 토큰 버킷으로 경로마다 상한을 둔다. 시세 조회는 초당 200, 백테스트는 요청 하나에 토큰 10개라 초당 50,
 로그인 · 비밀번호 찾기는 10초에 한 번꼴(연속 세 번)이다. 버킷은 Cloudflare 가 넣은 실 클라이언트 IP(`CF-Connecting-IP`)와 경로로 나눈다.
@@ -296,7 +297,7 @@ EC2 는 Cloudflare 대역에서 온 요청만 받아서 밖에서 이 헤더를 
 [같은 문서](docs/problem-solving.md#레이트-리밋-버킷이-운영에서는-여전히-하나였다) 에 있다.
 
 **응답 · 로그** — 로그인 실패는 가입 여부와 상관없이 같은 401 이다([가입 여부 노출](docs/problem-solving.md#로그인-응답이-가입-여부를-드러냈다)).
-로그의 이메일은 가린다. 관리자 쓰기 요청은 토큰 사용자(sub) · 메서드 · 경로 · 응답 코드를 한 줄로 남긴다(실패는 경고).
+로그의 이메일은 가린다. 관리자 쓰기 요청은 토큰 사용자(sub) · 메서드 · 경로 · 응답 코드를 한 줄로 남긴다(실패와 보안 체인이 401 · 403 으로 막은 요청은 경고).
 
 **브라우저** — nginx 가 CSP · X-Frame-Options · X-Content-Type-Options(nosniff) · Referrer-Policy 를 응답에 넣는다.
 
