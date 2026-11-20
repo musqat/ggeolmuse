@@ -276,11 +276,24 @@ class AdminUserControllerTest {
   @Test
   @DisplayName("정지된 관리자는 토큰이 유효해도 관리자 API 를 쓰지 못한다")
   void disabledAdmin_Forbidden() throws Exception {
-    willThrow(new UserException(UserResponse.ACCOUNT_DISABLED)).given(authUtil).requireUserId(any(Jwt.class));
+    willThrow(new UserException(UserResponse.ACCOUNT_DISABLED)).given(authUtil).requireAdminId(any(Jwt.class));
 
     mockMvc.perform(get(BASE + "/stats").with(admin())).andExpect(status().isForbidden());
 
     verify(userService, never()).countTotalUsers();
+  }
+
+  @Test
+  @DisplayName("관리자에서 내린 사용자는 토큰에 admin 권한이 남아 있어도 403 ADMIN_ROLE_REQUIRED 이다")
+  void demotedAdmin_Forbidden() throws Exception {
+    willThrow(new UserException(UserResponse.ADMIN_ROLE_REQUIRED)).given(authUtil).requireAdminId(any(Jwt.class));
+
+    mockMvc.perform(patch(BASE + "/" + USER_ID + "/role").with(admin()).contentType(MediaType.APPLICATION_JSON)
+        .content("{\"role\":\"ADMIN\"}"))
+      .andExpect(status().isForbidden())
+      .andExpect(jsonPath("$.errorCode").value("ADMIN_ROLE_REQUIRED"));
+
+    verify(userService, never()).updateUserRole(anyLong(), any(), any());
   }
 
   @Test

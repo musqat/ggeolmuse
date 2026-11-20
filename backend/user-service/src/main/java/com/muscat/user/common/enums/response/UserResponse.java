@@ -27,6 +27,7 @@ public enum UserResponse implements ErrorCode {
   REAUTH_REQUIRED("보안을 위해 다시 로그인한 뒤 탈퇴할 수 있습니다.", HttpStatus.FORBIDDEN),
   // 403(401 이면 프론트가 토큰을 갱신해 다시 보냄)
   ACCOUNT_DISABLED("비활성화된 계정입니다.", HttpStatus.FORBIDDEN),
+  ADMIN_ROLE_REQUIRED("관리자 권한이 없습니다.", HttpStatus.FORBIDDEN),
 
   // 404 Not Found
   USER_NOT_FOUND("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
