@@ -1,6 +1,7 @@
 package com.muscat.trade.infra.client;
 
 import com.muscat.trade.infra.client.dto.AccountBalanceDto;
+import com.muscat.trade.infra.client.dto.AdminRoleDto;
 import com.muscat.trade.infra.client.dto.DividendSettlementPageDto;
 import com.muscat.trade.infra.client.dto.ExchangeRecordDto;
 import java.util.List;
@@ -24,4 +25,8 @@ public interface UserServiceClient {
   // 받은 Keycloak ID 사용자의 모든 계좌 환전 기록(오래된 것부터, 서비스 토큰)
   @GetMapping("/api/internal/accounts/exchanges")
   List<ExchangeRecordDto> getExchangeRecords(@RequestParam("keycloakId") String keycloakId);
+
+  // 받은 Keycloak ID 사용자가 활성 관리자인지(서비스 토큰)
+  @GetMapping("/api/internal/users/admin-role")
+  AdminRoleDto getAdminRole(@RequestParam("keycloakId") String keycloakId);
 }

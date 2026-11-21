@@ -16,6 +16,13 @@ spring:
       uri: ${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}
       username: ${CONFIG_SERVER_USERNAME:config}
       password: ${CONFIG_SERVER_PASSWORD}
+    openfeign:
+      client:
+        config:
+          # 관리자 요청마다 묻는 관리자 역할(밀리초)
+          user-service:
+            connect-timeout: 1000
+            read-timeout: 5000
 
 server:
   port: 8083

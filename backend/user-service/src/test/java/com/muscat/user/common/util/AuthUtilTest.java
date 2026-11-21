@@ -116,4 +116,25 @@ class AuthUtilTest {
         e -> assertThat(e.getCode()).isEqualTo(UserResponse.ACCOUNT_DISABLED));
     assertThatThrownBy(() -> authUtil.requireAdminId(null)).isInstanceOf(AuthenticationException.class);
   }
+
+  @Test
+  @DisplayName("다른 서비스가 묻는 관리자 여부는 활성 · 이메일 인증 · DB 역할 ADMIN 일 때만 참이고 예외를 던지지 않는다")
+  void isActiveAdmin_OnlyActiveVerifiedAdmin() {
+    User disabledAdmin = User.builder().id(9L).role(UserRole.ADMIN).emailVerified(true).build();
+    disabledAdmin.changeEnabledStatus(false);
+    given(userRepository.findByKeycloakId("kc-1"))
+      .willReturn(Optional.of(User.builder().id(7L).role(UserRole.ADMIN).emailVerified(true).build()));
+    given(userRepository.findByKeycloakId("kc-2"))
+      .willReturn(Optional.of(User.builder().id(8L).role(UserRole.USER).emailVerified(true).build()));
+    given(userRepository.findByKeycloakId("kc-3")).willReturn(Optional.of(disabledAdmin));
+    given(userRepository.findByKeycloakId("kc-4"))
+      .willReturn(Optional.of(User.builder().id(10L).role(UserRole.ADMIN).emailVerified(false).build()));
+    given(userRepository.findByKeycloakId("kc-5")).willReturn(Optional.empty());
+
+    assertThat(authUtil.isActiveAdmin("kc-1")).isTrue();
+    assertThat(authUtil.isActiveAdmin("kc-2")).isFalse();
+    assertThat(authUtil.isActiveAdmin("kc-3")).isFalse();
+    assertThat(authUtil.isActiveAdmin("kc-4")).isFalse();
+    assertThat(authUtil.isActiveAdmin("kc-5")).isFalse();
+  }
 }

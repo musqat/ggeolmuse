@@ -5,7 +5,7 @@ import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
 /**
- * 서비스 공통 오류 코드(요청 형식 · 금액 검사 · 서비스 토큰 · 예상하지 못한 오류)
+ * 서비스 공통 오류 코드(요청 형식 · 금액 검사 · 서비스 토큰 · 관리자 역할 · 예상하지 못한 오류)
  */
 @Getter
 @AllArgsConstructor
@@ -30,6 +30,10 @@ public enum CommonResponse implements ErrorCode {
   // 서비스 간 호출 토큰
   SERVICE_TOKEN_MISSING("서비스 토큰 응답에 access_token 이 없습니다", HttpStatus.SERVICE_UNAVAILABLE),
   SERVICE_TOKEN_RETRY_WAIT("서비스 토큰 받기에 실패해 다시 받기를 기다리는 중입니다", HttpStatus.SERVICE_UNAVAILABLE),
+
+  // 관리자 역할 확인
+  ADMIN_ROLE_REQUIRED("관리자 권한이 없습니다", HttpStatus.FORBIDDEN),
+  ADMIN_ROLE_UNAVAILABLE("관리자 역할을 확인할 수 없습니다. 잠시 후 다시 시도해 주세요", HttpStatus.SERVICE_UNAVAILABLE),
 
   // 해시
   HASH_UNAVAILABLE("SHA-256 해시를 만들 수 없습니다", HttpStatus.INTERNAL_SERVER_ERROR),

@@ -3,6 +3,7 @@ package com.muscat.marketdata.api.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willReturn;
@@ -26,6 +27,7 @@ import com.muscat.commonlib.filter.AdminAuditFilter;
 import com.muscat.marketdata.common.enums.response.MarketDataResponse;
 import com.muscat.marketdata.common.exception.GlobalExceptionHandler;
 import com.muscat.marketdata.common.exception.MarketDataException;
+import com.muscat.marketdata.config.security.AdminAccessConfig;
 import com.muscat.marketdata.config.security.SecurityConfig;
 import com.muscat.marketdata.datasource.yf.collector.SymbolCollector;
 import com.muscat.marketdata.domain.dto.AssetSummaryDto;
@@ -36,6 +38,8 @@ import com.muscat.marketdata.domain.service.AssetService;
 import com.muscat.marketdata.domain.service.CandleRefreshService;
 import com.muscat.marketdata.domain.service.FxCollectionService;
 import com.muscat.marketdata.domain.service.UnadjustedScanService;
+import com.muscat.marketdata.infra.client.UserServiceClient;
+import com.muscat.marketdata.infra.client.dto.AdminRoleDto;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -69,7 +73,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 // 관리자 경로는 Keycloak realm 역할 admin 이 권한 admin 으로 바뀐 토큰만(실제 보안 설정 · 변환기)
 @WebMvcTest(AdminMarketController.class)
-@ContextConfiguration(classes = {AdminMarketController.class, GlobalExceptionHandler.class, SecurityConfig.class})
+@ContextConfiguration(classes = {AdminMarketController.class, GlobalExceptionHandler.class, SecurityConfig.class,
+  AdminAccessConfig.class})
 @ActiveProfiles("test")
 @DisplayName("AdminMarketController 관리자 API")
 class AdminMarketControllerWebTest {
@@ -103,10 +108,18 @@ class AdminMarketControllerWebTest {
   @MockitoBean
   private JwtDecoder jwtDecoder;
 
+  @MockitoBean
+  private UserServiceClient userServiceClient;
+
   @BeforeEach
   void decodeTokens() {
     given(jwtDecoder.decode("admin-token")).willReturn(token("admin-token", "admin"));
     given(jwtDecoder.decode("user-token")).willReturn(token("user-token", "user"));
+  }
+
+  @BeforeEach
+  void activeAdmin() {
+    given(userServiceClient.getAdminRole(anyString())).willReturn(new AdminRoleDto(true));
   }
 
   // 실행기가 받은 일을 요청 안에서 바로 실행
@@ -143,6 +156,18 @@ class AdminMarketControllerWebTest {
       .header(HttpHeaders.AUTHORIZATION, "Bearer user-token")).andExpect(status().isForbidden());
 
     verify(assetService, never()).searchSymbols("Apple");
+  }
+
+  @Test
+  @DisplayName("토큰에 admin 역할이 남아 있어도 user-service 가 관리자가 아니라고 하면 403 ADMIN_ROLE_REQUIRED, 서비스 호출 없음")
+  void demotedAdmin_Rejected() throws Exception {
+    given(userServiceClient.getAdminRole("user-1")).willReturn(new AdminRoleDto(false));
+
+    asAdmin(delete(BASE + "/assets/AAPL"))
+      .andExpect(status().isForbidden())
+      .andExpect(jsonPath("$.errorCode").value("ADMIN_ROLE_REQUIRED"));
+
+    verifyNoInteractions(assetService);
   }
 
   @ParameterizedTest

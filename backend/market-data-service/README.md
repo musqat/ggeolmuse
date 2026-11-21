@@ -14,7 +14,7 @@
 - 데이터 소스 이원화 (Alpha Vantage, Yahoo Finance 전환 가능)
 - 시세 조회 캐싱 (일자 단위)
 
-**의존 서비스:** Alpha Vantage, Yahoo Finance
+**의존 서비스:** Alpha Vantage, Yahoo Finance, User Service (관리자 역할 내부 API, 서비스 토큰), Keycloak (서비스 토큰 발급)
 
 상장 목록은 AlphaVantage LISTING_STATUS 를 쓴다. 시세 출처와 무관해서
 `datasource/common` 에 뒀다.
