@@ -64,6 +64,10 @@ test('origin 에 못 닿으면 안내를, 앱이 낸 5xx 는 그대로 준다', 
   globalThis.fetch = async () => new Response('', { status: 522 });
   assert.match(await (await worker.fetch(new Request('https://ggeolmuse.com/'))).text(), /<h1>/);
 
+  // Tunnel 이 꺼졌을 때(cloudflared 연결 없음, 오류 1033)
+  globalThis.fetch = async () => new Response('', { status: 530 });
+  assert.match(await (await worker.fetch(new Request('https://ggeolmuse.com/'))).text(), /<h1>/);
+
   globalThis.fetch = async () => new Response('앱 오류', { status: 500 });
   const passed = await worker.fetch(new Request('https://ggeolmuse.com/api/x'));
   assert.equal(passed.status, 500);

@@ -25,6 +25,11 @@ run "cluster" {
     condition     = toset(keys(module.k8s_cluster.node_ids)) == toset(["control-plane", "worker-a", "worker-b"])
     error_message = "노드는 컨트롤 플레인 1 · large 워커 둘"
   }
+
+  assert {
+    condition     = contains(var.node_secret_names, "ggeolmuse/cloudflared") && !contains(var.node_secret_names, "ggeolmuse/origin-tls")
+    error_message = "노드 역할이 읽는 시크릿은 앱 값 · Tunnel 자격(원본 인증서는 Tunnel 이라 안 씀)"
+  }
 }
 
 run "subnet_required" {

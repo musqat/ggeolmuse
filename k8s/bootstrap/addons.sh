@@ -45,13 +45,15 @@ echo "metrics-server ${METRICS_SERVER_CHART}"
 helm upgrade --install metrics-server metrics-server/metrics-server --version "$METRICS_SERVER_CHART" \
   -n kube-system --set 'args={--kubelet-insecure-tls}' --wait
 
-echo "Envoy Gateway ${ENVOY_GATEWAY_VERSION}"
-# Gateway API CRD 를 같이 깖, Envoy 파드 · 노드 포트는 앱 차트의 Gateway 가 정함
-helm upgrade --install eg oci://docker.io/envoyproxy/gateway-helm --version "$ENVOY_GATEWAY_VERSION" \
-  -n envoy-gateway-system --create-namespace --wait
-kubectl apply -f "$root/k8s/addons/gatewayclass.yaml"
-
-[ "$profile" = kind ] && exit 0
+# kind 만 Envoy Gateway 로 들어옴(AWS 는 앱 차트의 cloudflared 가 Cloudflare Tunnel 로)
+if [ "$profile" = kind ]; then
+  echo "Envoy Gateway ${ENVOY_GATEWAY_VERSION}"
+  # Gateway API CRD 를 같이 깖, Envoy 파드 · 노드 포트는 앱 차트의 Gateway 가 정함
+  helm upgrade --install eg oci://docker.io/envoyproxy/gateway-helm --version "$ENVOY_GATEWAY_VERSION" \
+    -n envoy-gateway-system --create-namespace --wait
+  kubectl apply -f "$root/k8s/addons/gatewayclass.yaml"
+  exit 0
+fi
 
 echo "EBS CSI ${AWS_EBS_CSI_CHART}"
 helm upgrade --install aws-ebs-csi-driver aws-ebs-csi-driver/aws-ebs-csi-driver --version "$AWS_EBS_CSI_CHART" \

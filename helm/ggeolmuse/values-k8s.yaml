@@ -48,8 +48,15 @@ services:
 frontend:
   replicaCount: 2
 
-# 외부 진입은 Gateway API(컨트롤러는 Envoy Gateway)
+# 외부 진입은 Cloudflare Tunnel(cloudflared 가 아래 hosts · subdomains 규칙으로 서비스에 바로). kind 는 같은 규칙을 Gateway API 로
+cloudflared:
+  enabled: true
+  tunnelId: fd0c287c-c332-4d29-b56c-503aaba1122a
+
 ingress:
+  enabled: false
+  originTls:
+    enabled: false
   kind: Gateway
   className: envoy
   gateway:

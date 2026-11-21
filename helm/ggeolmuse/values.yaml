@@ -102,6 +102,24 @@ ingress:
     httpNodePort: 30080
     httpsNodePort: 30443
 
+# Cloudflare Tunnel(멀티 노드 진입, 경로 규칙은 ingress.hosts · subdomains 를 그대로 씀)
+cloudflared:
+  enabled: false
+  image: cloudflare/cloudflared:2026.10.7@sha256:4955524aeaa379e154023d5a027c250f7b35041a2e7e950cf13f144bc9b9c5ba
+  replicas: 2
+  # Cloudflare 대시보드에서 만든 Tunnel 의 ID(도메인 CNAME <id>.cfargotunnel.com 에 드러나는 값)
+  tunnelId: ""
+  # Tunnel 자격 JSON 을 값으로 둔 Secrets Manager 시크릿
+  secretsManagerKey: ggeolmuse/cloudflared
+  metricsPort: 2000
+  resources:
+    requests:
+      cpu: 10m
+      memory: 48Mi
+    limits:
+      cpu: 500m
+      memory: 128Mi
+
 # 인프라
 infrastructure:
   redis:

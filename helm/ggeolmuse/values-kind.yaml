@@ -37,8 +37,12 @@ services:
     env:
       SYMBOL_COLLECTION_ENABLED: "false"
 
-# argocd · monitoring 네임스페이스 없음
+# Tunnel 대신 Envoy Gateway(호스트 18080), argocd · monitoring 네임스페이스 없음
+cloudflared:
+  enabled: false
+
 ingress:
+  enabled: true
   subdomains: []
 
 frontend:
