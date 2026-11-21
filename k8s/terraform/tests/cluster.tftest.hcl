@@ -12,17 +12,10 @@ mock_provider "aws" {
   mock_resource "aws_iam_role" {
     defaults = { arn = "arn:aws:iam::123456789012:role/mock" }
   }
-  mock_resource "aws_lb" {
-    defaults = { arn = "arn:aws:elasticloadbalancing:ap-northeast-2:123456789012:loadbalancer/net/mock/0123456789abcdef" }
-  }
-  mock_resource "aws_lb_target_group" {
-    defaults = { arn = "arn:aws:elasticloadbalancing:ap-northeast-2:123456789012:targetgroup/mock/0123456789abcdef" }
-  }
 }
 
 variables {
-  subnet_id              = "subnet-0123456789abcdef0"
-  ingress_prefix_list_id = "pl-0123456789abcdef0"
+  subnet_id = "subnet-0123456789abcdef0"
 }
 
 run "cluster" {

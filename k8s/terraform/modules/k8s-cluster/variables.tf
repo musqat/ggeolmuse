@@ -9,12 +9,7 @@ variable "environment" {
 }
 
 variable "subnet_id" {
-  description = "노드 셋 · NLB 를 둘 공개 서브넷(EBS 볼륨이 AZ 에 묶여 한 AZ)"
-  type        = string
-}
-
-variable "ingress_prefix_list_id" {
-  description = "NLB 443 을 받을 접두사 목록(Cloudflare)"
+  description = "노드 셋을 둘 공개 서브넷(EBS 볼륨이 AZ 에 묶여 한 AZ)"
   type        = string
 }
 

@@ -23,22 +23,12 @@ variable "node_secret_names" {
 }
 
 variable "subnet_id" {
-  description = "노드 · NLB 를 둘 공개 서브넷"
+  description = "노드를 둘 공개 서브넷"
   type        = string
 
   validation {
     condition     = var.subnet_id != ""
     error_message = "subnet_id 가 있어야 합니다."
-  }
-}
-
-variable "ingress_prefix_list_id" {
-  description = "NLB 443 을 받을 접두사 목록(Cloudflare)"
-  type        = string
-
-  validation {
-    condition     = var.ingress_prefix_list_id != ""
-    error_message = "ingress_prefix_list_id 가 있어야 합니다."
   }
 }
 

@@ -12,20 +12,13 @@ mock_provider "aws" {
   mock_resource "aws_security_group" {
     defaults = { id = "sg-0aaaaaaaaaaaaaaaa" }
   }
-  mock_resource "aws_lb" {
-    defaults = { arn = "arn:aws:elasticloadbalancing:ap-northeast-2:123456789012:loadbalancer/net/mock/0123456789abcdef" }
-  }
-  mock_resource "aws_lb_target_group" {
-    defaults = { arn = "arn:aws:elasticloadbalancing:ap-northeast-2:123456789012:targetgroup/mock/0123456789abcdef" }
-  }
 }
 
 variables {
-  project_name           = "ggeolmuse"
-  environment            = "production"
-  subnet_id              = "subnet-0123456789abcdef0"
-  ingress_prefix_list_id = "pl-0123456789abcdef0"
-  secret_arns            = ["arn:aws:secretsmanager:ap-northeast-2:123456789012:secret:ggeolmuse/production-??????"]
+  project_name = "ggeolmuse"
+  environment  = "production"
+  subnet_id    = "subnet-0123456789abcdef0"
+  secret_arns  = ["arn:aws:secretsmanager:ap-northeast-2:123456789012:secret:ggeolmuse/production-??????"]
 }
 
 run "nodes" {
@@ -57,27 +50,16 @@ run "nodes" {
   }
 }
 
-run "ingress" {
+run "no_inbound_from_outside" {
   command = apply
 
   assert {
-    condition     = aws_lb_listener.https.port == 443 && aws_lb_target_group.gateway.port == 30443
-    error_message = "NLB 443 → Envoy Gateway https 노드 포트 30443"
+    condition     = aws_vpc_security_group_ingress_rule.node_to_node.referenced_security_group_id == aws_security_group.nodes.id && aws_vpc_security_group_ingress_rule.node_to_node.security_group_id == aws_security_group.nodes.id
+    error_message = "노드가 받는 것은 노드끼리만(밖에서 들어오는 포트 없음)"
   }
-
   assert {
-    condition     = toset(keys(aws_lb_target_group_attachment.workers)) == toset(["worker-a", "worker-b"])
-    error_message = "NLB 대상은 워커 둘"
-  }
-
-  assert {
-    condition     = aws_vpc_security_group_ingress_rule.nlb_https.prefix_list_id == "pl-0123456789abcdef0" && aws_vpc_security_group_ingress_rule.nlb_https.from_port == 443
-    error_message = "NLB 는 접두사 목록(Cloudflare)의 443 만"
-  }
-
-  assert {
-    condition     = aws_vpc_security_group_ingress_rule.nlb_to_gateway.from_port == 30443 && aws_vpc_security_group_ingress_rule.nlb_to_gateway.to_port == 30443
-    error_message = "노드는 NLB 에서 30443 만 받음"
+    condition     = aws_vpc_security_group_egress_rule.nodes_out.cidr_ipv4 == "0.0.0.0/0"
+    error_message = "나가는 연결은 열림(Tunnel · 이미지 · AWS API)"
   }
 }
 

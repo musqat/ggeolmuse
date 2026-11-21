@@ -1,4 +1,4 @@
-# 멀티 노드 kubeadm 클러스터(컨트롤 플레인 온디맨드 1 · 스팟 워커) · 노드 보안 그룹 · NLB
+# 멀티 노드 kubeadm 클러스터(컨트롤 플레인 온디맨드 1 · 스팟 워커) · 노드 보안 그룹
 
 data "aws_subnet" "nodes" {
   id = var.subnet_id
@@ -25,7 +25,6 @@ locals {
     { "control-plane" = { role = "control-plane", type = var.control_plane_instance_type } },
     { for name, type in var.workers : name => { role = "worker", type = type } },
   )
-  workers = { for k, n in local.nodes : k => n if n.role == "worker" }
 
   # 노드 공통 준비만(kubeadm init · join 은 k8s/README.md 순서대로 사람이)
   user_data = <<-EOT
@@ -46,48 +45,17 @@ resource "aws_security_group" "nodes" {
   tags        = merge(local.tags, { Name = "${local.name}-nodes" })
 }
 
-# 노드끼리 전부(API 서버 · kubelet · etcd · Calico VXLAN · Typha · 컨트롤 플레인 지표)
+# 들어오는 것은 노드끼리만(API 서버 · kubelet · etcd · Calico VXLAN · Typha · 컨트롤 플레인 지표), 밖에서 들어오는 포트 없음
 resource "aws_vpc_security_group_ingress_rule" "node_to_node" {
   security_group_id            = aws_security_group.nodes.id
   referenced_security_group_id = aws_security_group.nodes.id
   ip_protocol                  = "-1"
 }
 
-resource "aws_vpc_security_group_ingress_rule" "nlb_to_gateway" {
-  security_group_id            = aws_security_group.nodes.id
-  referenced_security_group_id = aws_security_group.nlb.id
-  ip_protocol                  = "tcp"
-  from_port                    = 30443
-  to_port                      = 30443
-}
-
 resource "aws_vpc_security_group_egress_rule" "nodes_out" {
   security_group_id = aws_security_group.nodes.id
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "-1"
-}
-
-resource "aws_security_group" "nlb" {
-  name        = "${local.name}-nlb"
-  description = "k8s ingress NLB"
-  vpc_id      = data.aws_subnet.nodes.vpc_id
-  tags        = merge(local.tags, { Name = "${local.name}-nlb" })
-}
-
-resource "aws_vpc_security_group_ingress_rule" "nlb_https" {
-  security_group_id = aws_security_group.nlb.id
-  prefix_list_id    = var.ingress_prefix_list_id
-  ip_protocol       = "tcp"
-  from_port         = 443
-  to_port           = 443
-}
-
-resource "aws_vpc_security_group_egress_rule" "nlb_to_nodes" {
-  security_group_id            = aws_security_group.nlb.id
-  referenced_security_group_id = aws_security_group.nodes.id
-  ip_protocol                  = "tcp"
-  from_port                    = 30443
-  to_port                      = 30443
 }
 
 resource "aws_vpc_security_group_ingress_rule" "rds_from_nodes" {
@@ -146,48 +114,4 @@ resource "aws_instance" "nodes" {
   }
 
   tags = merge(local.tags, { Name = "${local.name}-${each.key}", Role = each.value.role })
-}
-
-# --- NLB(TCP 통과, TLS 는 Envoy Gateway 리스너의 Origin 인증서) ---
-
-resource "aws_lb" "ingress" {
-  name               = "${local.name}-ingress"
-  load_balancer_type = "network"
-  subnets            = [var.subnet_id]
-  security_groups    = [aws_security_group.nlb.id]
-  tags               = local.tags
-}
-
-resource "aws_lb_target_group" "gateway" {
-  name        = "${local.name}-gateway"
-  port        = 30443
-  protocol    = "TCP"
-  vpc_id      = data.aws_subnet.nodes.vpc_id
-  target_type = "instance"
-
-  health_check {
-    protocol = "TCP"
-    port     = "traffic-port"
-  }
-
-  tags = local.tags
-}
-
-resource "aws_lb_target_group_attachment" "workers" {
-  for_each = local.workers
-
-  target_group_arn = aws_lb_target_group.gateway.arn
-  target_id        = aws_instance.nodes[each.key].id
-  port             = 30443
-}
-
-resource "aws_lb_listener" "https" {
-  load_balancer_arn = aws_lb.ingress.arn
-  port              = 443
-  protocol          = "TCP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.gateway.arn
-  }
 }

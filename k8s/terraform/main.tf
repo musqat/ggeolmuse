@@ -28,11 +28,10 @@ data "aws_caller_identity" "current" {}
 module "k8s_cluster" {
   source = "./modules/k8s-cluster"
 
-  project_name           = var.project_name
-  environment            = var.environment
-  subnet_id              = var.subnet_id
-  ingress_prefix_list_id = var.ingress_prefix_list_id
-  rds_security_group_id  = var.rds_security_group_id
+  project_name          = var.project_name
+  environment           = var.environment
+  subnet_id             = var.subnet_id
+  rds_security_group_id = var.rds_security_group_id
   secret_arns = [
     for name in var.node_secret_names :
     "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${name}-??????"
