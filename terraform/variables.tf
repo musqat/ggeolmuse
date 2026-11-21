@@ -270,9 +270,21 @@ variable "github_repository" {
 # --- EC2 스케줄러 ---
 
 variable "scheduler_enabled" {
-  description = "EC2 와 RDS 스케줄을 켤지 여부. 끄면 스케줄이 DISABLED 로 만들어진다"
+  description = "EC2 와 RDS 스케줄을 켤지 여부의 기본값. 끄면 스케줄이 DISABLED 로 만들어진다"
   type        = bool
   default     = true
+}
+
+variable "ec2_scheduler_enabled" {
+  description = "EC2 평일 시작 · 중지와 가동 확인 스케줄을 켤지 여부(null 이면 scheduler_enabled)"
+  type        = bool
+  default     = null
+}
+
+variable "rds_scheduler_enabled" {
+  description = "RDS 평일 시작 · 중지 스케줄을 켤지 여부(null 이면 scheduler_enabled)"
+  type        = bool
+  default     = null
 }
 
 variable "scheduler_timezone" {

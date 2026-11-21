@@ -2,6 +2,8 @@
 
 locals {
   ec2_instance_arn = "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/${var.ec2_instance_id}"
+  # EC2 평일 시작 · 중지와 가동 확인 스케줄 상태
+  ec2_schedule_state = coalesce(var.ec2_scheduler_enabled, var.scheduler_enabled) ? "ENABLED" : "DISABLED"
 }
 
 # Scheduler가 EC2를 제어할 때 사용할 역할
@@ -67,7 +69,7 @@ resource "aws_scheduler_schedule_group" "ec2_scheduler" {
 resource "aws_scheduler_schedule" "ec2_start" {
   name       = "${var.project_name}-ec2-start"
   group_name = aws_scheduler_schedule_group.ec2_scheduler.name
-  state      = var.scheduler_enabled ? "ENABLED" : "DISABLED"
+  state      = local.ec2_schedule_state
 
   schedule_expression          = "cron(${var.scheduler_start_minute} ${var.scheduler_start_hour} ? * ${var.scheduler_days} *)"
   schedule_expression_timezone = var.scheduler_timezone
@@ -97,7 +99,7 @@ resource "aws_scheduler_schedule" "ec2_start" {
 resource "aws_scheduler_schedule" "ec2_stop" {
   name       = "${var.project_name}-ec2-stop"
   group_name = aws_scheduler_schedule_group.ec2_scheduler.name
-  state      = var.scheduler_enabled ? "ENABLED" : "DISABLED"
+  state      = local.ec2_schedule_state
 
   schedule_expression          = "cron(${var.scheduler_stop_minute} ${var.scheduler_stop_hour} ? * ${var.scheduler_days} *)"
   schedule_expression_timezone = var.scheduler_timezone

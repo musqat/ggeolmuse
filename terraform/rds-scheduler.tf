@@ -2,9 +2,10 @@
 # rds_instance_id 가 비면 만들지 않음
 
 locals {
-  rds_enabled  = var.rds_instance_id != ""
-  rds_arn      = "arn:aws:rds:${var.aws_region}:${data.aws_caller_identity.current.account_id}:db:${var.rds_instance_id}"
-  rds_resource = local.rds_enabled ? 1 : 0
+  rds_enabled        = var.rds_instance_id != ""
+  rds_arn            = "arn:aws:rds:${var.aws_region}:${data.aws_caller_identity.current.account_id}:db:${var.rds_instance_id}"
+  rds_resource       = local.rds_enabled ? 1 : 0
+  rds_schedule_state = coalesce(var.rds_scheduler_enabled, var.scheduler_enabled) ? "ENABLED" : "DISABLED"
 }
 
 resource "aws_iam_role" "rds_scheduler" {
@@ -79,7 +80,7 @@ resource "aws_scheduler_schedule" "rds_start" {
   count      = local.rds_resource
   name       = "${var.project_name}-rds-start"
   group_name = aws_scheduler_schedule_group.rds_scheduler[0].name
-  state      = var.scheduler_enabled ? "ENABLED" : "DISABLED"
+  state      = local.rds_schedule_state
 
   schedule_expression          = "cron(${var.rds_start_minute} ${var.rds_start_hour} ? * ${var.scheduler_days} *)"
   schedule_expression_timezone = var.scheduler_timezone
@@ -109,7 +110,7 @@ resource "aws_scheduler_schedule" "rds_stop" {
   count      = local.rds_resource
   name       = "${var.project_name}-rds-stop"
   group_name = aws_scheduler_schedule_group.rds_scheduler[0].name
-  state      = var.scheduler_enabled ? "ENABLED" : "DISABLED"
+  state      = local.rds_schedule_state
 
   schedule_expression          = "cron(${var.rds_stop_minute} ${var.rds_stop_hour} ? * ${var.scheduler_days} *)"
   schedule_expression_timezone = var.scheduler_timezone
