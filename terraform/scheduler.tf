@@ -1,7 +1,9 @@
 # EC2 평일 07:00 시작 · 19:00 중지(KST, EventBridge Scheduler 가 Lambda 없이 EC2 API 호출)
 
 locals {
-  ec2_instance_arn = "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/${var.ec2_instance_id}"
+  # 평일 켜고 끄는 EC2(이름 → 인스턴스 id)
+  scheduled_instances = length(var.scheduled_instances) > 0 ? var.scheduled_instances : { app = var.ec2_instance_id }
+  ec2_instance_arns   = [for id in values(local.scheduled_instances) : "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/${id}"]
   # EC2 평일 시작 · 중지와 가동 확인 스케줄 상태
   ec2_schedule_state = coalesce(var.ec2_scheduler_enabled, var.scheduler_enabled) ? "ENABLED" : "DISABLED"
 }
@@ -50,7 +52,7 @@ resource "aws_iam_role_policy" "ec2_scheduler" {
           "ec2:StartInstances",
           "ec2:StopInstances"
         ]
-        Resource = local.ec2_instance_arn
+        Resource = local.ec2_instance_arns
       }
     ]
   })
@@ -83,7 +85,7 @@ resource "aws_scheduler_schedule" "ec2_start" {
     role_arn = aws_iam_role.ec2_scheduler.arn
 
     input = jsonencode({
-      InstanceIds = [var.ec2_instance_id]
+      InstanceIds = values(local.scheduled_instances)
     })
 
     retry_policy {
@@ -113,7 +115,7 @@ resource "aws_scheduler_schedule" "ec2_stop" {
     role_arn = aws_iam_role.ec2_scheduler.arn
 
     input = jsonencode({
-      InstanceIds = [var.ec2_instance_id]
+      InstanceIds = values(local.scheduled_instances)
     })
 
     retry_policy {

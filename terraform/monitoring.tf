@@ -78,14 +78,17 @@ resource "aws_cloudwatch_metric_alarm" "scheduler_invocation_dropped" {
 
 # 인스턴스 안에서 멈춤(스케줄러는 성공이라 위 둘에 안 걸림), 3분 연속 실패만
 resource "aws_cloudwatch_metric_alarm" "ec2_status_check" {
-  alarm_name        = "${var.project_name}-ec2-status-check"
+  for_each = local.scheduled_instances
+
+  # k3s 하나일 때는 지금 이름 그대로
+  alarm_name        = each.key == "app" ? "${var.project_name}-ec2-status-check" : "${var.project_name}-ec2-status-check-${each.key}"
   alarm_description = "EC2 상태 검사 실패 (인스턴스 또는 호스트 이상)"
 
   namespace   = "AWS/EC2"
   metric_name = "StatusCheckFailed"
 
   dimensions = {
-    InstanceId = var.ec2_instance_id
+    InstanceId = each.value
   }
 
   statistic           = "Maximum"
@@ -102,4 +105,10 @@ resource "aws_cloudwatch_metric_alarm" "ec2_status_check" {
     Environment = var.environment
     ManagedBy   = "terraform"
   }
+}
+
+# 알람이 노드마다 하나가 되며 옮긴 주소(k3s 하나는 app)
+moved {
+  from = aws_cloudwatch_metric_alarm.ec2_status_check
+  to   = aws_cloudwatch_metric_alarm.ec2_status_check["app"]
 }
