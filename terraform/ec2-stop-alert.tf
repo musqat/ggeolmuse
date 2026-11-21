@@ -42,7 +42,7 @@ resource "aws_cloudwatch_event_rule" "ec2_stopped" {
     "detail-type" = ["EC2 Instance State-change Notification"]
     detail = {
       state         = ["stopped"]
-      "instance-id" = [var.ec2_instance_id]
+      "instance-id" = values(local.scheduled_instances)
     }
   })
 

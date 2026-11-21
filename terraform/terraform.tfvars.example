@@ -48,6 +48,17 @@ node_role_policy_arns = []
 #   auth     = "https://ggeolmuse.com/auth/realms/muscathan"
 # }
 
+# 선택 —— 평일에 켜고 끌 EC2 를 여럿으로(이름 → 인스턴스 id, 비우면 ec2_instance_id 하나) · 스케줄을 따로 끌 때
+# scheduled_instances = {
+#   control-plane = "i-xxxxxxxxxxxxxxxxx"
+#   worker-medium = "i-xxxxxxxxxxxxxxxxx"
+# }
+# ec2_scheduler_enabled = false   # EC2 시작 · 중지와 가동 확인만 끔
+# rds_scheduler_enabled = false   # RDS 시작 · 중지만 끔
+
+# 선택 —— k3s 노드 역할 말고 월간 덤프를 쓸 역할
+# db_backup_writer_roles = ["ggeolmuse-k8s-node"]
+
 # 기본값을 바꿀 때만
 # scheduler_start_hour = 7
 # scheduler_stop_hour  = 19

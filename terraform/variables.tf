@@ -270,9 +270,27 @@ variable "github_repository" {
 # --- EC2 스케줄러 ---
 
 variable "scheduler_enabled" {
-  description = "EC2 와 RDS 스케줄을 켤지 여부. 끄면 스케줄이 DISABLED 로 만들어진다"
+  description = "EC2 와 RDS 스케줄을 켤지 여부의 기본값. 끄면 스케줄이 DISABLED 로 만들어진다"
   type        = bool
   default     = true
+}
+
+variable "ec2_scheduler_enabled" {
+  description = "EC2 평일 시작 · 중지와 가동 확인 스케줄을 켤지 여부(null 이면 scheduler_enabled)"
+  type        = bool
+  default     = null
+}
+
+variable "rds_scheduler_enabled" {
+  description = "RDS 평일 시작 · 중지 스케줄을 켤지 여부(null 이면 scheduler_enabled)"
+  type        = bool
+  default     = null
+}
+
+variable "scheduled_instances" {
+  description = "평일에 켜고 끄고 중지 알림 · 상태 알람을 걸 EC2(이름 → 인스턴스 id). 비면 app = ec2_instance_id 하나"
+  type        = map(string)
+  default     = {}
 }
 
 variable "scheduler_timezone" {
@@ -400,6 +418,12 @@ variable "db_backup_bucket_name" {
   description = "pg_dump 를 올릴 S3 버킷 이름."
   type        = string
   default     = "ggeolmuse-db-backup-apne2"
+}
+
+variable "db_backup_writer_roles" {
+  description = "k3s 노드 역할 말고 월간 덤프를 백업 버킷에 쓸 IAM 역할 이름"
+  type        = list(string)
+  default     = []
 }
 
 variable "db_backup_retention_days" {

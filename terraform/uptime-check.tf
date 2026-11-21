@@ -101,7 +101,7 @@ resource "aws_scheduler_schedule" "uptime" {
 
   name       = "${var.project_name}-uptime-${each.key}"
   group_name = aws_scheduler_schedule_group.uptime[0].name
-  state      = var.scheduler_enabled ? "ENABLED" : "DISABLED"
+  state      = local.ec2_schedule_state
 
   schedule_expression          = each.value
   schedule_expression_timezone = var.scheduler_timezone
