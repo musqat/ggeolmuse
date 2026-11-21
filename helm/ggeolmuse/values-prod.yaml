@@ -96,11 +96,11 @@ infrastructure:
 # Config Server
 configServer:
   image:
-    tag: "1.14.0"
+    tag: "2.0.0"
   env:
     springProfiles: git,prod
   # 읽을 설정 리포 브랜치 · 커밋(릴리스 봇이 그때 main 끝 커밋으로 바꿈)
-  gitLabel: 6f2885245928782e7b0155bf5137855fbea0b3d9
+  gitLabel: 54799cdd393501c7bafab8fe1da94464e7f3dae9
   resources:
     limits:
       memory: 512Mi
@@ -112,7 +112,7 @@ configServer:
 # Gateway Server
 gatewayServer:
   image:
-    tag: "1.14.0"
+    tag: "2.0.0"
   env:
     springProfiles: prod
   probes:
@@ -134,7 +134,7 @@ gatewayServer:
 services:
   userService:
     image:
-      tag: "1.14.0"
+      tag: "2.0.0"
     env:
       # market-data 와 같은 한국 시각(저장 시각 · 오늘 날짜 기준, 옛 UTC 시각은 Flyway V6 이 옮김)
       TZ: "Asia/Seoul"
@@ -156,7 +156,7 @@ services:
 
   tradeService:
     image:
-      tag: "1.14.0"
+      tag: "2.0.0"
     env:
       TZ: "Asia/Seoul"
     probes:
@@ -174,7 +174,7 @@ services:
 
   marketDataService:
     image:
-      tag: "1.14.0"
+      tag: "2.0.0"
     env:
       TZ: "Asia/Seoul"
       # 마켓 데이터 설정
@@ -200,7 +200,7 @@ services:
 
   backtestService:
     image:
-      tag: "1.14.0"
+      tag: "2.0.0"
     env:
       TZ: "Asia/Seoul"
     probes:
