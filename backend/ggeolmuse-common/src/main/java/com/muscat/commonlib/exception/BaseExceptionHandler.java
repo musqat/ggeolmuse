@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -122,6 +123,24 @@ public class BaseExceptionHandler {
       "Invalid Parameter",
       Map.of(
         "parameterName", ex.getName(),
+        "errorType", ErrorType.VALIDATION.name()
+      )
+    );
+    return ResponseEntity.badRequest().body(problem);
+  }
+
+  // 엔티티에 없는 정렬 이름(받은 이름은 응답에 안 실음)
+  @ExceptionHandler(PropertyReferenceException.class)
+  public ResponseEntity<ProblemDetail> handleSortProperty(
+    PropertyReferenceException ex, HttpServletRequest request) {
+    log.warn("[SORT PROPERTY] path={}", request.getRequestURI());
+
+    ProblemDetail problem = ProblemDetailUtils.createProblem(
+      CommonResponse.INVALID_PARAMETER,
+      request.getRequestURI(),
+      "Invalid Parameter",
+      Map.of(
+        "parameterName", "sort",
         "errorType", ErrorType.VALIDATION.name()
       )
     );

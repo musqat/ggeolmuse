@@ -19,6 +19,8 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.core.MethodParameter;
+import org.springframework.data.util.TypeInformation;
+import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -148,6 +150,7 @@ class BaseExceptionHandlerTest {
       new MissingServletRequestParameterException("startDate", "LocalDate"), "handleMissingParameterException",
       new MethodArgumentTypeMismatchException("abc", Long.class, "accountId", parameter, null), "handleTypeMismatch",
       new HttpMessageNotReadableException("JSON parse error", new MockHttpInputMessage(new byte[0])), "handleNotReadable",
+      sortPropertyMissing(), "handleSortProperty",
       invalid(new FieldError("requestDto", "quantity", "수량은 0보다 커야 합니다")), "handleValidationException",
       new IllegalStateException("원인"), "handleGeneralException"
     );
@@ -156,6 +159,24 @@ class BaseExceptionHandlerTest {
       assertThat(Objects.requireNonNull(resolver.resolveMethod(exception)).getName())
         .as(exception.getClass().getSimpleName())
         .isEqualTo(method));
+  }
+
+  // 정렬 이름이 엔티티에 없을 때 Spring Data 가 던지는 예외
+  private static PropertyReferenceException sortPropertyMissing() {
+    return new PropertyReferenceException("password;drop", TypeInformation.of(Object.class), java.util.List.of());
+  }
+
+  @Test
+  @DisplayName("엔티티에 없는 정렬 이름은 400 INVALID_PARAMETER 이고 받은 이름은 응답에 싣지 않는다")
+  void unknownSortProperty_BadRequest() {
+    ResponseEntity<ProblemDetail> response = handler.handleSortProperty(sortPropertyMissing(), request);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getProperties())
+      .containsEntry("errorCode", "INVALID_PARAMETER")
+      .containsEntry("parameterName", "sort");
+    assertThat(response.getBody().toString()).doesNotContain("password;drop");
   }
 
   // 컨트롤러 @Validated 와 같은 모양의 쿼리 파라미터 검사
