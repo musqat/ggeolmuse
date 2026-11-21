@@ -1,0 +1,130 @@
+{{- /* Gateway API 진입(ingress.kind=Gateway): Envoy 설정 · Gateway · 경로 HTTPRoute, 하위 도메인 HTTPRoute 는 서비스가 있는 네임스페이스에 */ -}}
+{{- if and .Values.ingress.enabled (eq .Values.ingress.kind "Gateway") }}
+{{- $name := include "ggeolmuse.fullname" . }}
+{{- $tls := and .Values.global.aws.secretsManager.enabled (dig "originTls" "enabled" false .Values.ingress) }}
+{{- $gw := .Values.ingress.gateway }}
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyDeployment:
+        replicas: {{ $gw.replicas }}
+        {{- with .Values.global.topologySpread }}
+        {{- if .enabled }}
+        pod:
+          topologySpreadConstraints:
+          - maxSkew: {{ .maxSkew }}
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: {{ .whenUnsatisfiable }}
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: envoy
+        {{- end }}
+        {{- end }}
+      {{- if .Values.global.podDisruptionBudget.enabled }}
+      envoyPDB:
+        minAvailable: {{ .Values.global.podDisruptionBudget.minAvailable }}
+      {{- end }}
+      # NLB · kind 포트 매핑이 받는 고정 노드 포트(어느 노드로 와도 Envoy 로)
+      envoyService:
+        type: NodePort
+        externalTrafficPolicy: Cluster
+        patch:
+          type: StrategicMerge
+          value:
+            spec:
+              ports:
+              {{- if $tls }}
+              - port: 443
+                nodePort: {{ $gw.httpsNodePort }}
+              {{- else }}
+              - port: 80
+                nodePort: {{ $gw.httpNodePort }}
+              {{- end }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  gatewayClassName: {{ .Values.ingress.className }}
+  infrastructure:
+    parametersRef:
+      group: gateway.envoyproxy.io
+      kind: EnvoyProxy
+      name: {{ $name }}
+  listeners:
+  {{- if $tls }}
+  # Cloudflare Full (strict) 의 origin 인증서로 TLS 종료
+  - name: https
+    protocol: HTTPS
+    port: 443
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: origin-tls
+    allowedRoutes:
+      namespaces:
+        from: All
+  {{- else }}
+  - name: http
+    protocol: HTTP
+    port: 80
+    allowedRoutes:
+      namespaces:
+        from: All
+  {{- end }}
+{{- range $i, $h := .Values.ingress.hosts }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $name }}{{ if $i }}-{{ $i }}{{ end }}
+  labels:
+    {{- include "ggeolmuse.labels" $ | nindent 4 }}
+spec:
+  parentRefs:
+  - name: {{ $name }}
+  hostnames:
+  - {{ $h.host | default $.Values.global.domain | quote }}
+  rules:
+  {{- range $h.paths }}
+  - matches:
+    - path:
+        type: PathPrefix
+        value: {{ .path }}
+    backendRefs:
+    - name: {{ .backend.service }}
+      port: {{ .backend.port }}
+  {{- end }}
+{{- end }}
+{{- range .Values.ingress.subdomains }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $name }}-{{ .name }}
+  namespace: {{ .namespace }}
+  labels:
+    {{- include "ggeolmuse.labels" $ | nindent 4 }}
+spec:
+  parentRefs:
+  - name: {{ $name }}
+    namespace: {{ $.Release.Namespace }}
+  hostnames:
+  - {{ printf "%s.%s" .name $.Values.global.domain | quote }}
+  rules:
+  - backendRefs:
+    - name: {{ .service }}
+      port: {{ .port }}
+{{- end }}
+{{- end }}

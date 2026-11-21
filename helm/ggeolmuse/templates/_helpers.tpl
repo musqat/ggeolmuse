@@ -261,3 +261,42 @@ seccompProfile:
 {{- define "ggeolmuse.secretFiles" -}}
 {{- if or .Values.global.secretFiles .Values.global.aws.secretsManager.enabled }}true{{ end }}
 {{- end }}
+
+{{/* 여러 노드 배치 — 같은 앱 파드의 노드 분산과 노드가 멈췄을 때 견디는 초(인자: name · Values) */}}
+{{- define "ggeolmuse.multiNodeScheduling" -}}
+{{- with .Values.global.topologySpread }}
+{{- if .enabled }}
+topologySpreadConstraints:
+- maxSkew: {{ .maxSkew }}
+  topologyKey: kubernetes.io/hostname
+  whenUnsatisfiable: {{ .whenUnsatisfiable }}
+  {{- with .nodeTaintsPolicy }}
+  nodeTaintsPolicy: {{ . }}
+  {{- end }}
+  labelSelector:
+    matchLabels:
+      app: {{ $.name }}
+{{- end }}
+{{- end }}
+{{- with .Values.global.nodeLostTolerationSeconds }}
+tolerations:
+- key: node.kubernetes.io/not-ready
+  operator: Exists
+  effect: NoExecute
+  tolerationSeconds: {{ . }}
+- key: node.kubernetes.io/unreachable
+  operator: Exists
+  effect: NoExecute
+  tolerationSeconds: {{ . }}
+{{- end }}
+{{- end }}
+
+{{/* 종료 전 대기(엔드포인트에서 빠지는 동안 요청을 받음) */}}
+{{- define "ggeolmuse.preStop" -}}
+{{- with .Values.global.preStopSleepSeconds }}
+lifecycle:
+  preStop:
+    exec:
+      command: ["sleep", "{{ . }}"]
+{{- end }}
+{{- end }}

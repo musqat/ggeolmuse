@@ -24,6 +24,9 @@ spec:
     spec:
       securityContext:
         {{- include "ggeolmuse.podSecurityContext" . | nindent 8 }}
+      {{- with include "ggeolmuse.multiNodeScheduling" (dict "name" "keycloak" "Values" .Values) }}
+      {{- . | nindent 6 }}
+      {{- end }}
       # 기동 때 빌드가 다시 쓰는 Quarkus 산출물을 쓰기 가능한 볼륨으로 복사
       initContainers:
       - name: copy-quarkus
