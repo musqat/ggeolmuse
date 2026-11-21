@@ -10,7 +10,7 @@ argocd:
   valueFiles:
     - helm/argocd/values-argocd.yaml
 
-# 앱 차트의 값 파일(k8s/helm/ggeolmuse 안 경로)
+# 앱 차트의 값 파일(helm/ggeolmuse 안 경로)
 ggeolmuse:
   valueFiles:
     - values-prod.yaml

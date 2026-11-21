@@ -27,12 +27,18 @@ if ! kubectl get secret ggeolmuse-secrets >/dev/null 2>&1; then
   chmod 600 "$env_file"
   rnd() { openssl rand -hex 16; }
   client="$(rnd)"
+  db_password="$(rnd)"
   db="jdbc:postgresql://postgres:5432"
+  # 운영은 서비스마다 DB 계정이 따로, kind 는 Postgres 계정 하나를 모든 키에
+  db_accounts="$(for s in USER TRADE MARKET BACKTEST KEYCLOAK BACKUP; do
+    printf 'DB_USERNAME_%s=ggeolmuse\nDB_PASSWORD_%s=%s\n' "$s" "$s" "$db_password"; done)"
   cat > "$env_file" <<VALUES
 CONFIG_SERVER_USERNAME=config
 CONFIG_SERVER_PASSWORD=$(rnd)
 DB_USERNAME=ggeolmuse
-DB_PASSWORD=$(rnd)
+DB_PASSWORD=$db_password
+$db_accounts
+KAFKA_UI_PASSWORD=$(rnd)
 DB_URL_USER=$db/userdb
 DB_URL_TRADE=$db/tradedb
 DB_URL_MARKET=$db/marketdb
@@ -60,7 +66,7 @@ fi
 kubectl apply -f "$here/postgres.yaml"
 kubectl rollout status deployment/postgres --timeout=5m
 
-v="$root/k8s/helm/ggeolmuse"
+v="$root/helm/ggeolmuse"
 helm upgrade --install ggeolmuse "$v" \
   -f "$v/values-prod.yaml" -f "$v/values-k8s.yaml" -f "$v/values-kind.yaml" \
   --wait --timeout 30m

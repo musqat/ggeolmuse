@@ -106,8 +106,8 @@ count(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate)
 kafka-exporter 디플로이먼트(브로커 수 · 토픽 오프셋 · 소비자 그룹 지연)가 지표를 내고 ServiceMonitor `redis` · `kafka-exporter`
 가 긁는다. Keycloak 은 exporter 가 없어 `up` 시계열 자체가 없다.
 
-규칙을 고치면 멀티 노드 차트 사본(`k8s/helm/ggeolmuse`)의 같은 파일도 고치고 [`alert-rules-test.yaml`](alert-rules-test.yaml) 에
-경우를 더한다. 새 알림은 RUNBOOK 에 같은 이름 제목을 둔다. CI `scan-manifests` 잡이 두 차트를 운영 값으로 렌더한 규칙마다
+규칙을 고치면 [`alert-rules-test.yaml`](alert-rules-test.yaml) 에
+경우를 더한다. 새 알림은 RUNBOOK 에 같은 이름 제목을 둔다. CI `scan-manifests` 잡이 운영 값 · 멀티 노드 값으로 렌더한 규칙마다
 promtool 로 문법 검사하고 이 테스트를 돌린 뒤, `runbook_url`(`#<알림 이름 소문자>`)이나 울리는 테스트가 없는 알림이 있으면
 멈춘다(`tools/cmd/alert-rules-coverage`). 로컬에서는 저장소 루트에서 같은 명령을 쓴다. `MSYS_NO_PATHCONV=1` 은
 Git Bash 의 경로 변환을 끄는 값이다(다른 셸에서는 영향 없음).

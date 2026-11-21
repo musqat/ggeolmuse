@@ -21,8 +21,7 @@
 | `bootstrap/addons.sh` | 부품 설치(Calico · metrics-server · Envoy Gateway, AWS 면 EBS CSI · External Secrets · ArgoCD) |
 | `addons/` | Calico · GatewayClass · gp3 저장 클래스 값 |
 | `kind/` | 로컬 3노드 올리기 · 확인 · 지우기 |
-| `helm/ggeolmuse` | 멀티 노드 앱 차트(운영 차트를 복사해 따로 둔 것, `values-k8s.yaml` · `values-kind.yaml` 포함) |
-| `argocd/apps` · `argocd/root.yaml` | ArgoCD 가 맞추는 Application 목록 |
+| `argocd/apps` · `argocd/root.yaml` | ArgoCD 가 맞추는 Application 목록(앱은 운영 차트 `helm/ggeolmuse` 에 `values-k8s.yaml` 을 덧붙임, kind 는 `values-kind.yaml` 도) |
 | `monitoring/*-values-k8s.yaml` | 멀티 노드 모니터링 값(운영 값 파일 위에 덧붙임) |
 | `terraform/` | EC2 셋 · 보안 그룹 · 노드 역할(`modules/k8s-cluster`), 운영 terraform 과 상태를 따로 둠 |
 
