@@ -134,7 +134,7 @@ spec:
     - Ingress
 {{- if .Values.gatewayServer.enabled }}
 ---
-# 게이트웨이: 인그레스 컨트롤러의 API 요청, monitoring 의 지표 수집
+# 게이트웨이: 인그레스 컨트롤러 · cloudflared 의 API 요청, monitoring 의 지표 수집
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -152,6 +152,11 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ $np.ingressNamespace }}
+    {{- if .Values.cloudflared.enabled }}
+    - podSelector:
+        matchLabels:
+          app: cloudflared
+    {{- end }}
     ports:
     - protocol: TCP
       port: {{ .Values.gatewayServer.service.port }}
@@ -165,7 +170,7 @@ spec:
 {{- end }}
 {{- if .Values.frontend.enabled }}
 ---
-# 프론트엔드: 인그레스 컨트롤러의 화면 요청
+# 프론트엔드: 인그레스 컨트롤러 · cloudflared 의 화면 요청
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -183,13 +188,18 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ $np.ingressNamespace }}
+    {{- if .Values.cloudflared.enabled }}
+    - podSelector:
+        matchLabels:
+          app: cloudflared
+    {{- end }}
     ports:
     - protocol: TCP
       port: {{ .Values.frontend.service.targetPort }}
 {{- end }}
 {{- if $infra.keycloak.enabled }}
 ---
-# Keycloak: 인그레스 컨트롤러의 로그인 화면, 게이트웨이 · business 의 토큰 검증 키 · 서비스 토큰 · 사용자 관리
+# Keycloak: 인그레스 컨트롤러 · cloudflared 의 로그인 화면, 게이트웨이 · business 의 토큰 검증 키 · 서비스 토큰 · 사용자 관리
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -207,6 +217,11 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ $np.ingressNamespace }}
+    {{- if .Values.cloudflared.enabled }}
+    - podSelector:
+        matchLabels:
+          app: cloudflared
+    {{- end }}
     - podSelector:
         matchLabels:
           app: {{ $np.gatewayApp }}
@@ -354,7 +369,7 @@ spec:
 {{- end }}
 {{- if $infra.kafkaUi.enabled }}
 ---
-# Kafka UI: 인그레스 컨트롤러의 화면 요청
+# Kafka UI: 인그레스 컨트롤러 · cloudflared 의 화면 요청
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -372,6 +387,11 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ $np.ingressNamespace }}
+    {{- if .Values.cloudflared.enabled }}
+    - podSelector:
+        matchLabels:
+          app: cloudflared
+    {{- end }}
     ports:
     - protocol: TCP
       port: {{ $infra.kafkaUi.port }}
@@ -410,5 +430,29 @@ spec:
     ports:
     - protocol: TCP
       port: 3200
+{{- end }}
+{{- if .Values.cloudflared.enabled }}
+---
+# cloudflared: 밖으로만 연결해 받는 요청은 없고, monitoring 의 지표 수집만
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-cloudflared
+  labels:
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: cloudflared
+  policyTypes:
+    - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: {{ .Values.cloudflared.metricsPort }}
 {{- end }}
 {{- end }}

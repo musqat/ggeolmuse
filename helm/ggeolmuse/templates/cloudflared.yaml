@@ -1,0 +1,124 @@
+{{- /* Cloudflare Tunnel 로 들어온 요청을 서비스로 넘기는 cloudflared(경로 규칙은 ingress.hosts · subdomains, 자격은 Secrets Manager) */ -}}
+{{- if .Values.cloudflared.enabled }}
+{{- $cf := .Values.cloudflared }}
+{{- $domain := .Values.global.domain }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflared
+  labels:
+    app: cloudflared
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    tunnel: {{ $cf.tunnelId | quote }}
+    credentials-file: /etc/cloudflared/creds/credentials.json
+    metrics: 0.0.0.0:{{ $cf.metricsPort }}
+    no-autoupdate: true
+    ingress:
+    {{- range .Values.ingress.hosts }}
+    {{- $host := .host | default $domain }}
+    {{- range .paths }}
+    - hostname: {{ $host }}
+      {{- if ne .path "/" }}
+      path: ^{{ .path }}(/|$)
+      {{- end }}
+      service: http://{{ .backend.service }}:{{ .backend.port }}
+    {{- end }}
+    {{- end }}
+    {{- range .Values.ingress.subdomains }}
+    - hostname: {{ .name }}.{{ $domain }}
+      service: http://{{ .service }}.{{ .namespace }}:{{ .port }}
+    {{- end }}
+    - service: http_status:404
+{{- if .Values.global.aws.secretsManager.enabled }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: cloudflared-credentials
+  labels:
+    app: cloudflared
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  refreshInterval: 1h0m0s
+  secretStoreRef:
+    name: aws-secrets-manager
+    kind: SecretStore
+  target:
+    name: cloudflared-credentials
+    creationPolicy: Owner
+  data:
+    - secretKey: credentials.json
+      remoteRef:
+        key: {{ $cf.secretsManagerKey }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  labels:
+    app: cloudflared
+    {{- include "ggeolmuse.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $cf.replicas }}
+  revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit | default 5 }}
+  selector:
+    matchLabels:
+      app: cloudflared
+  template:
+    metadata:
+      labels:
+        app: cloudflared
+      annotations:
+        # 경로 규칙이 바뀌면 다시 띄움
+        checksum/config: {{ $cf | toJson | sha256sum | trunc 16 }}-{{ .Values.ingress | toJson | sha256sum | trunc 16 }}
+    spec:
+      automountServiceAccountToken: false
+      {{- with include "ggeolmuse.multiNodeScheduling" (dict "name" "cloudflared" "Values" .Values) }}
+      {{- . | nindent 6 }}
+      {{- end }}
+      securityContext:
+        {{- include "ggeolmuse.podSecurityContext" . | nindent 8 }}
+      containers:
+      - name: cloudflared
+        image: {{ $cf.image }}
+        imagePullPolicy: IfNotPresent
+        args: ["tunnel", "--config", "/etc/cloudflared/config/config.yaml", "run"]
+        ports:
+        - name: metrics
+          containerPort: {{ $cf.metricsPort }}
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: metrics
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /ready
+            port: metrics
+          initialDelaySeconds: 20
+          periodSeconds: 20
+          failureThreshold: 3
+        {{- with $cf.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        securityContext:
+          {{- include "ggeolmuse.securityContext" . | nindent 10 }}
+        volumeMounts:
+        - name: config
+          mountPath: /etc/cloudflared/config
+          readOnly: true
+        - name: creds
+          mountPath: /etc/cloudflared/creds
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: cloudflared
+      - name: creds
+        secret:
+          secretName: cloudflared-credentials
+{{- end }}
