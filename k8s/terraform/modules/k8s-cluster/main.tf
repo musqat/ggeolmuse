@@ -1,4 +1,4 @@
-# 멀티 노드 kubeadm 클러스터(컨트롤 플레인 1 · 워커 N) · 노드 보안 그룹 · NLB
+# 멀티 노드 kubeadm 클러스터(컨트롤 플레인 온디맨드 1 · 스팟 워커) · 노드 보안 그룹 · NLB
 
 data "aws_subnet" "nodes" {
   id = var.subnet_id
@@ -23,7 +23,7 @@ locals {
 
   nodes = merge(
     { "control-plane" = { role = "control-plane", type = var.control_plane_instance_type } },
-    { for i in range(var.worker_count) : "worker-${i + 1}" => { role = "worker", type = var.worker_instance_type } },
+    { for name, type in var.workers : name => { role = "worker", type = type } },
   )
   workers = { for k, n in local.nodes : k => n if n.role == "worker" }
 
@@ -111,6 +111,22 @@ resource "aws_instance" "nodes" {
   vpc_security_group_ids = [aws_security_group.nodes.id]
   iam_instance_profile   = aws_iam_instance_profile.nodes.name
   user_data              = local.user_data
+  # 파드 주소를 출발지로 단 패킷 허용(Calico 가 같은 서브넷 안에서는 감싸지 않음)
+  source_dest_check = false
+  # 밖으로 나가는 연결용 공인 IP(서브넷 설정과 상관없이)
+  associate_public_ip_address = true
+
+  # 워커는 유지 요청 스팟(회수되면 멈췄다가 용량이 돌아오면 같은 인스턴스로 다시 뜸, 평일 스케줄이 그대로 켜고 끔)
+  dynamic "instance_market_options" {
+    for_each = each.value.role == "worker" ? [1] : []
+    content {
+      market_type = "spot"
+      spot_options {
+        spot_instance_type             = "persistent"
+        instance_interruption_behavior = "stop"
+      }
+    }
+  }
 
   # IMDSv2 만(파드 External Secrets 가 노드 역할을 쓰게 hop 2)
   metadata_options {

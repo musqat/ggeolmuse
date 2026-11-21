@@ -29,8 +29,8 @@ run "cluster" {
   command = apply
 
   assert {
-    condition     = toset(keys(module.k8s_cluster.node_ids)) == toset(["control-plane", "worker-1", "worker-2"])
-    error_message = "노드는 컨트롤 플레인 1 · 워커 2"
+    condition     = toset(keys(module.k8s_cluster.node_ids)) == toset(["control-plane", "worker-a", "worker-b"])
+    error_message = "노드는 컨트롤 플레인 1 · large 워커 둘"
   }
 }
 

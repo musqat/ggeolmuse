@@ -45,6 +45,16 @@ run "nodes" {
     condition     = alltrue([for n in aws_instance.nodes : strcontains(n.user_data, "k8s/bootstrap/node-prep.sh")])
     error_message = "노드가 기동 때 node-prep.sh 를 돌려야 함"
   }
+
+  assert {
+    condition     = alltrue([for n in aws_instance.nodes : n.source_dest_check == false])
+    error_message = "노드의 출발지 · 목적지 검사 끔(Calico 가 같은 서브넷에서 파드 주소를 감싸지 않고 보냄)"
+  }
+
+  assert {
+    condition     = alltrue([for n in aws_instance.nodes : n.associate_public_ip_address == true])
+    error_message = "노드마다 자동 공인 IP(서브넷 설정과 상관없이, 켜진 동안만 과금 · NAT 없이 밖으로 나감)"
+  }
 }
 
 run "ingress" {
@@ -56,7 +66,7 @@ run "ingress" {
   }
 
   assert {
-    condition     = toset(keys(aws_lb_target_group_attachment.workers)) == toset(["worker-1", "worker-2"])
+    condition     = toset(keys(aws_lb_target_group_attachment.workers)) == toset(["worker-a", "worker-b"])
     error_message = "NLB 대상은 워커 둘"
   }
 
@@ -104,5 +114,54 @@ run "rds_rule" {
   assert {
     condition     = aws_vpc_security_group_ingress_rule.rds_from_nodes[0].security_group_id == "sg-0bbbbbbbbbbbbbbbb" && aws_vpc_security_group_ingress_rule.rds_from_nodes[0].from_port == 5432
     error_message = "RDS 보안 그룹에 노드 5432"
+  }
+}
+
+run "control_plane_small_on_demand" {
+  command = plan
+
+  assert {
+    condition     = aws_instance.nodes["control-plane"].instance_type == "t3a.small" && length(aws_instance.nodes["control-plane"].instance_market_options) == 0
+    error_message = "컨트롤 플레인은 t3a.small 온디맨드"
+  }
+}
+
+run "workers_persistent_spot" {
+  command = plan
+
+  assert {
+    condition     = toset(keys(aws_instance.nodes)) == toset(["control-plane", "worker-a", "worker-b"])
+    error_message = "노드는 컨트롤 플레인 · large 워커 둘"
+  }
+  assert {
+    condition     = aws_instance.nodes["worker-a"].instance_type == "t3a.large" && aws_instance.nodes["worker-b"].instance_type == "t3.large"
+    error_message = "워커 종류는 이름 → 종류 맵 그대로"
+  }
+  assert {
+    condition = alltrue([for k in ["worker-a", "worker-b"] :
+      aws_instance.nodes[k].instance_market_options[0].market_type == "spot"
+      && aws_instance.nodes[k].instance_market_options[0].spot_options[0].spot_instance_type == "persistent"
+      && aws_instance.nodes[k].instance_market_options[0].spot_options[0].instance_interruption_behavior == "stop"
+    ])
+    error_message = "워커는 유지 요청 스팟, 회수되면 멈춤(인스턴스 id · 디스크 그대로)"
+  }
+}
+
+run "worker_names_exclude_control_plane" {
+  command = plan
+
+  variables {
+    workers = { control-plane = "t3a.large" }
+  }
+
+  expect_failures = [var.workers]
+}
+
+run "node_role_name_for_backup" {
+  command = plan
+
+  assert {
+    condition     = output.node_role_name == "ggeolmuse-k8s-node"
+    error_message = "운영 terraform 의 백업 쓰기 역할 목록에 넣을 노드 역할 이름"
   }
 }
