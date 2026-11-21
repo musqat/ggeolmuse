@@ -411,6 +411,7 @@ services:
     extraSecrets:
       - KOREAEXIM_API_KEY
       - ALPHAVANTAGE_API_KEY
+      - KEYCLOAK_SERVICE_CLIENT_SECRET
     replicaCount: 1
     image:
       repository: market-data-service
@@ -429,6 +430,7 @@ services:
       DB_URL_MARKET: DB_URL_MARKET
       KOREAEXIM_API_KEY: KOREAEXIM_API_KEY
       ALPHAVANTAGE_API_KEY: ALPHAVANTAGE_API_KEY
+      KEYCLOAK_SERVICE_CLIENT_SECRET: KEYCLOAK_SERVICE_CLIENT_SECRET
     strategy:
       rollingUpdate:
         maxUnavailable: 0

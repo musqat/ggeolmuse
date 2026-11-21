@@ -94,7 +94,7 @@ PR 을 머지한다. 설정만 바꾸면 그 줄을 새 커밋으로 바꾸는 P
 서비스 계정만 켠 클라이언트 `ggeolmuse-service` 를 만들고 서비스 계정에 `service` 를 준다. Keycloak 이 만든 secret 은
 Secrets Manager 의 `KEYCLOAK_SERVICE_CLIENT_SECRET` 에 넣고, 배포 뒤 클러스터 Secret 에 그 키가 들어왔는지 본다.
 secret 을 다시 만들면 Secrets Manager 값을 바꾸고 클러스터 Secret 이 동기화된 뒤 그 secret 을 쓰는 서비스를 다시 띄운다(토큰 발급기는 기동할 때 secret 을 읽는다).
-서비스 클라이언트는 user · trade · backtest · chat 이 같이 쓴다. 받는 쪽은 `/api/internal/**` 에서 realm 역할 `service` 만 보고
+서비스 클라이언트는 user · trade · market-data · backtest · chat 이 같이 쓴다. 받는 쪽은 `/api/internal/**` 에서 realm 역할 `service` 만 보고
 부른 서비스를 가리지 않아서, 서비스마다 클라이언트를 두면 secret 만 늘고 막히는 호출은 없다.
 게이트웨이와 서비스는 이메일 인증 전 사용자의 토큰을 받지 않으니, 이 검사를 처음 켜는 배포는 머지 전에 user DB 와 Keycloak 의
 이메일 미인증 사용자 수를 보고 인증 메일 다시 보내기나 관리자 강제 인증으로 푼다.

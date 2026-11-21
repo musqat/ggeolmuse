@@ -2,6 +2,7 @@ package com.muscat.marketdata;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
@@ -11,6 +12,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableScheduling
 @EnableAsync
+@EnableFeignClients
 @ConfigurationPropertiesScan
 @ComponentScan(basePackages = {"com.muscat.marketdata", "com.muscat.commonlib"})
 public class MarketDataApplication {
