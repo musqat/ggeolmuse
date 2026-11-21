@@ -2,8 +2,13 @@
 global:
   podDisruptionBudget:
     enabled: true
+  # 레플리카 둘은 반드시 다른 워커에, 멈춘 워커는 셈에서 빼 남은 워커에 몰아 띄움
   topologySpread:
     enabled: true
+    whenUnsatisfiable: DoNotSchedule
+    nodeTaintsPolicy: Honor
+  # 워커가 멈추면 1분 뒤 다른 워커로(기본 5분)
+  nodeLostTolerationSeconds: 60
   preStopSleepSeconds: 5
 
 infrastructure:

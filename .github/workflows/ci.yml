@@ -330,10 +330,10 @@ jobs:
       - name: values.yaml 만으로 렌더 확인
         run: helm template ggeolmuse helm/ggeolmuse > /dev/null
 
-      - name: 멀티 노드 차트 렌더
+      - name: 멀티 노드 값으로 렌더
         run: |
-          helm template ggeolmuse k8s/helm/ggeolmuse -f k8s/helm/ggeolmuse/values-prod.yaml \
-            -f k8s/helm/ggeolmuse/values-k8s.yaml > rendered-k8s.yaml
+          helm template ggeolmuse helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml \
+            -f helm/ggeolmuse/values-k8s.yaml > rendered-k8s.yaml
 
       # 익명 받기 횟수 제한(429) 회피용 읽기 전용 토큰
       - name: Docker Hub 로그인
@@ -342,7 +342,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 두 차트(운영 · k8s/helm)의 PrometheusRule spec 을 규칙 파일로 꺼내 문법 검사 · 단위 테스트 · 알림별 대응 문서 주소 · 울리는 테스트 확인
+      # 운영 값 · 멀티 노드 값으로 렌더한 PrometheusRule spec 을 규칙 파일로 꺼내 문법 검사 · 단위 테스트 · 알림별 대응 문서 주소 · 울리는 테스트 확인
       - name: promtool 알림 규칙 검사
         run: |
           promtool() { docker run --rm --network none -v "$PWD:/w" -w /w --entrypoint promtool prom/prometheus:v3.1.0 "$@"; }
@@ -354,7 +354,7 @@ jobs:
             (cd tools && go run ./cmd/alert-rules-coverage ../alert-rules.yaml ../helm/monitoring/alert-rules-test.yaml)
           }
           rules helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml
-          rules k8s/helm/ggeolmuse -f k8s/helm/ggeolmuse/values-prod.yaml -f k8s/helm/ggeolmuse/values-k8s.yaml
+          rules helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml -f helm/ggeolmuse/values-k8s.yaml
 
       # 운영 k3s 부품 Application 묶음(External Secrets · 모니터링 · Traefik 값), 네임스페이스 메타데이터는 네임스페이스마다 한 앱
       - name: 부품 Application 묶음 렌더 · 네임스페이스 메타데이터 중복 검사
@@ -367,21 +367,21 @@ jobs:
             exit 1
           fi
 
-      # 두 차트의 NetworkPolicy 기본 거부 · 워크로드마다 여는 정책 · 허용 목록에 없는 새 서비스 포트 검사(tools/cmd/netpol-check)
+      # 운영 값 · 멀티 노드 값 렌더의 NetworkPolicy 기본 거부 · 워크로드마다 여는 정책 · 허용 목록에 없는 새 서비스 포트 검사(tools/cmd/netpol-check)
       - name: NetworkPolicy 기본 거부 · 서비스 포트 대조
         working-directory: tools
         run: |
           go run ./cmd/netpol-check ../rendered.yaml
           go run ./cmd/netpol-check ../rendered-k8s.yaml
 
-      # 두 차트 · compose 의 realm 클라이언트 흐름 · 역할과 Keycloak 클라이언트 secret 을 받는 워크로드 검사(tools/cmd/keycloak-check)
+      # 두 렌더 · compose 의 realm 클라이언트 흐름 · 역할과 Keycloak 클라이언트 secret 을 받는 워크로드 검사(tools/cmd/keycloak-check)
       - name: Keycloak 클라이언트 권한과 secret 을 받는 곳을 본다
         working-directory: tools
         run: |
           go run ./cmd/keycloak-check ../rendered.yaml \
             ../helm/ggeolmuse/config-files/keycloak-realm-template.json \
             ../docker-compose/keycloak/custom-realm.json
-          go run ./cmd/keycloak-check ../rendered-k8s.yaml ../k8s/helm/ggeolmuse/config-files/keycloak-realm-template.json
+          go run ./cmd/keycloak-check ../rendered-k8s.yaml ../helm/ggeolmuse/config-files/keycloak-realm-template.json
 
       # 렌더한 이미지 태그가 Docker Hub 에 있는지(값 파일 오타 · 없는 태그, tools/cmd/image-check)
       - name: Docker Hub 이미지 태그 확인

@@ -34,6 +34,9 @@ spec:
       {{- end }}
       securityContext:
         {{- include "ggeolmuse.podSecurityContext" . | nindent 8 }}
+      {{- with include "ggeolmuse.multiNodeScheduling" (dict "name" $svc.name "Values" .Values) }}
+      {{- . | nindent 6 }}
+      {{- end }}
       {{- /* config-server 자신은 대기 없음 */}}
       {{- if ne $svc.name .Values.configServer.name }}
       initContainers:
@@ -78,6 +81,9 @@ spec:
         {{- if $svc.resources }}
         resources:
           {{- toYaml $svc.resources | nindent 10 }}
+        {{- end }}
+        {{- with include "ggeolmuse.preStop" . }}
+        {{- . | nindent 8 }}
         {{- end }}
         securityContext:
           {{- include "ggeolmuse.securityContext" . | nindent 10 }}
