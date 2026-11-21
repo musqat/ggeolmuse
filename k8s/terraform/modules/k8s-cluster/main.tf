@@ -1,4 +1,4 @@
-# 멀티 노드 kubeadm 클러스터(컨트롤 플레인 1 · 워커 N) · 노드 보안 그룹 · NLB
+# 멀티 노드 kubeadm 클러스터(컨트롤 플레인 온디맨드 1 · 스팟 워커) · 노드 보안 그룹
 
 data "aws_subnet" "nodes" {
   id = var.subnet_id
@@ -23,9 +23,8 @@ locals {
 
   nodes = merge(
     { "control-plane" = { role = "control-plane", type = var.control_plane_instance_type } },
-    { for i in range(var.worker_count) : "worker-${i + 1}" => { role = "worker", type = var.worker_instance_type } },
+    { for name, type in var.workers : name => { role = "worker", type = type } },
   )
-  workers = { for k, n in local.nodes : k => n if n.role == "worker" }
 
   # 노드 공통 준비만(kubeadm init · join 은 k8s/README.md 순서대로 사람이)
   user_data = <<-EOT
@@ -46,48 +45,17 @@ resource "aws_security_group" "nodes" {
   tags        = merge(local.tags, { Name = "${local.name}-nodes" })
 }
 
-# 노드끼리 전부(API 서버 · kubelet · etcd · Calico VXLAN · Typha · 컨트롤 플레인 지표)
+# 들어오는 것은 노드끼리만(API 서버 · kubelet · etcd · Calico VXLAN · Typha · 컨트롤 플레인 지표), 밖에서 들어오는 포트 없음
 resource "aws_vpc_security_group_ingress_rule" "node_to_node" {
   security_group_id            = aws_security_group.nodes.id
   referenced_security_group_id = aws_security_group.nodes.id
   ip_protocol                  = "-1"
 }
 
-resource "aws_vpc_security_group_ingress_rule" "nlb_to_gateway" {
-  security_group_id            = aws_security_group.nodes.id
-  referenced_security_group_id = aws_security_group.nlb.id
-  ip_protocol                  = "tcp"
-  from_port                    = 30443
-  to_port                      = 30443
-}
-
 resource "aws_vpc_security_group_egress_rule" "nodes_out" {
   security_group_id = aws_security_group.nodes.id
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "-1"
-}
-
-resource "aws_security_group" "nlb" {
-  name        = "${local.name}-nlb"
-  description = "k8s ingress NLB"
-  vpc_id      = data.aws_subnet.nodes.vpc_id
-  tags        = merge(local.tags, { Name = "${local.name}-nlb" })
-}
-
-resource "aws_vpc_security_group_ingress_rule" "nlb_https" {
-  security_group_id = aws_security_group.nlb.id
-  prefix_list_id    = var.ingress_prefix_list_id
-  ip_protocol       = "tcp"
-  from_port         = 443
-  to_port           = 443
-}
-
-resource "aws_vpc_security_group_egress_rule" "nlb_to_nodes" {
-  security_group_id            = aws_security_group.nlb.id
-  referenced_security_group_id = aws_security_group.nodes.id
-  ip_protocol                  = "tcp"
-  from_port                    = 30443
-  to_port                      = 30443
 }
 
 resource "aws_vpc_security_group_ingress_rule" "rds_from_nodes" {
@@ -111,6 +79,22 @@ resource "aws_instance" "nodes" {
   vpc_security_group_ids = [aws_security_group.nodes.id]
   iam_instance_profile   = aws_iam_instance_profile.nodes.name
   user_data              = local.user_data
+  # 파드 주소를 출발지로 단 패킷 허용(Calico 가 같은 서브넷 안에서는 감싸지 않음)
+  source_dest_check = false
+  # 밖으로 나가는 연결용 공인 IP(서브넷 설정과 상관없이)
+  associate_public_ip_address = true
+
+  # 워커는 유지 요청 스팟(회수되면 멈췄다가 용량이 돌아오면 같은 인스턴스로 다시 뜸, 평일 스케줄이 그대로 켜고 끔)
+  dynamic "instance_market_options" {
+    for_each = each.value.role == "worker" ? [1] : []
+    content {
+      market_type = "spot"
+      spot_options {
+        spot_instance_type             = "persistent"
+        instance_interruption_behavior = "stop"
+      }
+    }
+  }
 
   # IMDSv2 만(파드 External Secrets 가 노드 역할을 쓰게 hop 2)
   metadata_options {
@@ -130,48 +114,4 @@ resource "aws_instance" "nodes" {
   }
 
   tags = merge(local.tags, { Name = "${local.name}-${each.key}", Role = each.value.role })
-}
-
-# --- NLB(TCP 통과, TLS 는 Envoy Gateway 리스너의 Origin 인증서) ---
-
-resource "aws_lb" "ingress" {
-  name               = "${local.name}-ingress"
-  load_balancer_type = "network"
-  subnets            = [var.subnet_id]
-  security_groups    = [aws_security_group.nlb.id]
-  tags               = local.tags
-}
-
-resource "aws_lb_target_group" "gateway" {
-  name        = "${local.name}-gateway"
-  port        = 30443
-  protocol    = "TCP"
-  vpc_id      = data.aws_subnet.nodes.vpc_id
-  target_type = "instance"
-
-  health_check {
-    protocol = "TCP"
-    port     = "traffic-port"
-  }
-
-  tags = local.tags
-}
-
-resource "aws_lb_target_group_attachment" "workers" {
-  for_each = local.workers
-
-  target_group_arn = aws_lb_target_group.gateway.arn
-  target_id        = aws_instance.nodes[each.key].id
-  port             = 30443
-}
-
-resource "aws_lb_listener" "https" {
-  load_balancer_arn = aws_lb.ingress.arn
-  port              = 443
-  protocol          = "TCP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.gateway.arn
-  }
 }

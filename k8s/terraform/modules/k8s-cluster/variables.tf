@@ -9,12 +9,7 @@ variable "environment" {
 }
 
 variable "subnet_id" {
-  description = "노드 셋 · NLB 를 둘 공개 서브넷(EBS 볼륨이 AZ 에 묶여 한 AZ)"
-  type        = string
-}
-
-variable "ingress_prefix_list_id" {
-  description = "NLB 443 을 받을 접두사 목록(Cloudflare)"
+  description = "노드 셋을 둘 공개 서브넷(EBS 볼륨이 AZ 에 묶여 한 AZ)"
   type        = string
 }
 
@@ -30,21 +25,23 @@ variable "secret_arns" {
 }
 
 variable "control_plane_instance_type" {
-  description = "컨트롤 플레인 인스턴스 타입"
+  description = "컨트롤 플레인 인스턴스 타입(온디맨드, 앱은 안 올림)"
   type        = string
-  default     = "t3a.medium"
+  default     = "t3a.small"
 }
 
-variable "worker_instance_type" {
-  description = "워커 인스턴스 타입"
-  type        = string
-  default     = "t3a.large"
-}
+variable "workers" {
+  description = "워커 이름 → 인스턴스 타입(유지 요청 스팟, 회수되면 멈춤, 둘이 같이 회수되지 않게 종류를 섞음)"
+  type        = map(string)
+  default = {
+    worker-a = "t3a.large"
+    worker-b = "t3.large"
+  }
 
-variable "worker_count" {
-  description = "워커 수"
-  type        = number
-  default     = 2
+  validation {
+    condition     = length(var.workers) > 0 && !contains(keys(var.workers), "control-plane")
+    error_message = "워커가 하나 이상이어야 하고 이름에 control-plane 은 쓸 수 없습니다."
+  }
 }
 
 variable "root_volume_size" {

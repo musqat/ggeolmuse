@@ -2,7 +2,7 @@
 
 지금 운영은 EC2 한 대의 k3s 다. 이 폴더는 같은 앱을 여러 노드 쿠버네티스로 옮길 때 쓰는 예비안이다.
 
-- 구성은 kubeadm, 컨트롤 플레인 1 · 워커 2
+- 구성은 kubeadm, 컨트롤 플레인 1(t3a.small 온디맨드) · 워커 2(t3a.large · t3.large 유지 요청 스팟, 둘이 같이 회수되지 않게 종류를 섞음, 회수되면 멈췄다가 다시 뜸)
 - 전환하면 단일 노드 k3s 를 이것으로 바꾼다. RDS · 시크릿은 그대로 쓴다
 - 전환 전에는 바뀌는 것이 없다. k3s 는 이 폴더를 읽지 않고, terraform 은 `k8s/terraform` 루트를 apply 하기 전에는 아무것도 만들지 않는다
 - 로컬에서는 kind 3노드로 같은 구성을 띄워 본다
@@ -24,7 +24,7 @@
 | `helm/ggeolmuse` | 멀티 노드 앱 차트(운영 차트를 복사해 따로 둔 것, `values-k8s.yaml` · `values-kind.yaml` 포함) |
 | `argocd/apps` · `argocd/root.yaml` | ArgoCD 가 맞추는 Application 목록 |
 | `monitoring/*-values-k8s.yaml` | 멀티 노드 모니터링 값(운영 값 파일 위에 덧붙임) |
-| `terraform/` | EC2 셋 · 보안 그룹 · NLB · 노드 역할(`modules/k8s-cluster`), 운영 terraform 과 상태를 따로 둠 |
+| `terraform/` | EC2 셋 · 보안 그룹 · 노드 역할(`modules/k8s-cluster`), 운영 terraform 과 상태를 따로 둠 |
 
 terraform 테스트(가짜 AWS 프로바이더, AWS 에 닿지 않음)는 루트와 모듈에서 따로 돌린다.
 
@@ -39,10 +39,10 @@ cd modules/k8s-cluster && terraform init -backend=false && terraform test
 
 | | 지금(k3s) | 멀티 노드 |
 |---|---|---|
-| 노드 | EC2 1 | EC2 3(컨트롤 플레인 1 · 워커 2) |
+| 노드 | EC2 1 | EC2 3(컨트롤 플레인 small 온디맨드 · 워커 large 스팟 둘) |
 | 컨트롤 플레인 | k3s 한 프로세스 · sqlite | kubeadm · etcd |
 | 네트워크 · NetworkPolicy | flannel · kube-router | Calico |
-| 진입 | 번들 Traefik, EC2 443, IngressRoute | Envoy Gateway(Envoy 2개), NLB 443, Gateway API |
+| 진입 | 번들 Traefik, EC2 443, IngressRoute | Envoy Gateway(Envoy 2개), Gateway API. 노드로 들어오는 포트는 없음(NLB 없음) |
 | 저장소 | 노드 디스크(local-path) | EBS gp3 |
 | 앱 레플리카 | 전부 1 | 상태 없는 앱 8개 · Keycloak 2개씩, PDB · 노드 분산 |
 | Kafka · Zookeeper · Redis | 1 | 1(볼륨만 EBS) |
@@ -60,14 +60,13 @@ cd modules/k8s-cluster && terraform init -backend=false && terraform test
 
 노드 접속은 모두 SSM 이고, 스크립트는 노드의 `/opt/ggeolmuse/k8s/bootstrap/` 에 있다.
 
-1. `k8s/terraform` 에서 `terraform.tfvars.example` 을 `terraform.tfvars` 로 복사해 서브넷 · Cloudflare 접두사 목록 · RDS 보안 그룹을 넣고 apply 한다.
+1. `k8s/terraform` 에서 `terraform.tfvars.example` 을 `terraform.tfvars` 로 복사해 서브넷 · RDS 보안 그룹을 넣고 apply 한다.
    노드는 뜰 때 공통 준비를 마친다
 2. 컨트롤 플레인에서 `sudo bash control-plane.sh` 를 돌린다. 마지막 줄에 워커 join 명령이 나온다
 3. 워커 둘에서 그 join 명령을 `sudo` 로 돌린다
 4. 컨트롤 플레인에서 `bash addons.sh aws` 를 돌린다. 부품을 깔고 ArgoCD 루트 앱을 올려, 그 뒤 앱은 ArgoCD 가 맞춘다
 5. ArgoCD 화면에서 `prometheus` · `loki` · `tempo` 를 Sync 한다
-6. 앱이 워커 둘에 나뉘었는지, NLB 주소로 https 가 응답하는지 본다
-7. Cloudflare DNS 를 NLB 주소(terraform 출력 `ingress_dns_name`)로 바꾼다
+6. 앱이 워커 둘에 나뉘었는지 본다
 
 **되돌리기** — DNS 를 k3s EC2 로 돌린다. 같은 RDS 를 보므로 DB 는 그대로다. 멀티 노드를 지울 때는 `k8s/terraform` 에서
 destroy 한다.

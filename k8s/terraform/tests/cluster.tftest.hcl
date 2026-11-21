@@ -12,25 +12,18 @@ mock_provider "aws" {
   mock_resource "aws_iam_role" {
     defaults = { arn = "arn:aws:iam::123456789012:role/mock" }
   }
-  mock_resource "aws_lb" {
-    defaults = { arn = "arn:aws:elasticloadbalancing:ap-northeast-2:123456789012:loadbalancer/net/mock/0123456789abcdef" }
-  }
-  mock_resource "aws_lb_target_group" {
-    defaults = { arn = "arn:aws:elasticloadbalancing:ap-northeast-2:123456789012:targetgroup/mock/0123456789abcdef" }
-  }
 }
 
 variables {
-  subnet_id              = "subnet-0123456789abcdef0"
-  ingress_prefix_list_id = "pl-0123456789abcdef0"
+  subnet_id = "subnet-0123456789abcdef0"
 }
 
 run "cluster" {
   command = apply
 
   assert {
-    condition     = toset(keys(module.k8s_cluster.node_ids)) == toset(["control-plane", "worker-1", "worker-2"])
-    error_message = "노드는 컨트롤 플레인 1 · 워커 2"
+    condition     = toset(keys(module.k8s_cluster.node_ids)) == toset(["control-plane", "worker-a", "worker-b"])
+    error_message = "노드는 컨트롤 플레인 1 · large 워커 둘"
   }
 }
 
