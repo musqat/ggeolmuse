@@ -41,6 +41,14 @@ public class AuthUtil {
     return requireActiveUser(keycloakId).getId();
   }
 
+  // Keycloak ID 사용자가 활성 · 이메일 인증 · DB 역할 관리자인지(없으면 거짓)
+  public boolean isActiveAdmin(String keycloakId) {
+    return userRepository.findByKeycloakId(keycloakId)
+      .filter(user -> user.isEnabled() && user.isEmailVerified())
+      .map(user -> user.getRole() == UserRole.ADMIN)
+      .orElse(false);
+  }
+
   private static String subject(Jwt jwt) {
     if (jwt == null) {
       throw new AuthenticationException(UserResponse.AUTHENTICATION_FAILED);
