@@ -4,19 +4,11 @@
 [`alert-rules-test.yaml`](alert-rules-test.yaml), 알림 목록과 라우팅은 [README](README.md#알림) 에 있다. 슬랙 알림의
 `runbook_url` 이 이 문서의 알림 이름 제목을 가리킨다.
 
-명령의 `<서비스>` 는 디플로이먼트 이름(`user-service` 등), 네임스페이스는 `default` 다.
-
 ## 서비스 가용성
 
 ### ServiceDown
 
 7개 서비스 중 하나의 `up` 이 10분 넘게 0 이다. 콜드 부팅은 10분 안에 끝나서 아침 기동 때는 울리지 않는다.
-
-```bash
-kubectl get pods -l app=<서비스>
-kubectl describe pod -l app=<서비스>
-kubectl logs deploy/<서비스> --previous --tail=200
-```
 
 `Pending` 이면 노드 자원(`kubectl describe node` 의 요청 합), `CrashLoopBackOff` 면 직전 로그, `Running` 인데 0 이면
 ServiceMonitor 가 고르는 관리 포트(9090)와 NetworkPolicy 를 본다.
@@ -26,12 +18,6 @@ ServiceMonitor 가 고르는 관리 포트(9090)와 NetworkPolicy 를 본다.
 redis_exporter 가 본 `redis_up` 이 0 이거나 지표가 10분 넘게 없다. exporter 는 redis 파드 안의 컨테이너라 파드가
 없어도 이 알림이 된다.
 
-```bash
-kubectl get pods -l app=redis
-kubectl logs deploy/redis -c redis --tail=100
-kubectl logs deploy/redis -c redis-exporter --tail=50
-```
-
 `OOMKilled` 면 `maxmemory`(256mb)와 컨테이너 메모리 한도를 같이 본다. 비밀번호가 바뀌었으면 exporter 로그에 인증
 오류가 남는다. 이때는 시크릿 `ggeolmuse-secrets` 의 `REDIS_PASSWORD` 가 바뀐 뒤 redis 파드를 다시 띄운다.
 
@@ -40,23 +26,12 @@ kubectl logs deploy/redis -c redis-exporter --tail=50
 kafka-exporter 가 본 브로커 수가 0 이거나 지표가 10분 넘게 없다. exporter 는 브로커에 붙지 못하면 다시 시작하므로
 지표가 없는 쪽이 흔하다. 체결 이벤트 · 정산이 이 동안 밀린다.
 
-```bash
-kubectl get pods -l 'app in (kafka,zookeeper,kafka-exporter)'
-kubectl logs statefulset/kafka --tail=200
-kubectl logs deploy/kafka-exporter --tail=50
-```
-
 브로커가 zookeeper 세션을 잃었으면 zookeeper 를 먼저 살린다. 디스크(`kafka-data-kafka-0` PVC)가 찼으면 보관 시간
 (`logRetentionHours`)을 줄인다.
 
 ### ServiceRestarting
 
 한 파드가 최근 15분에 3번 넘게 재시작했고 5분 이어진다(크래시 루프). 부팅 때 한 번은 세지 않는다.
-
-```bash
-kubectl get pod <파드> -o jsonpath='{.status.containerStatuses[*].lastState}'
-kubectl logs <파드> --previous --tail=200
-```
 
 `OOMKilled` 면 힙 · 컨테이너 한도, 아니면 직전 로그의 예외를 본다.
 
@@ -200,9 +175,5 @@ userId 로 넣는다. 기록이 없으면 user-service 가 아직 그 체결을 
 보고 `marketdata_collection_last_completed_seconds` 에 그 시각을 남긴다. 7시 30분 뒤에 다시 뜬 파드는 그 전 수집을
 알 수 없어 보지 않는다(EC2 가 07:00 에 켜져 07:05 무렵 뜬 파드는 본다).
 
-```bash
-kubectl logs deploy/market-data-service --since=4h | grep -E "YF 스케줄러|수집 (진행|완료)"
-```
-
-`캔들 업데이트 시작` 이 없으면 스케줄러(ShedLock 잠금 · 초기 수집 진행 중), `수집 진행` 에서 멈췄으면 Yahoo 응답
+market-data 로그에 `캔들 업데이트 시작` 이 없으면 스케줄러(ShedLock 잠금 · 초기 수집 진행 중), `수집 진행` 에서 멈췄으면 Yahoo 응답
 (로그의 `HTTP오류` · `연결실패` 수)과 KafkaCollectionLag 를 본다. 다시 받으려면 관리자 토큰으로 `POST /api/admin/market/batch/candles` 를 부른다.
