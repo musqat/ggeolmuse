@@ -197,6 +197,8 @@ infrastructure:
       logRetentionHours: 168
       logSegmentBytes: "1073741824"
       heapOpts: "-Xmx512m -Xms512m"
+      # 데이터 폴더(비면 이미지 기본 /var/lib/kafka/data)
+      logDirs: ""
     service:
       internal:
         type: ClusterIP

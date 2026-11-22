@@ -335,6 +335,13 @@ jobs:
           helm template ggeolmuse helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml \
             -f helm/ggeolmuse/values-k8s.yaml > rendered-k8s.yaml
 
+      # EBS(ext4) 볼륨 맨 위 lost+found 를 피하는 Kafka 데이터 하위 폴더 확인
+      - name: 멀티 노드 Kafka 데이터 폴더
+        run: |
+          helm template ggeolmuse helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml -f helm/ggeolmuse/values-k8s.yaml \
+            --show-only templates/infrastructure/kafka.yaml | grep -A1 'name: KAFKA_LOG_DIRS' | grep -q 'value: "/var/lib/kafka/data/[^"]' \
+            || { echo "::error::멀티 노드 Kafka 데이터 폴더(KAFKA_LOG_DIRS)가 볼륨 하위 폴더가 아님"; exit 1; }
+
       # 익명 받기 횟수 제한(429) 회피용 읽기 전용 토큰
       - name: Docker Hub 로그인
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
