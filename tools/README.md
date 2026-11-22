@@ -18,22 +18,4 @@ CI · 릴리스 · 운영 확인에 쓰는 Go 명령이다.
 | `internal/release` | 봇 커밋 제목 만들기 · 읽기 |
 | `internal/values` | 값 파일 읽기 · 쓰기 |
 | `internal/kube` | kubeconfig 로 클러스터 클라이언트 만들기 |
-| `repocheck` | 리포 설정 테스트 — 외부 액션 커밋 고정 · 베이스 이미지 digest 고정 · 이미지 스캔 판정 · 워크플로 연결 · 저장소 쿼리는 QueryDSL · 네이티브 잠금 하나만 `@Query` · Dependabot 묶음(opentelemetry 함께 · maven 빌드 이미지 JDK 버전 고정)(파일이 모듈 밖이라 `-count=1` 로 돌림) |
-
-```bash
-cd tools
-go test -count=1 ./...
-go run ./cmd/release-plan -head HEAD -body pr-body.md
-go run ./cmd/release-plan -head "$(git rev-parse HEAD)" -picks 'backtest-service 1.8.0, frontend-web'
-go run ./cmd/set-image-tag -tags '{"user-service":"1.8.0"}' -built "$(git rev-parse HEAD)" ../helm/ggeolmuse/values-prod.yaml user-service
-helm template ggeolmuse ../helm/ggeolmuse -f ../helm/ggeolmuse/values-prod.yaml > /tmp/rendered.yaml && go run ./cmd/netpol-check /tmp/rendered.yaml
-go run ./cmd/keycloak-check /tmp/rendered.yaml ../helm/ggeolmuse/config-files/keycloak-realm-template.json ../docker-compose/keycloak/custom-realm.json
-go run ./cmd/image-check /tmp/rendered.yaml
-go run ./cmd/ci-changes -event pull_request -base origin/master
-go run ./cmd/chat-coverage ../backend/chat-service/coverage.json 90 80
-go run ./cmd/rollout-check -values ../helm/ggeolmuse/values-prod.yaml
-ARGOCD_TOKEN=... CF_ACCESS_CLIENT_ID=... CF_ACCESS_CLIENT_SECRET=... go run ./cmd/rollout-check -values ../helm/ggeolmuse/values-prod.yaml -only backtest-service -argocd https://argocd.ggeolmuse.com -site https://ggeolmuse.com -wait 20m
-go run ./cmd/db-check trade 'SELECT count(*) FROM trades'
-go run ./cmd/db-check -render trade 'SELECT count(*) FROM trades' > /tmp/db-check.yaml
-go run ./cmd/db-check -restore ~/ggeolmuse-dumps/*.dump
-```
+| `repocheck` | 리포 설정 테스트 — 외부 액션 커밋 고정 · 베이스 이미지 digest 고정 · 이미지 스캔 판정 · 워크플로 연결 · 저장소 쿼리는 QueryDSL · 네이티브 잠금 하나만 `@Query` · Dependabot 묶음(opentelemetry 함께 · maven 빌드 이미지 JDK 버전 고정) |

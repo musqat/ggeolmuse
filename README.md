@@ -62,10 +62,10 @@ NYSE · NASDAQ · NYSE ARCA 상장 12,000+ 종목의 일별 가격으로 투자 
 ## 구조
 
 서비스 일곱 개(Java 6 + Python 1). 서비스별 독립 배포와 스케일링을 다뤄보는 것이 목적이고
-**실제 운영은 단일 EC2 한 대**다.
+**실제 운영은 EC2 세 대의 kubeadm 클러스터**다(컨트롤 플레인 1 · 워커 2).
 
 ```
-                    Traefik IngressRoute
+                 Cloudflare Tunnel (cloudflared)
                             │
                     Gateway Server (8070)
          JWT 검증 · 라우팅 · Rate Limit · Circuit Breaker
@@ -86,22 +86,21 @@ Feign 은 답이 있어야 다음 줄이 진행되는 조회에 쓰고 Kafka 는
 읽어 배포한다. 코드와 분리해 둬서 cron 이나 수집 상한 같은 값은 재배포 없이 바꾼다.
 
 <details>
-<summary><b>서비스별 상세</b> — 각 서비스 README</summary>
+<summary><b>서비스별 하는 일</b></summary>
 
 <br>
 
-| Service | 역할 | |
-|---|---|---|
-| **Config Server** | 중앙 설정 관리 | [📄](backend/config-server/README.md) |
-| **Gateway Server** | 라우팅, JWT 검증, Rate Limit | [📄](backend/gateway-server/README.md) |
-| **User Service** | 인증, 계좌 관리, 환전 | [📄](backend/user-service/README.md) |
-| **Trade Service** | 거래 실행, 포트폴리오 | [📄](backend/trade-service/README.md) |
-| **Market Data Service** | 시세 수집·제공 | [📄](backend/market-data-service/README.md) |
-| **Backtest Service** | 전략 백테스팅 | [📄](backend/backtest-service/README.md) |
-| **Chat Service** | AI 종목 대화 (FastAPI) | [📄](backend/chat-service/README.md) |
+| 서비스 | 하는 일 |
+|---|---|
+| **Gateway Server** | 라우팅, JWT 검증(발급자 · 발급 클라이언트 허용 목록), 경로별 요청 상한, 서킷 브레이커, CORS |
+| **Config Server** | 설정 저장소를 읽어 서비스에 내려줌 |
+| **User Service** | Keycloak 로그인(이메일 · 구글), 가입과 이메일 인증, 계좌 · 입금 · 환전, 체결 · 배당 정산, 탈퇴 |
+| **Trade Service** | 모의 매매(날짜를 골라 그날 가격으로 체결, 주말은 직전 거래일, 평일 휴장 · 미국 동부 오늘보다 뒤는 거절), 보유 · 배당 · 주식 분할 반영, 포트폴리오 통계 |
+| **Market Data Service** | 상장 목록(Alpha Vantage), 일봉(Yahoo Finance · Alpha Vantage 전환), S&P 500 · 나스닥 100 지수, 환율(한국수출입은행), 배당 · 분할 수집 |
+| **Backtest Service** | 위 기능 목록의 전략 여덟 가지 시뮬레이션 |
+| **Chat Service** | AI 종목 대화(FastAPI) — [구조와 흐름](backend/chat-service/README.md) |
 
 인프라 구성은 [helm/README.md](helm/README.md) 에 있다.
-서비스 설정은 별도 저장소 [ggeolmuse-config](https://github.com/musqat/ggeolmuse-config) 에 있다.
 
 </details>
 
@@ -126,12 +125,13 @@ ggeolmuse/
 ├── frontend-web/         React
 ├── docker-compose/       로컬 스택
 ├── cloudflare/           꺼져 있을 때 안내 페이지 (Worker)
-├── helm/                 Helm 차트 · ArgoCD
-├── k8s/                  멀티 노드 예비안 (부트스트랩 · kind)
+├── helm/                 Helm 차트 · 모니터링 값
+├── k8s/                  운영 클러스터 (kubeadm 부트스트랩 · ArgoCD · EC2 셋 · kind)
 ├── tests/
 │   ├── e2e/              Playwright
 │   └── k6/               부하 테스트 스크립트
-└── terraform/            운영 EC2 · RDS · 스케줄러 · 알람
+├── tools/                CI · 릴리스 · 운영 확인 Go 명령
+└── terraform/            운영 RDS · 스케줄러 · 알람 · 백업
 ```
 
 서비스 안 패키지는 두 가지다. 독립된 기능이 둘인 user-service 는 기능별(`domain/account` · `domain/user` 아래 controller · dto · entity ·
@@ -156,7 +156,7 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 | Frontend | React · TypeScript · Vite |
 | Auth | Keycloak (OAuth2 / JWT) |
 | Resilience | Resilience4j — CircuitBreaker · Retry · TimeLimiter · Bulkhead |
-| Infra | Kubernetes (K3s) · Helm · ArgoCD · Docker |
+| Infra | Kubernetes (kubeadm) · Helm · ArgoCD · Cloudflare Tunnel · Docker |
 | 관측 | Prometheus · Grafana · Tempo (OpenTelemetry) · Loki |
 | Test | JUnit 5 · Mockito · Testcontainers · Vitest · Playwright · k6 |
 
@@ -196,14 +196,14 @@ CI 에서 그 아래면 빌드를 실패시킨다(자바 JaCoCo · chat `tools/c
 
 | 서비스 | 라인 | 분기 |
 |---|---|---|
-| user | 98.6% | 87.9% |
-| trade | 99.6% | 96.7% |
-| backtest | 99.6% | 95.2% |
+| user | 98.8% | 87.7% |
+| trade | 99.4% | 96.7% |
+| backtest | 99.6% | 95.3% |
 | market-data | 98.1% | 88.5% |
 | gateway | 73.5% | 37.5% |
-| common | 87.8% | 89.4% |
-| chat | 98.5% | 90.1% |
-| frontend-web | 95.1% | 90.3% |
+| common | 88.3% | 89.7% |
+| chat | 98.5% | 90.3% |
+| frontend-web | 95.1% | 90.4% |
 
 market-data 의 외부 API 호출은 응답을 흉내 낸 테스트라 실제 API 가 바뀌는 것은 못 잡는다.
 
@@ -215,14 +215,14 @@ market-data 의 외부 API 호출은 응답을 흉내 낸 테스트라 실제 AP
 
 [성능 튜닝](docs/performance-tuning.md) 에 적었다. 수치마다 잰 조건을 함께 적었다.
 
-운영 부하는 2026-10-21 에 1.5.1 로 쟀다. 같은 VPC 의 c5.xlarge 에서 k6 VU 50 으로, Traefik → 게이트웨이 → market-data 를
+운영 부하는 2026-10-21 에 1.5.1 로 쟀다(단일 노드 k3s 때). 같은 VPC 의 c5.xlarge 에서 k6 VU 50 으로, Traefik → 게이트웨이 → market-data 를
 그대로 거쳤다.
 
 | 부하 | 처리량 | p95 | p99 |
 |---|---|---|---|
 | 다섯 경로 섞어서(웜업 뒤) | 64.8 rps | 1.64초 | 2.06초 |
-| 시세 하나만 | 약 200 rps(IP 당 한도) | 274ms | 321ms |
-| 일자별 OHLC 하나만 | 약 194 rps(IP 당 한도) | 282ms | 330ms |
+| 시세 하나만 | 약 200 rps(그때 IP 당 한도) | 274ms | 321ms |
+| 일자별 OHLC 하나만 | 약 194 rps(그때 IP 당 한도) | 282ms | 330ms |
 | 전체 종목 목록 하나만 | 24.4 rps | 1.99초 | 2.18초 |
 
 부하 중 게이트웨이와 market-data 가 CPU 한도(0.6 · 0.7코어)까지 찼다. 처리량의 상한은 이 한도다. 처음 걸었을 때는
@@ -233,13 +233,13 @@ market-data 의 외부 API 호출은 응답을 흉내 낸 테스트라 실제 AP
 ## 운영
 
 **구성 등급** — 관리형 서비스로 짜면 EKS, RDS Multi-AZ, MSK, ElastiCache 가 된다.
-아키텍처는 그대로 두고 운영 등급만 낮췄다. EKS→K3s, RDS Multi-AZ→Single-AZ,
+아키텍처는 그대로 두고 운영 등급만 낮췄다. EKS→kubeadm(EC2 셋, 워커는 스팟), RDS Multi-AZ→Single-AZ,
 MSK·ElastiCache→파드 내 실행. values 파일만 바꾸면 되돌릴 수 있게 환경을 분리했다.
 
 **데이터** — 상장 목록을 받아오면 14,000 개가 넘게 잡힌다. 상장폐지된 것은 지우지 않고
 `active=false` 로 내린다. 수집 스케줄러는 `active=true` 인 12,000+ 만 갱신한다.
 
-**가동 시간** — EventBridge Scheduler 가 EC2 를 평일 07:00 에 켜고 19:00 에 끈다.
+**가동 시간** — EventBridge Scheduler 가 노드 셋을 평일 07:00 에 켜고 19:00 에 끈다.
 앱이 뜨는 데 5~10분 걸려서 방문자 기준은 07:30 이다.
 
 <details>
@@ -254,7 +254,7 @@ GitHub Actions 릴리스    CI(검사 · E2E) 초록 뒤 PR 에서 체크한 서
         ↓
 ArgoCD (GitOps)         Helm 차트를 추적해 동기화
         ↓
-K3s (EC2 단일 노드)      Traefik IngressRoute 로 진입
+kubeadm (EC2 셋)         Cloudflare Tunnel 로 진입
 ```
 
 | 도구 | 용도 |
@@ -280,8 +280,9 @@ K3s (EC2 단일 노드)      Traefik IngressRoute 로 진입
 
 <br>
 
-**전송** — 브라우저에서 EC2 까지 전 구간이 HTTPS 다. Cloudflare 는 Full (strict) 로 EC2 의 Cloudflare Origin CA 인증서를 검증하고,
-EC2 는 Cloudflare 대역에서 온 요청만 받는다. Keycloak 은 Traefik 이 넘긴 전달 헤더로 https 요청을 구분해 쿠키에 Secure 속성을 넣는다.
+**전송** — 브라우저에서 Cloudflare 까지는 HTTPS, Cloudflare 에서 클러스터까지는 cloudflared 가 밖으로 연 암호화 터널이다.
+노드로 들어오는 포트는 없고, 클러스터 안에서는 cloudflared 가 서비스로 넘긴다(NetworkPolicy 로 받는 쪽을 좁힘). Keycloak 은 cloudflared 가
+넘긴 전달 헤더로 https 요청을 구분해 쿠키에 Secure 속성을 넣는다.
 
 **인증** — Keycloak 이 토큰을 발급하고, 게이트웨이가 서명 · 만료와 함께 발급자(`iss`)와 발급 클라이언트(`azp`)를 허용 목록으로 검사한다.
 user · trade · market-data · backtest 도 같은 허용 목록으로 다시 검증한다. 서비스 사이 내부 API(`/api/internal/**`)는
@@ -290,9 +291,9 @@ user · trade · market-data · backtest 도 같은 허용 목록으로 다시 �
 게이트웨이와 서비스는 가입 뒤 이메일 인증 전인 사용자의 토큰(`email_verified` 가 false)을 받지 않는다.
 관리자 API 는 토큰의 admin 권한과 함께 DB 역할 · 정지 여부를 보아(trade · market-data 는 user-service 내부 API 로 물음), 역할을 내리거나 정지한 사용자는 남은 토큰으로도 쓰지 못한다.
 
-**요청 상한** — 게이트웨이가 Redis 토큰 버킷으로 경로마다 상한을 둔다. 시세 조회는 초당 20(한꺼번에 40), 백테스트는 요청 하나에 토큰 10개라 초당 2(한꺼번에 4),
-로그인 · 비밀번호 찾기는 10초에 한 번꼴(연속 세 번)이다. 버킷은 Cloudflare 가 넣은 실 클라이언트 IP(`CF-Connecting-IP`)와 경로로 나눈다.
-EC2 는 Cloudflare 대역에서 온 요청만 받아서 밖에서 이 헤더를 지어 넣을 수 없다. 경로를 키에 넣은 이유는
+**요청 상한** — 게이트웨이가 Redis 토큰 버킷으로 경로마다 상한을 둔다. 시세 조회는 IP 당 초당 20(한꺼번에 40), 백테스트는 요청 하나에 토큰 10개라
+초당 2(한꺼번에 4), 로그인 · 비밀번호 찾기는 10초에 한 번꼴(연속 세 번)이다. 버킷은 Cloudflare 가 넣은 실 클라이언트 IP(`CF-Connecting-IP`)와 경로로 나눈다.
+요청은 Cloudflare 를 거쳐 터널로만 들어와서 밖에서 이 헤더를 지어 넣을 수 없다. 경로를 키에 넣은 이유는
 [문제 해결](docs/problem-solving.md#로그인-한-번이-다른-라우트의-토큰을-깎았다) 에, 이 헤더를 쓰는 이유는
 [같은 문서](docs/problem-solving.md#레이트-리밋-버킷이-운영에서는-여전히-하나였다) 에 있다.
 
@@ -306,8 +307,8 @@ AI 대화는 5시간 TTL 로 사라지고, 백업 · 이벤트 기록에는 보�
 **브라우저** — nginx 가 CSP · X-Frame-Options · X-Content-Type-Options(nosniff) · Referrer-Policy 를 응답에 넣는다.
 
 **공급망** — 외부 액션은 커밋 SHA, 베이스 이미지는 digest 로 고정하고 Dependabot 이 월 1회 부 · 수 버전 묶음 PR 을 연다(주 버전은 계획해서 따로).
-이미지 스캔은 고친 버전이 나온 CRITICAL 이 있으면 PR · 릴리스를 막고(예외는 `.trivyignore`), 운영 이미지도 주 1회 다시 스캔한다.
-PR 커밋의 secret 은 gitleaks, 코드는 CodeQL 이 본다.
+이미지는 Trivy 로 스캔해 CRITICAL · HIGH 를 GitHub Security 탭에 올리고, 고친 버전이 나온 CRITICAL 이 있으면 PR · 릴리스를 막는다
+(예외는 `.trivyignore`). 운영 이미지도 주 1회 다시 스캔하고, 매니페스트 스캔은 보고만 한다. PR 커밋의 secret 은 gitleaks, 코드는 CodeQL 이 본다.
 
 **운영 도구** — Kafka UI · Keycloak 관리 콘솔 · Grafana · ArgoCD 는 Cloudflare Access 뒤에 있어 허용한 계정만 들어간다.
 Kafka UI 는 그 안에서 로그인 폼을 한 번 더 거치고, 읽기 전용이라 토픽 · 메시지 · 클러스터 설정을 바꾸지 못한다.
@@ -320,29 +321,11 @@ Keycloak 은 로그인 클라이언트와 사용자 관리 클라이언트(사�
 Keycloak · 설정 서버는 게이트웨이 · business 서비스와 인그레스 컨트롤러(Keycloak 만)에서 받는다.
 Redis 에는 비밀번호를 건다.
 
-**공급망** — CI 가 이미지와 매니페스트를 Trivy 로 검사해 CRITICAL · HIGH 를 GitHub Security 탭에 올린다. 빌드를 막지는 않고 보고만 한다.
-
 </details>
-
-<br>
-
-## 로컬에서 실행
-
-Docker Desktop 이 떠 있으면 한 번에 올라간다.
-
-```bash
-git clone https://github.com/musqat/ggeolmuse.git
-cd ggeolmuse
-bash docker-compose/local-up.sh
-```
-
-접속은 http://localhost:3000, 시드 계정은 `admin@test.com` / `Admin123!` 이다.
-AI 챗봇 설정과 주의할 점은 [빌드와 배포](docs/DEPLOY.md) 에 적었다.
 
 <br>
 
 ## 만들며 겪은 것
 
-- [시행착오](docs/trial-and-error.md) — 근거를 갖고 정한 것이 확인해보니 반대인 게 여럿이었다. 믿었던 것과 갈린 근거
-- [문제 해결](docs/problem-solving.md) — 겪은 장애와 버그를 문제 → 원인 → 해결. 감수하기로 한 한계도 함께
+- [문제 해결](docs/problem-solving.md) — 겪은 장애와 버그를 문제 → 원인 → 해결. 판단이 틀렸던 것은 처음 생각과 함께
 - [성능 튜닝](docs/performance-tuning.md) — 성능 튜닝한 기록. 수치마다 잰 조건을 함께 적었다
