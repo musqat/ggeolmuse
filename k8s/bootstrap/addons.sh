@@ -72,5 +72,11 @@ helm upgrade --install argocd argo/argo-cd --version "$ARGOCD_CHART" \
 kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace monitoring name=monitoring --overwrite
 
+# Grafana 관리자 계정(없을 때만 무작위 비밀번호로, 값은 출력하지 않음)
+if ! kubectl -n monitoring get secret grafana-admin >/dev/null 2>&1; then
+  kubectl -n monitoring create secret generic grafana-admin --from-literal=admin-user=admin \
+    --from-literal=admin-password="$(head -c 24 /dev/urandom | base64 | tr -d "/+=")"
+fi
+
 # 이후 부품 · 앱 · 모니터링은 ArgoCD 가 k8s/argocd/apps 를 따라 맞춤
 kubectl apply -f "$root/k8s/argocd/root.yaml"

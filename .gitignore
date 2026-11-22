@@ -133,6 +133,9 @@ docs/*
 !docs/problem-solving.md
 !docs/performance-tuning.md
 
+### terraform plan 파일(값이 평문으로 들어감) ###
+*.tfplan
+
 ### wrangler 로컬 캐시 ###
 cloudflare/**/.wrangler/
 

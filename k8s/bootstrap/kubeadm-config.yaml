@@ -1,4 +1,4 @@
-# kubeadm init 설정(${...} 는 control-plane.sh 가 versions.env 값으로 바꿈)
+# kubeadm init 설정(자리표시자는 control-plane.sh 가 versions.env 값으로 바꿈)
 apiVersion: kubeadm.k8s.io/v1beta4
 kind: InitConfiguration
 nodeRegistration:

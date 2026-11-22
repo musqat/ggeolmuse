@@ -42,3 +42,11 @@ CONF
 dnf install -y "kubelet-${KUBERNETES_VERSION}" "kubeadm-${KUBERNETES_VERSION}" "kubectl-${KUBERNETES_VERSION}" \
   --disableexcludes=kubernetes
 systemctl enable kubelet
+
+# 부품 설치용 helm(받은 파일의 체크섬 확인)
+helm_tgz="helm-${HELM_VERSION}-linux-amd64.tar.gz"
+curl -fsSLo "/tmp/$helm_tgz" "https://get.helm.sh/$helm_tgz"
+echo "$(curl -fsSL "https://get.helm.sh/$helm_tgz.sha256sum" | awk '{print $1}')  /tmp/$helm_tgz" | sha256sum -c -
+tar -xzf "/tmp/$helm_tgz" -C /tmp linux-amd64/helm
+install -m 755 /tmp/linux-amd64/helm /usr/local/bin/helm
+rm -rf "/tmp/$helm_tgz" /tmp/linux-amd64

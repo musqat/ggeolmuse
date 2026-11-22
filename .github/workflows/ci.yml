@@ -454,14 +454,16 @@ jobs:
         working-directory: .
         run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7@sha256:887a259a5a534f3c4f36cb02dca341673c6089431057242cdc931e9f133147e9
 
-  # 운영 노드 · kind 스크립트 정적 검사
+  # 운영 노드 · kind 스크립트 정적 검사 · 컨트롤 플레인 설정 렌더 테스트
   node-scripts:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: shellcheck
-        run: shellcheck -x -P SCRIPTDIR -S warning k8s/bootstrap/*.sh k8s/kind/*.sh
+      - name: shellcheck · 테스트
+        run: |
+          shellcheck -x -P SCRIPTDIR -S warning k8s/bootstrap/*.sh k8s/kind/*.sh
+          bash k8s/bootstrap/bootstrap_test.sh
 
   # terraform 형식 · 문법 · 가짜 프로바이더 테스트(AWS 에 닿지 않음, 운영 루트와 멀티 노드 루트)
   terraform:
