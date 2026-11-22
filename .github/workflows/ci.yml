@@ -355,6 +355,15 @@ jobs:
             }
             END { if (n < 6) { print "::error::자바 앱 기동 검사 " n "개(6개 미만)"; bad = 1 } exit bad }'
 
+      # 교체 중 새 레플리카끼리 노드를 나누는 분산 계산(같은 ReplicaSet 파드만 셈) 확인
+      - name: 멀티 노드 분산을 버전마다 계산
+        run: |
+          spread=$(grep -c 'topologySpreadConstraints:' rendered-k8s.yaml)
+          perrev=$(grep -A10 'topologySpreadConstraints:' rendered-k8s.yaml | grep -c -- '- pod-template-hash')
+          echo "분산 $spread · 버전마다 $perrev"
+          [ "$spread" -gt 0 ] && [ "$spread" -eq "$perrev" ] \
+            || { echo "::error::버전마다 계산하지 않는 분산 규칙이 있음(matchLabelKeys: pod-template-hash)"; exit 1; }
+
       # 익명 받기 횟수 제한(429) 회피용 읽기 전용 토큰
       - name: Docker Hub 로그인
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4

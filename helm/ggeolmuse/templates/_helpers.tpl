@@ -276,6 +276,9 @@ topologySpreadConstraints:
   labelSelector:
     matchLabels:
       app: {{ $.name }}
+  # 같은 ReplicaSet 파드끼리만 셈(교체 중 옛 파드 때문에 새 레플리카가 한 노드에 몰리지 않게)
+  matchLabelKeys:
+  - pod-template-hash
 {{- end }}
 {{- end }}
 {{- with .Values.global.nodeLostTolerationSeconds }}
