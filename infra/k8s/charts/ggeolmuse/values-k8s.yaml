@@ -11,14 +11,21 @@ global:
   nodeLostTolerationSeconds: 60
   preStopSleepSeconds: 5
 
+# CPU 요청은 쉴 때 사용량(파드당 10 ~ 40m)에 여유를 둔 값, 기동 때 몰리는 CPU 는 한도까지 씀(워커 하나가 멈추면 Kafka 같은 하나짜리가 옮겨 갈 자리)
 infrastructure:
   # jdbc-ping 캐시 클러스터(keycloak 26 기본)
   keycloak:
     replicas: 2
+    resources:
+      requests:
+        cpu: 50m
   zookeeper:
     storage:
       storageClassName: gp3
   kafka:
+    resources:
+      requests:
+        cpu: 100m
     storage:
       storageClassName: gp3
     # EBS(ext4) 볼륨 맨 위 lost+found 를 파티션으로 읽지 않는 볼륨 안 하위 폴더
@@ -32,12 +39,18 @@ networkPolicy:
 # 상태 없는 앱은 워커마다 하나씩, 자바 앱 기동 검사는 노드 셋 동시 기동에 맞춘 10분
 configServer:
   replicaCount: 2
+  resources:
+    requests:
+      cpu: 50m
   probes:
     startup:
       failureThreshold: 60
 
 gatewayServer:
   replicaCount: 2
+  resources:
+    requests:
+      cpu: 50m
   probes:
     startup:
       failureThreshold: 60
@@ -45,26 +58,41 @@ gatewayServer:
 services:
   userService:
     replicaCount: 2
+    resources:
+      requests:
+        cpu: 50m
     probes:
       startup:
         failureThreshold: 60
   tradeService:
     replicaCount: 2
+    resources:
+      requests:
+        cpu: 50m
     probes:
       startup:
         failureThreshold: 60
   marketDataService:
     replicaCount: 2
+    resources:
+      requests:
+        cpu: 50m
     probes:
       startup:
         failureThreshold: 60
   backtestService:
     replicaCount: 2
+    resources:
+      requests:
+        cpu: 50m
     probes:
       startup:
         failureThreshold: 60
   chatService:
     replicaCount: 2
+    resources:
+      requests:
+        cpu: 50m
 
 frontend:
   replicaCount: 2

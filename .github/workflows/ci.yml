@@ -350,6 +350,18 @@ jobs:
             }
             END { if (n < 6) { print "::error::자바 앱 기동 검사 " n "개(6개 미만)"; bad = 1 } exit bad }'
 
+      # 앱 CPU 요청 합계(레플리카 곱) 상한, 워커 하나가 멈춰도 Kafka 같은 하나짜리가 남은 워커로 옮겨 갈 자리
+      - name: 운영 앱 CPU 요청 합계
+        run: |
+          total=$(awk '/^kind: /{k=$2; r=1} /^  replicas: /{r=$2} /^      containers:/{inc=1} /^      initContainers:/{inc=0}
+            /requests:/{q=1; next} q && /cpu:/{ if (inc && k ~ /Deployment|StatefulSet/) { v=$2; sub(/m$/, "", v); s += v * r }; q=0 }
+            END { print s + 0 }' rendered-k8s.yaml)
+          echo "앱 CPU 요청 합계 ${total}m"
+          if [ "$total" -gt 1600 ]; then
+            echo "::error::앱 CPU 요청 합계 ${total}m 가 상한 1600m 를 넘음"
+            exit 1
+          fi
+
       # 교체 중 새 레플리카끼리 노드를 나누는 분산 계산(같은 ReplicaSet 파드만 셈) 확인
       - name: 멀티 노드 분산을 버전마다 계산
         run: |
