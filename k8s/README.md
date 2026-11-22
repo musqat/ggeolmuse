@@ -25,13 +25,6 @@
 | `monitoring/*-values-k8s.yaml` | 멀티 노드 모니터링 값(운영 값 파일 위에 덧붙임) |
 | `terraform/` | EC2 셋 · 보안 그룹 · 노드 역할(`modules/k8s-cluster`), 운영 terraform 과 상태를 따로 둠 |
 
-terraform 테스트(가짜 AWS 프로바이더, AWS 에 닿지 않음)는 루트와 모듈에서 따로 돌린다.
-
-```bash
-cd k8s/terraform && terraform init -backend=false && terraform test
-cd modules/k8s-cluster && terraform init -backend=false && terraform test
-```
-
 <br>
 
 ## k3s 와 다른 점
@@ -55,31 +48,10 @@ cd modules/k8s-cluster && terraform init -backend=false && terraform test
 
 <br>
 
-## AWS 에 올리는 순서
-
-노드 접속은 모두 SSM 이고, 스크립트는 노드의 `/opt/ggeolmuse/k8s/bootstrap/` 에 있다.
-
-1. `k8s/terraform` 에서 `terraform.tfvars.example` 을 `terraform.tfvars` 로 복사해 서브넷 · RDS 보안 그룹을 넣고 apply 한다.
-   노드는 뜰 때 공통 준비를 마친다
-2. 컨트롤 플레인에서 `sudo bash control-plane.sh` 를 돌린다. 마지막 줄에 워커 join 명령이 나온다
-3. 워커 둘에서 그 join 명령을 `sudo` 로 돌린다
-4. 컨트롤 플레인에서 `bash addons.sh aws` 를 돌린다. 부품을 깔고 ArgoCD 루트 앱을 올려, 그 뒤 앱은 ArgoCD 가 맞춘다
-5. ArgoCD 화면에서 `prometheus` · `loki` · `tempo` 를 Sync 한다
-6. 앱이 워커 둘에 나뉘었는지 본다
-
-**되돌리기** — DNS 를 k3s EC2 로 돌린다. 같은 RDS 를 보므로 DB 는 그대로다. 멀티 노드를 지울 때는 `k8s/terraform` 에서
-destroy 한다.
-
-**두 클러스터가 같이 떠 있을 때** — 한쪽 앱만 켠다. 같은 RDS 를 보는 스케줄 작업이 양쪽에서 돈다.
-
-<br>
-
 ## 로컬 kind 3노드
 
-필요한 것은 Docker · kind · kubectl · helm(버전은 `versions.env`)이다. 앱 이미지는 Docker Hub 의 운영 태그를 받는다.
-
-`kind/up.sh` 로 올리고, `kind/check.sh` 로 확인하고, `kind/down.sh` 로 지운다. 확인하는 것은 노드 분산 · NetworkPolicy · 게이트웨이 응답 ·
-워커 하나를 비웠을 때의 응답이다.
+kind 3노드(`kind/`)로 같은 구성을 로컬에 띄워 노드 분산 · NetworkPolicy · 게이트웨이 응답 · 워커 하나를 비웠을 때의 응답을 본다.
+앱 이미지는 Docker Hub 의 운영 태그를 받는다.
 
 kind 에서만 다른 값(`values-kind.yaml`)
 

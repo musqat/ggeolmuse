@@ -325,21 +325,6 @@ Redis 에는 비밀번호를 건다.
 
 <br>
 
-## 로컬에서 실행
-
-Docker Desktop 이 떠 있으면 한 번에 올라간다.
-
-```bash
-git clone https://github.com/musqat/ggeolmuse.git
-cd ggeolmuse
-bash docker-compose/local-up.sh
-```
-
-접속은 http://localhost:3000, 시드 계정은 `admin@test.com` / `Admin123!` 이다.
-AI 챗봇 설정과 주의할 점은 [빌드와 배포](docs/DEPLOY.md) 에 적었다.
-
-<br>
-
 ## 만들며 겪은 것
 
 - [시행착오](docs/trial-and-error.md) — 근거를 갖고 정한 것이 확인해보니 반대인 게 여럿이었다. 믿었던 것과 갈린 근거

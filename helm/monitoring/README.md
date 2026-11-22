@@ -222,7 +222,7 @@ kubectl -n monitoring delete pod tempo-0
 
 <br>
 
-운영은 [노드 세우기](../k3s-node/README.md#노드-세우기)가 Application 을 만들고 Sync 로 설치한다. ArgoCD 가 없는 곳에서는 같은 버전으로:
+운영은 [k3s-node](../k3s-node/README.md)가 Application 을 만들고 Sync 로 설치한다. ArgoCD 가 없는 곳에서는 같은 버전으로:
 
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
