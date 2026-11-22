@@ -39,6 +39,7 @@
 | 쿠버네티스 | 1.35 |
 
 - 파드 · 서비스 대역은 `10.42.0.0/16` · `10.43.0.0/16` 이다. Keycloak 의 신뢰 프록시 대역도 이 값이다
+- 노드마다 레이블 `ggeolmuse.io/node`(control-plane · worker-a · worker-b)를 단다. 노드 준비가 EC2 이름표를 읽어 kubelet 이 등록할 때 넣는다
 - 앱 네임스페이스로 들어오는 요청은 기본 거부다. 외부 요청은 cloudflared(kind 는 `envoy-gateway-system` 의 Envoy 프록시)에서 받고, Keycloak 두 대끼리
   캐시 클러스터 포트(7800 · 57800)를 연다. kind 의 Postgres 는 business 서비스 · Keycloak 에서만 받는다
 - 워커 하나가 멈추면 1분 뒤 그 노드의 파드를 남은 워커로 옮긴다. 돌아온 뒤 다시 나누는 일은 저절로 하지 않는다

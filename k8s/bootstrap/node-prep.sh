@@ -43,6 +43,14 @@ dnf install -y "kubelet-${KUBERNETES_VERSION}" "kubeadm-${KUBERNETES_VERSION}" "
   --disableexcludes=kubernetes
 systemctl enable kubelet
 
+# 노드 레이블 ggeolmuse.io/node(EC2 이름표의 ggeolmuse-k8s- 뒤, kubelet 이 등록할 때 담)
+imds="http://169.254.169.254/latest"
+imds_token="$(curl -fsS -X PUT "$imds/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60")"
+node_name="$(curl -fsS -H "X-aws-ec2-metadata-token: $imds_token" "$imds/meta-data/tags/instance/Name" || true)"
+if [ -n "$node_name" ]; then
+  echo "KUBELET_EXTRA_ARGS=--node-labels=ggeolmuse.io/node=${node_name#*-k8s-}" > /etc/sysconfig/kubelet
+fi
+
 # 부품 설치용 helm(받은 파일의 체크섬 확인)
 helm_tgz="helm-${HELM_VERSION}-linux-amd64.tar.gz"
 curl -fsSLo "/tmp/$helm_tgz" "https://get.helm.sh/$helm_tgz"

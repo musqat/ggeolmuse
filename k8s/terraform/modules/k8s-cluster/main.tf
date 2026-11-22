@@ -100,6 +100,8 @@ resource "aws_instance" "nodes" {
   metadata_options {
     http_tokens                 = "required"
     http_put_response_hop_limit = 2
+    # 노드 준비가 EC2 이름표로 노드 레이블을 다는 인스턴스 태그 읽기
+    instance_metadata_tags = "enabled"
   }
 
   root_block_device {

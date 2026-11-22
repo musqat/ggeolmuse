@@ -33,6 +33,10 @@ run "nodes" {
     condition     = alltrue([for n in aws_instance.nodes : n.metadata_options[0].http_tokens == "required" && n.metadata_options[0].http_put_response_hop_limit == 2])
     error_message = "IMDSv2 만, 파드도 닿게 hop 2"
   }
+  assert {
+    condition     = alltrue([for n in aws_instance.nodes : n.metadata_options[0].instance_metadata_tags == "enabled"])
+    error_message = "노드 준비가 EC2 이름표로 노드 레이블을 달게 메타데이터 태그를 엶"
+  }
 
   assert {
     condition     = alltrue([for n in aws_instance.nodes : strcontains(n.user_data, "k8s/bootstrap/node-prep.sh")])

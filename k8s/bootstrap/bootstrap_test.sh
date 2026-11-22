@@ -18,5 +18,6 @@ check "helm 버전 고정" 'grep -q "^HELM_VERSION=v" "$here/../versions.env" &&
 check "helm 받은 파일의 체크섬 확인" 'grep -q "sha256sum -c" "$here/node-prep.sh"'
 check "sudo kubectl 줄임말 k" 'grep -q "/usr/local/bin/k" "$here/control-plane.sh"'
 check "grafana-admin 은 없을 때만 만듦" 'grep -q "get secret grafana-admin" "$here/addons.sh"'
+check "EC2 이름표로 노드 레이블" 'grep -q "node-labels=ggeolmuse.io/node=" "$here/node-prep.sh"'
 
 exit "$fail"
