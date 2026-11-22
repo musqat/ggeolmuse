@@ -131,7 +131,6 @@ frontend-web/design-preview.html
 # 아래 화이트리스트만 추적한다. 새 문서를 공개하려면 여기에 추가할 것.
 docs/*
 !docs/problem-solving.md
-!docs/trial-and-error.md
 !docs/performance-tuning.md
 
 ### wrangler 로컬 캐시 ###
