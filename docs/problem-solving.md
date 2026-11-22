@@ -1087,7 +1087,7 @@ nginx-ingress 를 걷어내고 k3s 기본 Traefik 을 쓰는 쪽으로 바꿨다
 라우팅을 다시 짜고 cross-namespace 라우팅까지 맞추는 데 커밋 일곱 개, 사흘이 걸렸다.
 
 `재발 방지`
-없음. `helm/ggeolmuse/templates/infrastructure/ingress-controller.yaml` 에 nginx-ingress
+없음. `infra/k8s/charts/ggeolmuse/templates/infrastructure/ingress-controller.yaml` 에 nginx-ingress
 템플릿이 남아 있지만 prod 는 `ingressController.enabled: false` 라 렌더되지 않는다.
 
 <br>

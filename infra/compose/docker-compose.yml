@@ -1,0 +1,664 @@
+# 자바 서비스 트레이스(OTel 에이전트 → Tempo)
+x-otel-agent: &otel-agent
+  JAVA_TOOL_OPTIONS: "-javaagent:/app/opentelemetry-javaagent.jar"
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_METRICS_EXPORTER: none
+  OTEL_LOGS_EXPORTER: none
+
+# 서비스 넷의 DB 를 로컬 Postgres 로
+x-postgres: &postgres
+  SPRING_DATASOURCE_USERNAME: ggeolmuse
+  SPRING_DATASOURCE_PASSWORD: "${POSTGRES_PASSWORD}"
+  SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+  SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
+  SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+  SPRING_FLYWAY_ENABLED: "true"
+
+services:
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: ggeolmuse-redis
+    ports:
+      - "6379:6379"
+    command: sh -c 'exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"'
+    environment:
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+    volumes:
+      - redis_data:/data
+    networks:
+      ggeolmuse-network:
+        ipv4_address: 10.123.0.17
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+        reservations:
+          memory: 512m
+
+  # Zookeeper for Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: ggeolmuse-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 2
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
+    # 세션을 맺을 수 있을 때 healthy(Kafka 시작 스크립트의 확인과 같음)
+    healthcheck:
+      test: ["CMD", "cub", "zk-ready", "localhost:2181", "5"]
+      interval: 5s
+      timeout: 10s
+      retries: 12
+      start_period: 5s
+    networks:
+      - ggeolmuse-network
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+
+  # Kafka Message Broker
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: ggeolmuse-kafka
+    # Zookeeper healthy 대기(포트만 열린 때 붙으면 세션 없이 40초 뒤 종료)
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "9094:9094"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,OUTSIDE://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,OUTSIDE://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    networks:
+      - ggeolmuse-network
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 1g
+
+  # Keycloak (로컬: realm import)
+  # issuer 는 localhost:8080 고정, JWKS 는 브라우저가 localhost · 백엔드가 keycloak:8080 에서 받음
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    container_name: ggeolmuse-keycloak
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_DB: dev-file
+      # 브라우저가 보는 주소(토큰 iss), 서비스끼리는 keycloak:8080
+      KC_HOSTNAME: http://localhost:8080
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "8080:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+      - ./keycloak/custom-realm.json:/opt/keycloak/data/import/custom-realm.json:ro
+    command: start-dev --import-realm
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo ok >&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      ggeolmuse-network:
+        ipv4_address: 10.123.0.16
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+        reservations:
+          memory: 512m
+
+  # Config Server (외부 public git repo에서 서비스 설정 로드)
+  config-server:
+    build:
+      context: ../..
+      dockerfile: backend/config-server/Dockerfile
+    image: ggeolmuse-local/config-server:latest
+    container_name: ggeolmuse-config-server
+    ports:
+      - "8888:8888"
+    environment:
+      SPRING_PROFILES_ACTIVE: git
+      CONFIG_GIT_URI: ${CONFIG_GIT_URI:-https://github.com/musqat/ggeolmuse-config.git}
+      CONFIG_GIT_LABEL: ${CONFIG_GIT_LABEL:-main}
+      CONFIG_SERVER_USERNAME: config
+      CONFIG_SERVER_PASSWORD: config123
+      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
+      KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
+      KEYCLOAK_REALM: custom
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget --spider --quiet http://localhost:9090/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      redis:
+        condition: service_started
+      keycloak:
+        condition: service_started
+    networks:
+      - ggeolmuse-network
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 1g
+
+  # Gateway
+  gateway-server:
+    build:
+      context: ../..
+      dockerfile: backend/gateway-server/Dockerfile
+    image: ggeolmuse-local/gateway-server:latest
+    container_name: ggeolmuse-gateway-server
+    ports:
+      - "8070:8070"
+    environment:
+      SPRING_APPLICATION_NAME: "gateway-server"
+      SERVER_PORT: 8070
+      <<: *otel-agent
+      OTEL_SERVICE_NAME: gateway-server
+      SPRING_MAIN_WEB_APPLICATION_TYPE: reactive
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      SPRING_CLOUD_CONFIG_USERNAME: config
+      SPRING_CLOUD_CONFIG_PASSWORD: config123
+      SPRING_REDIS_PASSWORD: "${REDIS_PASSWORD}"
+      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
+      SPRING_PROFILES_ACTIVE: dev
+      KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
+      KEYCLOAK_REALM: custom
+      # iss 는 keycloak 의 KC_HOSTNAME 주소
+      KEYCLOAK_ISSUERS: http://localhost:8080/realms/custom,http://keycloak:8080/realms/custom
+      KEYCLOAK_CLIENT_IDS: ggeolmuse-client,ggeolmuse-frontend
+    healthcheck:
+      test: ["NONE"]
+    depends_on:
+      config-server:
+        condition: service_healthy
+    networks:
+      - ggeolmuse-network
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+        reservations:
+          memory: 512m
+
+  # 서비스 넷의 DB(userdb · tradedb · marketdb · backtestdb), 데이터는 컨테이너와 함께 사라짐
+  postgres:
+    image: postgres:15-alpine
+    container_name: ggeolmuse-postgres
+    environment:
+      POSTGRES_USER: ggeolmuse
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: ggeolmuse
+    volumes:
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "ggeolmuse", "-d", "ggeolmuse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - ggeolmuse-network
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+
+  #### BUSINESS MICROSERVICES ####
+
+  # User Management Service (시드 admin 자동 생성: admin@test.com / Admin123!)
+  user-service:
+    build:
+      context: ../..
+      dockerfile: backend/user-service/Dockerfile
+    image: ggeolmuse-local/user-service:latest
+    container_name: ggeolmuse-user-service
+    ports:
+      # host 8080은 keycloak이 사용 → user-service는 8085로 노출(내부는 8080, gateway가 라우팅)
+      - "8085:8080"
+    environment:
+      TZ: "Asia/Seoul"
+      <<: [*otel-agent, *postgres]
+      OTEL_SERVICE_NAME: user-service
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/userdb
+      SPRING_PROFILES_ACTIVE: "dev,no-file-logging"
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      SPRING_CLOUD_CONFIG_USERNAME: config
+      SPRING_CLOUD_CONFIG_PASSWORD: config123
+      SPRING_REDIS_PASSWORD: "${REDIS_PASSWORD}"
+      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
+      KEYCLOAK_REALM: custom
+      KEYCLOAK_SECRET: local-client-secret
+      KEYCLOAK_ADMIN_CLIENT_SECRET: local-admin-secret
+      KEYCLOAK_SERVICE_CLIENT_SECRET: local-service-secret
+      # 시드 admin 계정 (로컬 체험용 더미)
+      APP_ADMIN_EMAIL: admin@test.com
+      ADMIN_PASSWORD: Admin123!
+      # config-server 필수 · 재시도(초기 부팅 DNS race 방지), 로컬은 AWS 미사용
+      SPRING_CONFIG_IMPORT: "configserver:http://config-server:8888"
+      SPRING_CLOUD_CONFIG_FAIL_FAST: "true"
+      SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS: "20"
+      SPRING_CLOUD_CONFIG_RETRY_INITIAL_INTERVAL: "2000"
+      SPRING_CLOUD_CONFIG_RETRY_MAX_INTERVAL: "10000"
+      KEYCLOAK_ISSUERS: http://localhost:8080/realms/custom,http://keycloak:8080/realms/custom
+      KEYCLOAK_CLIENT_IDS: ggeolmuse-client,ggeolmuse-frontend
+      MAIL_USERNAME: ${MAIL_USERNAME:-local@example.com}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-local-dummy}
+    depends_on:
+      config-server:
+        condition: service_healthy
+      gateway-server:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      ggeolmuse-network:
+        ipv4_address: 10.123.0.11
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 1g
+
+  # Trade Service
+  trade-service:
+    build:
+      context: ../..
+      dockerfile: backend/trade-service/Dockerfile
+    image: ggeolmuse-local/trade-service:latest
+    container_name: ggeolmuse-trade-service
+    ports:
+      - "8081:8081"
+    environment:
+      TZ: "Asia/Seoul"
+      SPRING_APPLICATION_NAME: "trade-service"
+      # config-server 필수 · 재시도(못 받으면 jar 기본값으로 뜸)
+      SPRING_CONFIG_IMPORT: "configserver:http://config-server:8888"
+      SPRING_CLOUD_CONFIG_FAIL_FAST: "true"
+      SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS: "20"
+      SPRING_CLOUD_CONFIG_RETRY_INITIAL_INTERVAL: "2000"
+      SPRING_CLOUD_CONFIG_RETRY_MAX_INTERVAL: "10000"
+      <<: [*otel-agent, *postgres]
+      OTEL_SERVICE_NAME: trade-service
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tradedb
+      SPRING_PROFILES_ACTIVE: "dev,no-file-logging"
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      SPRING_CLOUD_CONFIG_USERNAME: config
+      SPRING_CLOUD_CONFIG_PASSWORD: config123
+      SPRING_REDIS_PASSWORD: "${REDIS_PASSWORD}"
+      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
+      KEYCLOAK_REALM: custom
+      KEYCLOAK_SERVICE_CLIENT_SECRET: local-service-secret
+      KEYCLOAK_ISSUERS: http://localhost:8080/realms/custom,http://keycloak:8080/realms/custom
+      KEYCLOAK_CLIENT_IDS: ggeolmuse-client,ggeolmuse-frontend
+    healthcheck:
+      # actuator/health는 보안(401)이라 TCP 포트 응답으로 liveness 체크
+      test: ["CMD", "sh", "-c", "nc -z localhost 8081"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 45s
+    depends_on:
+      config-server:
+        condition: service_healthy
+      gateway-server:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      ggeolmuse-network:
+        ipv4_address: 10.123.0.12
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 1g
+
+  # Market Data Service
+  market-data-service:
+    build:
+      context: ../..
+      dockerfile: backend/market-data-service/Dockerfile
+    image: ggeolmuse-local/market-data-service:latest
+    container_name: ggeolmuse-market-data-service
+    ports:
+      - "8083:8083"
+    environment:
+      TZ: "Asia/Seoul"
+      SPRING_APPLICATION_NAME: "market-data-service"
+      # config-server 필수 · 재시도(못 받으면 jar 기본값 symbol-collection false 로 종목 수집 없이 뜸)
+      SPRING_CONFIG_IMPORT: "configserver:http://config-server:8888"
+      SPRING_CLOUD_CONFIG_FAIL_FAST: "true"
+      SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS: "20"
+      SPRING_CLOUD_CONFIG_RETRY_INITIAL_INTERVAL: "2000"
+      SPRING_CLOUD_CONFIG_RETRY_MAX_INTERVAL: "10000"
+      <<: [*otel-agent, *postgres]
+      OTEL_SERVICE_NAME: market-data-service
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/marketdb
+      # yahoo(키 없음 · 무료), 부팅 뒤 소수 종목 OHLC 자동 수집 → 차트 · 백테스트 데이터
+      MARKETDATA_PROVIDER: yahoo
+      # 로컬은 시총 상위 50종목만(전체 약 6700종목은 무겁고 스택마다 다시 수집, AAPL 등 포함)
+      MARKETDATA_SYMBOLCOLLECTION_MAXSYMBOLS: "50"
+      # 50종목뿐이라 메모리 여유 → 2년치 수집(1년+ 기간 백테스트/비교 가능)
+      SYMBOL_LOOKBACK_DAYS: "730"
+      # 목록 API(AlphaVantage)가 비면 이미지에 든 CSV 로 채움(공유 IP 에서 자주 막힘)
+      MARKETDATA_SYMBOLLISTING_CSVFALLBACK: "true"
+      SYMBOL_INCLUDE_DIVIDENDS: "false"
+      # 환율 backfill 은 KoreaExim 실제 키(.env 의 KOREAEXIM_API_KEY)가 있을 때만(DCA · 전략 · 비교용, 단일 백테스트는 fallback 환율)
+      FX_BACKFILL_ENABLED: "${FX_BACKFILL_ENABLED:-false}"
+      # 비동기 수집이 커넥션을 다 잡아 API가 503나는 것 방지
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "30"
+      # 컨테이너 2g 한도 내 heap 명시 (기본 25%로는 부족 → OOM)
+      JAVA_TOOL_OPTIONS: "-Xmx1536m -javaagent:/app/opentelemetry-javaagent.jar"
+      ALPHAVANTAGE_API_KEY: ${ALPHAVANTAGE_API_KEY:-demo}
+      KOREAEXIM_API_KEY: ${KOREAEXIM_API_KEY:-demo}
+      SPRING_PROFILES_ACTIVE: "dev,no-file-logging"
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      SPRING_CLOUD_CONFIG_USERNAME: config
+      SPRING_CLOUD_CONFIG_PASSWORD: config123
+      SPRING_REDIS_PASSWORD: "${REDIS_PASSWORD}"
+      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
+      KEYCLOAK_REALM: custom
+      KEYCLOAK_SERVICE_CLIENT_SECRET: local-service-secret
+      KEYCLOAK_ISSUERS: http://localhost:8080/realms/custom,http://keycloak:8080/realms/custom
+      KEYCLOAK_CLIENT_IDS: ggeolmuse-client,ggeolmuse-frontend
+    healthcheck:
+      test: ["CMD", "sh", "-c", "nc -z localhost 8083"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      config-server:
+        condition: service_healthy
+      gateway-server:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      ggeolmuse-network:
+        ipv4_address: 10.123.0.13
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 1g
+
+  # Backtest Service
+  backtest-service:
+    build:
+      context: ../..
+      dockerfile: backend/backtest-service/Dockerfile
+    image: ggeolmuse-local/backtest-service:latest
+    container_name: ggeolmuse-backtest-service
+    ports:
+      - "8082:8082"
+    environment:
+      TZ: "Asia/Seoul"
+      SPRING_APPLICATION_NAME: "backtest-service"
+      # config-server 필수 · 재시도(못 받으면 jar 기본값으로 뜸)
+      SPRING_CONFIG_IMPORT: "configserver:http://config-server:8888"
+      SPRING_CLOUD_CONFIG_FAIL_FAST: "true"
+      SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS: "20"
+      SPRING_CLOUD_CONFIG_RETRY_INITIAL_INTERVAL: "2000"
+      SPRING_CLOUD_CONFIG_RETRY_MAX_INTERVAL: "10000"
+      <<: [*otel-agent, *postgres]
+      OTEL_SERVICE_NAME: backtest-service
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/backtestdb
+      SPRING_PROFILES_ACTIVE: "dev,no-file-logging"
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      SPRING_CLOUD_CONFIG_USERNAME: config
+      SPRING_CLOUD_CONFIG_PASSWORD: config123
+      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
+      KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
+      KEYCLOAK_REALM: custom
+      KEYCLOAK_SERVICE_CLIENT_SECRET: local-service-secret
+      KEYCLOAK_ISSUERS: http://localhost:8080/realms/custom,http://keycloak:8080/realms/custom
+      KEYCLOAK_CLIENT_IDS: ggeolmuse-client,ggeolmuse-frontend
+    healthcheck:
+      # actuator/health는 보안(401)이라 TCP 포트 응답으로 liveness 체크
+      test: ["CMD", "sh", "-c", "nc -z localhost 8082"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 45s
+    depends_on:
+      config-server:
+        condition: service_healthy
+      gateway-server:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    networks:
+      ggeolmuse-network:
+        ipv4_address: 10.123.0.14
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 1g
+
+  # AI Chat Service (선택: OPENAI_API_KEY 있을 때만 --profile ai 로 실행)
+  chat-service:
+    build:
+      context: ../../backend/chat-service
+      dockerfile: Dockerfile
+    image: ggeolmuse-local/chat-service:latest
+    container_name: ggeolmuse-chat-service
+    profiles: ["ai"]
+    ports:
+      - "8000:8000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+      MARKET_DATA_BASE_URL: http://market-data-service:8083
+      KEYCLOAK_JWKS_URL: http://keycloak:8080/realms/custom/protocol/openid-connect/certs
+      # iss 는 keycloak 의 KC_HOSTNAME 주소
+      KEYCLOAK_ISSUERS: http://localhost:8080/realms/custom,http://keycloak:8080/realms/custom
+      KEYCLOAK_CLIENT_IDS: ggeolmuse-client,ggeolmuse-frontend
+      KEYCLOAK_TOKEN_URL: http://keycloak:8080/realms/custom/protocol/openid-connect/token
+      KEYCLOAK_SERVICE_CLIENT_SECRET: local-service-secret
+      OTEL_SERVICE_NAME: chat-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
+    depends_on:
+      redis:
+        condition: service_started
+      market-data-service:
+        condition: service_started
+    networks:
+      ggeolmuse-network:
+        ipv4_address: 10.123.0.15
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+
+  # Frontend Web Application
+  frontend-web:
+    build:
+      context: ../../frontend-web
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:8070/api
+        - VITE_KEYCLOAK_URL=http://localhost:8080
+        - VITE_KEYCLOAK_REALM=custom
+        - VITE_KEYCLOAK_CLIENT_ID=ggeolmuse-frontend
+    image: ggeolmuse-local/frontend-web:latest
+    container_name: ggeolmuse-frontend
+    ports:
+      - "3000:8080"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      gateway-server:
+        condition: service_started
+      keycloak:
+        condition: service_started
+    networks:
+      - ggeolmuse-network
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+
+  #### OBSERVABILITY ####
+  # prod(infra/k8s/monitoring)와 같은 조합의 로컬 관측
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: ggeolmuse-prometheus
+    ports:
+      # 호스트 9090 은 서비스 actuator 포트와 겹쳐 9091
+      - "9091:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      # 설정 다시 읽기(/-/reload)
+      - --web.enable-lifecycle
+    networks:
+      - ggeolmuse-network
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+
+  tempo:
+    image: grafana/tempo:2.7.1
+    container_name: ggeolmuse-tempo
+    command: ["-config.file=/etc/tempo.yml"]
+    volumes:
+      - ./observability/tempo.yml:/etc/tempo.yml:ro
+      # 볼륨 없음(트레이스는 컨테이너와 함께 사라짐, 쌓인 옛 블록 compaction 메모리 회피)
+    networks:
+      - ggeolmuse-network
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+
+  grafana:
+    image: grafana/grafana:11.5.1
+    container_name: ggeolmuse-grafana
+    ports:
+      # 3000 은 frontend-web 몫
+      - "3001:3000"
+    environment:
+      # 로컬 익명 관리자(로그인 화면 없음)
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./observability/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_started
+      tempo:
+        condition: service_started
+    networks:
+      - ggeolmuse-network
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+
+# VOLUMES
+volumes:
+  redis_data:
+    driver: local
+  zookeeper_data:
+    driver: local
+  zookeeper_log:
+    driver: local
+  kafka_data:
+    driver: local
+  keycloak_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+# NETWORKS
+networks:
+  ggeolmuse-network:
+    driver: bridge
+    name: ggeolmuse-network
+    # 고정 주소(.11 ~ .17)는 앞 절반, 그 밖 컨테이너의 동적 배정은 뒤 절반(ip_range)
+    ipam:
+      config:
+        - subnet: 10.123.0.0/24
+          ip_range: 10.123.0.128/25

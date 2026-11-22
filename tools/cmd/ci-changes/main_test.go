@@ -37,8 +37,8 @@ func TestPick(t *testing.T) {
 		{"채팅 커버리지 명령: 채팅", false, []string{"tools/cmd/chat-coverage/main.go"}, changes{[]string{}, false, true, false, false}},
 		{"문서: 없음", false, []string{"docs/DEPLOY.md", "README.md"}, changes{[]string{}, false, false, false, false}},
 		{"바뀐 파일 없음: 없음", false, nil, changes{[]string{}, false, false, false, false}},
-		{"운영 차트 · 멀티 노드 · terraform: E2E 없음", false,
-			[]string{"helm/ggeolmuse/values-prod.yaml", "k8s/helm/ggeolmuse/values.yaml", "terraform/rds-alarms.tf"},
+		{"운영 차트 · 클러스터 · terraform · Cloudflare: E2E 없음", false,
+			[]string{"infra/k8s/charts/ggeolmuse/values-prod.yaml", "infra/k8s/argocd/apps/values.yaml", "infra/terraform/ops/rds-alarms.tf", "infra/cloudflare/offline-notice/worker.js"},
 			changes{[]string{}, false, false, false, false}},
 		{"다른 워크플로 · Dependabot · 운영 도구 · 리포 검사: E2E 없음", false,
 			[]string{".github/workflows/security.yml", ".github/dependabot.yml", "tools/cmd/rollout-check/main.go", "tools/repocheck/pins_test.go"},
@@ -46,9 +46,9 @@ func TestPick(t *testing.T) {
 		{"스택과 상관없는 루트 설정 파일: E2E 없음", false,
 			[]string{".gitleaksignore", ".trivyignore", ".gitignore", ".git-blame-ignore-revs"},
 			changes{[]string{}, false, false, false, false}},
-		{"compose · E2E 테스트: E2E", false, []string{"docker-compose/docker-compose.e2e.yml"}, changes{[]string{}, false, false, false, true}},
+		{"compose · E2E 테스트: E2E", false, []string{"infra/compose/docker-compose.e2e.yml"}, changes{[]string{}, false, false, false, true}},
 		{"E2E 테스트 파일: E2E", false, []string{"tests/e2e/specs/trade.spec.ts"}, changes{[]string{}, false, false, false, true}},
-		{"인프라와 서비스가 같이: E2E", false, []string{"helm/ggeolmuse/values.yaml", "backend/user-service/A.java"},
+		{"인프라와 서비스가 같이: E2E", false, []string{"infra/k8s/charts/ggeolmuse/values.yaml", "backend/user-service/A.java"},
 			changes{[]string{"user-service"}, false, false, false, true}},
 	}
 	for _, c := range cases {

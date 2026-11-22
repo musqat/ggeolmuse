@@ -257,8 +257,8 @@ jobs:
               exit 0
             fi
             mapfile -t names < <(jq -r '.[]' <<<"$still")
-            subject=$(cd tools && go run ./cmd/set-image-tag -tags "$TAGS" -built "$SHA" -config-label "$config" ../helm/ggeolmuse/values-prod.yaml "${names[@]}" | sed -n 's/^subject=//p')
-            rendered=$(helm template ggeolmuse helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml)
+            subject=$(cd tools && go run ./cmd/set-image-tag -tags "$TAGS" -built "$SHA" -config-label "$config" ../infra/k8s/charts/ggeolmuse/values-prod.yaml "${names[@]}" | sed -n 's/^subject=//p')
+            rendered=$(helm template ggeolmuse infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml)
             for s in "${names[@]}"; do
               tag=$(jq -r --arg s "$s" '.[$s]' <<<"$TAGS")
               grep -q "image: muscathan/$s:$tag" <<<"$rendered" || { echo "$s 렌더 결과에 $tag 없음"; exit 1; }
@@ -322,7 +322,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           set +e
-          go run ./cmd/rollout-check -values ../helm/ggeolmuse/values-prod.yaml -only "$(jq -r 'join(",")' <<<"$SERVICES")" \
+          go run ./cmd/rollout-check -values ../infra/k8s/charts/ggeolmuse/values-prod.yaml -only "$(jq -r 'join(",")' <<<"$SERVICES")" \
             -argocd https://argocd.ggeolmuse.com -site https://ggeolmuse.com -wait 20m | tee -a "$GITHUB_STEP_SUMMARY"
           code=${PIPESTATUS[0]}
           echo '```' >> "$GITHUB_STEP_SUMMARY"

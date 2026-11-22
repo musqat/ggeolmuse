@@ -1,9 +1,9 @@
 name: terraform plan
-# 운영 terraform 을 바꾸는 PR 에 실제 상태 대상 읽기 전용 plan(역할은 terraform/ci-plan-role.tf)
+# 운영 terraform 을 바꾸는 PR 에 실제 상태 대상 읽기 전용 plan(역할은 infra/terraform/ops/ci-plan-role.tf)
 on:
   pull_request:
     paths:
-      - terraform/**
+      - infra/terraform/ops/**
       - .github/workflows/terraform-plan.yml
 
 permissions:
@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 10
     defaults:
       run:
-        working-directory: terraform
+        working-directory: infra/terraform/ops
     env:
       ROLE_ARN: ${{ secrets.TERRAFORM_PLAN_ROLE_ARN }}
       TFVARS: ${{ secrets.TERRAFORM_TFVARS }}

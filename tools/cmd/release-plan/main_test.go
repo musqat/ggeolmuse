@@ -26,7 +26,7 @@ func TestDecide(t *testing.T) {
 		{"lombok 설정: 자바 여섯", []string{"backend/lombok.config"}, javaSix},
 		{"user-service 마이그레이션: user-service", []string{"backend/user-service/src/main/resources/db/migration/V10__x.sql", "frontend-web/src/App.tsx"}, []string{"user-service", "frontend-web"}},
 		{"테스트 · 문서만: 없음", []string{"backend/user-service/src/test/java/AT.java", "frontend-web/src/App.test.tsx", "backend/chat-service/tests/test_x.py", "README.md"}, []string{}},
-		{"CI · 차트만: 없음", []string{".github/workflows/release.yml", "helm/ggeolmuse/values-prod.yaml"}, []string{}},
+		{"CI · 차트만: 없음", []string{".github/workflows/release.yml", "infra/k8s/charts/ggeolmuse/values-prod.yaml"}, []string{}},
 		{"chat 과 프론트", []string{"backend/chat-service/app/main.py", "frontend-web/package.json"}, []string{"chat-service", "frontend-web"}},
 	}
 	for _, c := range cases {
