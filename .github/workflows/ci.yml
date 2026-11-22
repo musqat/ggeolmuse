@@ -381,6 +381,24 @@ jobs:
           }
           rules infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml -f infra/k8s/charts/ggeolmuse/values-k8s.yaml
 
+      # 클러스터 Application 묶음 렌더 · 네임스페이스 메타데이터는 네임스페이스마다 한 앱 · ArgoCD 자신의 자동 동기화(지우기 없음 · server-side apply)
+      - name: ArgoCD Application 묶음 렌더 · 검사
+        run: |
+          helm lint infra/k8s/argocd/apps
+          helm template apps infra/k8s/argocd/apps > argocd-apps.yaml
+          dup=$(awk '/^---/{ns=""} /^    namespace: /{ns=$2} /^    managedNamespaceMetadata:/{print ns}' argocd-apps.yaml | sort | uniq -d)
+          if [ -n "$dup" ]; then
+            echo "::error::managedNamespaceMetadata 를 둔 Application 이 둘 이상인 네임스페이스: $dup"
+            exit 1
+          fi
+          self=$(awk '/^---/{p=0} /^  name: argocd$/{p=1} p' argocd-apps.yaml)
+          for want in 'automated:' 'prune: false' 'ServerSideApply=true'; do
+            if ! grep -q -- "$want" <<<"$self"; then
+              echo "::error::ArgoCD 자신의 Application 에 $want 없음"
+              exit 1
+            fi
+          done
+
       # 운영 렌더의 NetworkPolicy 기본 거부 · 워크로드마다 여는 정책 · 허용 목록에 없는 새 서비스 포트 검사(tools/cmd/netpol-check)
       - name: NetworkPolicy 기본 거부 · 서비스 포트 대조
         working-directory: tools

@@ -2,7 +2,7 @@
 repoURL: https://github.com/musqat/ggeolmuse
 targetRevision: master
 
-# ArgoCD 자신(동기화는 사람이 누를 때만)
+# ArgoCD 자신(리포 값으로 자동 동기화, 지우기 · 되돌리기 없음)
 argocd:
   repoURL: https://argoproj.github.io/argo-helm
   chart: argo-cd
@@ -20,6 +20,8 @@ ggeolmuse:
 monitoring:
   enabled: true
   namespace: monitoring
+  # 모니터링 네임스페이스의 레이블을 두는 앱 하나
+  namespaceMetadataOwner: prometheus
   releases:
     prometheus:
       repoURL: https://prometheus-community.github.io/helm-charts
