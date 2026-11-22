@@ -342,6 +342,19 @@ jobs:
             --show-only templates/infrastructure/kafka.yaml | grep -A1 'name: KAFKA_LOG_DIRS' | grep -q 'value: "/var/lib/kafka/data/[^"]' \
             || { echo "::error::멀티 노드 Kafka 데이터 폴더(KAFKA_LOG_DIRS)가 볼륨 하위 폴더가 아님"; exit 1; }
 
+      # 노드 셋이 같이 켜질 때 자바 앱 동시 기동을 견디는 기동 검사 허용 시간(10분 이상) 확인
+      - name: 멀티 노드 자바 앱 기동 검사 허용 시간
+        run: |
+          grep -A7 'startupProbe:' rendered-k8s.yaml | awk '
+            /path:/ { path = $2 }
+            /initialDelaySeconds:/ { d = $2 }
+            /periodSeconds:/ { p = $2 }
+            /failureThreshold:/ {
+              if (path == "/actuator/health/readiness") { n++; if (d + p * $2 < 600) { print "::error::기동 검사 허용 시간 " d + p * $2 "초(10분 미만)"; bad = 1 } }
+              path = ""; d = 0
+            }
+            END { if (n < 6) { print "::error::자바 앱 기동 검사 " n "개(6개 미만)"; bad = 1 } exit bad }'
+
       # 익명 받기 횟수 제한(429) 회피용 읽기 전용 토큰
       - name: Docker Hub 로그인
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4

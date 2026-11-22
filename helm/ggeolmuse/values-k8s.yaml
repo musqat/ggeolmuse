@@ -29,22 +29,40 @@ infrastructure:
 networkPolicy:
   ingressNamespace: envoy-gateway-system
 
-# 상태 없는 앱은 워커마다 하나씩
+# 상태 없는 앱은 워커마다 하나씩, 자바 앱 기동 검사는 노드 셋 동시 기동에 맞춘 10분
 configServer:
   replicaCount: 2
+  probes:
+    startup:
+      failureThreshold: 60
 
 gatewayServer:
   replicaCount: 2
+  probes:
+    startup:
+      failureThreshold: 60
 
 services:
   userService:
     replicaCount: 2
+    probes:
+      startup:
+        failureThreshold: 60
   tradeService:
     replicaCount: 2
+    probes:
+      startup:
+        failureThreshold: 60
   marketDataService:
     replicaCount: 2
+    probes:
+      startup:
+        failureThreshold: 60
   backtestService:
     replicaCount: 2
+    probes:
+      startup:
+        failureThreshold: 60
   chatService:
     replicaCount: 2
 
