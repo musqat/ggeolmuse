@@ -27,7 +27,7 @@ variable "secret_arns" {
 variable "control_plane_instance_type" {
   description = "컨트롤 플레인 인스턴스 타입(온디맨드, 앱은 안 올림)"
   type        = string
-  default     = "t3a.small"
+  default     = "t3a.medium"
 }
 
 variable "workers" {

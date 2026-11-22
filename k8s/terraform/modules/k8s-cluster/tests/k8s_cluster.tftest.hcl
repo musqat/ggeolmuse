@@ -99,12 +99,12 @@ run "rds_rule" {
   }
 }
 
-run "control_plane_small_on_demand" {
+run "control_plane_medium_on_demand" {
   command = plan
 
   assert {
-    condition     = aws_instance.nodes["control-plane"].instance_type == "t3a.small" && length(aws_instance.nodes["control-plane"].instance_market_options) == 0
-    error_message = "컨트롤 플레인은 t3a.small 온디맨드"
+    condition     = aws_instance.nodes["control-plane"].instance_type == "t3a.medium" && length(aws_instance.nodes["control-plane"].instance_market_options) == 0
+    error_message = "컨트롤 플레인은 t3a.medium 온디맨드"
   }
 }
 

@@ -2,7 +2,7 @@
 
 지금 운영은 EC2 한 대의 k3s 다. 이 폴더는 같은 앱을 여러 노드 쿠버네티스로 옮길 때 쓰는 예비안이다.
 
-- 구성은 kubeadm, 컨트롤 플레인 1(t3a.small 온디맨드) · 워커 2(m5a.large · t3.large 유지 요청 스팟, 둘이 같이 회수되지 않게 종류를 섞음, 회수되면 멈췄다가 다시 뜸)
+- 구성은 kubeadm, 컨트롤 플레인 1(t3a.medium 온디맨드) · 워커 2(m5a.large · t3.large 유지 요청 스팟, 둘이 같이 회수되지 않게 종류를 섞음, 회수되면 멈췄다가 다시 뜸)
 - 전환하면 단일 노드 k3s 를 이것으로 바꾼다. RDS · 시크릿은 그대로 쓴다
 - 전환 전에는 바뀌는 것이 없다. k3s 는 이 폴더를 읽지 않고, terraform 은 `k8s/terraform` 루트를 apply 하기 전에는 아무것도 만들지 않는다
 - 로컬에서는 kind 3노드로 같은 구성을 띄워 본다
@@ -38,7 +38,7 @@ cd modules/k8s-cluster && terraform init -backend=false && terraform test
 
 | | 지금(k3s) | 멀티 노드 |
 |---|---|---|
-| 노드 | EC2 1 | EC2 3(컨트롤 플레인 small 온디맨드 · 워커 large 스팟 둘) |
+| 노드 | EC2 1 | EC2 3(컨트롤 플레인 medium 온디맨드 · 워커 large 스팟 둘) |
 | 컨트롤 플레인 | k3s 한 프로세스 · sqlite | kubeadm · etcd |
 | 네트워크 · NetworkPolicy | flannel · kube-router | Calico |
 | 진입 | 번들 Traefik, EC2 443, IngressRoute | Cloudflare Tunnel — cloudflared 2개가 밖으로만 연결하고 경로 규칙으로 서비스에 바로 넘김. 노드로 들어오는 포트는 없음(kind 는 Envoy Gateway) |
