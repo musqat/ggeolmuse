@@ -10,10 +10,10 @@
 
 ## 사용법
 
-### 1. EC2 Instance ID 확인
+### 1. 노드 셋 인스턴스 ID · 노드 역할 이름 확인
 
 ```bash
-aws ec2 describe-instances --filters "Name=tag:Name,Values=ggeolmuse" --query 'Reservations[0].Instances[0].InstanceId' --output text
+cd ../k8s/terraform && terraform output node_ids && terraform output node_role_name
 ```
 
 ### 2. terraform.tfvars 파일 생성
@@ -44,20 +44,18 @@ terraform apply
 ## 관리되는 리소스
 
 - 운영 핵심 자원 (`core.tf`, 가져오는 블록은 `imports.tf`)
-  - EC2 `ggeolmuse`(t3a.xlarge, IMDSv2 만 · hop 2)와 보안 그룹 `ggeolmuse-sg`(443 은 접두사 목록 `cloudflare-ipv4` 만)
-  - 노드 역할 · 인스턴스 프로파일 `ggeolmuse-ec2-role`(콘솔에서 만들어 EC2 에 연결된 것), 관리 정책 목록 전체와 시크릿 두 개 읽기
   - RDS `rds_instance_id`(PostgreSQL 15 · db.t4g.micro · Single-AZ, 저장 공간 자동 늘리기 1000GB 까지 · Performance Insights, 자동 백업 7일 · 창 08:10 ~ 08:40 KST · 삭제 보호 · 지울 때 최종 스냅숏)
   - 상태 버킷 `ggeolmuse-tfstate-apne2`(버전 관리 · SSE-S3 · 퍼블릭 차단)
   - 모두 `prevent_destroy` 라 plan 이 교체 · 삭제를 잡으면 오류로 멈춘다
 - EventBridge 스케줄러: EC2 / RDS 평일 시작·중지 (`scheduler.tf`, `rds-scheduler.tf`). EC2 · RDS 를
-  따로 끌 수 있고(`ec2_scheduler_enabled` · `rds_scheduler_enabled`), 대상 EC2 는 `scheduled_instances`(비면 `ec2_instance_id`)
+  따로 끌 수 있고(`ec2_scheduler_enabled` · `rds_scheduler_enabled`), 대상 EC2 는 `scheduled_instances`(k8s 노드 셋, 비면 plan 이 멈춤)
 - CloudWatch 알람 + SNS 이메일: 스케줄 실패 감지 (`monitoring.tf`)
 - RDS CloudWatch 알람: CPU 5분 평균 80% 초과 15분 · 남은 저장 공간 2GiB 미만 · 연결 수 5분 최댓값 70 초과 10분 (`rds-alarms.tf`).
   SNS 이메일로 오고, `slack_webhook_url` 이 있으면 슬랙에도 알람 · 복구 한 줄씩. RDS 가 꺼진 밤 · 주말은 지표가 없어 알람이
   아니다. 기준은 `rds_alarm_cpu_percent` · `rds_alarm_free_storage_gib` · `rds_alarm_connections`
 - EventBridge 규칙 + API Destination: EC2 가 멈추면 슬랙에 `down` 한 줄 (`ec2-stop-alert.tf`). `slack_webhook_url` 이 비면
   만들지 않고, 슬랙에 못 보내면 위 SNS 알람으로 온다
-- S3 버킷 `ggeolmuse-db-backup-apne2` + EC2 역할 쓰기 정책: 월간 pg_dump 보관 (`db-backup.tf`, 다른 노드 역할은 `db_backup_writer_roles`).
+- S3 버킷 `ggeolmuse-db-backup-apne2` + 쓰기 정책: 월간 pg_dump 보관 (`db-backup.tf`, 쓰는 역할은 `db_backup_writer_roles` 의 k8s 노드 역할).
   CronJob 쪽은 `helm/ggeolmuse` 의 `dbBackup`. 버전 관리를 켜 같은 키로 덮어써도 옛 덤프가 30일 남는다
 - EventBridge Scheduler(그룹 `ggeolmuse-uptime`) + 규칙 + API Destination: 가동 시간(EC2 시작 20분 뒤부터 중지 전 정시까지)에
   5분마다 프론트 · 시세 API · /auth 를 AWS 에서 GET 으로 확인 (`uptime-check.tf`). 응답 본문은 보지 않고, 2xx 가 아니거나 시간 초과면
@@ -65,7 +63,7 @@ terraform apply
   세어 EC2 가 꺼진 시간에는 상태가 그대로고 알림도 없다(실패한 채 꺼지면 다음 날 첫 확인이 성공할 때 복구 한 줄). 일정이 이벤트를 넣지
   못하면 그룹 알람이 SNS 로 온다. 주소는 `uptime_check_urls`, `slack_webhook_url` 이 비면 만들지 않는다
 
-멀티 노드 예비 클러스터는 이 루트에 없다. 상태를 따로 둔 [`k8s/terraform`](../k8s/terraform) 루트에 있고, 올리는 순서는 [k8s/README.md](../k8s/README.md).
+k8s 클러스터(노드 셋 · 보안 그룹 · 노드 역할)는 이 루트에 없다. 상태를 따로 둔 [`k8s/terraform`](../k8s/terraform) 루트에 있고, 올리는 순서는 [k8s/README.md](../k8s/README.md).
 
 문법 검사와 가짜 AWS 프로바이더 테스트(`tests/*.tftest.hcl`, AWS 에 닿지 않음)는 아래 한 줄이다. 멀티 노드 쪽 테스트는
 [k8s/README.md](../k8s/README.md#파일) 에 있다.
@@ -76,19 +74,12 @@ terraform init -backend=false && terraform validate && terraform test
 
 ## 운영 자원 가져오기
 
-콘솔에서 만든 EC2 · 보안 그룹 · 노드 역할 · RDS · 상태 버킷을 `imports.tf` 의 import 블록으로 상태에 넣는다. 한 번 가져온
-자원의 import 블록은 아무 일도 하지 않는다.
+콘솔에서 만든 RDS · 상태 버킷을 `imports.tf` 의 import 블록으로 상태에 넣는다. 한 번 가져온 자원의 import 블록은 아무 일도 하지
+않는다.
 
 1. 아래 표의 값을 `terraform.tfvars` 에 채운다. 교체가 걸린 값은 plan 전에 명령으로 확인한다
 2. `terraform plan` 을 본다. 교체가 잡히면 `prevent_destroy` 오류로 멈추므로 표에서 "다르면 교체" 인 값을 다시 본다
-3. plan 에 남아야 하는 변경은 아래 여섯이다. 이 여섯 말고 바꾸겠다고 나온 값은 실제 값을 tfvars(변수가 없으면 코드)로 옮기고, 이 여섯만
-   남았을 때 `terraform apply`
-   - import 와 태그 더하기(EC2 이름표는 `ggeolmuse` 로)
-   - 보안 그룹의 쓰지 않는 5432 자기 참조 규칙 지우기(RDS 는 RDS 보안 그룹이 EC2 그룹을 받음)
-   - 노드 역할의 시크릿 읽기 정책 하나 만들기
-   - 연결 안 된 옛 역할 `ggeolmuse-ec2-secrets-role` · 프로파일 `ggeolmuse-ec2-profile` · 옛 역할의 정책 지우기 셋
-   - RDS 삭제 보호 · 자동 백업 보존 7일 · 백업 창 `23:10-23:40`(UTC) 가운데 지금 값과 불일치하는 것, 최종 스냅숏 설정(상태값만)
-   - 덤프 버킷 버전 관리 켜기 · 수명 주기 규칙 둘(옛 버전 30일 · 삭제 표시 정리)
+3. 바꾸겠다고 나온 값은 실제 값을 tfvars(변수가 없으면 코드)로 옮기고, 남은 변경이 의도한 것뿐일 때 `terraform apply`
 4. apply 는 RDS 가 켜져 있는 평일 06:40 ~ 19:05 KST 에, `aws rds describe-db-instances --db-instance-identifier ggeolmuse-postgres
    --query 'DBInstances[0].DBInstanceStatus'` 가 `available` 일 때 한다. 멈춘 RDS 는 수정이 `InvalidDBInstanceState` 로 거절돼
    apply 가 중간에 실패한다
@@ -96,24 +87,9 @@ terraform init -backend=false && terraform validate && terraform test
 
 | 변수 | 다르면 | 확인 명령 |
 |---|---|---|
-| `ec2_ami_id` · `ec2_subnet_id` · `ec2_key_name` | 서브넷만 교체(AMI · 키는 무시) | `aws ec2 describe-instances --instance-ids <ID> --query 'Reservations[0].Instances[0].[ImageId,SubnetId,KeyName,VpcId,InstanceType,SecurityGroups[].GroupId]' --output text` |
-| `ec2_instance_type` | apply 가 노드를 멈췄다 다시 켬 | 위 명령의 `InstanceType` |
-| `ec2_extra_security_group_ids` | 목록에 없는 그룹을 EC2 에서 뺌 | 위 명령의 보안 그룹 가운데 `ggeolmuse-sg` 를 뺀 나머지 |
-| `ec2_root_volume_size` · `ec2_root_volume_type` | 교체 없이 바뀜(크기는 줄일 수 없음) | `aws ec2 describe-volumes --filters Name=attachment.instance-id,Values=<ID> --query 'Volumes[].[Size,VolumeType]' --output text` |
-| `ec2_security_group_id` · `ec2_security_group_description` · `vpc_id` | 설명 · VPC 는 교체 | `aws ec2 describe-security-groups --filters Name=group-name,Values=ggeolmuse-sg --query 'SecurityGroups[0].[GroupId,Description,VpcId]' --output text` |
-| `ec2_extra_ingress` · `cloudflare_rule_description` | 규칙을 지우고 다시 만듦 | 위 명령의 `--query 'SecurityGroups[0].IpPermissions'` |
-| `node_role_policy_arns` | 목록에 없는 관리 정책을 역할에서 뺌 | `aws iam list-attached-role-policies --role-name ggeolmuse-ec2-role --query 'AttachedPolicies[].PolicyArn'` |
-| `node_role_name` · `node_instance_profile_name` | EC2 에 연결되지 않은 역할을 가져옴 | `aws iam get-instance-profile --instance-profile-name ggeolmuse-ec2-role --query 'InstanceProfile.Roles[].RoleName'` |
 | `rds_*` | 암호화 · 사용자 이름은 교체, 나머지는 교체 없이 바뀜 | `aws rds describe-db-instances --db-instance-identifier ggeolmuse-postgres --query 'DBInstances[0].[AllocatedStorage,MaxAllocatedStorage,PerformanceInsightsEnabled,CopyTagsToSnapshot,StorageType,StorageEncrypted,PubliclyAccessible,DBSubnetGroup.DBSubnetGroupName,VpcSecurityGroups[].VpcSecurityGroupId,DBParameterGroups[].DBParameterGroupName,BackupRetentionPeriod,PreferredBackupWindow,PreferredMaintenanceWindow,DeletionProtection]'` |
 
-- `node_role_policy_arns` 는 비워 둔다(`[]`). 시크릿 읽기는 인라인 정책(앱 · Origin 인증서 시크릿 둘의 읽기)으로 따로 들어가고,
-  관리 정책을 넣으면 노드의 모든 파드가 그 권한을 쓴다. 시크릿 쓰기는 CloudShell 에서 한다
-- RDS 보안 그룹의 인바운드가 출발지로 가리키는 그룹은 `aws ec2 describe-security-groups --group-ids <rds_security_group_ids>
-  --query 'SecurityGroups[].IpPermissions[].UserIdGroupPairs[].GroupId' --output text` 로 본다. 출발지 그룹이 EC2 에 달려 있는데
-  `ec2_extra_security_group_ids` 에 없으면 apply 가 EC2 에서 빼 노드에서 RDS 5432 로 가는 연결이 거부된다
-- 옛 역할 · 프로파일을 지우기 전에 `aws ec2 describe-iam-instance-profile-associations --query
-  'IamInstanceProfileAssociations[].IamInstanceProfile.Arn' --output text` 에 `ggeolmuse-ec2-profile` 이 없는지 본다
-- 인라인 정책 가운데 `ggeolmuse-ec2-secrets-read` · `ggeolmuse-db-backup-write` 를 뺀 나머지는 코드에 없다. `aws iam list-role-policies` 로 보고 필요하면 코드로 옮긴다
+- RDS 보안 그룹의 노드 5432 규칙은 k8s terraform 이 둔다(`rds_security_group_id`)
 - RDS 마스터 비밀번호는 코드 밖이다. 새로 만들 일은 스냅숏 복원이라 비밀번호를 코드에 두지 않는다
 - 유지 보수 창(`PreferredMaintenanceWindow`)이 백업 창 `23:10-23:40`(UTC)과 겹치면 백업 창 수정이 거절된다. 겹치면
   `rds_backup_window` 를 RDS 가동 시간 안의 겹치지 않는 30분으로 바꾼다
@@ -143,10 +119,10 @@ terraform init -backend=false && terraform validate && terraform test
    ```
 
 3. 새 인스턴스가 `available` 이 되면 클러스터 안 임시 파드에서 새 엔드포인트로 접속해 주요 테이블의 행 수를 본다
-4. EC2 를 내려 앱 쓰기를 멈추고 이름을 바꾼다: 옛 것 `ggeolmuse-postgres` → `ggeolmuse-postgres-old`, 새 것 → `ggeolmuse-postgres`
+4. 노드 셋을 내려 앱 쓰기를 멈추고 이름을 바꾼다: 옛 것 `ggeolmuse-postgres` → `ggeolmuse-postgres-old`, 새 것 → `ggeolmuse-postgres`
    (`aws rds modify-db-instance --new-db-instance-identifier … --apply-immediately`)
 5. terraform 상태의 RDS 를 새 것으로: `terraform state rm 'aws_db_instance.postgres[0]'` 뒤 plan 이면 `imports.tf` 가 새 인스턴스를 가져온다
-6. EC2 를 올려 화면을 보고, 며칠 뒤 옛 인스턴스의 삭제 보호를 끄고 지운다
+6. 노드 셋을 올려 화면을 보고, 며칠 뒤 옛 인스턴스의 삭제 보호를 끄고 지운다
 
 최종 스냅숏에서 되살릴 때는 2번을 `aws rds restore-db-instance-from-db-snapshot --db-snapshot-identifier ggeolmuse-postgres-final …` 로 바꾼다.
 
@@ -204,4 +180,3 @@ Describe · Get · List(계정 전체 자원 대상)와 상태 파일 하나의 
 - Production 환경에서는 반드시 `terraform plan`으로 변경사항을 확인한 후 apply하세요
 - Terraform state 는 S3 `ggeolmuse-tfstate-apne2` 에 있다 (2026-09-08). 어느 기계에서든 `terraform init` 후 바로 쓴다
 - `slack_webhook_url` 은 state 에 평문으로 남는다(버킷은 암호화)
-- EC2 에 실제로 연결된 인스턴스 프로파일은 콘솔에서 만든 `ggeolmuse-ec2-role` 이다. 이 프로파일과 역할을 가져와 덤프 쓰기 · 시크릿 읽기 정책을 둔다
