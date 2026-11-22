@@ -21,6 +21,9 @@ infrastructure:
   kafka:
     storage:
       storageClassName: gp3
+    # EBS(ext4) 볼륨 맨 위 lost+found 를 파티션으로 읽지 않는 볼륨 안 하위 폴더
+    env:
+      logDirs: /var/lib/kafka/data/logs
 
 # 외부 요청은 envoy-gateway-system 의 Envoy 프록시가 넘김
 networkPolicy:

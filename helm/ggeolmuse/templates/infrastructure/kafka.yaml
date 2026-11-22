@@ -91,6 +91,10 @@ spec:
             # JVM 힙 메모리
             - name: KAFKA_HEAP_OPTS
               value: "{{ .Values.infrastructure.kafka.env.heapOpts }}"
+            {{- with .Values.infrastructure.kafka.env.logDirs }}
+            - name: KAFKA_LOG_DIRS
+              value: {{ . | quote }}
+            {{- end }}
           resources:
             {{- toYaml .Values.infrastructure.kafka.resources | nindent 12 }}
           securityContext:
