@@ -75,9 +75,6 @@ cloudflared:
   tunnelId: fd0c287c-c332-4d29-b56c-503aaba1122a
 
 ingress:
-  enabled: false
-  originTls:
-    enabled: false
   kind: Gateway
   className: envoy
   gateway:

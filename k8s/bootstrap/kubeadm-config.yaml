@@ -29,7 +29,7 @@ etcd:
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
 cgroupDriver: systemd
-# 운영 k3s 노드와 같은 이미지 정리 기준(helm/k3s-node/kubelet-image-gc.yaml)
+# 이미지 정리 시작 · 멈춤 디스크 사용률
 imageGCHighThresholdPercent: 70
 imageGCLowThresholdPercent: 60
 ---

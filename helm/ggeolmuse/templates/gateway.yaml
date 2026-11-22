@@ -1,7 +1,6 @@
 {{- /* Gateway API 진입(ingress.kind=Gateway): Envoy 설정 · Gateway · 경로 HTTPRoute, 하위 도메인 HTTPRoute 는 서비스가 있는 네임스페이스에 */ -}}
 {{- if and .Values.ingress.enabled (eq .Values.ingress.kind "Gateway") }}
 {{- $name := include "ggeolmuse.fullname" . }}
-{{- $tls := and .Values.global.aws.secretsManager.enabled (dig "originTls" "enabled" false .Values.ingress) }}
 {{- $gw := .Values.ingress.gateway }}
 ---
 apiVersion: gateway.envoyproxy.io/v1alpha1
@@ -41,13 +40,8 @@ spec:
           value:
             spec:
               ports:
-              {{- if $tls }}
-              - port: 443
-                nodePort: {{ $gw.httpsNodePort }}
-              {{- else }}
               - port: 80
                 nodePort: {{ $gw.httpNodePort }}
-              {{- end }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
@@ -63,26 +57,12 @@ spec:
       kind: EnvoyProxy
       name: {{ $name }}
   listeners:
-  {{- if $tls }}
-  # Cloudflare Full (strict) 의 origin 인증서로 TLS 종료
-  - name: https
-    protocol: HTTPS
-    port: 443
-    tls:
-      mode: Terminate
-      certificateRefs:
-      - name: origin-tls
-    allowedRoutes:
-      namespaces:
-        from: All
-  {{- else }}
   - name: http
     protocol: HTTP
     port: 80
     allowedRoutes:
       namespaces:
         from: All
-  {{- end }}
 {{- range $i, $h := .Values.ingress.hosts }}
 ---
 apiVersion: gateway.networking.k8s.io/v1

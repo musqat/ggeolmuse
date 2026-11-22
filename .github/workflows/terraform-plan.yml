@@ -73,6 +73,6 @@ jobs:
                 | select(.change.actions != ["no-op"] or .change.importing != null)
                 | ((if .change.importing != null then "import " else "" end) + (.change.actions | join("+"))) as $a
                 | "- `\($a)` \(.address)"]
-              | if length == 0 then "바뀌는 것 없음" else .[] end' plan.json
+              | if length == 0 then "No changes. Your infrastructure matches the configuration." else .[] end' plan.json
           } >> "$GITHUB_STEP_SUMMARY"
           rm -f plan.json tfplan terraform.tfvars
