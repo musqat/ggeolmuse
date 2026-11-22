@@ -1,4 +1,4 @@
-{{- /* ArgoCD 자신(자동 동기화 · 파이널라이저 없음, Application 을 지워도 ArgoCD 는 남음) */ -}}
+{{- /* ArgoCD 자신(리포 값으로 자동 동기화, 리포에서 빠진 리소스는 지우지 않고 손으로 고친 것은 되돌리지 않음, 파이널라이저 없음이라 Application 을 지워도 ArgoCD 는 남음) */ -}}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -22,3 +22,10 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false
+    # CRD 가 커서 클라이언트 apply 의 어노테이션 한도를 넘음
+    syncOptions:
+      - ServerSideApply=true

@@ -325,15 +325,13 @@ jobs:
       - name: values.yaml 만으로 렌더 확인
         run: helm template ggeolmuse infra/k8s/charts/ggeolmuse > /dev/null
 
-      - name: 운영 값(values-prod · values-k8s)으로 렌더
-        run: |
-          helm template ggeolmuse infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml \
-            -f infra/k8s/charts/ggeolmuse/values-k8s.yaml > rendered-k8s.yaml
+      - name: 운영 값으로 렌더
+        run: helm template ggeolmuse infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml > rendered-k8s.yaml
 
       # EBS(ext4) 볼륨 맨 위 lost+found 를 피하는 Kafka 데이터 하위 폴더 확인
       - name: 멀티 노드 Kafka 데이터 폴더
         run: |
-          helm template ggeolmuse infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml -f infra/k8s/charts/ggeolmuse/values-k8s.yaml \
+          helm template ggeolmuse infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml \
             --show-only templates/infrastructure/kafka.yaml | grep -A1 'name: KAFKA_LOG_DIRS' | grep -q 'value: "/var/lib/kafka/data/[^"]' \
             || { echo "::error::멀티 노드 Kafka 데이터 폴더(KAFKA_LOG_DIRS)가 볼륨 하위 폴더가 아님"; exit 1; }
 
@@ -349,6 +347,18 @@ jobs:
               path = ""; d = 0
             }
             END { if (n < 6) { print "::error::자바 앱 기동 검사 " n "개(6개 미만)"; bad = 1 } exit bad }'
+
+      # 앱 CPU 요청 합계(레플리카 곱) 상한, 워커 하나가 멈춰도 Kafka 같은 하나짜리가 남은 워커로 옮겨 갈 자리
+      - name: 운영 앱 CPU 요청 합계
+        run: |
+          total=$(awk '/^kind: /{k=$2; r=1} /^  replicas: /{r=$2} /^      containers:/{inc=1} /^      initContainers:/{inc=0}
+            /requests:/{q=1; next} q && /cpu:/{ if (inc && k ~ /Deployment|StatefulSet/) { v=$2; sub(/m$/, "", v); s += v * r }; q=0 }
+            END { print s + 0 }' rendered-k8s.yaml)
+          echo "앱 CPU 요청 합계 ${total}m"
+          if [ "$total" -gt 1600 ]; then
+            echo "::error::앱 CPU 요청 합계 ${total}m 가 상한 1600m 를 넘음"
+            exit 1
+          fi
 
       # 교체 중 새 레플리카끼리 노드를 나누는 분산 계산(같은 ReplicaSet 파드만 셈) 확인
       - name: 멀티 노드 분산을 버전마다 계산
@@ -368,7 +378,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 운영 값 · 멀티 노드 값으로 렌더한 PrometheusRule spec 을 규칙 파일로 꺼내 문법 검사 · 단위 테스트 · 알림별 대응 문서 주소 · 울리는 테스트 확인
+      # 운영 값으로 렌더한 PrometheusRule spec 을 규칙 파일로 꺼내 문법 검사 · 단위 테스트 · 알림별 대응 문서 주소 · 울리는 테스트 확인
       - name: promtool 알림 규칙 검사
         run: |
           promtool() { docker run --rm --network none -v "$PWD:/w" -w /w --entrypoint promtool prom/prometheus:v3.1.0 "$@"; }
@@ -379,7 +389,25 @@ jobs:
             promtool test rules infra/k8s/monitoring/alert-rules-test.yaml
             (cd tools && go run ./cmd/alert-rules-coverage ../alert-rules.yaml ../infra/k8s/monitoring/alert-rules-test.yaml)
           }
-          rules infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml -f infra/k8s/charts/ggeolmuse/values-k8s.yaml
+          rules infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml
+
+      # 클러스터 Application 묶음 렌더 · 네임스페이스 메타데이터는 네임스페이스마다 한 앱 · ArgoCD 자신의 자동 동기화(지우기 없음 · server-side apply)
+      - name: ArgoCD Application 묶음 렌더 · 검사
+        run: |
+          helm lint infra/k8s/argocd/apps
+          helm template apps infra/k8s/argocd/apps > argocd-apps.yaml
+          dup=$(awk '/^---/{ns=""} /^    namespace: /{ns=$2} /^    managedNamespaceMetadata:/{print ns}' argocd-apps.yaml | sort | uniq -d)
+          if [ -n "$dup" ]; then
+            echo "::error::managedNamespaceMetadata 를 둔 Application 이 둘 이상인 네임스페이스: $dup"
+            exit 1
+          fi
+          self=$(awk '/^---/{p=0} /^  name: argocd$/{p=1} p' argocd-apps.yaml)
+          for want in 'automated:' 'prune: false' 'ServerSideApply=true'; do
+            if ! grep -q -- "$want" <<<"$self"; then
+              echo "::error::ArgoCD 자신의 Application 에 $want 없음"
+              exit 1
+            fi
+          done
 
       # 운영 렌더의 NetworkPolicy 기본 거부 · 워크로드마다 여는 정책 · 허용 목록에 없는 새 서비스 포트 검사(tools/cmd/netpol-check)
       - name: NetworkPolicy 기본 거부 · 서비스 포트 대조

@@ -42,10 +42,10 @@ traces:
 zipkin:
   enabled: true
 
-# 트레이스를 노드 디스크(local-path)에 저장
+# 트레이스를 EBS gp3 볼륨에 저장
 persistence:
   enabled: true
-  storageClassName: local-path
+  storageClassName: gp3
   size: 5Gi
 
 # Tempo 자체 지표

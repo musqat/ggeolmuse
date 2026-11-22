@@ -1,4 +1,4 @@
-# 로컬 kind 덧붙임(values-prod.yaml · values-k8s.yaml 다음, 시크릿 출처 · DB · 주소 · 모니터링을 바꿈)
+# 로컬 kind 덧붙임(values-prod.yaml 다음, 시크릿 출처 · DB · 주소 · 모니터링을 바꿈)
 global:
   domain: ggeolmuse.localhost
   authDomain: ggeolmuse.localhost

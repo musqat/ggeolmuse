@@ -4,8 +4,8 @@ Prometheus · Grafana · AlertManager · Loki · Tempo. 자바 서비스에는 O
 Java Agent 가 주입돼 있다.
 
 차트 버전과 값은 ArgoCD 의 `prometheus` · `loki` · `tempo` Application 이 리포로 맞춘다. Application 은
-[`infra/k8s/argocd/apps`](../argocd/apps/values.yaml) 에 있고, 이 폴더의 운영 값 위에 같은 폴더의 `*-values-k8s.yaml` 을
-더한다(저장 클래스 gp3 · 컨트롤 플레인 지표).
+[`infra/k8s/argocd/apps`](../argocd/apps/values.yaml) 에 있고, 값은 이 폴더의 `prometheus-values.yaml` · `loki-values.yaml` ·
+`tempo-values.yaml` 하나씩이다(저장 클래스 gp3 · 컨트롤 플레인 지표 포함).
 자동 동기화는 꺼 두어, 머지한 뒤 ArgoCD 화면에서 차이를 보고 Sync 한다. 렌더 값은 리포 파일에서만 온다.
 
 <br>
@@ -85,7 +85,7 @@ AlertmanagerConfig 가 `secretKeyRef` 로 읽는다.
 
 ## 로그
 
-promtail 이 파드 로그를 Loki 로 보낸다. Loki 는 노드 디스크(local-path 5Gi)에 7일 두고, 지난 로그는 compactor 가 지운다.
+promtail 이 파드 로그를 Loki 로 보낸다. Loki 는 EBS gp3 볼륨(5Gi)에 7일 두고, 지난 로그는 compactor 가 지운다.
 브라우저 화면 오류는 운영 빌드가 `/client-error` 로 보낸 출처 · 메시지 · 경로를 frontend-web nginx 가 `"type":"client_error"` JSON 한 줄로 남겨,
 같은 길로 Loki 에 모인다(frontend-web 파드 로그에서 `client_error` 로 찾는다).
 
@@ -103,7 +103,7 @@ promtail 이 파드 로그를 Loki 로 보낸다. Loki 는 노드 디스크(loca
 | OTEL_RESOURCE_ATTRIBUTES | 환경 · 이미지 버전 |
 | OTEL_TRACES_SAMPLER_ARG | 샘플링 비율(부모 따름, 기본 1.0) |
 
-트레이스는 Tempo 로 가고 Grafana 에서 조회한다. 노드 디스크(local-path 5Gi)에 3일 둔다. Tempo 는 트레이스에서
+트레이스는 Tempo 로 가고 Grafana 에서 조회한다. EBS gp3 볼륨(5Gi)에 3일 둔다. Tempo 는 트레이스에서
 서비스 그래프 · 스팬 지표를 만들어 Prometheus 로 보낸다(remote write). Grafana 에서 로그 줄의 `trace_id` 를 누르면
 트레이스로, 트레이스에서는 그 시간의 로그로 넘어간다.
 

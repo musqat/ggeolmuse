@@ -52,11 +52,8 @@ ArgoCD — master 의 infra/k8s/charts/ggeolmuse 를 자동 동기화(지운 리
 | 파일 | 담는 것 |
 |---|---|
 | `values.yaml` | 공통(이미지 레지스트리 · 포트 · Kafka 토픽 · probe · 자원 기본값) |
-| `values-dev.yaml` | 로컬(app.localhost · 표준 Ingress · dev 프로파일) |
-| `values-prod.yaml` | 운영(ggeolmuse.com · Secrets Manager · 서비스별 이미지 태그 · 자원) |
-| `values-k8s.yaml` | 클러스터(레플리카 둘 · 노드 분산 · PDB · cloudflared · EBS gp3 · 기동 검사 10분), `values-prod.yaml` 위에 덧붙임 |
-| `values-kind.yaml` | 로컬 kind 3노드(Envoy Gateway · 클러스터 안 Postgres), `values-k8s.yaml` 위에 덧붙임 |
-| `values-secret.yaml` | 로컬 시크릿(git 에 없음, `.example` 만) |
+| `values-prod.yaml` | 운영(ggeolmuse.com · Secrets Manager · 서비스별 이미지 태그 · 자원 · 레플리카 둘 · 노드 분산 · PDB · cloudflared · EBS gp3 · 기동 검사 10분) |
+| `values-kind.yaml` | 로컬 kind 3노드(Envoy Gateway · 클러스터 안 Postgres), `values-prod.yaml` 위에 덧붙임 |
 
 운영 시크릿은 Secrets Manager `ggeolmuse/production` 을 External Secrets 가 `ggeolmuse-secrets` 로 내려준다. 시크릿을 쓰는 파드는
 그중 자기 키만 `/etc/secrets` 파일로 받고 환경변수로는 받지 않는다. Tunnel 자격은 `ggeolmuse/cloudflared` 를 `cloudflared-credentials` 로
@@ -75,9 +72,9 @@ RDS 밖 사본이다. 버킷과 쓰기 권한은 `infra/terraform/ops/db-backup.
 | Application | 정의 | 동기화 |
 |---|---|---|
 | `ggeolmuse-apps` | `infra/k8s/argocd/root.yaml`(아래 Application 묶음 `infra/k8s/argocd/apps`) | 자동(목록만) |
-| `ggeolmuse` | 앱 차트 `infra/k8s/charts/ggeolmuse`(`values-prod.yaml` · `values-k8s.yaml`) | 자동 |
+| `ggeolmuse` | 앱 차트 `infra/k8s/charts/ggeolmuse`(`values-prod.yaml`) | 자동 |
 | `prometheus` · `loki` · `tempo` | 차트 버전 고정, 값 파일은 `monitoring/` 위에 `infra/k8s/monitoring/` | 수동(prometheus 는 server-side apply) |
-| `argocd` | ArgoCD 자신 | 수동 |
+| `argocd` | ArgoCD 자신 | 자동(리포에서 빠진 리소스는 지우지 않고, 손으로 고친 것은 되돌리지 않음) |
 
 앱 차트의 ServiceMonitor · PrometheusRule 이 prometheus 의 CRD 를 쓰므로 prometheus 를 먼저 Sync 한다. 관측 구성은
 [monitoring/README.md](k8s/monitoring/README.md) 에 있다. 배포 중 메모리 · JVM 힙으로 겪은 일은 [문제 해결](../docs/problem-solving.md) 에 있다.

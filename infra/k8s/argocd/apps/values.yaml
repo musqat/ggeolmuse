@@ -2,7 +2,7 @@
 repoURL: https://github.com/musqat/ggeolmuse
 targetRevision: master
 
-# ArgoCD 자신(동기화는 사람이 누를 때만)
+# ArgoCD 자신(리포 값으로 자동 동기화, 지우기 · 되돌리기 없음)
 argocd:
   repoURL: https://argoproj.github.io/argo-helm
   chart: argo-cd
@@ -14,12 +14,13 @@ argocd:
 ggeolmuse:
   valueFiles:
     - values-prod.yaml
-    - values-k8s.yaml
 
 # 모니터링 릴리스(이름 = 릴리스 이름, 동기화는 사람이 누를 때만)
 monitoring:
   enabled: true
   namespace: monitoring
+  # 모니터링 네임스페이스의 레이블을 두는 앱 하나
+  namespaceMetadataOwner: prometheus
   releases:
     prometheus:
       repoURL: https://prometheus-community.github.io/helm-charts
@@ -28,19 +29,16 @@ monitoring:
       # CRD 가 커서 클라이언트 apply 의 어노테이션 한도를 넘음
       serverSideApply: true
       valueFiles:
-        - infra/k8s/monitoring/prometheus-values-prod.yaml
-        - infra/k8s/monitoring/prometheus-values-k8s.yaml
+        - infra/k8s/monitoring/prometheus-values.yaml
     loki:
       repoURL: https://grafana.github.io/helm-charts
       chart: loki-stack
       version: 2.10.2
       valueFiles:
         - infra/k8s/monitoring/loki-values.yaml
-        - infra/k8s/monitoring/loki-values-k8s.yaml
     tempo:
       repoURL: https://grafana.github.io/helm-charts
       chart: tempo
       version: 1.24.0
       valueFiles:
         - infra/k8s/monitoring/tempo-values.yaml
-        - infra/k8s/monitoring/tempo-values-k8s.yaml

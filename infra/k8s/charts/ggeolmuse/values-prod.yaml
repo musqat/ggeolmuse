@@ -1,4 +1,5 @@
-# prod 전용 덮어쓰기(나머지는 values.yaml 에서 deep merge)
+# 운영 값(kubeadm 멀티 노드 클러스터, 나머지는 values.yaml 에서 deep merge)
+# CPU 요청은 쉴 때 사용량(파드당 10 ~ 40m)에 여유를 둔 값, 기동 때 몰리는 CPU 는 한도까지 씀(워커 하나가 멈추면 Kafka 같은 하나짜리가 옮겨 갈 자리)
 global:
   domain: ggeolmuse.com
   authDomain: ggeolmuse.com
@@ -18,7 +19,17 @@ global:
     secretsManager:
       enabled: true
 
-# 인프라 - 단일 노드 최적화 (prod 오버라이드만, 나머지 base 상속)
+  podDisruptionBudget:
+    enabled: true
+  # 레플리카 둘은 반드시 다른 워커에, 멈춘 워커는 셈에서 빼 남은 워커에 몰아 띄움
+  topologySpread:
+    enabled: true
+    whenUnsatisfiable: DoNotSchedule
+    nodeTaintsPolicy: Honor
+  # 워커가 멈추면 1분 뒤 다른 워커로(기본 5분)
+  nodeLostTolerationSeconds: 60
+  preStopSleepSeconds: 5
+
 infrastructure:
   redis:
     resources:
@@ -30,7 +41,9 @@ infrastructure:
         memory: 128Mi
         cpu: 50m
 
+  # jdbc-ping 캐시 클러스터(keycloak 26 기본)
   keycloak:
+    replicas: 2
     env:
       kcDbVendor: postgres  # RDS PostgreSQL 사용
       kcDbUrl: jdbc:postgresql://ggeolmuse-postgres.cxa6ioco4fhg.ap-northeast-2.rds.amazonaws.com:5432/keycloak
@@ -42,7 +55,7 @@ infrastructure:
         cpu: 500m
       requests:
         memory: 384Mi
-        cpu: 100m
+        cpu: 50m
 
   # PostgreSQL - AWS RDS 사용
   postgres:
@@ -52,6 +65,7 @@ infrastructure:
     storage:
       data: 5Gi
       log: 5Gi
+      storageClassName: gp3
     resources:
       limits:
         memory: 384Mi
@@ -64,15 +78,18 @@ infrastructure:
     env:
       logRetentionHours: 120
       logSegmentBytes: "536870912"
+      # EBS(ext4) 볼륨 맨 위 lost+found 를 파티션으로 읽지 않는 볼륨 안 하위 폴더
+      logDirs: /var/lib/kafka/data/logs
     storage:
       data: 10Gi
+      storageClassName: gp3
     resources:
       limits:
         memory: 1Gi
         cpu: 750m
       requests:
         memory: 512Mi
-        cpu: 200m
+        cpu: 100m
 
   kafkaUi:
     env:
@@ -93,29 +110,37 @@ infrastructure:
       requests:
         cpu: 250m
 
+# 상태 없는 앱은 워커마다 하나씩(레플리카 둘), 자바 앱 기동 검사는 노드 셋 동시 기동에 맞춘 10분
 # Config Server
 configServer:
+  replicaCount: 2
   image:
     tag: "2.0.0"
   env:
     springProfiles: git,prod
   # 읽을 설정 리포 브랜치 · 커밋(릴리스 봇이 그때 main 끝 커밋으로 바꿈)
   gitLabel: 54799cdd393501c7bafab8fe1da94464e7f3dae9
+  probes:
+    startup:
+      failureThreshold: 60
   resources:
     limits:
       memory: 512Mi
       cpu: 1000m
     requests:
       memory: 256Mi
-      cpu: 200m
+      cpu: 50m
 
 # Gateway Server
 gatewayServer:
+  replicaCount: 2
   image:
     tag: "2.0.0"
   env:
     springProfiles: prod
   probes:
+    startup:
+      failureThreshold: 60
     readiness:
       initialDelaySeconds: 120  # 2분 (Keycloak JWK + Redis)
       periodSeconds: 10
@@ -128,11 +153,12 @@ gatewayServer:
       cpu: 1000m
     requests:
       memory: 384Mi
-      cpu: 100m
+      cpu: 50m
 
 # 비즈니스 서비스
 services:
   userService:
+    replicaCount: 2
     image:
       tag: "2.0.0"
     env:
@@ -142,6 +168,8 @@ services:
       APP_FRONTEND_URL: https://ggeolmuse.com
       APP_MAIL_VERIFICATION_BASE_URL: https://ggeolmuse.com
     probes:
+      startup:
+        failureThreshold: 60
       readiness:
         initialDelaySeconds: 180
       liveness:
@@ -152,14 +180,17 @@ services:
         cpu: 600m
       requests:
         memory: 512Mi
-        cpu: 100m
+        cpu: 50m
 
   tradeService:
+    replicaCount: 2
     image:
       tag: "2.0.0"
     env:
       TZ: "Asia/Seoul"
     probes:
+      startup:
+        failureThreshold: 60
       readiness:
         initialDelaySeconds: 180
       liveness:
@@ -170,9 +201,10 @@ services:
         cpu: 600m
       requests:
         memory: 512Mi
-        cpu: 100m
+        cpu: 50m
 
   marketDataService:
+    replicaCount: 2
     image:
       tag: "2.0.0"
     env:
@@ -184,6 +216,8 @@ services:
       # 심볼 수집 최대 개수 (0 = 무제한, 기본값 100)
       SYMBOL_LISTING_MAX: "0"
     probes:
+      startup:
+        failureThreshold: 60
       readiness:
         initialDelaySeconds: 180
         periodSeconds: 10
@@ -196,14 +230,17 @@ services:
         cpu: 1000m
       requests:
         memory: 768Mi
-        cpu: 100m
+        cpu: 50m
 
   backtestService:
+    replicaCount: 2
     image:
       tag: "2.0.0"
     env:
       TZ: "Asia/Seoul"
     probes:
+      startup:
+        failureThreshold: 60
       readiness:
         initialDelaySeconds: 180
       liveness:
@@ -215,9 +252,10 @@ services:
         cpu: 1000m
       requests:
         memory: 768Mi
-        cpu: 100m
+        cpu: 50m
 
   chatService:
+    replicaCount: 2
     image:
       tag: "1.14.0"
     metrics:
@@ -233,10 +271,11 @@ services:
         cpu: 400m
       requests:
         memory: 256Mi
-        cpu: 100m
+        cpu: 50m
 
 # 프론트엔드
 frontend:
+  replicaCount: 2
   image:
     tag: "1.14.0"
   env:
@@ -252,6 +291,8 @@ frontend:
 
 # 네트워크 정책
 networkPolicy:
+  # 외부 요청은 envoy-gateway-system 의 Envoy 프록시가 넘김
+  ingressNamespace: envoy-gateway-system
   policyTypes:
     - Ingress
   ports:
@@ -260,6 +301,44 @@ networkPolicy:
     - 8081
     - 8082
     - 8083
+
+# 외부 진입은 Cloudflare Tunnel(cloudflared 가 아래 hosts · subdomains 규칙으로 서비스에 바로). kind 는 같은 규칙을 Gateway API 로
+cloudflared:
+  enabled: true
+  tunnelId: fd0c287c-c332-4d29-b56c-503aaba1122a
+
+ingress:
+  kind: Gateway
+  className: envoy
+  gateway:
+    replicas: 2
+  hosts:
+    - paths:
+        - path: /api
+          backend:
+            service: gateway-server
+            port: 8070
+        - path: /auth
+          backend:
+            service: keycloak
+            port: 8080
+        - path: /kafka-ui
+          backend:
+            service: kafka-ui
+            port: 8090
+        - path: /
+          backend:
+            service: frontend-web
+            port: 3000
+  subdomains:
+    - name: argocd
+      namespace: argocd
+      service: argocd-server
+      port: 80
+    - name: grafana
+      namespace: monitoring
+      service: prometheus-grafana
+      port: 80
 
 # Secret 설정
 secrets:

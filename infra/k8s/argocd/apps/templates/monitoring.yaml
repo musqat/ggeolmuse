@@ -26,10 +26,12 @@ spec:
     server: https://kubernetes.default.svc
     namespace: {{ $.Values.monitoring.namespace }}
   syncPolicy:
-    # 앱 차트 NetworkPolicy 가 이 레이블로 모니터링 네임스페이스를 고름
+    {{- if eq $name $.Values.monitoring.namespaceMetadataOwner }}
+    # 앱 차트 NetworkPolicy 가 이 레이블로 모니터링 네임스페이스를 고름(네임스페이스 메타데이터는 한 앱만)
     managedNamespaceMetadata:
       labels:
         name: {{ $.Values.monitoring.namespace }}
+    {{- end }}
     syncOptions:
       - CreateNamespace=true
       {{- if $r.serverSideApply }}

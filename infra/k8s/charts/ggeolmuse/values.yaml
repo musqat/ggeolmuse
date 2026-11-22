@@ -1,4 +1,4 @@
-# 공통 설정(환경별 값은 values-dev.yaml · values-prod.yaml)
+# 공통 설정(운영 값은 values-prod.yaml, 로컬 kind 는 그 위에 values-kind.yaml)
 global:
   imageRegistry: muscathan
   imagePullPolicy: Always
@@ -40,7 +40,7 @@ global:
     realm: muscathan
     clientId: ggeolmuse-client
     frontendClientId: ggeolmuse-frontend
-    # authServerUrl, publicUrl: 환경별 (dev/prod)
+    # authServerUrl, publicUrl: 환경별 값 파일
 
   redis:
     host: redis
@@ -59,7 +59,7 @@ global:
       retries: 3
       compressionType: snappy
 
-  # springProfiles: 환경별 (dev/prod)
+  # springProfiles: 환경별 값 파일
 
   # 시크릿을 /etc/secrets 파일로(Secrets Manager 연동 없이 같은 방식, 예 kind)
   secretFiles: false
@@ -302,7 +302,7 @@ configServer:
     CONFIG_SERVER_USERNAME: CONFIG_SERVER_USERNAME
     CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
   # 앱(10001)이 설정 리포를 받아 둘 수 있게 fsGroup(emptyDir /tmp 는 root 소유로 생김)
-  # 환경별 파일(dev · prod)이 덮어씀
+  # 환경별 값 파일이 덮어씀
   env:
     springProfiles: git
   # 읽을 설정 리포 커밋 · 브랜치(운영 값 파일은 릴리스 봇이 main 끝 커밋으로 바꿈)
@@ -333,7 +333,7 @@ gatewayServer:
     CONFIG_SERVER_PASSWORD: CONFIG_SERVER_PASSWORD
     SPRING_REDIS_PASSWORD: REDIS_PASSWORD
   env:
-    # springProfiles: 환경별 (dev/prod)
+    # springProfiles: 환경별 값 파일
     configUri: http://config-server:8888
     configUsername: config
   strategy:
@@ -390,7 +390,7 @@ services:
       MAIL_FROM: MAIL_FROM
       ADMIN_PASSWORD: KEYCLOAK_ADMIN_USER_PASSWORD
     keycloakClientEnv: true
-    # env.APP_BASE_URL · APP_FRONTEND_URL · APP_MAIL_VERIFICATION_BASE_URL: 환경별 (dev/prod)
+    # env.APP_BASE_URL · APP_FRONTEND_URL · APP_MAIL_VERIFICATION_BASE_URL: 환경별 값 파일
     strategy:
       rollingUpdate:
         maxUnavailable: 0
@@ -559,7 +559,7 @@ frontend:
     port: 3000
     targetPort: 8080
   env:
-    # apiUrl, keycloakUrl: 환경별 (dev/prod)
+    # apiUrl, keycloakUrl: 환경별 값 파일
     keycloakRealm: muscathan
     keycloakClientId: ggeolmuse-frontend
 
@@ -578,7 +578,7 @@ networkPolicy:
     - 8083
   # 네임스페이스로 들어오는 요청 기본 거부(허용 정책에 적은 출처 · 포트만 받음)
   defaultDeny: true
-  # 외부 요청을 넘기는 인그레스 컨트롤러의 네임스페이스(로컬 Traefik 은 kube-system)
+  # 외부 요청을 넘기는 인그레스 컨트롤러의 네임스페이스
   ingressNamespace: kube-system
   # 노드 IAM 역할(인스턴스 메타데이터)로 가는 egress 차단(역할로 S3 에 올리는 파드만 예외)
   instanceMetadata:
