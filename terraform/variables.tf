@@ -4,11 +4,6 @@ variable "aws_region" {
   default     = "ap-northeast-2"
 }
 
-variable "ec2_instance_id" {
-  description = "가져올 운영 EC2 인스턴스 ID (스케줄 · 알람 대상)"
-  type        = string
-}
-
 variable "project_name" {
   description = "리소스 이름 앞에 오는 프로젝트 이름"
   type        = string
@@ -21,112 +16,7 @@ variable "environment" {
   default     = "production"
 }
 
-variable "node_secret_names" {
-  description = "노드 역할이 읽는 Secrets Manager 시크릿 이름 (External Secrets 가 쓴다)"
-  type        = list(string)
-  default     = ["ggeolmuse/production", "ggeolmuse/origin-tls"]
-}
-
 # --- 운영 핵심 자원 (core.tf · imports.tf, 값은 README 의 가져오기 절) ---
-
-variable "ec2_ami_id" {
-  description = "EC2 AMI ID. 새로 만들 때만 쓰고 바뀌어도 교체하지 않는다"
-  type        = string
-}
-
-variable "ec2_instance_type" {
-  description = "EC2 인스턴스 종류"
-  type        = string
-  default     = "t3a.xlarge"
-}
-
-variable "ec2_subnet_id" {
-  description = "EC2 서브넷 ID. 다르면 교체가 잡힌다"
-  type        = string
-}
-
-variable "ec2_key_name" {
-  description = "EC2 키 페어 이름(없으면 null). 새로 만들 때만 쓴다"
-  type        = string
-  nullable    = true
-}
-
-variable "ec2_root_volume_size" {
-  description = "EC2 루트 볼륨 크기(GiB). 줄일 수 없다"
-  type        = number
-}
-
-variable "ec2_root_volume_type" {
-  description = "EC2 루트 볼륨 종류 (gp2 / gp3)"
-  type        = string
-}
-
-variable "vpc_id" {
-  description = "EC2 보안 그룹의 VPC ID. 다르면 교체가 잡힌다"
-  type        = string
-}
-
-variable "ec2_security_group_id" {
-  description = "가져올 EC2 보안 그룹 ID (ggeolmuse-sg)"
-  type        = string
-}
-
-variable "ec2_security_group_description" {
-  description = "EC2 보안 그룹 설명. 다르면 교체가 잡힌다"
-  type        = string
-}
-
-variable "cloudflare_prefix_list_name" {
-  description = "443 을 받을 Cloudflare IPv4 접두사 목록 이름"
-  type        = string
-  default     = "cloudflare-ipv4"
-}
-
-variable "cloudflare_rule_description" {
-  description = "443 규칙의 설명"
-  type        = string
-  default     = ""
-}
-
-variable "ec2_extra_ingress" {
-  description = "443 말고 보안 그룹에 둘 인바운드 규칙(SSH 등, 없으면 [])"
-  type = list(object({
-    description = string
-    protocol    = string
-    from_port   = number
-    to_port     = number
-    cidr_blocks = list(string)
-  }))
-}
-
-variable "ec2_extra_security_group_ids" {
-  description = "ggeolmuse-sg 말고 EC2 에 달린 보안 그룹 ID(없으면 []). 목록에 없는 그룹은 EC2 에서 빠진다"
-  type        = list(string)
-  default     = []
-}
-
-variable "node_role_name" {
-  description = "EC2 에 연결된 노드 역할 이름"
-  type        = string
-  default     = "ggeolmuse-ec2-role"
-}
-
-variable "node_instance_profile_name" {
-  description = "EC2 에 연결된 인스턴스 프로파일 이름"
-  type        = string
-  default     = "ggeolmuse-ec2-role"
-}
-
-variable "node_role_description" {
-  description = "노드 역할 설명(콘솔에서 만들 때 넣은 값)"
-  type        = string
-  default     = "Allows EC2 instances to ggeolmuse"
-}
-
-variable "node_role_policy_arns" {
-  description = "노드 역할에 둘 관리 정책 ARN 전체. 목록에 없는 관리 정책은 역할에서 빠진다"
-  type        = set(string)
-}
 
 variable "rds_engine_version" {
   description = "RDS PostgreSQL 버전(주 버전만 적으면 부 버전 자동 올림을 따라감)"
@@ -288,9 +178,13 @@ variable "rds_scheduler_enabled" {
 }
 
 variable "scheduled_instances" {
-  description = "평일에 켜고 끄고 중지 알림 · 상태 알람을 걸 EC2(이름 → 인스턴스 id). 비면 app = ec2_instance_id 하나"
+  description = "평일에 켜고 끄고 중지 알림 · 상태 알람을 걸 EC2(이름 → 인스턴스 id, k8s terraform 출력 node_ids)"
   type        = map(string)
-  default     = {}
+
+  validation {
+    condition     = length(var.scheduled_instances) > 0
+    error_message = "scheduled_instances 에 노드를 하나 이상 넣어야 합니다."
+  }
 }
 
 variable "scheduler_timezone" {
@@ -421,7 +315,7 @@ variable "db_backup_bucket_name" {
 }
 
 variable "db_backup_writer_roles" {
-  description = "k3s 노드 역할 말고 월간 덤프를 백업 버킷에 쓸 IAM 역할 이름"
+  description = "월간 덤프를 백업 버킷에 쓸 IAM 역할 이름(k8s terraform 출력 node_role_name)"
   type        = list(string)
   default     = []
 }
