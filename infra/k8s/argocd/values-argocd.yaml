@@ -21,13 +21,14 @@ server:
 
 # Controller 설정 (Git 저장소 감시)
 controller:
+  # 요청은 쉴 때 사용량(약 450Mi) 위, 한도는 머지 직후 앱을 한꺼번에 다시 비교할 때 몫
   resources:
     limits:
       cpu: 500m
-      memory: 768Mi
+      memory: 1536Mi
     requests:
       cpu: 100m
-      memory: 320Mi
+      memory: 512Mi
 
 # Repo Server 설정 (Git 저장소 연결)
 repoServer:
