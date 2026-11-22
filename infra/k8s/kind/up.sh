@@ -68,7 +68,7 @@ kubectl rollout status deployment/postgres --timeout=5m
 
 v="$root/infra/k8s/charts/ggeolmuse"
 helm upgrade --install ggeolmuse "$v" \
-  -f "$v/values-prod.yaml" -f "$v/values-k8s.yaml" -f "$v/values-kind.yaml" \
+  -f "$v/values-prod.yaml" -f "$v/values-kind.yaml" \
   --wait --timeout 30m
 
 echo "http://ggeolmuse.localhost:18080 (확인: bash infra/k8s/kind/check.sh)"

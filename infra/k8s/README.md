@@ -4,7 +4,7 @@
 
 - 컨트롤 플레인 1(t3a.medium 온디맨드) · 워커 2(m5a.large · t3.large 유지 요청 스팟, 둘이 같이 회수되지 않게 종류를 섞음, 회수되면 멈췄다가 다시 뜸)
 - 진입은 Cloudflare Tunnel 이다. cloudflared 둘이 밖으로만 연결하고 경로 규칙으로 서비스에 바로 넘겨, 노드로 들어오는 포트가 없다
-- 앱은 ArgoCD 가 master 의 운영 차트(`infra/k8s/charts/ggeolmuse` 에 `values-prod.yaml` · `values-k8s.yaml`)로 맞춘다
+- 앱은 ArgoCD 가 master 의 운영 차트(`infra/k8s/charts/ggeolmuse` 의 `values-prod.yaml`)로 맞춘다
 - RDS · Secrets Manager 는 클러스터 밖이다. 시크릿은 노드 역할로 External Secrets 가 읽는다
 - 평일 07:00 ~ 19:00 에만 켠다(운영 terraform 의 스케줄러)
 - 로컬에서는 kind 3노드로 같은 구성을 띄워 본다
@@ -22,7 +22,7 @@
 | `addons/` | Calico · GatewayClass · gp3 저장 클래스 값 |
 | `kind/` | 로컬 3노드 올리기 · 확인 · 지우기 |
 | `argocd/apps` · `argocd/root.yaml` | ArgoCD 가 맞추는 Application 목록(앱 · 모니터링 셋 · ArgoCD 자신, kind 는 `values-kind.yaml` 도) |
-| `charts/ggeolmuse` | 앱 Helm 차트(운영 `values-prod.yaml` 위에 클러스터 `values-k8s.yaml`, kind 는 `values-kind.yaml` 도) |
+| `charts/ggeolmuse` | 앱 Helm 차트(운영 `values-prod.yaml`, kind 는 그 위에 `values-kind.yaml`) |
 | `monitoring/` | Prometheus · Loki · Tempo 값(운영 값 위에 `*-values-k8s.yaml` 덧붙임), 알림 규칙 테스트 · 알림 대응 문서 |
 | [`../terraform/cluster`](../terraform/cluster) | EC2 셋 · 보안 그룹 · 노드 역할(`modules/k8s-cluster`), 운영 terraform(`../terraform/ops`)과 상태를 따로 둠 |
 

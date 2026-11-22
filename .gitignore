@@ -93,8 +93,8 @@ infra/k8s/secrets/
 infra/k8s/secrets/*.yaml
 
 ### Helm Secrets (실제 값이 포함된 파일) ###
-# values.yaml(공통)/values-dev.yaml(로컬환경)/values-prod.yaml(prod환경) = 커밋함
-# values-secret.yaml = 로컬 시크릿 (secrets.enabled + 실제 키) = 커밋 금지, .example 참고
+# values.yaml(공통) · values-prod.yaml(운영) · values-kind.yaml(로컬 kind) = 커밋함
+# values-secret.yaml = 로컬 시크릿(secrets.enabled + 실제 키) = 커밋 금지
 infra/**/values-secret.yaml
 
 ### Frontend ###
@@ -123,8 +123,6 @@ frontend-web/dark-theme-replace.mjs
 frontend-web/semantic-replace.mjs
 frontend-web/remove-jsdoc.mjs
 frontend-web/design-preview.html
-
-# Helm 로컬 시크릿 (위에서 infra/**/values-secret.yaml 로 통합)
 
 ### docs — 공개용만 추적한다 ###
 # 개인 작업 기록(백로그·세션 로그·면접 준비)은 리포에 넣지 않는다.

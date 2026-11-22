@@ -325,15 +325,13 @@ jobs:
       - name: values.yaml 만으로 렌더 확인
         run: helm template ggeolmuse infra/k8s/charts/ggeolmuse > /dev/null
 
-      - name: 운영 값(values-prod · values-k8s)으로 렌더
-        run: |
-          helm template ggeolmuse infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml \
-            -f infra/k8s/charts/ggeolmuse/values-k8s.yaml > rendered-k8s.yaml
+      - name: 운영 값으로 렌더
+        run: helm template ggeolmuse infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml > rendered-k8s.yaml
 
       # EBS(ext4) 볼륨 맨 위 lost+found 를 피하는 Kafka 데이터 하위 폴더 확인
       - name: 멀티 노드 Kafka 데이터 폴더
         run: |
-          helm template ggeolmuse infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml -f infra/k8s/charts/ggeolmuse/values-k8s.yaml \
+          helm template ggeolmuse infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml \
             --show-only templates/infrastructure/kafka.yaml | grep -A1 'name: KAFKA_LOG_DIRS' | grep -q 'value: "/var/lib/kafka/data/[^"]' \
             || { echo "::error::멀티 노드 Kafka 데이터 폴더(KAFKA_LOG_DIRS)가 볼륨 하위 폴더가 아님"; exit 1; }
 
@@ -380,7 +378,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 운영 값 · 멀티 노드 값으로 렌더한 PrometheusRule spec 을 규칙 파일로 꺼내 문법 검사 · 단위 테스트 · 알림별 대응 문서 주소 · 울리는 테스트 확인
+      # 운영 값으로 렌더한 PrometheusRule spec 을 규칙 파일로 꺼내 문법 검사 · 단위 테스트 · 알림별 대응 문서 주소 · 울리는 테스트 확인
       - name: promtool 알림 규칙 검사
         run: |
           promtool() { docker run --rm --network none -v "$PWD:/w" -w /w --entrypoint promtool prom/prometheus:v3.1.0 "$@"; }
@@ -391,7 +389,7 @@ jobs:
             promtool test rules infra/k8s/monitoring/alert-rules-test.yaml
             (cd tools && go run ./cmd/alert-rules-coverage ../alert-rules.yaml ../infra/k8s/monitoring/alert-rules-test.yaml)
           }
-          rules infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml -f infra/k8s/charts/ggeolmuse/values-k8s.yaml
+          rules infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml
 
       # 클러스터 Application 묶음 렌더 · 네임스페이스 메타데이터는 네임스페이스마다 한 앱 · ArgoCD 자신의 자동 동기화(지우기 없음 · server-side apply)
       - name: ArgoCD Application 묶음 렌더 · 검사
