@@ -3,9 +3,9 @@
 Prometheus · Grafana · AlertManager · Loki · Tempo. 자바 서비스에는 OpenTelemetry
 Java Agent 가 주입돼 있다.
 
-차트 버전과 값은 ArgoCD 의 `prometheus` · `loki` · `tempo` Application 이 리포로 맞춘다. 운영 k3s 는
-[`helm/argocd/apps`](../argocd/apps/values.yaml), 멀티 노드 k8s 는 [`k8s/argocd/apps`](../../k8s/argocd/apps/values.yaml) 에 있고
-멀티 노드는 [`k8s/monitoring`](../../k8s/monitoring) 의 `*-values-k8s.yaml` 을 더한다(저장 클래스 gp3 · 컨트롤 플레인 지표).
+차트 버전과 값은 ArgoCD 의 `prometheus` · `loki` · `tempo` Application 이 리포로 맞춘다. Application 은
+[`k8s/argocd/apps`](../../k8s/argocd/apps/values.yaml) 에 있고, 이 폴더의 값 위에 [`k8s/monitoring`](../../k8s/monitoring) 의
+`*-values-k8s.yaml` 을 더한다(저장 클래스 gp3 · 컨트롤 플레인 지표).
 자동 동기화는 꺼 두어, 머지한 뒤 ArgoCD 화면에서 차이를 보고 Sync 한다. 렌더 값은 리포 파일에서만 온다.
 
 <br>
@@ -23,9 +23,8 @@ Java Agent 가 주입돼 있다.
 Prometheus 와 AlertManager 는 자체 인증이 없다. AlertManager 는 UI 에서 알림을 끌 수
 있어 더 그렇다. 로컬은 `.localhost` 라 밖에서 닿지 않으므로 그대로 두고, 운영은 밖으로 열지 않는다.
 
-Grafana 는 Cloudflare Access 뒤에 있다. Traefik IngressRoute 가 서브도메인을
-`monitoring` 네임스페이스로 넘긴다
-(`helm/ggeolmuse/templates/ingressroute-cross-namespace.yaml`).
+Grafana 는 Cloudflare Access 뒤에 있다. cloudflared 가 서브도메인을 `monitoring` 네임스페이스의 Grafana 로 넘긴다
+(`helm/ggeolmuse/templates/cloudflared.yaml` 의 경로 규칙, 값은 `ingress.subdomains`).
 
 <br>
 

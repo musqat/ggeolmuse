@@ -1,6 +1,6 @@
 # Docker Compose
 
-로컬 개발과 CI 의 E2E 에 쓴다. 운영 배포는 [Helm 차트](../helm/README.md), 멀티 노드 예비안은 [k8s](../k8s/README.md) 에 있다.
+로컬 개발과 CI 의 E2E 에 쓴다. 운영 배포는 [Helm 차트](../helm/README.md), 운영 클러스터는 [k8s](../k8s/README.md) 에 있다.
 
 <br>
 

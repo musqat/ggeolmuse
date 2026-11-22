@@ -173,7 +173,7 @@ userId 로 넣는다. 기록이 없으면 user-service 가 아직 그 체결을 
 
 평일 10시(KST)인데 그날 7시 30분 캔들 수집의 완료 기록이 없다. market-data 가 1분 동안 처리한 종목 수가 그대로면 완료로
 보고 `marketdata_collection_last_completed_seconds` 에 그 시각을 남긴다. 7시 30분 뒤에 다시 뜬 파드는 그 전 수집을
-알 수 없어 보지 않는다(EC2 가 07:00 에 켜져 07:05 무렵 뜬 파드는 본다).
+알 수 없어 보지 않는다(노드 셋이 07:00 에 켜져 07:15 무렵까지 뜬 파드는 본다).
 
 market-data 로그에 `캔들 업데이트 시작` 이 없으면 스케줄러(ShedLock 잠금 · 초기 수집 진행 중), `수집 진행` 에서 멈췄으면 Yahoo 응답
 (로그의 `HTTP오류` · `연결실패` 수)과 KafkaCollectionLag 를 본다. 다시 받으려면 관리자 토큰으로 `POST /api/admin/market/batch/candles` 를 부른다.
