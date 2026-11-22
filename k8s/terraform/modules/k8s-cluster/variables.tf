@@ -34,7 +34,7 @@ variable "workers" {
   description = "워커 이름 → 인스턴스 타입(유지 요청 스팟, 회수되면 멈춤, 둘이 같이 회수되지 않게 종류를 섞음)"
   type        = map(string)
   default = {
-    worker-a = "t3a.large"
+    worker-a = "m5a.large"
     worker-b = "t3.large"
   }
 
