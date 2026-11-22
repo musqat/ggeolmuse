@@ -62,10 +62,10 @@ NYSE · NASDAQ · NYSE ARCA 상장 12,000+ 종목의 일별 가격으로 투자 
 ## 구조
 
 서비스 일곱 개(Java 6 + Python 1). 서비스별 독립 배포와 스케일링을 다뤄보는 것이 목적이고
-**실제 운영은 단일 EC2 한 대**다.
+**실제 운영은 EC2 세 대의 kubeadm 클러스터**다(컨트롤 플레인 1 · 워커 2).
 
 ```
-                    Traefik IngressRoute
+                 Cloudflare Tunnel (cloudflared)
                             │
                     Gateway Server (8070)
          JWT 검증 · 라우팅 · Rate Limit · Circuit Breaker
@@ -125,13 +125,13 @@ ggeolmuse/
 ├── frontend-web/         React
 ├── docker-compose/       로컬 스택
 ├── cloudflare/           꺼져 있을 때 안내 페이지 (Worker)
-├── helm/                 Helm 차트 · ArgoCD
-├── k8s/                  멀티 노드 예비안 (부트스트랩 · kind)
+├── helm/                 Helm 차트 · 모니터링 값
+├── k8s/                  운영 클러스터 (kubeadm 부트스트랩 · ArgoCD · EC2 셋 · kind)
 ├── tests/
 │   ├── e2e/              Playwright
 │   └── k6/               부하 테스트 스크립트
 ├── tools/                CI · 릴리스 · 운영 확인 Go 명령
-└── terraform/            운영 EC2 · RDS · 스케줄러 · 알람
+└── terraform/            운영 RDS · 스케줄러 · 알람 · 백업
 ```
 
 서비스 안 패키지는 두 가지다. 독립된 기능이 둘인 user-service 는 기능별(`domain/account` · `domain/user` 아래 controller · dto · entity ·
@@ -156,7 +156,7 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 | Frontend | React · TypeScript · Vite |
 | Auth | Keycloak (OAuth2 / JWT) |
 | Resilience | Resilience4j — CircuitBreaker · Retry · TimeLimiter · Bulkhead |
-| Infra | Kubernetes (K3s) · Helm · ArgoCD · Docker |
+| Infra | Kubernetes (kubeadm) · Helm · ArgoCD · Cloudflare Tunnel · Docker |
 | 관측 | Prometheus · Grafana · Tempo (OpenTelemetry) · Loki |
 | Test | JUnit 5 · Mockito · Testcontainers · Vitest · Playwright · k6 |
 
@@ -215,7 +215,7 @@ market-data 의 외부 API 호출은 응답을 흉내 낸 테스트라 실제 AP
 
 [성능 튜닝](docs/performance-tuning.md) 에 적었다. 수치마다 잰 조건을 함께 적었다.
 
-운영 부하는 2026-10-21 에 1.5.1 로 쟀다. 같은 VPC 의 c5.xlarge 에서 k6 VU 50 으로, Traefik → 게이트웨이 → market-data 를
+운영 부하는 2026-10-21 에 1.5.1 로 쟀다(단일 노드 k3s 때). 같은 VPC 의 c5.xlarge 에서 k6 VU 50 으로, Traefik → 게이트웨이 → market-data 를
 그대로 거쳤다.
 
 | 부하 | 처리량 | p95 | p99 |
@@ -233,13 +233,13 @@ market-data 의 외부 API 호출은 응답을 흉내 낸 테스트라 실제 AP
 ## 운영
 
 **구성 등급** — 관리형 서비스로 짜면 EKS, RDS Multi-AZ, MSK, ElastiCache 가 된다.
-아키텍처는 그대로 두고 운영 등급만 낮췄다. EKS→K3s, RDS Multi-AZ→Single-AZ,
+아키텍처는 그대로 두고 운영 등급만 낮췄다. EKS→kubeadm(EC2 셋, 워커는 스팟), RDS Multi-AZ→Single-AZ,
 MSK·ElastiCache→파드 내 실행. values 파일만 바꾸면 되돌릴 수 있게 환경을 분리했다.
 
 **데이터** — 상장 목록을 받아오면 14,000 개가 넘게 잡힌다. 상장폐지된 것은 지우지 않고
 `active=false` 로 내린다. 수집 스케줄러는 `active=true` 인 12,000+ 만 갱신한다.
 
-**가동 시간** — EventBridge Scheduler 가 EC2 를 평일 07:00 에 켜고 19:00 에 끈다.
+**가동 시간** — EventBridge Scheduler 가 노드 셋을 평일 07:00 에 켜고 19:00 에 끈다.
 앱이 뜨는 데 5~10분 걸려서 방문자 기준은 07:30 이다.
 
 <details>
@@ -254,7 +254,7 @@ GitHub Actions 릴리스    CI(검사 · E2E) 초록 뒤 PR 에서 체크한 서
         ↓
 ArgoCD (GitOps)         Helm 차트를 추적해 동기화
         ↓
-K3s (EC2 단일 노드)      Traefik IngressRoute 로 진입
+kubeadm (EC2 셋)         Cloudflare Tunnel 로 진입
 ```
 
 | 도구 | 용도 |
@@ -280,8 +280,9 @@ K3s (EC2 단일 노드)      Traefik IngressRoute 로 진입
 
 <br>
 
-**전송** — 브라우저에서 EC2 까지 전 구간이 HTTPS 다. Cloudflare 는 Full (strict) 로 EC2 의 Cloudflare Origin CA 인증서를 검증하고,
-EC2 는 Cloudflare 대역에서 온 요청만 받는다. Keycloak 은 Traefik 이 넘긴 전달 헤더로 https 요청을 구분해 쿠키에 Secure 속성을 넣는다.
+**전송** — 브라우저에서 Cloudflare 까지는 HTTPS, Cloudflare 에서 클러스터까지는 cloudflared 가 밖으로 연 암호화 터널이다.
+노드로 들어오는 포트는 없고, 클러스터 안에서는 cloudflared 가 서비스로 넘긴다(NetworkPolicy 로 받는 쪽을 좁힘). Keycloak 은 cloudflared 가
+넘긴 전달 헤더로 https 요청을 구분해 쿠키에 Secure 속성을 넣는다.
 
 **인증** — Keycloak 이 토큰을 발급하고, 게이트웨이가 서명 · 만료와 함께 발급자(`iss`)와 발급 클라이언트(`azp`)를 허용 목록으로 검사한다.
 user · trade · market-data · backtest 도 같은 허용 목록으로 다시 검증한다. 서비스 사이 내부 API(`/api/internal/**`)는
@@ -292,7 +293,7 @@ user · trade · market-data · backtest 도 같은 허용 목록으로 다시 �
 
 **요청 상한** — 게이트웨이가 Redis 토큰 버킷으로 경로마다 상한을 둔다. 시세 조회는 IP 당 초당 20(한꺼번에 40), 백테스트는 요청 하나에 토큰 10개라
 초당 2(한꺼번에 4), 로그인 · 비밀번호 찾기는 10초에 한 번꼴(연속 세 번)이다. 버킷은 Cloudflare 가 넣은 실 클라이언트 IP(`CF-Connecting-IP`)와 경로로 나눈다.
-EC2 는 Cloudflare 대역에서 온 요청만 받아서 밖에서 이 헤더를 지어 넣을 수 없다. 경로를 키에 넣은 이유는
+요청은 Cloudflare 를 거쳐 터널로만 들어와서 밖에서 이 헤더를 지어 넣을 수 없다. 경로를 키에 넣은 이유는
 [문제 해결](docs/problem-solving.md#로그인-한-번이-다른-라우트의-토큰을-깎았다) 에, 이 헤더를 쓰는 이유는
 [같은 문서](docs/problem-solving.md#레이트-리밋-버킷이-운영에서는-여전히-하나였다) 에 있다.
 

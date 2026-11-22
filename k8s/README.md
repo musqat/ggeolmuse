@@ -1,17 +1,17 @@
-# 멀티 노드 클러스터
+# 운영 클러스터
 
-지금 운영은 EC2 한 대의 k3s 다. 이 폴더는 같은 앱을 여러 노드 쿠버네티스로 옮길 때 쓰는 예비안이다.
+운영은 EC2 세 대의 kubeadm 클러스터다(2026-11-22 단일 노드 k3s 에서 옮김).
 
-- 구성은 kubeadm, 컨트롤 플레인 1(t3a.medium 온디맨드) · 워커 2(m5a.large · t3.large 유지 요청 스팟, 둘이 같이 회수되지 않게 종류를 섞음, 회수되면 멈췄다가 다시 뜸)
-- 전환하면 단일 노드 k3s 를 이것으로 바꾼다. RDS · 시크릿은 그대로 쓴다
-- 전환 전에는 바뀌는 것이 없다. k3s 는 이 폴더를 읽지 않고, terraform 은 `k8s/terraform` 루트를 apply 하기 전에는 아무것도 만들지 않는다
+- 컨트롤 플레인 1(t3a.medium 온디맨드) · 워커 2(m5a.large · t3.large 유지 요청 스팟, 둘이 같이 회수되지 않게 종류를 섞음, 회수되면 멈췄다가 다시 뜸)
+- 진입은 Cloudflare Tunnel 이다. cloudflared 둘이 밖으로만 연결하고 경로 규칙으로 서비스에 바로 넘겨, 노드로 들어오는 포트가 없다
+- 앱은 ArgoCD 가 master 의 운영 차트(`helm/ggeolmuse` 에 `values-prod.yaml` · `values-k8s.yaml`)로 맞춘다
+- RDS · Secrets Manager 는 클러스터 밖이다. 시크릿은 노드 역할로 External Secrets 가 읽는다
+- 평일 07:00 ~ 19:00 에만 켠다(운영 terraform 의 스케줄러)
 - 로컬에서는 kind 3노드로 같은 구성을 띄워 본다
 
 <br>
 
 ## 파일
-
-이 폴더
 
 | 파일 | 하는 일 |
 |---|---|
@@ -21,29 +21,28 @@
 | `bootstrap/addons.sh` | 부품 설치(Calico · metrics-server, kind 면 Envoy Gateway, AWS 면 EBS CSI · External Secrets · ArgoCD) |
 | `addons/` | Calico · GatewayClass · gp3 저장 클래스 값 |
 | `kind/` | 로컬 3노드 올리기 · 확인 · 지우기 |
-| `argocd/apps` · `argocd/root.yaml` | ArgoCD 가 맞추는 Application 목록(앱은 운영 차트 `helm/ggeolmuse` 에 `values-k8s.yaml` 을 덧붙임, kind 는 `values-kind.yaml` 도) |
-| `monitoring/*-values-k8s.yaml` | 멀티 노드 모니터링 값(운영 값 파일 위에 덧붙임) |
+| `argocd/apps` · `argocd/root.yaml` | ArgoCD 가 맞추는 Application 목록(앱 · 모니터링 셋 · ArgoCD 자신, kind 는 `values-kind.yaml` 도) |
+| `monitoring/*-values-k8s.yaml` | 클러스터 모니터링 값(운영 값 파일 위에 덧붙임) |
 | `terraform/` | EC2 셋 · 보안 그룹 · 노드 역할(`modules/k8s-cluster`), 운영 terraform 과 상태를 따로 둠 |
 
 <br>
 
-## k3s 와 다른 점
+## 구성
 
-| | 지금(k3s) | 멀티 노드 |
-|---|---|---|
-| 노드 | EC2 1 | EC2 3(컨트롤 플레인 medium 온디맨드 · 워커 large 스팟 둘) |
-| 컨트롤 플레인 | k3s 한 프로세스 · sqlite | kubeadm · etcd |
-| 네트워크 · NetworkPolicy | flannel · kube-router | Calico |
-| 진입 | 번들 Traefik, EC2 443, IngressRoute | Cloudflare Tunnel — cloudflared 2개가 밖으로만 연결하고 경로 규칙으로 서비스에 바로 넘김. 노드로 들어오는 포트는 없음(kind 는 Envoy Gateway) |
-| 저장소 | 노드 디스크(local-path) | EBS gp3 |
-| 앱 레플리카 | 전부 1 | 상태 없는 앱 8개 · Keycloak 2개씩, PDB · 노드 분산 |
-| Kafka · Zookeeper · Redis | 1 | 1(볼륨만 EBS) |
-| DB · 시크릿 | RDS · External Secrets | 같음 |
-| 쿠버네티스 | 1.31 | 1.35 |
+| | |
+|---|---|
+| 컨트롤 플레인 | kubeadm · etcd, 앱은 올리지 않음(taint) |
+| 네트워크 · NetworkPolicy | Calico(VXLANCrossSubnet, 같은 서브넷 안은 감싸지 않아 노드의 출발지 검사를 끔) |
+| 저장소 | EBS gp3(Kafka · Zookeeper · 모니터링) |
+| 앱 레플리카 | 상태 없는 앱 8개 · Keycloak 2개씩, PDB · 노드 분산(같은 버전 파드끼리 셈) |
+| Kafka · Zookeeper · Redis | 1 |
+| 쿠버네티스 | 1.35 |
 
-- 파드 · 서비스 대역은 k3s 와 같다(`10.42.0.0/16` · `10.43.0.0/16`). Keycloak 의 신뢰 프록시 대역을 그대로 쓴다
-- 앱 네임스페이스로 들어오는 요청은 똑같이 기본 거부다. 외부 요청은 cloudflared(kind 는 `envoy-gateway-system` 의 Envoy 프록시)에서 받고, Keycloak 두 대끼리
+- 파드 · 서비스 대역은 `10.42.0.0/16` · `10.43.0.0/16` 이다. Keycloak 의 신뢰 프록시 대역도 이 값이다
+- 앱 네임스페이스로 들어오는 요청은 기본 거부다. 외부 요청은 cloudflared(kind 는 `envoy-gateway-system` 의 Envoy 프록시)에서 받고, Keycloak 두 대끼리
   캐시 클러스터 포트(7800 · 57800)를 연다. kind 의 Postgres 는 business 서비스 · Keycloak 에서만 받는다
+- 워커 하나가 멈추면 1분 뒤 그 노드의 파드를 남은 워커로 옮긴다. 돌아온 뒤 다시 나누는 일은 저절로 하지 않는다
+- 노드 셋이 같이 켜질 때 자바 앱 기동이 겹쳐, 자바 앱 기동 검사는 10분까지 기다린다
 - 컨트롤 플레인이 멈춰도 떠 있는 파드는 계속 돈다. 배포 · 변경만 멈추고, etcd 는 스냅샷으로 되살린다
 
 <br>
@@ -57,6 +56,7 @@ kind 에서만 다른 값(`values-kind.yaml`)
 
 | | kind |
 |---|---|
+| 진입 | Envoy Gateway(Gateway API) |
 | 시크릿 | `up.sh` 가 무작위 값으로 만들어 파일(`/etc/secrets`)로 넣음 |
 | DB | 클러스터 안 Postgres |
 | 주소 | `http://ggeolmuse.localhost:18080` |
