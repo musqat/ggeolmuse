@@ -145,13 +145,12 @@ cd tools && go run ./cmd/db-check -restore ~/ggeolmuse-dumps/*.dump
 ## 제공자 잠금 파일
 
 `.terraform.lock.hcl` 이 AWS 제공자 버전(5.100.0)과 해시를 고정한다. CI 는 `-lockfile=readonly` 로 이 버전 그대로 받는다.
-지금 파일에는 linux_amd64 해시만 있다. Windows · macOS 에서 처음 init 하기 전에 한 번 아래를 돌려 해시를 더하고 커밋한다.
+linux_amd64 · windows_amd64 · darwin_arm64 해시가 들어 있어 세 플랫폼에서 그대로 init 한다. 제공자를 올릴 때는
+`terraform init -upgrade` 뒤 아래를 돌려 세 플랫폼 해시를 다시 넣고 커밋한다.
 
 ```bash
 terraform providers lock -platform=linux_amd64 -platform=windows_amd64 -platform=darwin_arm64
 ```
-
-제공자를 올릴 때는 `terraform init -upgrade` 뒤 같은 명령을 다시 돌린다.
 
 ## PR 의 읽기 전용 plan
 
