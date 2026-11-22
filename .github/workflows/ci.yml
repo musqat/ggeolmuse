@@ -361,8 +361,10 @@ jobs:
           spread=$(grep -c 'topologySpreadConstraints:' rendered-k8s.yaml)
           perrev=$(grep -A10 'topologySpreadConstraints:' rendered-k8s.yaml | grep -c -- '- pod-template-hash')
           echo "분산 $spread · 버전마다 $perrev"
-          [ "$spread" -gt 0 ] && [ "$spread" -eq "$perrev" ] \
-            || { echo "::error::버전마다 계산하지 않는 분산 규칙이 있음(matchLabelKeys: pod-template-hash)"; exit 1; }
+          if [ "$spread" -eq 0 ] || [ "$spread" -ne "$perrev" ]; then
+            echo "::error::버전마다 계산하지 않는 분산 규칙이 있음(matchLabelKeys: pod-template-hash)"
+            exit 1
+          fi
 
       # 익명 받기 횟수 제한(429) 회피용 읽기 전용 토큰
       - name: Docker Hub 로그인
