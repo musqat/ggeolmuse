@@ -130,6 +130,7 @@ ggeolmuse/
 ├── tests/
 │   ├── e2e/              Playwright
 │   └── k6/               부하 테스트 스크립트
+├── tools/                CI · 릴리스 · 운영 확인 Go 명령
 └── terraform/            운영 EC2 · RDS · 스케줄러 · 알람
 ```
 
@@ -195,14 +196,14 @@ CI 에서 그 아래면 빌드를 실패시킨다(자바 JaCoCo · chat `tools/c
 
 | 서비스 | 라인 | 분기 |
 |---|---|---|
-| user | 98.6% | 87.9% |
-| trade | 99.6% | 96.7% |
-| backtest | 99.6% | 95.2% |
+| user | 98.8% | 87.7% |
+| trade | 99.4% | 96.7% |
+| backtest | 99.6% | 95.3% |
 | market-data | 98.1% | 88.5% |
 | gateway | 73.5% | 37.5% |
-| common | 87.8% | 89.4% |
-| chat | 98.5% | 90.1% |
-| frontend-web | 95.1% | 90.3% |
+| common | 88.3% | 89.7% |
+| chat | 98.5% | 90.3% |
+| frontend-web | 95.1% | 90.4% |
 
 market-data 의 외부 API 호출은 응답을 흉내 낸 테스트라 실제 API 가 바뀌는 것은 못 잡는다.
 
@@ -220,8 +221,8 @@ market-data 의 외부 API 호출은 응답을 흉내 낸 테스트라 실제 AP
 | 부하 | 처리량 | p95 | p99 |
 |---|---|---|---|
 | 다섯 경로 섞어서(웜업 뒤) | 64.8 rps | 1.64초 | 2.06초 |
-| 시세 하나만 | 약 200 rps(IP 당 한도) | 274ms | 321ms |
-| 일자별 OHLC 하나만 | 약 194 rps(IP 당 한도) | 282ms | 330ms |
+| 시세 하나만 | 약 200 rps(그때 IP 당 한도) | 274ms | 321ms |
+| 일자별 OHLC 하나만 | 약 194 rps(그때 IP 당 한도) | 282ms | 330ms |
 | 전체 종목 목록 하나만 | 24.4 rps | 1.99초 | 2.18초 |
 
 부하 중 게이트웨이와 market-data 가 CPU 한도(0.6 · 0.7코어)까지 찼다. 처리량의 상한은 이 한도다. 처음 걸었을 때는
@@ -289,8 +290,8 @@ user · trade · market-data · backtest 도 같은 허용 목록으로 다시 �
 게이트웨이와 서비스는 가입 뒤 이메일 인증 전인 사용자의 토큰(`email_verified` 가 false)을 받지 않는다.
 관리자 API 는 토큰의 admin 권한과 함께 DB 역할 · 정지 여부를 보아(trade · market-data 는 user-service 내부 API 로 물음), 역할을 내리거나 정지한 사용자는 남은 토큰으로도 쓰지 못한다.
 
-**요청 상한** — 게이트웨이가 Redis 토큰 버킷으로 경로마다 상한을 둔다. 시세 조회는 초당 20(한꺼번에 40), 백테스트는 요청 하나에 토큰 10개라 초당 2(한꺼번에 4),
-로그인 · 비밀번호 찾기는 10초에 한 번꼴(연속 세 번)이다. 버킷은 Cloudflare 가 넣은 실 클라이언트 IP(`CF-Connecting-IP`)와 경로로 나눈다.
+**요청 상한** — 게이트웨이가 Redis 토큰 버킷으로 경로마다 상한을 둔다. 시세 조회는 IP 당 초당 20(한꺼번에 40), 백테스트는 요청 하나에 토큰 10개라
+초당 2(한꺼번에 4), 로그인 · 비밀번호 찾기는 10초에 한 번꼴(연속 세 번)이다. 버킷은 Cloudflare 가 넣은 실 클라이언트 IP(`CF-Connecting-IP`)와 경로로 나눈다.
 EC2 는 Cloudflare 대역에서 온 요청만 받아서 밖에서 이 헤더를 지어 넣을 수 없다. 경로를 키에 넣은 이유는
 [문제 해결](docs/problem-solving.md#로그인-한-번이-다른-라우트의-토큰을-깎았다) 에, 이 헤더를 쓰는 이유는
 [같은 문서](docs/problem-solving.md#레이트-리밋-버킷이-운영에서는-여전히-하나였다) 에 있다.
@@ -305,8 +306,8 @@ AI 대화는 5시간 TTL 로 사라지고, 백업 · 이벤트 기록에는 보�
 **브라우저** — nginx 가 CSP · X-Frame-Options · X-Content-Type-Options(nosniff) · Referrer-Policy 를 응답에 넣는다.
 
 **공급망** — 외부 액션은 커밋 SHA, 베이스 이미지는 digest 로 고정하고 Dependabot 이 월 1회 부 · 수 버전 묶음 PR 을 연다(주 버전은 계획해서 따로).
-이미지 스캔은 고친 버전이 나온 CRITICAL 이 있으면 PR · 릴리스를 막고(예외는 `.trivyignore`), 운영 이미지도 주 1회 다시 스캔한다.
-PR 커밋의 secret 은 gitleaks, 코드는 CodeQL 이 본다.
+이미지는 Trivy 로 스캔해 CRITICAL · HIGH 를 GitHub Security 탭에 올리고, 고친 버전이 나온 CRITICAL 이 있으면 PR · 릴리스를 막는다
+(예외는 `.trivyignore`). 운영 이미지도 주 1회 다시 스캔하고, 매니페스트 스캔은 보고만 한다. PR 커밋의 secret 은 gitleaks, 코드는 CodeQL 이 본다.
 
 **운영 도구** — Kafka UI · Keycloak 관리 콘솔 · Grafana · ArgoCD 는 Cloudflare Access 뒤에 있어 허용한 계정만 들어간다.
 Kafka UI 는 그 안에서 로그인 폼을 한 번 더 거치고, 읽기 전용이라 토픽 · 메시지 · 클러스터 설정을 바꾸지 못한다.
@@ -318,8 +319,6 @@ Keycloak 은 로그인 클라이언트와 사용자 관리 클라이언트(사�
 네임스페이스로 들어오는 요청은 기본 거부이고, 파드마다 받을 출처 · 포트만 연다. Kafka 는 business 서비스 · Kafka UI · 토픽 초기화 Job 에서,
 Keycloak · 설정 서버는 게이트웨이 · business 서비스와 인그레스 컨트롤러(Keycloak 만)에서 받는다.
 Redis 에는 비밀번호를 건다.
-
-**공급망** — CI 가 이미지와 매니페스트를 Trivy 로 검사해 CRITICAL · HIGH 를 GitHub Security 탭에 올린다. 빌드를 막지는 않고 보고만 한다.
 
 </details>
 
