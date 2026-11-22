@@ -86,22 +86,21 @@ Feign 은 답이 있어야 다음 줄이 진행되는 조회에 쓰고 Kafka 는
 읽어 배포한다. 코드와 분리해 둬서 cron 이나 수집 상한 같은 값은 재배포 없이 바꾼다.
 
 <details>
-<summary><b>서비스별 상세</b> — 각 서비스 README</summary>
+<summary><b>서비스별 하는 일</b></summary>
 
 <br>
 
-| Service | 역할 | |
-|---|---|---|
-| **Config Server** | 중앙 설정 관리 | [📄](backend/config-server/README.md) |
-| **Gateway Server** | 라우팅, JWT 검증, Rate Limit | [📄](backend/gateway-server/README.md) |
-| **User Service** | 인증, 계좌 관리, 환전 | [📄](backend/user-service/README.md) |
-| **Trade Service** | 거래 실행, 포트폴리오 | [📄](backend/trade-service/README.md) |
-| **Market Data Service** | 시세 수집·제공 | [📄](backend/market-data-service/README.md) |
-| **Backtest Service** | 전략 백테스팅 | [📄](backend/backtest-service/README.md) |
-| **Chat Service** | AI 종목 대화 (FastAPI) | [📄](backend/chat-service/README.md) |
+| 서비스 | 하는 일 |
+|---|---|
+| **Gateway Server** | 라우팅, JWT 검증(발급자 · 발급 클라이언트 허용 목록), 경로별 요청 상한, 서킷 브레이커, CORS |
+| **Config Server** | 설정 저장소를 읽어 서비스에 내려줌 |
+| **User Service** | Keycloak 로그인(이메일 · 구글), 가입과 이메일 인증, 계좌 · 입금 · 환전, 체결 · 배당 정산, 탈퇴 |
+| **Trade Service** | 모의 매매(날짜를 골라 그날 가격으로 체결, 주말은 직전 거래일, 평일 휴장 · 미국 동부 오늘보다 뒤는 거절), 보유 · 배당 · 주식 분할 반영, 포트폴리오 통계 |
+| **Market Data Service** | 상장 목록(Alpha Vantage), 일봉(Yahoo Finance · Alpha Vantage 전환), S&P 500 · 나스닥 100 지수, 환율(한국수출입은행), 배당 · 분할 수집 |
+| **Backtest Service** | 위 기능 목록의 전략 여덟 가지 시뮬레이션 |
+| **Chat Service** | AI 종목 대화(FastAPI) — [구조와 흐름](backend/chat-service/README.md) |
 
 인프라 구성은 [helm/README.md](helm/README.md) 에 있다.
-서비스 설정은 별도 저장소 [ggeolmuse-config](https://github.com/musqat/ggeolmuse-config) 에 있다.
 
 </details>
 
