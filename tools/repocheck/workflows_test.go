@@ -121,7 +121,7 @@ func TestE2EBuildReadsEachServiceBuildCache(t *testing.T) {
 			Build any `json:"build"`
 		} `json:"services"`
 	}
-	if err := yaml.Unmarshal([]byte(readRepoFile(t, "docker-compose/docker-compose.yml")), &compose); err != nil {
+	if err := yaml.Unmarshal([]byte(readRepoFile(t, "infra/compose/docker-compose.yml")), &compose); err != nil {
 		t.Fatal(err)
 	}
 	var built []string

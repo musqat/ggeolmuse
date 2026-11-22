@@ -25,7 +25,7 @@ var sharedJava = []string{"backend/ggeolmuse-bom/", "backend/ggeolmuse-common/",
 var chatPaths = []string{"backend/chat-service/", "tools/cmd/chat-coverage/"}
 
 // E2E 스택(docker-compose)에 들어가지 않는 문서 · 운영 차트 · 인프라 · 검사 도구 · 루트 설정 파일(위 전부 빌드 경로는 제외)
-var noE2E = []string{"docs/", "helm/", "k8s/", "terraform/", ".github/", "tools/",
+var noE2E = []string{"docs/", "infra/k8s/", "infra/terraform/", "infra/cloudflare/", ".github/", "tools/",
 	".gitleaksignore", ".trivyignore", ".gitignore", ".git-blame-ignore-revs"}
 
 // changes 는 빌드할 자바 서비스 · 프론트 · 채팅, 전부 빌드하는지, E2E 를 돌리는지

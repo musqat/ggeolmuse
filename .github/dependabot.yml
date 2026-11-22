@@ -116,7 +116,7 @@ updates:
       prefix: chore(deps)
 
   - package-ecosystem: terraform
-    directories: [/terraform, /k8s/terraform/modules/k8s-cluster]
+    directories: [/infra/terraform/ops, /infra/terraform/cluster/modules/k8s-cluster]
     schedule:
       interval: monthly
       time: "09:00"

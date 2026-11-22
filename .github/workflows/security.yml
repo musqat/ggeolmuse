@@ -84,7 +84,7 @@ jobs:
       - name: 이미지 목록
         id: list
         run: |
-          images=$(helm template ggeolmuse helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml \
+          images=$(helm template ggeolmuse infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml \
             | grep -oE 'image: "?muscathan/[^" ]+' | sed -E 's/image: "?//' | sort -u | jq -R . | jq -sc .)
           echo "images=$images" >> "$GITHUB_OUTPUT"
 

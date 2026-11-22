@@ -322,23 +322,18 @@ jobs:
           go-version-file: tools/go.mod
           cache-dependency-path: tools/go.sum
 
-      - name: values-prod.yaml 로 매니페스트 렌더
-        run: |
-          helm template ggeolmuse helm/ggeolmuse \
-            -f helm/ggeolmuse/values-prod.yaml > rendered.yaml
-
       - name: values.yaml 만으로 렌더 확인
-        run: helm template ggeolmuse helm/ggeolmuse > /dev/null
+        run: helm template ggeolmuse infra/k8s/charts/ggeolmuse > /dev/null
 
-      - name: 멀티 노드 값으로 렌더
+      - name: 운영 값(values-prod · values-k8s)으로 렌더
         run: |
-          helm template ggeolmuse helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml \
-            -f helm/ggeolmuse/values-k8s.yaml > rendered-k8s.yaml
+          helm template ggeolmuse infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml \
+            -f infra/k8s/charts/ggeolmuse/values-k8s.yaml > rendered-k8s.yaml
 
       # EBS(ext4) 볼륨 맨 위 lost+found 를 피하는 Kafka 데이터 하위 폴더 확인
       - name: 멀티 노드 Kafka 데이터 폴더
         run: |
-          helm template ggeolmuse helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml -f helm/ggeolmuse/values-k8s.yaml \
+          helm template ggeolmuse infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml -f infra/k8s/charts/ggeolmuse/values-k8s.yaml \
             --show-only templates/infrastructure/kafka.yaml | grep -A1 'name: KAFKA_LOG_DIRS' | grep -q 'value: "/var/lib/kafka/data/[^"]' \
             || { echo "::error::멀티 노드 Kafka 데이터 폴더(KAFKA_LOG_DIRS)가 볼륨 하위 폴더가 아님"; exit 1; }
 
@@ -381,43 +376,29 @@ jobs:
             helm template ggeolmuse "$@" --show-only templates/monitoring/prometheusrule.yaml \
               | awk 'spec { sub(/^  /, ""); print } /^spec:$/ { spec = 1 }' > alert-rules.yaml
             promtool check rules alert-rules.yaml
-            promtool test rules helm/monitoring/alert-rules-test.yaml
-            (cd tools && go run ./cmd/alert-rules-coverage ../alert-rules.yaml ../helm/monitoring/alert-rules-test.yaml)
+            promtool test rules infra/k8s/monitoring/alert-rules-test.yaml
+            (cd tools && go run ./cmd/alert-rules-coverage ../alert-rules.yaml ../infra/k8s/monitoring/alert-rules-test.yaml)
           }
-          rules helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml
-          rules helm/ggeolmuse -f helm/ggeolmuse/values-prod.yaml -f helm/ggeolmuse/values-k8s.yaml
+          rules infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml -f infra/k8s/charts/ggeolmuse/values-k8s.yaml
 
-      # 운영 k3s 부품 Application 묶음(External Secrets · 모니터링 · Traefik 값), 네임스페이스 메타데이터는 네임스페이스마다 한 앱
-      - name: 부품 Application 묶음 렌더 · 네임스페이스 메타데이터 중복 검사
-        run: |
-          helm lint helm/argocd/apps
-          helm template k3s-apps helm/argocd/apps > k3s-apps.yaml
-          dup=$(awk '/^---/{ns=""} /^    namespace: /{ns=$2} /^    managedNamespaceMetadata:/{print ns}' k3s-apps.yaml | sort | uniq -d)
-          if [ -n "$dup" ]; then
-            echo "::error::managedNamespaceMetadata 를 둔 Application 이 둘 이상인 네임스페이스: $dup"
-            exit 1
-          fi
-
-      # 운영 값 · 멀티 노드 값 렌더의 NetworkPolicy 기본 거부 · 워크로드마다 여는 정책 · 허용 목록에 없는 새 서비스 포트 검사(tools/cmd/netpol-check)
+      # 운영 렌더의 NetworkPolicy 기본 거부 · 워크로드마다 여는 정책 · 허용 목록에 없는 새 서비스 포트 검사(tools/cmd/netpol-check)
       - name: NetworkPolicy 기본 거부 · 서비스 포트 대조
         working-directory: tools
         run: |
-          go run ./cmd/netpol-check ../rendered.yaml
           go run ./cmd/netpol-check ../rendered-k8s.yaml
 
-      # 두 렌더 · compose 의 realm 클라이언트 흐름 · 역할과 Keycloak 클라이언트 secret 을 받는 워크로드 검사(tools/cmd/keycloak-check)
+      # 운영 렌더 · compose 의 realm 클라이언트 흐름 · 역할과 Keycloak 클라이언트 secret 을 받는 워크로드 검사(tools/cmd/keycloak-check)
       - name: Keycloak 클라이언트 권한과 secret 을 받는 곳을 본다
         working-directory: tools
         run: |
-          go run ./cmd/keycloak-check ../rendered.yaml \
-            ../helm/ggeolmuse/config-files/keycloak-realm-template.json \
-            ../docker-compose/keycloak/custom-realm.json
-          go run ./cmd/keycloak-check ../rendered-k8s.yaml ../helm/ggeolmuse/config-files/keycloak-realm-template.json
+          go run ./cmd/keycloak-check ../rendered-k8s.yaml \
+            ../infra/k8s/charts/ggeolmuse/config-files/keycloak-realm-template.json \
+            ../infra/compose/keycloak/custom-realm.json
 
       # 렌더한 이미지 태그가 Docker Hub 에 있는지(값 파일 오타 · 없는 태그, tools/cmd/image-check)
       - name: Docker Hub 이미지 태그 확인
         working-directory: tools
-        run: go run ./cmd/image-check ../rendered.yaml
+        run: go run ./cmd/image-check ../rendered-k8s.yaml
 
       # Trivy 설치 · 스캔 실패로 잡을 막지 않음
       - uses: ./.github/actions/install-trivy
@@ -430,7 +411,7 @@ jobs:
         with:
           skip-setup-trivy: true
           scan-type: config
-          scan-ref: rendered.yaml
+          scan-ref: rendered-k8s.yaml
           format: sarif
           output: trivy-manifests.sarif
           severity: CRITICAL,HIGH
@@ -473,7 +454,7 @@ jobs:
         working-directory: .
         run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7@sha256:887a259a5a534f3c4f36cb02dca341673c6089431057242cdc931e9f133147e9
 
-  # 운영 노드 부트스트랩 스크립트 정적 검사 · --dry-run 출력 테스트
+  # 운영 노드 · kind 스크립트 정적 검사 · 컨트롤 플레인 설정 렌더 테스트
   node-scripts:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -481,8 +462,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: shellcheck · 테스트
         run: |
-          shellcheck helm/k3s-node/*.sh
-          bash helm/k3s-node/bootstrap_test.sh
+          shellcheck -x -P SCRIPTDIR -S warning infra/k8s/bootstrap/*.sh infra/k8s/kind/*.sh
+          bash infra/k8s/bootstrap/bootstrap_test.sh
 
   # terraform 형식 · 문법 · 가짜 프로바이더 테스트(AWS 에 닿지 않음, 운영 루트와 멀티 노드 루트)
   terraform:
@@ -490,7 +471,7 @@ jobs:
     timeout-minutes: 10
     defaults:
       run:
-        working-directory: terraform
+        working-directory: infra/terraform/ops
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       # required_version 하한(1.10) 줄의 버전
@@ -510,7 +491,7 @@ jobs:
 
       # 멀티 노드 예비 클러스터(상태를 따로 둔 루트)
       - name: 멀티 노드 루트 형식 · 문법 · 테스트
-        working-directory: k8s/terraform
+        working-directory: infra/terraform/cluster
         run: |
           terraform fmt -check -recursive
           terraform init -backend=false -input=false
@@ -518,7 +499,7 @@ jobs:
           terraform test
 
       - name: 멀티 노드 모듈 테스트
-        working-directory: k8s/terraform/modules/k8s-cluster
+        working-directory: infra/terraform/cluster/modules/k8s-cluster
         run: |
           terraform init -backend=false -input=false
           terraform test
@@ -546,7 +527,7 @@ jobs:
 
       # 시크릿 없이 .env.example 기본값으로 기동(시세 · 환율은 고정 데이터, 선택 키는 없으면 안 씀)
       - name: compose 환경 변수 준비
-        working-directory: docker-compose
+        working-directory: infra/compose
         run: cp .env.example .env
 
       # 설정 리포 main 끝 커밋을 이 실행의 config-server 라벨로 고정하고 잡 요약에 남김(못 읽으면 main)
@@ -575,7 +556,7 @@ jobs:
         continue-on-error: true
         uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
-          source: docker-compose
+          source: infra/compose
           files: |
             docker-compose.yml
             docker-compose.e2e.yml
@@ -593,7 +574,7 @@ jobs:
       # 캐시 빌드가 실패하면 compose 빌드로 다시(일시 네트워크 오류면 30초 뒤, 최대 3번)
       - name: 스택 빌드
         if: steps.bake.outcome == 'failure'
-        working-directory: docker-compose
+        working-directory: infra/compose
         run: |
           for i in 1 2 3; do
             docker compose build && exit 0
@@ -604,7 +585,7 @@ jobs:
 
       # 기동이 일시 오류(이미지 받기 · 포트)로 실패하면 20초 뒤 다시(최대 3번)
       - name: 스택 기동
-        working-directory: docker-compose
+        working-directory: infra/compose
         run: |
           for i in 1 2 3; do
             docker compose up -d && exit 0
@@ -659,7 +640,7 @@ jobs:
 
       - name: 실패 시 컨테이너 로그
         if: failure()
-        working-directory: docker-compose
+        working-directory: infra/compose
         run: |
           docker compose logs --tail 200
           # 앞쪽 기동 구간 따로 출력(폴링 로그에 밀려 나감)
@@ -671,7 +652,7 @@ jobs:
 
       - name: 스택 정리
         if: always()
-        working-directory: docker-compose
+        working-directory: infra/compose
         run: docker compose down -v
 
   # 모든 잡 결과 모음(머지 필수 검사, 바뀐 것이 없어 건너뛴 잡은 통과)

@@ -1,0 +1,649 @@
+# ggeolmuse 알림 규칙 단위 테스트(promtool test rules, 규칙 파일은 렌더한 PrometheusRule 의 spec)
+rule_files:
+  - ../../../alert-rules.yaml
+
+evaluation_interval: 30s
+
+tests:
+  # CPU 한도 대비 사용률
+  - interval: 1m
+    input_series:
+      # backtest 한도 0.6코어 중 0.54코어(90%)
+      - series: 'container_cpu_usage_seconds_total{job="kubelet", namespace="default", pod="backtest-service-0", container="backtest-service"}'
+        values: '0+32.4x20'
+      - series: 'kube_pod_container_resource_limits{job="kube-state-metrics", namespace="default", pod="backtest-service-0", container="backtest-service", resource="cpu", unit="core"}'
+        values: '0.6x20'
+      # user 한도 0.6코어 중 0.3코어(50%)
+      - series: 'container_cpu_usage_seconds_total{job="kubelet", namespace="default", pod="user-service-0", container="user-service"}'
+        values: '0+18x20'
+      - series: 'kube_pod_container_resource_limits{job="kube-state-metrics", namespace="default", pod="user-service-0", container="user-service", resource="cpu", unit="core"}'
+        values: '0.6x20'
+      # 한도 없는 컨테이너 1코어
+      - series: 'container_cpu_usage_seconds_total{job="kubelet", namespace="default", pod="chat-service-0", container="chat-service"}'
+        values: '0+60x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HighCpuUsage
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: resource
+              namespace: default
+              pod: backtest-service-0
+              container: backtest-service
+            exp_annotations:
+              summary: "높은 CPU 사용률: backtest-service"
+              description: "backtest-service-0 CPU 한도의 80% 초과 · 5분 지속 · 현재 90.0%"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#highcpuusage"
+
+  # GC 뒤 남는 힙 사용률
+  - interval: 1m
+    input_series:
+      # user 힙 최대 400MB 중 GC 뒤 360MB(90%)
+      - series: 'jvm_gc_live_data_size_bytes{job="user-service", instance="10.42.0.15:9090", application="user-service", namespace="default", pod="user-service-0"}'
+        values: '360000000x15'
+      - series: 'jvm_gc_max_data_size_bytes{job="user-service", instance="10.42.0.15:9090", application="user-service", namespace="default", pod="user-service-0"}'
+        values: '400000000x15'
+      # trade 힙 최대 400MB 중 GC 뒤 388MB(97%)
+      - series: 'jvm_gc_live_data_size_bytes{job="trade-service", instance="10.42.0.16:9090", application="trade-service", namespace="default", pod="trade-service-0"}'
+        values: '388000000x15'
+      - series: 'jvm_gc_max_data_size_bytes{job="trade-service", instance="10.42.0.16:9090", application="trade-service", namespace="default", pod="trade-service-0"}'
+        values: '400000000x15'
+      # backtest 힙 최대 400MB 중 GC 뒤 200MB(50%)
+      - series: 'jvm_gc_live_data_size_bytes{job="backtest-service", instance="10.42.0.17:9090", application="backtest-service", namespace="default", pod="backtest-service-0"}'
+        values: '200000000x15'
+      - series: 'jvm_gc_max_data_size_bytes{job="backtest-service", instance="10.42.0.17:9090", application="backtest-service", namespace="default", pod="backtest-service-0"}'
+        values: '400000000x15'
+      # 메모리 영역별 최대(G1 의 Eden · Survivor 는 -1)
+      - series: 'jvm_memory_max_bytes{job="user-service", instance="10.42.0.15:9090", application="user-service", namespace="default", pod="user-service-0", area="heap", id="G1 Old Gen"}'
+        values: '400000000x15'
+      - series: 'jvm_memory_max_bytes{job="user-service", instance="10.42.0.15:9090", application="user-service", namespace="default", pod="user-service-0", area="heap", id="G1 Eden Space"}'
+        values: '-1x15'
+      - series: 'jvm_memory_max_bytes{job="user-service", instance="10.42.0.15:9090", application="user-service", namespace="default", pod="user-service-0", area="heap", id="G1 Survivor Space"}'
+        values: '-1x15'
+      - series: 'jvm_memory_max_bytes{job="trade-service", instance="10.42.0.16:9090", application="trade-service", namespace="default", pod="trade-service-0", area="heap", id="G1 Old Gen"}'
+        values: '400000000x15'
+      - series: 'jvm_memory_max_bytes{job="trade-service", instance="10.42.0.16:9090", application="trade-service", namespace="default", pod="trade-service-0", area="heap", id="G1 Eden Space"}'
+        values: '-1x15'
+      - series: 'jvm_memory_max_bytes{job="trade-service", instance="10.42.0.16:9090", application="trade-service", namespace="default", pod="trade-service-0", area="heap", id="G1 Survivor Space"}'
+        values: '-1x15'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: HighMemoryUsage
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: resource
+              job: user-service
+              instance: 10.42.0.15:9090
+              application: user-service
+              namespace: default
+              pod: user-service-0
+            exp_annotations:
+              summary: "높은 메모리 사용률: user-service"
+              description: "user-service 힙 사용률 85% 초과 · 5분 지속 · 현재 90.0%"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#highmemoryusage"
+              instance: "10.42.0.15:9090"
+          - exp_labels:
+              severity: warning
+              category: resource
+              job: trade-service
+              instance: 10.42.0.16:9090
+              application: trade-service
+              namespace: default
+              pod: trade-service-0
+            exp_annotations:
+              summary: "높은 메모리 사용률: trade-service"
+              description: "trade-service 힙 사용률 85% 초과 · 5분 지속 · 현재 97.0%"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#highmemoryusage"
+              instance: "10.42.0.16:9090"
+      - eval_time: 10m
+        alertname: CriticalMemoryUsage
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              category: resource
+              job: trade-service
+              instance: 10.42.0.16:9090
+              application: trade-service
+              namespace: default
+              pod: trade-service-0
+            exp_annotations:
+              summary: "심각한 메모리 부족: trade-service"
+              description: "trade-service 힙 사용률 95% 초과 · 2분 지속 · 현재 97.0% · OOM 임박"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#criticalmemoryusage"
+              instance: "10.42.0.16:9090"
+
+  # 백테스트 종류별 평균 실행 시간
+  - interval: 1m
+    input_series:
+      # portfolio 1분에 한 번 15초
+      - series: 'backtest_run_seconds_count{job="backtest-service", kind="portfolio", outcome="success"}'
+        values: '0+1x30'
+      - series: 'backtest_run_seconds_sum{job="backtest-service", kind="portfolio", outcome="success"}'
+        values: '0+15x30'
+      # dca 1분에 한 번 1.5초
+      - series: 'backtest_run_seconds_count{job="backtest-service", kind="dca", outcome="success"}'
+        values: '0+1x30'
+      - series: 'backtest_run_seconds_sum{job="backtest-service", kind="dca", outcome="success"}'
+        values: '0+1.5x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: BacktestSlow
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: backtest
+              kind: portfolio
+            exp_annotations:
+              summary: "느린 백테스트: portfolio"
+              description: "portfolio 백테스트 평균 15.0초 · 10분 창 · 5분 지속 · 게이트웨이 응답 제한 30초"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#backtestslow"
+
+  # 실행이 없는 시간
+  - interval: 1m
+    input_series:
+      - series: 'backtest_run_seconds_count{job="backtest-service", kind="portfolio", outcome="success"}'
+        values: '3x30'
+      - series: 'backtest_run_seconds_sum{job="backtest-service", kind="portfolio", outcome="success"}'
+        values: '60x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: BacktestSlow
+        exp_alerts: []
+
+  # config-server 응답 시간(가장 큰 구간 5초)
+  - interval: 1m
+    input_series:
+      # 1분에 20건 중 2건(10%)이 5초 넘음
+      - series: 'http_server_requests_seconds_bucket{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}", le="0.1"}'
+        values: '0+5x20'
+      - series: 'http_server_requests_seconds_bucket{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}", le="0.3"}'
+        values: '0+10x20'
+      - series: 'http_server_requests_seconds_bucket{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}", le="1.0"}'
+        values: '0+15x20'
+      - series: 'http_server_requests_seconds_bucket{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}", le="2.0"}'
+        values: '0+15x20'
+      - series: 'http_server_requests_seconds_bucket{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}", le="5.0"}'
+        values: '0+18x20'
+      - series: 'http_server_requests_seconds_bucket{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}", le="+Inf"}'
+        values: '0+20x20'
+      - series: 'http_server_requests_seconds_count{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}"}'
+        values: '0+20x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: ConfigServerHighLatency
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: config
+            exp_annotations:
+              summary: "Config Server 응답 지연"
+              description: "config-server P95 응답 5초 초과 · 5분 지속 · 서비스 기동 지연"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#configserverhighlatency"
+
+  # config-server 1분에 100건 중 1건(1%)만 5초 넘음
+  - interval: 1m
+    input_series:
+      - series: 'http_server_requests_seconds_bucket{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}", le="1.0"}'
+        values: '0+90x20'
+      - series: 'http_server_requests_seconds_bucket{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}", le="2.0"}'
+        values: '0+95x20'
+      - series: 'http_server_requests_seconds_bucket{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}", le="5.0"}'
+        values: '0+99x20'
+      - series: 'http_server_requests_seconds_bucket{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}", le="+Inf"}'
+        values: '0+100x20'
+      - series: 'http_server_requests_seconds_count{job="config-server", instance="10.42.0.9:9090", application="config-server", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}"}'
+        values: '0+100x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: ConfigServerHighLatency
+        exp_alerts: []
+
+  # 서비스 응답 없음 · 크래시 루프
+  - interval: 1m
+    input_series:
+      - series: 'up{job="user-service", instance="10.42.0.15:9090"}'
+        values: '0x20'
+      - series: 'up{job="trade-service", instance="10.42.0.16:9090"}'
+        values: '1x20'
+      # 목록 밖 서비스
+      - series: 'up{job="keycloak", instance="10.42.0.20:8080"}'
+        values: '0x20'
+      # 1분에 한 번씩 재시작
+      - series: 'kube_pod_container_status_restarts_total{job="kube-state-metrics", namespace="default", pod="trade-service-0", container="trade-service"}'
+        values: '0+1x20'
+      # 부팅 때 한 번
+      - series: 'kube_pod_container_status_restarts_total{job="kube-state-metrics", namespace="default", pod="user-service-0", container="user-service"}'
+        values: '1x20'
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: ServiceDown
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: ServiceDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              category: availability
+              job: user-service
+              instance: 10.42.0.15:9090
+            exp_annotations:
+              summary: "서비스 다운 감지: user-service"
+              description: "user-service 응답 없음 · 10분 지속"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#servicedown"
+              instance: "10.42.0.15:9090"
+              value: "0"
+      - eval_time: 20m
+        alertname: ServiceRestarting
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: availability
+              job: kube-state-metrics
+              namespace: default
+              pod: trade-service-0
+              container: trade-service
+            exp_annotations:
+              summary: "Pod 재시작 감지: trade-service-0"
+              description: "trade-service-0 재시작 3회 초과 · 최근 15분"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#servicerestarting"
+              namespace: "default"
+              container: "trade-service"
+
+  # 게이트웨이 5xx 10%(가용성 예산 0.5% 의 20배), 모두 1초 안
+  - interval: 1m
+    input_series:
+      - series: 'spring_cloud_gateway_requests_seconds_count{job="gateway-server", routeId="trade-route", httpStatusCode="200"}'
+        values: '0+90x420'
+      - series: 'spring_cloud_gateway_requests_seconds_count{job="gateway-server", routeId="trade-route", httpStatusCode="500"}'
+        values: '0+10x420'
+      - series: 'spring_cloud_gateway_requests_seconds_bucket{job="gateway-server", routeId="trade-route", httpStatusCode="200", le="1.0"}'
+        values: '0+90x420'
+      - series: 'spring_cloud_gateway_requests_seconds_bucket{job="gateway-server", routeId="trade-route", httpStatusCode="500", le="1.0"}'
+        values: '0+10x420'
+    alert_rule_test:
+      - eval_time: 7h
+        alertname: AvailabilityBurnFast
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              category: slo
+            exp_annotations:
+              summary: "가용성 예산 빠른 소진"
+              description: "게이트웨이 5xx 비율 1시간 10% · 5분 창도 넘음 · 예산(0.5%)을 14.4배 속도로 씀"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#availabilityburnfast"
+      - eval_time: 7h
+        alertname: AvailabilityBurnSlow
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: slo
+            exp_annotations:
+              summary: "가용성 예산 소진"
+              description: "게이트웨이 5xx 비율 6시간 10% · 30분 창도 넘음 · 예산(0.5%)을 6배 속도로 씀"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#availabilityburnslow"
+      - eval_time: 7h
+        alertname: LatencyBurnFast
+        exp_alerts: []
+
+  # 게이트웨이 요청의 80% 가 1초 넘음(지연 예산 5% 의 16배), 백테스트 경로는 빼고 셈
+  - interval: 1m
+    input_series:
+      - series: 'spring_cloud_gateway_requests_seconds_count{job="gateway-server", routeId="trade-route", httpStatusCode="200"}'
+        values: '0+100x420'
+      - series: 'spring_cloud_gateway_requests_seconds_bucket{job="gateway-server", routeId="trade-route", httpStatusCode="200", le="1.0"}'
+        values: '0+20x420'
+      - series: 'spring_cloud_gateway_requests_seconds_count{job="gateway-server", routeId="backtest-route", httpStatusCode="200"}'
+        values: '0+100x420'
+      - series: 'spring_cloud_gateway_requests_seconds_bucket{job="gateway-server", routeId="backtest-route", httpStatusCode="200", le="1.0"}'
+        values: '0+0x420'
+    alert_rule_test:
+      - eval_time: 7h
+        alertname: LatencyBurnFast
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              category: slo
+            exp_annotations:
+              summary: "지연 예산 빠른 소진"
+              description: "게이트웨이 1초 넘은 요청 1시간 80% · 5분 창도 넘음 · 예산(5%)을 14.4배 속도로 씀"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#latencyburnfast"
+      - eval_time: 7h
+        alertname: LatencyBurnSlow
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: slo
+            exp_annotations:
+              summary: "지연 예산 소진"
+              description: "게이트웨이 1초 넘은 요청 6시간 80% · 30분 창도 넘음 · 예산(5%)을 6배 속도로 씀"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#latencyburnslow"
+      - eval_time: 7h
+        alertname: AvailabilityBurnFast
+        exp_alerts: []
+
+  # 요청 1시간 10건(20건 미만)은 5xx 비율이 높아도 보지 않음
+  - interval: 1m
+    input_series:
+      - series: 'spring_cloud_gateway_requests_seconds_count{job="gateway-server", routeId="trade-route", httpStatusCode="500"}'
+        values: '0+0.1666x120'
+    alert_rule_test:
+      - eval_time: 2h
+        alertname: AvailabilityBurnFast
+        exp_alerts: []
+
+  # config-server 응답 없음 · 401
+  - interval: 1m
+    input_series:
+      - series: 'up{job="config-server", instance="10.42.0.9:9090"}'
+        values: '0x20'
+      - series: 'http_server_requests_seconds_count{job="config-server", instance="10.42.0.9:9090", method="GET", outcome="CLIENT_ERROR", status="401", uri="UNKNOWN"}'
+        values: '0+2x20'
+      - series: 'http_server_requests_seconds_count{job="config-server", instance="10.42.0.9:9090", method="GET", outcome="SUCCESS", status="200", uri="/{name}/{profiles}"}'
+        values: '0+20x20'
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: ConfigServerDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              category: config
+              job: config-server
+              instance: 10.42.0.9:9090
+            exp_annotations:
+              summary: "Config Server 다운"
+              description: "config-server 응답 없음 · 5분 지속 · 나머지 서비스 설정 조회 불가"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#configserverdown"
+      - eval_time: 15m
+        alertname: ConfigServerUnauthorized
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              category: config
+            exp_annotations:
+              summary: "Config Server 인증 실패"
+              description: "config-server 401 응답 · 5분 지속 · 분당 2회 · 클라이언트 비밀번호 불일치 의심"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#configserverunauthorized"
+
+  # 서킷 OPEN · 기대하는 서킷 지표 없음(user-service 의 marketDataService)
+  - interval: 1m
+    input_series:
+      - series: 'resilience4j_circuitbreaker_state{job="trade-service", name="marketService", state="open"}'
+        values: '1x20'
+      - series: 'resilience4j_circuitbreaker_state{job="trade-service", name="marketService", state="closed"}'
+        values: '0x20'
+      - series: 'resilience4j_circuitbreaker_state{job="trade-service", name="userService", state="closed"}'
+        values: '1x20'
+      - series: 'resilience4j_circuitbreaker_state{job="backtest-service", name="marketDataService", state="closed"}'
+        values: '1x20'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: CircuitBreakerOpen
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: resilience
+              job: trade-service
+              name: marketService
+              state: open
+            exp_annotations:
+              summary: "서킷 OPEN: trade-service → marketService"
+              description: "trade-service → marketService 서킷 OPEN · 1분 지속 · 대상 서비스 호출 차단 중"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#circuitbreakeropen"
+      - eval_time: 10m
+        alertname: CircuitBreakerMissing
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: CircuitBreakerMissing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: resilience
+              job: user-service
+              name: marketDataService
+            exp_annotations:
+              summary: "서킷 메트릭 없음: user-service / marketDataService"
+              description: "user-service 에 marketDataService 서킷 메트릭 없음 · 15분 지속 · 설정 instances 이름과 @CircuitBreaker 이름 불일치 의심"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#circuitbreakermissing"
+
+  # DLT 로 간 메시지 · 소비자 지연(종목 수집 토픽은 따로)
+  - interval: 1m
+    input_series:
+      # 6분에 한 건
+      - series: 'kafka_dlt_records_total{job="trade-service", instance="10.42.0.16:9090", topic="user.trade.settled"}'
+        values: '0x5 1x80'
+      - series: 'kafka_consumer_fetch_manager_records_lag{job="user-service", topic="trading_trade_completed", partition="0", client_id="consumer-1"}'
+        values: '150x80'
+      - series: 'kafka_consumer_fetch_manager_records_lag{job="market-data-service", topic="market_asset_created", partition="0", client_id="consumer-2"}'
+        values: '2500x80'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: KafkaDeadLetter
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: messaging
+              job: trade-service
+            exp_annotations:
+              summary: "DLT 로 간 메시지: trade-service"
+              description: 'trade-service 최근 10분 1건 · 로그 "DLT 로 보냄" 확인'
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#kafkadeadletter"
+      - eval_time: 30m
+        alertname: KafkaDeadLetter
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: KafkaConsumerLag
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: messaging
+              job: user-service
+              topic: trading_trade_completed
+            exp_annotations:
+              summary: "소비자 지연: user-service trading_trade_completed"
+              description: "trading_trade_completed 에 안 읽은 레코드 150건 · 10분 지속 · user-service 리스너 로그 · 처리 시간 확인"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#kafkaconsumerlag"
+      - eval_time: 30m
+        alertname: KafkaCollectionLag
+        exp_alerts: []
+      - eval_time: 70m
+        alertname: KafkaCollectionLag
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: messaging
+              job: market-data-service
+              topic: market_asset_created
+            exp_annotations:
+              summary: "종목 수집 지연: market-data-service"
+              description: "종목 수집 대기 2500건 · 1시간 지속 · 종목을 한꺼번에 더했는지, market-data 수집 로그 확인"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#kafkacollectionlag"
+
+  # 못 보낸 체결 이벤트 · 정산을 기다리는 매수 · 되돌리지 못한 취소
+  - interval: 1m
+    input_series:
+      - series: 'trade_events_unpublished{job="trade-service", instance="10.42.0.16:9090"}'
+        values: '3x20'
+      - series: 'trade_buys_pending{job="trade-service", instance="10.42.0.16:9090"}'
+        values: '2x20'
+      - series: 'trade_cancel_review_total{job="trade-service", instance="10.42.0.16:9090", reason="uncovered_sell"}'
+        values: '0x5 1x15'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: TradeEventsUnpublished
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              category: messaging
+            exp_annotations:
+              summary: "못 보낸 체결 이벤트"
+              description: "1분 넘게 못 보낸 체결 3건 · 10분 지속 · 카프카 상태 확인"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#tradeeventsunpublished"
+      - eval_time: 15m
+        alertname: TradeBuysPending
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: messaging
+            exp_annotations:
+              summary: "정산을 기다리는 매수"
+              description: "5분 넘게 대기 중인 매수 2건 · 10분 지속 · user 체결 소비자와 trading.trade.completed.DLT · user.trade.settled.DLT 확인"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#tradebuyspending"
+      - eval_time: 10m
+        alertname: TradeCancelNeedsReview
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: messaging
+              reason: uncovered_sell
+            exp_annotations:
+              summary: "체결 취소 확인 필요: uncovered_sell"
+              description: "trade-service 최근 10분 1건 · 로그에서 tradeId 확인 · 잔액 수동 확인"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#tradecancelneedsreview"
+
+  # 캔들 수집 완료 시각(테스트 시각 0 = 1970-01-01 목요일 09:00 KST)
+  # 목요일 09:30 에 끝난 뒤 금요일 수집은 안 끝남, 파드는 목요일부터 떠 있음
+  - interval: 2m
+    input_series:
+      - series: 'marketdata_collection_last_completed_seconds{job="market-data-service", instance="10.42.0.18:9090"}'
+        values: '1800x1550'
+      - series: 'process_start_time_seconds{job="market-data-service", instance="10.42.0.18:9090"}'
+        values: '0x1550'
+    alert_rule_test:
+      # 금요일 09:30 KST
+      - eval_time: 24h30m
+        alertname: CandleCollectionMissing
+        exp_alerts: []
+      # 금요일 11:00 KST
+      - eval_time: 26h
+        alertname: CandleCollectionMissing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: collection
+            exp_annotations:
+              summary: "오늘 캔들 갱신 없음"
+              description: '평일 10시(KST)까지 오늘 7시 30분 캔들 수집이 끝나지 않음 · market-data 로그의 "수집 완료" 줄 · Yahoo 응답 확인'
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#candlecollectionmissing"
+      # 토요일 11:00 KST
+      - eval_time: 50h
+        alertname: CandleCollectionMissing
+        exp_alerts: []
+
+  # 금요일 08:00 KST 에 수집이 끝남
+  - interval: 2m
+    input_series:
+      - series: 'marketdata_collection_last_completed_seconds{job="market-data-service", instance="10.42.0.18:9090"}'
+        values: '1800x690 82800x110'
+      - series: 'process_start_time_seconds{job="market-data-service", instance="10.42.0.18:9090"}'
+        values: '0x800'
+    alert_rule_test:
+      - eval_time: 26h
+        alertname: CandleCollectionMissing
+        exp_alerts: []
+
+  # 금요일 09:00 KST 에 다시 뜬 파드(그 전 수집은 알 수 없음)
+  - interval: 2m
+    input_series:
+      - series: 'marketdata_collection_last_completed_seconds{job="market-data-service", instance="10.42.0.19:9090"}'
+        values: '0x800'
+      - series: 'process_start_time_seconds{job="market-data-service", instance="10.42.0.19:9090"}'
+        values: '86400x800'
+    alert_rule_test:
+      - eval_time: 26h
+        alertname: CandleCollectionMissing
+        exp_alerts: []
+
+  # 금요일 07:05 KST 에 EC2 와 함께 뜬 파드, 07:30 수집이 끝나지 않음
+  - interval: 2m
+    input_series:
+      - series: 'marketdata_collection_last_completed_seconds{job="market-data-service", instance="10.42.0.20:9090"}'
+        values: '1800x800'
+      - series: 'process_start_time_seconds{job="market-data-service", instance="10.42.0.20:9090"}'
+        values: '79500x800'
+    alert_rule_test:
+      - eval_time: 26h
+        alertname: CandleCollectionMissing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              category: collection
+            exp_annotations:
+              summary: "오늘 캔들 갱신 없음"
+              description: '평일 10시(KST)까지 오늘 7시 30분 캔들 수집이 끝나지 않음 · market-data 로그의 "수집 완료" 줄 · Yahoo 응답 확인'
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#candlecollectionmissing"
+
+  # Redis · Kafka 브로커 응답 없음(exporter 값 0)
+  - interval: 1m
+    input_series:
+      - series: 'redis_up{job="redis", instance="10.42.0.30:9121"}'
+        values: '0x20'
+      - series: 'kafka_brokers{job="kafka-exporter", instance="10.42.0.31:9308"}'
+        values: '0x20'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: RedisDown
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: RedisDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              category: availability
+            exp_annotations:
+              summary: "Redis 응답 없음"
+              description: "redis_up 0 또는 지표 없음 · 10분 지속 · redis 파드 상태 · 메모리 한도 확인"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#redisdown"
+      - eval_time: 15m
+        alertname: KafkaBrokerDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              category: availability
+            exp_annotations:
+              summary: "Kafka 브로커 없음"
+              description: "kafka-exporter 가 보는 브로커 0 또는 지표 없음 · 10분 지속 · kafka · zookeeper 파드 확인"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#kafkabrokerdown"
+
+  # exporter 지표 자체가 없음
+  - interval: 1m
+    input_series:
+      - series: 'up{job="gateway-server", instance="10.42.0.10:9090"}'
+        values: '1x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: RedisDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              category: availability
+            exp_annotations:
+              summary: "Redis 응답 없음"
+              description: "redis_up 0 또는 지표 없음 · 10분 지속 · redis 파드 상태 · 메모리 한도 확인"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#redisdown"
+      - eval_time: 15m
+        alertname: KafkaBrokerDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              category: availability
+            exp_annotations:
+              summary: "Kafka 브로커 없음"
+              description: "kafka-exporter 가 보는 브로커 0 또는 지표 없음 · 10분 지속 · kafka · zookeeper 파드 확인"
+              runbook_url: "https://github.com/musqat/ggeolmuse/blob/master/infra/k8s/monitoring/RUNBOOK.md#kafkabrokerdown"
+
+  # 둘 다 정상
+  - interval: 1m
+    input_series:
+      - series: 'redis_up{job="redis", instance="10.42.0.30:9121"}'
+        values: '1x20'
+      - series: 'kafka_brokers{job="kafka-exporter", instance="10.42.0.31:9308"}'
+        values: '1x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: RedisDown
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: KafkaBrokerDown
+        exp_alerts: []

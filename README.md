@@ -100,7 +100,7 @@ Feign 은 답이 있어야 다음 줄이 진행되는 조회에 쓰고 Kafka 는
 | **Backtest Service** | 위 기능 목록의 전략 여덟 가지 시뮬레이션 |
 | **Chat Service** | AI 종목 대화(FastAPI) — [구조와 흐름](backend/chat-service/README.md) |
 
-인프라 구성은 [helm/README.md](helm/README.md) 에 있다.
+인프라 구성은 [infra/README.md](infra/README.md) 에 있다.
 
 </details>
 
@@ -123,15 +123,22 @@ ggeolmuse/
 │   ├── ggeolmuse-common/     공통 라이브러리 (예외 · 로깅 · 유틸)
 │   └── messaging/            Kafka 공통 라이브러리
 ├── frontend-web/         React
-├── docker-compose/       로컬 스택
-├── cloudflare/           꺼져 있을 때 안내 페이지 (Worker)
-├── helm/                 Helm 차트 · 모니터링 값
-├── k8s/                  운영 클러스터 (kubeadm 부트스트랩 · ArgoCD · EC2 셋 · kind)
+├── infra/
+│   ├── k8s/
+│   │   ├── charts/ggeolmuse/ 앱 Helm 차트
+│   │   ├── argocd/           ArgoCD Application
+│   │   ├── monitoring/       Prometheus · Loki · Tempo 값, 알림 대응
+│   │   ├── bootstrap/        kubeadm 노드 준비 · 부품 설치
+│   │   └── kind/             로컬 3노드
+│   ├── terraform/
+│   │   ├── ops/              운영 RDS · 스케줄러 · 알람 · 백업
+│   │   └── cluster/          EC2 셋 · 보안 그룹 · 노드 역할
+│   ├── cloudflare/           꺼져 있을 때 안내 페이지 (Worker)
+│   └── compose/              로컬 스택
 ├── tests/
 │   ├── e2e/              Playwright
 │   └── k6/               부하 테스트 스크립트
-├── tools/                CI · 릴리스 · 운영 확인 Go 명령
-└── terraform/            운영 RDS · 스케줄러 · 알람 · 백업
+└── tools/                CI · 릴리스 · 운영 확인 Go 명령
 ```
 
 서비스 안 패키지는 두 가지다. 독립된 기능이 둘인 user-service 는 기능별(`domain/account` · `domain/user` 아래 controller · dto · entity ·

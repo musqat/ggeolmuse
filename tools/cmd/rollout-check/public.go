@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// offHoursText 는 운영 시간 밖 Cloudflare 안내 페이지(cloudflare/offline-notice)의 제목
+// offHoursText 는 운영 시간 밖 Cloudflare 안내 페이지(infra/cloudflare/offline-notice)의 제목
 const offHoursText = "지금은 운영 시간이 아닙니다"
 
 // smokePath 는 로그인 없이 게이트웨이 · market-data · DB 를 거치는 공개 경로

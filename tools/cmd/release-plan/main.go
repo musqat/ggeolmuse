@@ -16,7 +16,7 @@ import (
 )
 
 // 운영 값 파일
-const valuesPath = "helm/ggeolmuse/values-prod.yaml"
+const valuesPath = "infra/k8s/charts/ggeolmuse/values-prod.yaml"
 
 // 운영 서비스(값 파일 순서)
 var services = []string{"config-server", "gateway-server", "user-service", "trade-service", "market-data-service", "backtest-service", "chat-service", "frontend-web"}

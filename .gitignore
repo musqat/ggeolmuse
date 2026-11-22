@@ -85,17 +85,17 @@ src/test/generated/
 .env.*.local
 
 ### Kubernetes Secrets ###
-k8s/secrets.yaml
-k8s/*-secrets.yaml
+infra/k8s/secrets.yaml
+infra/k8s/*-secrets.yaml
 *.secret.yaml
 scripts/create-secrets.sh
-k8s/secrets/
-k8s/secrets/*.yaml
+infra/k8s/secrets/
+infra/k8s/secrets/*.yaml
 
 ### Helm Secrets (실제 값이 포함된 파일) ###
 # values.yaml(공통)/values-dev.yaml(로컬환경)/values-prod.yaml(prod환경) = 커밋함
 # values-secret.yaml = 로컬 시크릿 (secrets.enabled + 실제 키) = 커밋 금지, .example 참고
-helm/**/values-secret.yaml
+infra/**/values-secret.yaml
 
 ### Frontend ###
 node_modules/
@@ -124,7 +124,7 @@ frontend-web/semantic-replace.mjs
 frontend-web/remove-jsdoc.mjs
 frontend-web/design-preview.html
 
-# Helm 로컬 시크릿 (위에서 helm/**/values-secret.yaml 로 통합)
+# Helm 로컬 시크릿 (위에서 infra/**/values-secret.yaml 로 통합)
 
 ### docs — 공개용만 추적한다 ###
 # 개인 작업 기록(백로그·세션 로그·면접 준비)은 리포에 넣지 않는다.
@@ -133,8 +133,11 @@ docs/*
 !docs/problem-solving.md
 !docs/performance-tuning.md
 
+### terraform plan 파일(값이 평문으로 들어감) ###
+*.tfplan
+
 ### wrangler 로컬 캐시 ###
-cloudflare/**/.wrangler/
+infra/cloudflare/**/.wrangler/
 
 ### 알림 규칙 테스트 입력(렌더 결과) ###
 /alert-rules.yaml

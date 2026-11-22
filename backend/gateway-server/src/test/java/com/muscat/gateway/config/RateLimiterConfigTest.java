@@ -11,7 +11,7 @@ import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
 
-// 운영은 Cloudflare → k3s 로드밸런서 → Traefik → 게이트웨이라 XFF 마지막 홉과 소켓 주소가 클러스터 내부 주소가 됨
+// 운영은 Cloudflare → cloudflared → 게이트웨이라 XFF 마지막 홉과 소켓 주소가 클러스터 내부 주소가 됨
 class RateLimiterConfigTest {
 
   private static final String ROUTE = "user-login-route";
