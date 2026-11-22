@@ -1,3 +1,0 @@
-# 멀티 노드 kubeadm 덧붙임(tempo-values.yaml 다음)
-persistence:
-  storageClassName: gp3

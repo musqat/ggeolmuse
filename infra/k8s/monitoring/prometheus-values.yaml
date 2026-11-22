@@ -5,175 +5,200 @@ prometheus:
     serviceMonitorSelectorNilUsesHelmValues: false
     serviceMonitorSelector: {}
 
-    # Pod Monitor  설정
+    # Pod Monitor 설정
     podMonitorSelectorNilUsesHelmValues: false
     podMonitorSelector: {}
 
-    # PrometheusRule 자동 인식 설정
+    # 모든 네임스페이스의 PrometheusRule 읽기
     ruleSelectorNilUsesHelmValues: false
-    ruleSelector:
-      matchLabels:
-        app: ggeolmuse
-        release: prometheus
+    ruleSelector: {}
+    ruleNamespaceSelector: {}
 
     # 메트릭 보관 기간
-    retention: 7d
+    retention: 15d  # 15일
 
-    # 스토리지 설정 (개발환경)
+    # 서비스 그래프 · 스팬 지표를 remote write 로 받음
+    enableRemoteWriteReceiver: true
+
+    # 15일 보관 · 수집 대상 열 남짓 기준
+    resources:
+      limits:
+        memory: 2Gi
+        cpu: 1000m
+      requests:
+        memory: 256Mi
+        cpu: 100m
+
+    # 스토리지 설정
     storageSpec:
       volumeClaimTemplate:
         spec:
+          storageClassName: gp3
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
-              storage: 10Gi
+              storage: 20Gi
 
-  # Prometheus Ingress 설정
+  # Prometheus Ingress는 비활성화
   ingress:
-    enabled: true
-    ingressClassName: traefik
-    hosts:
-      - prometheus.localhost
-    paths:
-      - /
+    enabled: false
 
 # Grafana 설정
 grafana:
   enabled: true
 
-  # Admin 계정 설정
-  adminPassword: admin123
+  # Admin 계정 설정 - Kubernetes Secret 사용
+  admin:
+    existingSecret: "grafana-admin"
+    userKey: admin-user
+    passwordKey: admin-password
 
-  # Grafana Ingress 설정
+  # Sidecar 설정 - Chart의 자동 datasource 생성 완전히 비활성화
+  sidecar:
+    datasources:
+      enabled: false  # Sidecar 비활성화하여 Chart가 생성하는 ConfigMap 방지
+
+  # 서브도메인 설정
+  grafana.ini:
+    server:
+      root_url: "https://grafana.ggeolmuse.com"
+      serve_from_sub_path: false
+
+  # Grafana Ingress는 비활성화
   ingress:
-    enabled: true
-    ingressClassName: traefik
-    hosts:
-      - grafana.localhost
-    path: /
+    enabled: false
 
-  # 모든 데이터소스 통합 관리 (Prometheus + Loki + Tempo)
+  # 리소스 설정
+  resources:
+    limits:
+      memory: 512Mi
+      cpu: 500m
+    requests:
+      memory: 256Mi
+      cpu: 50m
+
+  # 데이터소스 셋(Prometheus · Loki · Tempo, 서로 uid 로 이어짐)
   datasources:
     datasources.yaml:
       apiVersion: 1
       datasources:
         - name: Prometheus
+          uid: Prometheus
           type: prometheus
           access: proxy
-          url: http://prometheus-kube-prometheus-prometheus:9090
+          url: http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090
           isDefault: true
           jsonData:
             timeInterval: 30s
 
+        # 로그 줄의 trace_id 에서 Tempo 트레이스로
         - name: Loki
+          uid: Loki
           type: loki
           access: proxy
-          url: http://loki:3100
+          url: http://loki.monitoring.svc.cluster.local:3100
           isDefault: false
           jsonData:
-            maxLines: 1000
+            derivedFields:
+              - name: TraceID
+                matcherRegex: '"trace_id":"(\w+)"'
+                datasourceUid: Tempo
+                url: '$${__value.raw}'
 
+        # 트레이스에서 그 시간 · 그 trace_id 의 로그와 서비스 그래프로
         - name: Tempo
+          uid: Tempo
           type: tempo
           access: proxy
-          url: http://tempo:3200
+          url: http://tempo.monitoring.svc.cluster.local:3200
           isDefault: false
           jsonData:
             tracesToLogsV2:
-              datasourceUid: 'loki'
-              spanStartTimeShift: '-1h'
-              spanEndTimeShift: '1h'
+              datasourceUid: Loki
+              spanStartTimeShift: '-5m'
+              spanEndTimeShift: '5m'
               filterByTraceID: true
-              filterBySpanID: false
-            tracesToMetrics:
-              datasourceUid: 'prometheus'
             serviceMap:
-              datasourceUid: 'prometheus'
+              datasourceUid: Prometheus
             nodeGraph:
               enabled: true
 
-  # sidecar는 대시보드만 활성화 (ConfigMap에서 자동 로드)
-  sidecar:
-    dashboards:
-      enabled: true  # grafana_dashboard=1 레이블이 있는 ConfigMap 자동 감지
-    datasources:
-      enabled: false  # datasources는 아래에서 직접 정의
-
-  # 대시보드 JSON 은 install-monitoring 스크립트가 ConfigMap 으로 만듦
-  dashboardProviders:
-    dashboardproviders.yaml:
-      apiVersion: 1
-      providers:
-        - name: 'default'
-          orgId: 1
-          folder: ''
-          type: file
-          disableDeletion: false
-          editable: true
-          options:
-            path: /var/lib/grafana/dashboards/default
-
-  # Spring Boot 대시보드
-  dashboards:
-    default:
-      spring-boot:
-        gnetId: 12900  # Spring Boot 2.1+
-        revision: 1
-        datasource: Prometheus
-      jvm-micrometer:
-        gnetId: 4701   # JVM
-        revision: 1
-        datasource: Prometheus
-      kubernetes-cluster:
-        gnetId: 7249   # Kubernetes Cluster
-        revision: 1
-        datasource: Prometheus
-
-# AlertManager 설정
+# Alertmanager 설정
 alertmanager:
   enabled: true
+
   alertmanagerSpec:
-    # 커스텀 AlertManager 설정 사용
-    configSecret: alertmanager-config
-
-    # Ingress 설정
-    externalUrl: http://alertmanager.localhost
-
-    # 스토리지 설정
+    # 모든 네임스페이스의 AlertmanagerConfig 읽기
+    alertmanagerConfigSelector: {}
+    alertmanagerConfigNamespaceSelector: {}
+    # 알림 네임스페이스와 무관한 라우팅
+    alertmanagerConfigMatcherStrategy:
+      type: None
+    resources:
+      limits:
+        memory: 128Mi
+        cpu: 100m
+      requests:
+        memory: 32Mi
+        cpu: 10m
     storage:
       volumeClaimTemplate:
         spec:
+          storageClassName: gp3
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
               storage: 5Gi
-
-  # AlertManager Ingress
   ingress:
-    enabled: true
-    ingressClassName: traefik
-    hosts:
-      - alertmanager.localhost
-    paths:
-      - /
+    enabled: false
 
-# Kubernetes 기본 메트릭 수집
+# 기타 컴포넌트 설정
 kubeStateMetrics:
   enabled: true
+
+kube-state-metrics:
+  resources:
+    limits:
+      memory: 128Mi
+      cpu: 100m
+    requests:
+      memory: 32Mi
+      cpu: 10m
 
 nodeExporter:
   enabled: true
 
-# ServiceMonitor 생성 (Spring Boot Actuator)
-additionalServiceMonitors:
-  - name: spring-boot-services
-    selector:
-      matchLabels:
-        monitoring: enabled
-    namespaceSelector:
-      matchNames:
-        - default
-    endpoints:
-      - port: http
-        path: /actuator/prometheus
-        interval: 30s
+prometheus-node-exporter:
+  resources:
+    limits:
+      memory: 64Mi
+      cpu: 100m
+    requests:
+      memory: 16Mi
+      cpu: 10m
+
+prometheusOperator:
+  enabled: true
+  resources:
+    limits:
+      memory: 256Mi
+      cpu: 200m
+    requests:
+      memory: 64Mi
+      cpu: 20m
+
+# kubeadm 컨트롤 플레인 지표(infra/k8s/bootstrap/kubeadm-config.yaml 이 노드 주소로 엶)
+kubeControllerManager:
+  enabled: true
+  serviceMonitor:
+    https: true
+    insecureSkipVerify: true
+kubeScheduler:
+  enabled: true
+  serviceMonitor:
+    https: true
+    insecureSkipVerify: true
+kubeEtcd:
+  enabled: true
+kubeProxy:
+  enabled: true

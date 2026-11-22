@@ -23,7 +23,7 @@
 | `kind/` | 로컬 3노드 올리기 · 확인 · 지우기 |
 | `argocd/apps` · `argocd/root.yaml` | ArgoCD 가 맞추는 Application 목록(앱 · 모니터링 셋 · ArgoCD 자신, kind 는 `values-kind.yaml` 도) |
 | `charts/ggeolmuse` | 앱 Helm 차트(운영 `values-prod.yaml`, kind 는 그 위에 `values-kind.yaml`) |
-| `monitoring/` | Prometheus · Loki · Tempo 값(운영 값 위에 `*-values-k8s.yaml` 덧붙임), 알림 규칙 테스트 · 알림 대응 문서 |
+| `monitoring/` | Prometheus · Loki · Tempo 값(차트마다 하나), 알림 규칙 테스트 · 알림 대응 문서 |
 | [`../terraform/cluster`](../terraform/cluster) | EC2 셋 · 보안 그룹 · 노드 역할(`modules/k8s-cluster`), 운영 terraform(`../terraform/ops`)과 상태를 따로 둠 |
 
 <br>
