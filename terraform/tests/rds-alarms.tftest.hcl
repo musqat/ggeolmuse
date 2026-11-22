@@ -25,22 +25,7 @@ override_resource {
 
 # imports.tf 의 자원마다 override_resource(가짜 프로바이더는 import 를 못 함)
 override_resource {
-  target = aws_instance.app
-}
-override_resource {
-  target = aws_security_group.app
-}
-override_resource {
   target = aws_db_instance.postgres
-}
-override_resource {
-  target = aws_iam_role.node
-}
-override_resource {
-  target = aws_iam_instance_profile.node
-}
-override_resource {
-  target = aws_iam_role_policy_attachments_exclusive.node
 }
 override_resource {
   target = aws_s3_bucket.tfstate
@@ -56,26 +41,20 @@ override_resource {
 }
 
 variables {
-  ec2_instance_id                = "i-0123456789abcdef0"
-  slack_webhook_url              = "https://hooks.slack.com/services/T000/B000/XXXX"
-  ec2_ami_id                     = "ami-0123456789abcdef0"
-  ec2_subnet_id                  = "subnet-0123456789abcdef0"
-  ec2_key_name                   = null
-  ec2_root_volume_size           = 30
-  ec2_root_volume_type           = "gp3"
-  vpc_id                         = "vpc-0123456789abcdef0"
-  ec2_security_group_id          = "sg-0123456789abcdef0"
-  ec2_security_group_description = "ggeolmuse k3s node"
-  ec2_extra_ingress              = []
-  node_role_policy_arns          = []
-  rds_instance_id                = "ggeolmuse-postgres"
-  rds_allocated_storage          = 20
-  rds_storage_type               = "gp2"
-  rds_storage_encrypted          = true
-  rds_publicly_accessible        = false
-  rds_subnet_group_name          = "default-vpc-0123456789abcdef0"
-  rds_security_group_ids         = ["sg-0fedcba9876543210"]
-  rds_parameter_group_name       = "ggeolmuse-pg15"
+  scheduled_instances = {
+    control-plane = "i-0aaaaaaaaaaaaaaa1"
+    worker-a      = "i-0bbbbbbbbbbbbbbb2"
+    worker-b      = "i-0ccccccccccccccc3"
+  }
+  slack_webhook_url        = "https://hooks.slack.com/services/T000/B000/XXXX"
+  rds_instance_id          = "ggeolmuse-postgres"
+  rds_allocated_storage    = 20
+  rds_storage_type         = "gp2"
+  rds_storage_encrypted    = true
+  rds_publicly_accessible  = false
+  rds_subnet_group_name    = "default-vpc-0123456789abcdef0"
+  rds_security_group_ids   = ["sg-0fedcba9876543210"]
+  rds_parameter_group_name = "ggeolmuse-pg15"
 }
 
 run "cpu_storage_connections_alarms" {

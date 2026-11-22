@@ -97,15 +97,7 @@ locals {
   })
 }
 
-# 쓰기만(읽기 · 삭제는 노트북 자격증명, 파드 권한을 뺏겨도 기존 덤프는 못 읽고 덮어써도 옛 버전이 남음)
-resource "aws_iam_role_policy" "db_backup_write" {
-  name = "${var.project_name}-db-backup-write"
-  role = aws_iam_role.node.name
-
-  policy = local.db_backup_write_policy
-}
-
-# k3s 노드 역할 말고 백업을 쓰는 역할(멀티 노드 노드 역할 등)
+# 백업을 쓰는 역할에 쓰기만(읽기 · 삭제는 노트북 자격증명, 파드 권한을 뺏겨도 기존 덤프는 못 읽고 덮어써도 옛 버전이 남음)
 resource "aws_iam_role_policy" "db_backup_writer" {
   for_each = toset(var.db_backup_writer_roles)
 

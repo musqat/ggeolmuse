@@ -2,7 +2,7 @@
 
 locals {
   # 평일 켜고 끄는 EC2(이름 → 인스턴스 id)
-  scheduled_instances = length(var.scheduled_instances) > 0 ? var.scheduled_instances : { app = var.ec2_instance_id }
+  scheduled_instances = var.scheduled_instances
   ec2_instance_arns   = [for id in values(local.scheduled_instances) : "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/${id}"]
   # EC2 평일 시작 · 중지와 가동 확인 스케줄 상태
   ec2_schedule_state = coalesce(var.ec2_scheduler_enabled, var.scheduler_enabled) ? "ENABLED" : "DISABLED"

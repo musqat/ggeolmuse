@@ -1,27 +1,15 @@
 # terraform.tfvars 로 복사해 채울 템플릿(tfvars 는 gitignore 대상)
 # 값 찾는 명령과 순서는 README 의 "운영 자원 가져오기"
 
-# 필수 —— 운영 EC2 와 보안 그룹
-ec2_instance_id                = "i-xxxxxxxxxxxxxxxxx"
-ec2_ami_id                     = "ami-xxxxxxxxxxxxxxxxx"
-ec2_subnet_id                  = "subnet-xxxxxxxxxxxxxxxxx"
-ec2_key_name                   = null
-ec2_root_volume_size           = 30
-ec2_root_volume_type           = "gp3"
-vpc_id                         = "vpc-xxxxxxxxxxxxxxxxx"
-ec2_security_group_id          = "sg-xxxxxxxxxxxxxxxxx"
-ec2_security_group_description = "..."
+# 필수 —— 평일에 켜고 끌 k8s 노드 셋(이름 → 인스턴스 id, k8s/terraform 의 terraform output node_ids)
+scheduled_instances = {
+  control-plane = "i-xxxxxxxxxxxxxxxxx"
+  worker-a      = "i-xxxxxxxxxxxxxxxxx"
+  worker-b      = "i-xxxxxxxxxxxxxxxxx"
+}
 
-# 443(Cloudflare 대역) 말고 둘 인바운드(SSH 는 내 IP /32 하나, 앱 포트는 열지 않음, 없으면 [])
-ec2_extra_ingress = [
-  # { description = "", protocol = "tcp", from_port = 22, to_port = 22, cidr_blocks = ["x.x.x.x/32"] },
-]
-
-# ggeolmuse-sg 말고 EC2 에 달린 보안 그룹 전부(목록에서 빼면 EC2 에서도 빠짐, 없으면 [])
-ec2_extra_security_group_ids = []
-
-# 노드 역할에 둘 관리 정책 ARN(시크릿 읽기는 인라인 정책이라 비워 둠, 목록에 없는 정책은 역할에서 빠짐)
-node_role_policy_arns = []
+# 월간 덤프를 쓸 역할(k8s/terraform 의 terraform output node_role_name)
+db_backup_writer_roles = ["ggeolmuse-k8s-node"]
 
 # 선택 —— RDS 도 가져오고 껐다 켤 때(엔드포인트가 아닌 DB 식별자)
 # rds_instance_id          = "ggeolmuse-postgres"
@@ -48,16 +36,13 @@ node_role_policy_arns = []
 #   auth     = "https://ggeolmuse.com/auth/realms/muscathan"
 # }
 
-# 선택 —— 평일에 켜고 끌 EC2 를 여럿으로(이름 → 인스턴스 id, 비우면 ec2_instance_id 하나) · 스케줄을 따로 끌 때
-# scheduled_instances = {
-#   control-plane = "i-xxxxxxxxxxxxxxxxx"
-#   worker-medium = "i-xxxxxxxxxxxxxxxxx"
-# }
+# 선택 —— PR 의 읽기 전용 plan 역할(README 의 "PR 의 읽기 전용 plan")
+# ci_plan_role_enabled     = true
+# github_oidc_provider_arn = ""
+
+# 선택 —— 스케줄을 따로 끌 때
 # ec2_scheduler_enabled = false   # EC2 시작 · 중지와 가동 확인만 끔
 # rds_scheduler_enabled = false   # RDS 시작 · 중지만 끔
-
-# 선택 —— k3s 노드 역할 말고 월간 덤프를 쓸 역할
-# db_backup_writer_roles = ["ggeolmuse-k8s-node"]
 
 # 기본값을 바꿀 때만
 # scheduler_start_hour = 7
