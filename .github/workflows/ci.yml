@@ -409,6 +409,21 @@ jobs:
             fi
           done
 
+      # ArgoCD 가 고정한 버전의 kube-prometheus-stack 렌더에 꺼 둔 차트 기본 알림(요청 과다 둘)은 없고 파드 미준비 알림은 있는지
+      - name: 모니터링 차트 기본 알림 렌더 · 검사
+        run: |
+          version=$(awk '/chart: kube-prometheus-stack/{f=1} f && /version:/{print $2; exit}' infra/k8s/argocd/apps/values.yaml)
+          helm template prometheus kube-prometheus-stack --repo https://prometheus-community.github.io/helm-charts \
+            --version "$version" -n monitoring -f infra/k8s/monitoring/prometheus-values.yaml > rendered-prometheus.yaml
+          for off in KubeMemoryOvercommit KubeCPUOvercommit; do
+            if grep -q "alert: $off\$" rendered-prometheus.yaml; then
+              echo "::error::꺼 둔 차트 기본 알림 $off 가 렌더에 있음(defaultRules.disabled)"
+              exit 1
+            fi
+          done
+          grep -q 'alert: KubePodNotReady$' rendered-prometheus.yaml \
+            || { echo "::error::차트 기본 알림 KubePodNotReady 가 렌더에 없음"; exit 1; }
+
       # 운영 렌더의 NetworkPolicy 기본 거부 · 워크로드마다 여는 정책 · 허용 목록에 없는 새 서비스 포트 검사(tools/cmd/netpol-check)
       - name: NetworkPolicy 기본 거부 · 서비스 포트 대조
         working-directory: tools

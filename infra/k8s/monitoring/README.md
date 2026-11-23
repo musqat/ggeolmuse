@@ -57,12 +57,14 @@ Grafana CPU 패널이 `No data` 가 되고 차트 내장 알림(KubePodCrashLoop
 | trade-settlement | KafkaDeadLetter, KafkaConsumerLag, KafkaCollectionLag, TradeEventsUnpublished, TradeBuysPending, TradeCancelNeedsReview |
 | market-data | CandleCollectionMissing |
 
-파드·노드 수준은 차트 내장 규칙이 맡는다. Redis 는 같은 파드의 redis_exporter(응답 · 메모리 · 키 수 · 명령 수), Kafka 는
+파드·노드 수준은 차트 내장 규칙이 맡는다. 그중 요청 과다 둘(KubeMemoryOvercommit · KubeCPUOvercommit)은 끈다. 노드 하나가
+빠지면 남은 노드에 요청이 다 안 들어가는 구성(상태 없는 앱은 워커마다 하나씩이라 서비스는 이어짐)이라 늘 울리고, 실제로 자리를 못 잡은
+파드는 KubePodNotReady 가 알린다. Redis 는 같은 파드의 redis_exporter(응답 · 메모리 · 키 수 · 명령 수), Kafka 는
 kafka-exporter 디플로이먼트(브로커 수 · 토픽 오프셋 · 소비자 그룹 지연)가 지표를 내고 ServiceMonitor `redis` · `kafka-exporter`
 가 긁는다. Keycloak 은 exporter 가 없어 `up` 시계열 자체가 없다.
 
 규칙을 고치면 [`alert-rules-test.yaml`](alert-rules-test.yaml) 에 경우를 더하고, 새 알림은 RUNBOOK 에 같은 이름 제목을 둔다. CI `scan-manifests`
-잡이 운영 값 · 멀티 노드 값으로 렌더한 규칙마다 promtool 로 문법 검사하고 이 테스트를 돌린 뒤, `runbook_url`(`#<알림 이름 소문자>`)이나
+잡이 운영 값으로 렌더한 규칙마다 promtool 로 문법 검사하고 이 테스트를 돌린 뒤, `runbook_url`(`#<알림 이름 소문자>`)이나
 울리는 테스트가 없는 알림이 있으면 멈춘다(`tools/cmd/alert-rules-coverage`).
 
 반복 주기는 critical 1시간, 나머지 4시간. `groupWait` 30초, `groupInterval` 5분.

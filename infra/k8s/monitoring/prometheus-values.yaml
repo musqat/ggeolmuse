@@ -43,6 +43,12 @@ prometheus:
   ingress:
     enabled: false
 
+# 차트 기본 알림 중 꺼 둔 것: 요청 과다 둘(노드 하나가 빠지면 요청이 남은 노드에 다 안 들어가는 구성이라 늘 울림, 자리 부족은 KubePodNotReady)
+defaultRules:
+  disabled:
+    KubeMemoryOvercommit: true
+    KubeCPUOvercommit: true
+
 # Grafana 설정
 grafana:
   enabled: true
