@@ -160,7 +160,7 @@ services:
   userService:
     replicaCount: 2
     image:
-      tag: "2.0.0"
+      tag: "2.0.1"
     env:
       # market-data 와 같은 한국 시각(저장 시각 · 오늘 날짜 기준, 옛 UTC 시각은 Flyway V6 이 옮김)
       TZ: "Asia/Seoul"
