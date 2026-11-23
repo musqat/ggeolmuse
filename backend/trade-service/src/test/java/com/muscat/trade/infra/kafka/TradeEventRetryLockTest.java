@@ -58,17 +58,19 @@ class TradeEventRetryLockTest {
 
   private JdbcTemplate jdbc;
 
+  // 잠금 행은 지우지 않고 만료시킴(ShedLock 이 있는 행을 기억해 UPDATE 로만 잡음)
   @BeforeEach
   void setUp() {
     jdbc = new JdbcTemplate(dataSource);
-    jdbc.update("DELETE FROM shedlock");
+    jdbc.update("MERGE INTO shedlock (name, lock_until, locked_at, locked_by) KEY (name) "
+      + "VALUES (?, DATEADD('DAY', -1, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, ?)", TradeEventRetryScheduler.LOCK_NAME, "expired");
   }
 
   @Test
   @DisplayName("다른 파드가 잠금을 가지고 있으면 이번 회차를 건너뛴다")
   void skipsWhileAnotherPodHoldsLock() {
-    jdbc.update("INSERT INTO shedlock (name, lock_until, locked_at, locked_by) "
-      + "VALUES (?, DATEADD('DAY', 1, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, ?)", TradeEventRetryScheduler.LOCK_NAME, "other-pod");
+    jdbc.update("UPDATE shedlock SET lock_until = DATEADD('DAY', 1, CURRENT_TIMESTAMP), locked_by = ? WHERE name = ?",
+      "other-pod", TradeEventRetryScheduler.LOCK_NAME);
 
     scheduler.resend();
 
@@ -82,6 +84,6 @@ class TradeEventRetryLockTest {
 
     verify(tradeRepository).findTop100ByEventPublishedAtIsNullAndCreatedAtBeforeOrderByIdAsc(any());
     assertThat(jdbc.queryForObject("SELECT locked_by FROM shedlock WHERE name = ?", String.class,
-      TradeEventRetryScheduler.LOCK_NAME)).isNotBlank();
+      TradeEventRetryScheduler.LOCK_NAME)).isNotEqualTo("expired");
   }
 }

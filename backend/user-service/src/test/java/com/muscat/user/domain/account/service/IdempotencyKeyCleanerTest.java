@@ -9,6 +9,7 @@ import com.muscat.user.UserApplication;
 import com.muscat.user.domain.account.repository.IdempotencyRecordRepository;
 import java.lang.reflect.Method;
 import java.time.LocalDateTime;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,12 +48,13 @@ class IdempotencyKeyCleanerTest {
   }
 
   @Test
-  @DisplayName("스케줄이 켜져 있고 한 시간마다 한 트랜잭션으로 돈다")
-  void scheduledHourly() throws NoSuchMethodException {
+  @DisplayName("스케줄이 켜져 있고 한 시간마다 파드 하나에서 한 트랜잭션으로 돈다")
+  void scheduledHourlyOnOnePod() throws NoSuchMethodException {
     Method method = IdempotencyKeyCleaner.class.getMethod("deleteExpired");
 
     assertThat(UserApplication.class.isAnnotationPresent(EnableScheduling.class)).isTrue();
     assertThat(method.getAnnotation(Scheduled.class).fixedDelayString()).isEqualTo("PT1H");
+    assertThat(method.getAnnotation(SchedulerLock.class).name()).isEqualTo(IdempotencyKeyCleaner.LOCK_NAME);
     assertThat(method.isAnnotationPresent(Transactional.class)).isTrue();
   }
 }

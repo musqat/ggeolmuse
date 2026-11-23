@@ -31,7 +31,7 @@ class UserDeletionCleanerTest {
   private final UserEventProducer producer = mock(UserEventProducer.class);
   private final KeycloakService keycloakService = mock(KeycloakService.class);
   private final UserDeletionCleaner cleaner = new UserDeletionCleaner(repository, producer, keycloakService,
-    Clock.fixed(NOW.atZone(ZONE).toInstant(), ZONE));
+    Clock.fixed(NOW.atZone(ZONE).toInstant(), ZONE), config -> Optional.of(() -> { }));
 
   @Test
   @DisplayName("탈퇴 기록은 Keycloak ID 와 탈퇴 시각으로 남긴다")
