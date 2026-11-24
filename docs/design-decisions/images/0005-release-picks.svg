@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="242" viewBox="0 0 880 242" role="img">
+  <title>릴리스할 서비스 고르기 — 일반적인 방식과 이 프로젝트</title>
+  <style>
+  .lbl { font: 500 13px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .pg { fill: none; stroke: #D3D1C7; stroke-width: 1; stroke-dasharray: 4 4; }
+  .pp { fill: none; stroke: #9FE1CB; stroke-width: 1; stroke-dasharray: 4 4; }
+  .ng { fill: #F1EFE8; stroke: #B4B2A9; stroke-width: 1; }
+  .np { fill: #E1F5EE; stroke: #5DCAA5; stroke-width: 1; }
+  .tg { font: 500 14px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #2C2C2A; }
+  .sg { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .tp { font: 500 14px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #085041; }
+  .sp { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #0F6E56; }
+  .ar { stroke: #888780; stroke-width: 1.2; fill: none; }
+  .al { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .note { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .ah { fill: #888780; }
+  @media (prefers-color-scheme: dark) {
+    .lbl, .sg, .al, .note { fill: #B4B2A9; }
+    .pg { stroke: #5F5E5A; }
+    .pp { stroke: #0F6E56; }
+    .ng { fill: #2C2C2A; stroke: #5F5E5A; }
+    .np { fill: #04342C; stroke: #1D9E75; }
+    .tg { fill: #F1EFE8; }
+    .tp { fill: #E1F5EE; }
+    .sp { fill: #9FE1CB; }
+  }
+  </style>
+  <rect class="pg" x="20" y="12" width="840" height="94" rx="12"/>
+  <text class="lbl" x="32" y="30">일반적인 방식</text>
+  <rect class="ng" x="231.9" y="44" width="60.0" height="44" rx="8"/>
+  <text class="tg" x="261.9" y="71.0" text-anchor="middle">머지</text>
+  <rect class="ng" x="331.9" y="44" width="173.1" height="44" rx="8"/>
+  <text class="tg" x="418.4" y="71.0" text-anchor="middle">바뀐 경로로 자동 선택</text>
+  <rect class="ng" x="545.0" y="44" width="103.1" height="44" rx="8"/>
+  <text class="tg" x="596.6" y="71.0" text-anchor="middle">빌드 · 배포</text>
+  <line class="ar" x1="295.9" y1="66.0" x2="323.9" y2="66.0"/>
+  <path class="ah" d="M329.9 66.0 L322.9 62.0 L322.9 70.0 Z"/>
+  <line class="ar" x1="509.0" y1="66.0" x2="537.0" y2="66.0"/>
+  <path class="ah" d="M543.0 66.0 L536.0 62.0 L536.0 70.0 Z"/>
+  <rect class="pp" x="20" y="122" width="840" height="108" rx="12"/>
+  <text class="lbl" x="32" y="140">이 프로젝트</text>
+  <rect class="np" x="94.8" y="154" width="173.6" height="58" rx="8"/>
+  <text class="tp" x="181.6" y="176" text-anchor="middle">PR 본문</text>
+  <text class="sp" x="181.6" y="196" text-anchor="middle">빌드할 서비스 · 버전 체크</text>
+  <rect class="np" x="308.4" y="154" width="157.3" height="58" rx="8"/>
+  <text class="tp" x="387.1" y="176" text-anchor="middle">release-plan</text>
+  <text class="sp" x="387.1" y="196" text-anchor="middle">운영 태그 뒤 바뀐 것만</text>
+  <rect class="np" x="505.7" y="154" width="105.0" height="58" rx="8"/>
+  <text class="tp" x="558.2" y="176" text-anchor="middle">태그 커밋</text>
+  <text class="sp" x="558.2" y="196" text-anchor="middle">ArgoCD 반영</text>
+  <rect class="np" x="650.7" y="154" width="134.5" height="58" rx="8"/>
+  <text class="tp" x="717.9" y="188.0" text-anchor="middle">rollout-check</text>
+  <line class="ar" x1="272.4" y1="183.0" x2="300.4" y2="183.0"/>
+  <path class="ah" d="M306.4 183.0 L299.4 179.0 L299.4 187.0 Z"/>
+  <line class="ar" x1="469.7" y1="183.0" x2="497.7" y2="183.0"/>
+  <path class="ah" d="M503.7 183.0 L496.7 179.0 L496.7 187.0 Z"/>
+  <line class="ar" x1="614.7" y1="183.0" x2="642.7" y2="183.0"/>
+  <path class="ah" d="M648.7 183.0 L641.7 179.0 L641.7 187.0 Z"/>
+</svg>

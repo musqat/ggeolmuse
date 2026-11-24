@@ -9,3 +9,4 @@
 | [0002](0002-backdated-trades.md) | 과거 날짜로 체결한다 |
 | [0003](0003-service-tokens.md) | 내부 API 도 서비스 토큰으로 부른다 |
 | [0004](0004-e2e-gate.md) | 고정 시세 E2E 를 머지 필수 검사로 둔다 |
+| [0005](0005-release-picks.md) | 릴리스할 서비스는 PR 본문에서 사람이 고른다 |
