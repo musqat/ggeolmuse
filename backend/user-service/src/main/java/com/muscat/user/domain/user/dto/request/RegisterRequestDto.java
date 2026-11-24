@@ -16,16 +16,16 @@ import lombok.Setter;
 @Schema(description = "사용자 회원가입 요청")
 public class RegisterRequestDto {
 
-  @Schema(description = "사용자 이메일", example = "user@ggeolmuse.com", required = true)
+  @Schema(description = "사용자 이메일", example = "user@ggeolmuse.com", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotBlank(message = "이메일은 필수입니다")
   @Email(message = "올바른 이메일 형식이 아닙니다")
   private String email;
 
-  @Schema(description = "비밀번호", example = "password123!", required = true, minLength = 8, maxLength = 100)
+  @Schema(description = "비밀번호", example = "password123!", requiredMode = Schema.RequiredMode.REQUIRED, minLength = 8, maxLength = 100)
   @ValidPassword
   private String password;
 
-  @Schema(description = "사용자 닉네임(영문 · 숫자 · 한글 · _)", example = "투자왕김과장", required = true, minLength = 2, maxLength = 20)
+  @Schema(description = "사용자 닉네임(영문 · 숫자 · 한글 · _)", example = "투자왕김과장", requiredMode = Schema.RequiredMode.REQUIRED, minLength = 2, maxLength = 20)
   @NotNull(message = "닉네임은 필수입니다")
   @ValidNickname
   private String nickname;

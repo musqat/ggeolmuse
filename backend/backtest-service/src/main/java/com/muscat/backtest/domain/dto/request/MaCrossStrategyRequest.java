@@ -27,22 +27,22 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 public class MaCrossStrategyRequest extends RequestOptions implements SignalStrategyRequest {
 
-  @Schema(description = "종목 코드 (사고파는 종목, 지수는 안 됨)", example = "AAPL", required = true)
+  @Schema(description = "종목 코드 (사고파는 종목, 지수는 안 됨)", example = "AAPL", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotBlank(message = "종목 코드는 필수입니다")
   private String symbol;
 
-  @Schema(description = "전략 시작일 (이 날짜부터 교차를 봄)", example = "2024-01-01", required = true)
+  @Schema(description = "전략 시작일 (이 날짜부터 교차를 봄)", example = "2024-01-01", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotNull(message = "시작일은 필수입니다")
   private LocalDate startDate;
 
-  @Schema(description = "전략 종료일", example = "2024-09-18", required = true)
+  @Schema(description = "전략 종료일", example = "2024-09-18", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotNull(message = "종료일은 필수입니다")
   private LocalDate endDate;
 
   @Schema(description = "토큰의 subject 로 채움", accessMode = Schema.AccessMode.READ_ONLY)
   private String userId;
 
-  @Schema(description = "원금: 첫 골든 크로스에 전부 넣는 돈 (KRW, 첫 골든 크로스 뒤 매수는 판 돈 전부)", example = "10000000.00", required = true)
+  @Schema(description = "원금: 첫 골든 크로스에 전부 넣는 돈 (KRW, 첫 골든 크로스 뒤 매수는 판 돈 전부)", example = "10000000.00", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotNull(message = "투자금액은 필수입니다")
   @Positive(message = "투자금액은 0보다 커야 합니다")
   private BigDecimal investmentAmount;

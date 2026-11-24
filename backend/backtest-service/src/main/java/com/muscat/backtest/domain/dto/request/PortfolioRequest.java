@@ -30,10 +30,10 @@ public class PortfolioRequest {
 
   private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
 
-  @Schema(description = "시작일", example = "2020-01-01", required = true)
+  @Schema(description = "시작일", example = "2020-01-01", requiredMode = Schema.RequiredMode.REQUIRED)
   private LocalDate startDate;
 
-  @Schema(description = "종료일 (오늘 뒤면 오늘까지)", example = "2024-12-31", required = true)
+  @Schema(description = "종료일 (오늘 뒤면 오늘까지)", example = "2024-12-31", requiredMode = Schema.RequiredMode.REQUIRED)
   private LocalDate endDate;
 
   @Schema(description = "토큰의 subject 로 채움", accessMode = Schema.AccessMode.READ_ONLY)
@@ -45,7 +45,7 @@ public class PortfolioRequest {
   @Schema(description = "총액 (WEIGHT 에서만, KRW 원 단위, 적립식 줄은 총액 × 비율이 회당 금액)", example = "10000000")
   private BigDecimal totalAmount;
 
-  @Schema(description = "종목 줄 (1 ~ 10개, 결과 줄도 이 순서)", required = true)
+  @Schema(description = "종목 줄 (1 ~ 10개, 결과 줄도 이 순서)", requiredMode = Schema.RequiredMode.REQUIRED)
   private List<PortfolioAsset> assets;
 
   @Schema(description = "매수 방식 (LUMP_SUM 줄마다 기간 안 첫 거래일에 금액 전부, DCA 줄마다 회차일에 회당 금액, 줄 전략이 있는 줄은 줄 전략, 비우면 LUMP_SUM)", example = "LUMP_SUM")

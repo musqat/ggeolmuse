@@ -7,11 +7,11 @@ import java.time.LocalDate;
 
 @Schema(description = "환율 정보")
 public record FxRateDto(
-  @Schema(description = "환율 기준 날짜", example = "2024-09-18", required = true)
+  @Schema(description = "환율 기준 날짜", example = "2024-09-18", requiredMode = Schema.RequiredMode.REQUIRED)
   @JsonFormat(pattern = "yyyy-MM-dd")
   LocalDate date,
 
-  @Schema(description = "USD/KRW 환율", example = "1350.50", required = true)
+  @Schema(description = "USD/KRW 환율", example = "1350.50", requiredMode = Schema.RequiredMode.REQUIRED)
   BigDecimal rate,
 
   @Schema(description = "데이터 출처", example = "KOREAEXIM", allowableValues = {"KOREAEXIM",

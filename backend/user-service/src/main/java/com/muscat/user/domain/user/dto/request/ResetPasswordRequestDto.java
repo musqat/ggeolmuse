@@ -16,11 +16,11 @@ import lombok.Setter;
 @NoArgsConstructor
 public class ResetPasswordRequestDto {
 
-  @Schema(description = "재설정 토큰", example = "abc123...", required = true)
+  @Schema(description = "재설정 토큰", example = "abc123...", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotBlank(message = "토큰은 필수입니다")
   private String token;
 
-  @Schema(description = "새 비밀번호", example = "newPassword123!", required = true, minLength = 8, maxLength = 100)
+  @Schema(description = "새 비밀번호", example = "newPassword123!", requiredMode = Schema.RequiredMode.REQUIRED, minLength = 8, maxLength = 100)
   @ValidPassword
   private String newPassword;
 }
