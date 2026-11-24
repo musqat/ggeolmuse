@@ -143,8 +143,16 @@ run "nodes_scheduled_and_watched" {
     error_message = "스케줄 역할은 노드 셋만 켜고 끌 수 있음"
   }
   assert {
-    condition     = toset(jsondecode(aws_cloudwatch_event_rule.ec2_stopped[0].event_pattern).detail["instance-id"]) == toset(["i-0aaaaaaaaaaaaaaa1", "i-0bbbbbbbbbbbbbbb2", "i-0ccccccccccccccc3"])
-    error_message = "중지 알림이 노드 셋을 봄"
+    condition     = toset(keys(aws_cloudwatch_event_rule.ec2_stopped)) == toset(["control-plane", "worker-medium", "worker-large"]) && jsondecode(aws_cloudwatch_event_rule.ec2_stopped["worker-large"].event_pattern).detail["instance-id"] == ["i-0ccccccccccccccc3"]
+    error_message = "중지 알림 규칙이 노드마다 하나, 그 노드만 봄"
+  }
+  assert {
+    condition     = jsondecode(aws_cloudwatch_event_target.ec2_stopped_slack["worker-large"].input).text == "노드 중지 · worker-large"
+    error_message = "중지 알림 문구에 노드 이름, 이모지 없음"
+  }
+  assert {
+    condition     = toset(keys(aws_cloudwatch_metric_alarm.ec2_stop_alert_failed)) == toset(["control-plane", "worker-medium", "worker-large"]) && aws_cloudwatch_metric_alarm.ec2_stop_alert_failed["worker-large"].dimensions.RuleName == "ggeolmuse-ec2-stopped-worker-large"
+    error_message = "슬랙 전송 실패 알람이 중지 알림 규칙마다 하나"
   }
   assert {
     condition     = toset(keys(aws_cloudwatch_metric_alarm.ec2_status_check)) == toset(["control-plane", "worker-medium", "worker-large"]) && aws_cloudwatch_metric_alarm.ec2_status_check["worker-large"].alarm_name == "ggeolmuse-ec2-status-check-worker-large" && aws_cloudwatch_metric_alarm.ec2_status_check["worker-large"].dimensions.InstanceId == "i-0ccccccccccccccc3"

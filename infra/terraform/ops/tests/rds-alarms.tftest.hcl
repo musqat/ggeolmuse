@@ -151,7 +151,7 @@ run "alarm_state_changes_to_slack" {
   }
 
   assert {
-    condition     = jsondecode(aws_cloudwatch_event_target.rds_alarm_notice["alarm"].input_transformer[0].input_template).text == ":rotating_light: <desc>"
+    condition     = jsondecode(aws_cloudwatch_event_target.rds_alarm_notice["alarm"].input_transformer[0].input_template).text == "RDS 알람 · <desc>"
     error_message = "알람 문구는 알람 설명 그대로"
   }
 }

@@ -31,8 +31,8 @@ locals {
 
   # 알람 상태 변화별 슬랙 문구(<desc> · <name> 은 이벤트 값, 웹훅이 있는지만 쓰므로 민감 값 아님)
   rds_alarm_notices = local.rds_enabled && nonsensitive(local.stop_alert_enabled) ? {
-    alarm = { state = ["ALARM"], previous = ["OK", "INSUFFICIENT_DATA"], text = ":rotating_light: <desc>" }
-    ok    = { state = ["OK"], previous = ["ALARM"], text = ":white_check_mark: RDS 알람 복구 · <name>" }
+    alarm = { state = ["ALARM"], previous = ["OK", "INSUFFICIENT_DATA"], text = "RDS 알람 · <desc>" }
+    ok    = { state = ["OK"], previous = ["ALARM"], text = "RDS 알람 복구 · <name>" }
   } : {}
 }
 

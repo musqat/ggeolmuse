@@ -1,8 +1,10 @@
-# EC2 종료 알림(EventBridge 규칙이 API Destination 으로 슬랙 웹훅을 직접 호출)
+# EC2 종료 알림(노드마다 EventBridge 규칙 하나가 API Destination 으로 슬랙 웹훅을 직접 호출, 문구에 노드 이름)
 # 웹훅 URL 은 state 에 평문으로 남음
 
 locals {
   stop_alert_enabled = var.slack_webhook_url != ""
+  # 웹훅이 있는지만 민감 표시를 벗김(for_each 키는 노드 이름)
+  stop_alert_nodes = nonsensitive(local.stop_alert_enabled) ? local.scheduled_instances : {}
 }
 
 # API Destination 연결은 인증 방식이 필수라 쓰지 않는 헤더
@@ -32,22 +34,22 @@ resource "aws_cloudwatch_event_api_destination" "slack" {
 }
 
 resource "aws_cloudwatch_event_rule" "ec2_stopped" {
-  count = local.stop_alert_enabled ? 1 : 0
+  for_each = local.stop_alert_nodes
 
-  name        = "${var.project_name}-ec2-stopped"
-  description = "EC2 stopped 상태 변경"
+  name        = "${var.project_name}-ec2-stopped-${each.key}"
+  description = "EC2 stopped 상태 변경 · ${each.key}"
 
   event_pattern = jsonencode({
     source        = ["aws.ec2"]
     "detail-type" = ["EC2 Instance State-change Notification"]
     detail = {
       state         = ["stopped"]
-      "instance-id" = values(local.scheduled_instances)
+      "instance-id" = [each.value]
     }
   })
 
   tags = {
-    Name        = "${var.project_name}-ec2-stopped"
+    Name        = "${var.project_name}-ec2-stopped-${each.key}"
     Environment = var.environment
     ManagedBy   = "terraform"
   }
@@ -104,27 +106,27 @@ resource "aws_iam_role_policy" "ec2_stop_alert" {
 }
 
 resource "aws_cloudwatch_event_target" "ec2_stopped_slack" {
-  count = local.stop_alert_enabled ? 1 : 0
+  for_each = local.stop_alert_nodes
 
-  rule      = aws_cloudwatch_event_rule.ec2_stopped[0].name
+  rule      = aws_cloudwatch_event_rule.ec2_stopped[each.key].name
   target_id = "slack"
   arn       = aws_cloudwatch_event_api_destination.slack[0].arn
   role_arn  = aws_iam_role.ec2_stop_alert[0].arn
-  input     = jsonencode({ text = ":zzz: down" })
+  input     = jsonencode({ text = "노드 중지 · ${each.key}" })
 }
 
 # 재시도를 다 써도 슬랙에 못 보낸 경우
 resource "aws_cloudwatch_metric_alarm" "ec2_stop_alert_failed" {
-  count = local.stop_alert_enabled ? 1 : 0
+  for_each = local.stop_alert_nodes
 
-  alarm_name        = "${var.project_name}-ec2-stop-alert-failed"
-  alarm_description = "EC2 종료 알림을 슬랙에 보내지 못함"
+  alarm_name        = "${var.project_name}-ec2-stop-alert-failed-${each.key}"
+  alarm_description = "EC2 종료 알림을 슬랙에 보내지 못함 · ${each.key}"
 
   namespace   = "AWS/Events"
   metric_name = "FailedInvocations"
 
   dimensions = {
-    RuleName = aws_cloudwatch_event_rule.ec2_stopped[0].name
+    RuleName = aws_cloudwatch_event_rule.ec2_stopped[each.key].name
   }
 
   statistic           = "Sum"
@@ -137,7 +139,7 @@ resource "aws_cloudwatch_metric_alarm" "ec2_stop_alert_failed" {
   alarm_actions = [aws_sns_topic.alarms.arn]
 
   tags = {
-    Name        = "${var.project_name}-ec2-stop-alert-failed"
+    Name        = "${var.project_name}-ec2-stop-alert-failed-${each.key}"
     Environment = var.environment
     ManagedBy   = "terraform"
   }
