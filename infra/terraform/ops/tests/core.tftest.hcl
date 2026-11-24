@@ -180,3 +180,25 @@ run "no_rds" {
     error_message = "rds_instance_id 가 비었는데 RDS 를 가져옴"
   }
 }
+
+run "alarm_email_output" {
+  command = plan
+
+  variables {
+    alarm_email = "ops@example.com"
+  }
+
+  assert {
+    condition     = output.alarm_email == "ops@example.com"
+    error_message = "출력은 구독 주소만(구독 확인 여부는 SNS 구독 목록)"
+  }
+}
+
+run "no_alarm_email_output" {
+  command = plan
+
+  assert {
+    condition     = output.alarm_email == "구독 없음 (alarm_email 미설정)"
+    error_message = "주소가 없으면 구독 없음"
+  }
+}
