@@ -140,6 +140,29 @@ class YahooFinanceClientTest {
   }
 
   @Test
+  @DisplayName("404 는 같은 스레드가 1분 안에 같은 차트를 다시 불러도 요청 · 기록을 한 번만 한다")
+  void notFoundWithinWindow_RequestedOnce() {
+    server.expect(once(), requestTo(URL)).andRespond(withStatus(HttpStatus.NOT_FOUND));
+
+    assertThat(fetch()).isEmpty();
+    advance(Duration.ofSeconds(1));
+    assertThat(fetch()).isEmpty();
+    server.verify();
+    verify(stats).recordRequestNotFound();
+  }
+
+  @Test
+  @DisplayName("404 가 아닌 HTTP 오류는 다시 쓰지 않고 다시 받는다")
+  void otherHttpError_FetchedAgain() {
+    server.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+    server.expect(requestTo(URL)).andRespond(withSuccess(JSON, MediaType.APPLICATION_JSON));
+
+    assertThat(fetch()).isEmpty();
+    assertThat(fetch()).isEqualTo(JSON);
+    server.verify();
+  }
+
+  @Test
   @DisplayName("JSON 이 아닌 응답은 다시 쓰지 않는다")
   void nonJson_NotReused() {
     server.expect(requestTo(URL)).andRespond(withSuccess("<html>Too Many Requests</html>", MediaType.TEXT_HTML));
@@ -177,6 +200,7 @@ class YahooFinanceClientTest {
     server.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
 
     assertThat(fetch()).isEmpty();
+    advance(Duration.ofSeconds(61));
     assertThat(fetch()).isEmpty();
     verify(stats).recordRequestNotFound();
     verify(stats).recordRequestHttpError();
