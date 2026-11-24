@@ -6,3 +6,4 @@
 | 번호 | 제목 |
 |---|---|
 | [0001](0001-account-ledger.md) | 계좌 잔액은 user-service, 체결은 trade-service 에 둔다 |
+| [0002](0002-backdated-trades.md) | 과거 날짜로 체결한다 |
