@@ -12,11 +12,11 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class ChangePasswordRequestDto {
-  @Schema(description = "현재 비밀번호", example = "oldPassword123!", required = true)
+  @Schema(description = "현재 비밀번호", example = "oldPassword123!", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotBlank(message = "현재 비밀번호는 필수입니다")
   private String currentPassword;
 
-  @Schema(description = "새 비밀번호", example = "newPassword123!", required = true, minLength = 8, maxLength = 100)
+  @Schema(description = "새 비밀번호", example = "newPassword123!", requiredMode = Schema.RequiredMode.REQUIRED, minLength = 8, maxLength = 100)
   @ValidPassword
   private String newPassword;
 }

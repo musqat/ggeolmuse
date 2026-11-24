@@ -31,15 +31,15 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 public class ConditionalStrategyRequest extends RequestOptions implements StrategyRequest {
 
-  @Schema(description = "종목 코드", example = "AAPL", required = true)
+  @Schema(description = "종목 코드", example = "AAPL", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotBlank(message = "종목 코드는 필수입니다")
   private String symbol;
 
-  @Schema(description = "전략 시작일", example = "2024-01-01", required = true)
+  @Schema(description = "전략 시작일", example = "2024-01-01", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotNull(message = "시작일은 필수입니다")
   private LocalDate startDate;
 
-  @Schema(description = "전략 종료일", example = "2024-09-18", required = true)
+  @Schema(description = "전략 종료일", example = "2024-09-18", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotNull(message = "종료일은 필수입니다")
   private LocalDate endDate;
 
@@ -63,7 +63,7 @@ public class ConditionalStrategyRequest extends RequestOptions implements Strate
   @Builder.Default
   private PriceDirection direction = PriceDirection.DROP;
 
-  @Schema(description = "전 거래일 종가 대비 장중 하락률 · 상승률 (예: 5% = 0.05)", example = "0.05", required = true)
+  @Schema(description = "전 거래일 종가 대비 장중 하락률 · 상승률 (예: 5% = 0.05)", example = "0.05", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotNull(message = "하락률 · 상승률 조건은 필수입니다")
   @Positive(message = "하락률 · 상승률은 0보다 커야 합니다")
   private BigDecimal dropPercentage;

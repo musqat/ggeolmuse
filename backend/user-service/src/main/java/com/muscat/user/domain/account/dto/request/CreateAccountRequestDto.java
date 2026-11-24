@@ -15,12 +15,12 @@ import lombok.Setter;
 @Setter
 public class CreateAccountRequestDto {
 
-  @Schema(description = "계좌명", example = "투자계좌1", required = true)
+  @Schema(description = "계좌명", example = "투자계좌1", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotBlank(message = "계좌명을 입력해주세요")
   @Size(max = 50)
   private String accountName;  // 계좌 이름
 
-  @Schema(description = "수수료율 (0~5%)", example = "0.002", required = true)
+  @Schema(description = "수수료율 (0~5%)", example = "0.002", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotNull(message = "수수료율을 입력해주세요")
   @DecimalMin(value = "0")
   @DecimalMax(value = "0.05")

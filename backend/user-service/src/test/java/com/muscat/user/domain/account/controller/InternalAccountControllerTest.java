@@ -28,6 +28,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
@@ -91,7 +92,7 @@ class InternalAccountControllerTest {
           "originalAmount":1300000.00,"exchangedAmount":1000.00,"exchangeRate":1300.000000},
          {"accountId":4,"exchangedAt":"2024-10-01T09:00:05","fromCurrency":"USD","toCurrency":"KRW",
           "originalAmount":300.00,"exchangedAmount":405000.00,"exchangeRate":1350.000000}]
-        """, true));
+        """, JsonCompareMode.STRICT));
   }
 
   @Test
@@ -113,6 +114,6 @@ class InternalAccountControllerTest {
 
     mockMvc.perform(get(EXCHANGES).param("keycloakId", KEYCLOAK_ID).with(SERVICE))
       .andExpect(status().isOk())
-      .andExpect(content().json("[]", true));
+      .andExpect(content().json("[]", JsonCompareMode.STRICT));
   }
 }

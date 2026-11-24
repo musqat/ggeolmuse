@@ -7,13 +7,13 @@ import java.time.LocalDateTime;
 
 @Schema(description = "주식 가격 정보")
 public record StockPriceDto(
-  @Schema(description = "종목 코드", example = "AAPL", required = true)
+  @Schema(description = "종목 코드", example = "AAPL", requiredMode = Schema.RequiredMode.REQUIRED)
   String symbol,
 
   @Schema(description = "종목 이름", example = "Apple Inc.")
   String name,
 
-  @Schema(description = "현재가", example = "238.15", required = true)
+  @Schema(description = "현재가", example = "238.15", requiredMode = Schema.RequiredMode.REQUIRED)
   BigDecimal currentPrice,
 
   @Schema(description = "전일 종가", example = "235.90")

@@ -17,11 +17,11 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = true)
 public class StrategyComparisonRequest extends BaseComparisonRequest {
 
-  @Schema(description = "비교할 종목 코드", example = "AAPL", required = true)
+  @Schema(description = "비교할 종목 코드", example = "AAPL", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotBlank(message = "종목 코드는 필수입니다")
   private String symbol;
 
-  @Schema(description = "비교할 전략 매개변수 목록(10개까지)", required = true)
+  @Schema(description = "비교할 전략 매개변수 목록(10개까지)", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotEmpty(message = "비교할 전략은 최소 1개 이상이어야 합니다")
   @Size(max = RequestLimit.MAX_COMPARISON_ITEMS, message = "비교할 전략은 10개까지입니다")
   @Valid

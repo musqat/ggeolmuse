@@ -15,7 +15,7 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = true)
 public class SymbolComparisonRequest extends BaseComparisonRequest {
 
-  @Schema(description = "비교할 종목 코드 목록(10개까지)", example = "[\"AAPL\", \"MSFT\", \"GOOGL\"]", required = true)
+  @Schema(description = "비교할 종목 코드 목록(10개까지)", example = "[\"AAPL\", \"MSFT\", \"GOOGL\"]", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotEmpty(message = "비교할 종목들은 최소 2개 이상이어야 합니다")
   @Size(max = RequestLimit.MAX_COMPARISON_ITEMS, message = "비교할 종목은 10개까지입니다")
   private List<String> symbols;

@@ -13,7 +13,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class ResendRequestDto {
 
-  @Schema(description = "이메일", example = "user@example.com", required = true)
+  @Schema(description = "이메일", example = "user@example.com", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotBlank(message = "이메일은 필수입니다")
   @Email(message = "올바른 이메일 형식이 아닙니다")
   private String email;

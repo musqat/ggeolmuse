@@ -23,23 +23,23 @@ import lombok.Setter;
 @Schema(description = "거래 요청 정보")
 public class TradeRequestDto {
 
-  @Schema(description = "계좌 ID", example = "12345", required = true)
+  @Schema(description = "계좌 ID", example = "12345", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotBlank(message = "계좌 ID는 필수입니다")
   @Pattern(regexp = TradeConstants.ACCOUNT_ID_PATTERN, message = "계좌 ID는 18자리 이하 숫자만 허용됩니다")
   private String accountId;
 
-  @Schema(description = "종목 심볼", example = "AAPL", required = true)
+  @Schema(description = "종목 심볼", example = "AAPL", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotBlank(message = "종목 심볼은 필수입니다")
   @Size(min = TradeConstants.MIN_SYMBOL_LENGTH, max = TradeConstants.MAX_SYMBOL_LENGTH, message = "종목 심볼은 1-16자 이내여야 합니다")
   @Pattern(regexp = CommonConstants.SYMBOL_PATTERN, message = "종목 심볼은 대문자, 숫자, 마침표, 하이픈, ^ 만 허용됩니다")
   private String symbol;
 
-  @Schema(description = "거래 수량", example = "10.5", required = true)
+  @Schema(description = "거래 수량", example = "10.5", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotNull(message = "수량은 필수입니다")
   @DecimalMin(value = "0.000001", message = "수량은 0보다 커야 합니다")
   private BigDecimal quantity;
 
-  @Schema(description = "거래일", example = "2024-09-18", required = true)
+  @Schema(description = "거래일", example = "2024-09-18", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotNull(message = "거래일은 필수입니다")
   private LocalDate tradeDate;
 

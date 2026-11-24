@@ -15,15 +15,15 @@ import lombok.Data;
 @Data
 public abstract class BaseComparisonRequest {
 
-  @Schema(description = "백테스트 시작일", example = "2024-01-01", required = true)
+  @Schema(description = "백테스트 시작일", example = "2024-01-01", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotNull(message = "시작일은 필수입니다")
   private LocalDate startDate;
 
-  @Schema(description = "백테스트 종료일", example = "2024-09-18", required = true)
+  @Schema(description = "백테스트 종료일", example = "2024-09-18", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotNull(message = "종료일은 필수입니다")
   private LocalDate endDate;
 
-  @Schema(description = "투자 금액 (종목 비교는 종목마다, 전략 비교는 전략마다 원금: 단순 투자금 · 적립식 · 조건부 예산 · 이동평균 교차 · 밴드 원금)", example = "1000000.00", required = true)
+  @Schema(description = "투자 금액 (종목 비교는 종목마다, 전략 비교는 전략마다 원금: 단순 투자금 · 적립식 · 조건부 예산 · 이동평균 교차 · 밴드 원금)", example = "1000000.00", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotNull(message = "투자금액은 필수입니다")
   @Positive(message = "투자금액은 0보다 커야 합니다")
   private BigDecimal investmentAmount;

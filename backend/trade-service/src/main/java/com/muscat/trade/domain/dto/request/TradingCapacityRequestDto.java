@@ -26,17 +26,17 @@ import lombok.Setter;
 @Builder
 public class TradingCapacityRequestDto {
 
-  @Schema(description = "계좌 ID", example = "12345678", required = true)
+  @Schema(description = "계좌 ID", example = "12345678", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotBlank(message = "계좌 ID는 필수입니다")
   @Pattern(regexp = TradeConstants.ACCOUNT_ID_PATTERN, message = "유효하지 않은 계좌 ID 형식입니다")
   private String accountId;
 
-  @Schema(description = "종목 심볼", example = "AAPL", required = true)
+  @Schema(description = "종목 심볼", example = "AAPL", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotBlank(message = "종목 심볼은 필수입니다")
   @Pattern(regexp = CommonConstants.SYMBOL_PATTERN, message = "종목 심볼 형식이 올바르지 않습니다")
   private String symbol;
 
-  @Schema(description = "거래 날짜", example = "2024-09-18", required = true)
+  @Schema(description = "거래 날짜", example = "2024-09-18", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotNull(message = "거래 날짜는 필수입니다")
   private LocalDate tradeDate;
 

@@ -30,15 +30,15 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 public class DcaStrategyRequest extends RequestOptions implements StrategyRequest {
 
-  @Schema(description = "종목 코드", example = "AAPL", required = true)
+  @Schema(description = "종목 코드", example = "AAPL", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotBlank(message = "종목 코드는 필수입니다")
   private String symbol;
 
-  @Schema(description = "DCA 전략 시작일", example = "2024-01-01", required = true)
+  @Schema(description = "DCA 전략 시작일", example = "2024-01-01", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotNull(message = "시작일은 필수입니다")
   private LocalDate startDate;
 
-  @Schema(description = "DCA 전략 종료일", example = "2024-09-18", required = true)
+  @Schema(description = "DCA 전략 종료일", example = "2024-09-18", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotNull(message = "종료일은 필수입니다")
   private LocalDate endDate;
 

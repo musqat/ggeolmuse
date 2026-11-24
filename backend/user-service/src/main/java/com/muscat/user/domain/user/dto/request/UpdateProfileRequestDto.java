@@ -12,7 +12,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class UpdateProfileRequestDto {
 
-  @Schema(description = "닉네임(영문 · 숫자 · 한글 · _). 비우면 바꾸지 않음", example = "김투자자", required = false,
+  @Schema(description = "닉네임(영문 · 숫자 · 한글 · _). 비우면 바꾸지 않음", example = "김투자자", requiredMode = Schema.RequiredMode.NOT_REQUIRED,
     minLength = 2, maxLength = 20)
   @ValidNickname
   private String nickname;

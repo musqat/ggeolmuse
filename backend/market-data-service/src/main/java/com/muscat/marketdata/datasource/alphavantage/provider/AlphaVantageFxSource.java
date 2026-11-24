@@ -79,7 +79,7 @@ public class AlphaVantageFxSource implements MarketDataProvider.FxSource {
     }
 
     Map<LocalDate, BigDecimal> rates = new HashMap<>();
-    timeSeries.fields().forEachRemaining(entry -> {
+    timeSeries.properties().forEach(entry -> {
       try {
         LocalDate date = LocalDate.parse(entry.getKey());
         BigDecimal rate = new BigDecimal(entry.getValue().get("4. close").asText());

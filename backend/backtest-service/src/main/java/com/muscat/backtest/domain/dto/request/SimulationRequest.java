@@ -26,11 +26,11 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 public class SimulationRequest extends RequestOptions {
 
-  @Schema(description = "종목 코드", example = "AAPL", required = true)
+  @Schema(description = "종목 코드", example = "AAPL", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotBlank(message = "종목 코드는 필수입니다")
   private String symbol;
 
-  @Schema(description = "매수일", example = "2024-01-15", required = true)
+  @Schema(description = "매수일", example = "2024-01-15", requiredMode = Schema.RequiredMode.REQUIRED)
   @NotNull(message = "매수일은 필수입니다")
   private LocalDate purchaseDate;
 
