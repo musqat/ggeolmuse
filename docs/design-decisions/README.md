@@ -8,3 +8,4 @@
 | [0001](0001-account-ledger.md) | 계좌 잔액은 user-service, 체결은 trade-service 에 둔다 |
 | [0002](0002-backdated-trades.md) | 과거 날짜로 체결한다 |
 | [0003](0003-service-tokens.md) | 내부 API 도 서비스 토큰으로 부른다 |
+| [0004](0004-e2e-gate.md) | 고정 시세 E2E 를 머지 필수 검사로 둔다 |
