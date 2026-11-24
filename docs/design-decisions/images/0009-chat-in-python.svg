@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="274" viewBox="0 0 880 274" role="img">
+  <title>AI 대화 서비스 언어 — 일반적인 방식과 이 프로젝트</title>
+  <style>
+  .lbl { font: 500 13px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .pg { fill: none; stroke: #D3D1C7; stroke-width: 1; stroke-dasharray: 4 4; }
+  .pp { fill: none; stroke: #9FE1CB; stroke-width: 1; stroke-dasharray: 4 4; }
+  .ng { fill: #F1EFE8; stroke: #B4B2A9; stroke-width: 1; }
+  .np { fill: #E1F5EE; stroke: #5DCAA5; stroke-width: 1; }
+  .tg { font: 500 14px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #2C2C2A; }
+  .sg { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .tp { font: 500 14px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #085041; }
+  .sp { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #0F6E56; }
+  .ar { stroke: #888780; stroke-width: 1.2; fill: none; }
+  .al { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .note { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .ah { fill: #888780; }
+  @media (prefers-color-scheme: dark) {
+    .lbl, .sg, .al, .note { fill: #B4B2A9; }
+    .pg { stroke: #5F5E5A; }
+    .pp { stroke: #0F6E56; }
+    .ng { fill: #2C2C2A; stroke: #5F5E5A; }
+    .np { fill: #04342C; stroke: #1D9E75; }
+    .tg { fill: #F1EFE8; }
+    .tp { fill: #E1F5EE; }
+    .sp { fill: #9FE1CB; }
+  }
+  </style>
+  <rect class="pg" x="20" y="12" width="840" height="108" rx="12"/>
+  <text class="lbl" x="32" y="30">일반적인 방식</text>
+  <rect class="ng" x="317.7" y="44" width="121.0" height="58" rx="8"/>
+  <text class="tg" x="378.2" y="66" text-anchor="middle">자바 서비스들</text>
+  <text class="sg" x="378.2" y="86" text-anchor="middle">Spring Boot</text>
+  <rect class="ng" x="478.8" y="44" width="83.5" height="58" rx="8"/>
+  <text class="tg" x="520.5" y="66" text-anchor="middle">AI 대화</text>
+  <text class="sg" x="520.5" y="86" text-anchor="middle">Spring</text>
+  <line class="ar" x1="442.8" y1="73.0" x2="474.8" y2="73.0"/>
+  <rect class="pp" x="20" y="136" width="840" height="126" rx="12"/>
+  <text class="lbl" x="32" y="154">이 프로젝트</text>
+  <rect class="np" x="186.1" y="168" width="121.0" height="58" rx="8"/>
+  <text class="tp" x="246.6" y="190" text-anchor="middle">자바 서비스들</text>
+  <text class="sp" x="246.6" y="210" text-anchor="middle">Spring Boot</text>
+  <rect class="np" x="347.1" y="168" width="140.2" height="58" rx="8"/>
+  <text class="tp" x="417.2" y="190" text-anchor="middle">chat-service</text>
+  <text class="sp" x="417.2" y="210" text-anchor="middle">Python · FastAPI</text>
+  <rect class="np" x="575.7" y="168" width="118.2" height="58" rx="8"/>
+  <text class="tp" x="634.8" y="190" text-anchor="middle">market-data</text>
+  <text class="sp" x="634.8" y="210" text-anchor="middle">내부 API</text>
+  <line class="ar" x1="311.1" y1="197.0" x2="343.1" y2="197.0"/>
+  <line class="ar" x1="491.4" y1="197.0" x2="567.7" y2="197.0"/>
+  <path class="ah" d="M573.7 197.0 L566.7 193.0 L566.7 201.0 Z"/>
+  <text class="al" x="529.5" y="189.0" text-anchor="middle">서비스 토큰</text>
+  <text class="note" x="440.0" y="248" text-anchor="middle">토큰 검사 · 오류 본문 · 지표 이름은 자바와 같게, 대화 · 하루 한도는 Redis</text>
+</svg>

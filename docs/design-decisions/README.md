@@ -13,3 +13,4 @@
 | [0006](0006-account-deletion.md) | 탈퇴는 바로 완전히 지우고, 지운 사실만 기록한다 |
 | [0007](0007-public-backtest.md) | 백테스트는 로그인 없이 연다 |
 | [0008](0008-weekday-hours.md) | 평일 07 ~ 19시에만 켠다 |
+| [0009](0009-chat-in-python.md) | AI 대화만 Python 으로 둔다 |
