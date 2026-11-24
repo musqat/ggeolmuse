@@ -46,11 +46,19 @@ public class YahooFinanceClient {
 
   private final RestTemplate restTemplate;
   private final CollectionStats collectionStats;
-  // 같은 스레드가 같은 차트를 곧바로 다시 부르면(캔들 뒤 배당) 받은 응답을 다시 씀
+  // 같은 스레드가 같은 차트를 곧바로 다시 부르면(캔들 뒤 배당) 받은 응답 · 404 를 다시 씀
   private final ThreadLocal<LastChart> lastChart = new ThreadLocal<>();
   private Clock clock = Clock.systemUTC();
 
   private record LastChart(String url, String content, Instant fetchedAt) {
+  }
+
+  // 받은 본문과 다시 써도 되는지(JSON · 404 만, 일시적일 수 있는 실패는 다시 받음)
+  private record Fetched(String content, boolean reusable) {
+
+    static Fetched failed() {
+      return new Fetched("", false);
+    }
   }
 
   // ===== Public API =====
@@ -61,16 +69,16 @@ public class YahooFinanceClient {
     if (last != null && last.url().equals(url) && now.isBefore(last.fetchedAt().plus(REUSE_WINDOW))) {
       return last.content();
     }
-    String content = fetchChart(symbol, url);
-    if (looksLikeJson(content)) {
-      lastChart.set(new LastChart(url, content, now));
+    Fetched fetched = fetchChart(symbol, url);
+    if (fetched.reusable()) {
+      lastChart.set(new LastChart(url, fetched.content(), now));
     } else {
       lastChart.remove();
     }
-    return content;
+    return fetched.content();
   }
 
-  private String fetchChart(String symbol, String url) {
+  private Fetched fetchChart(String symbol, String url) {
     log.debug("Yahoo Finance 차트 API 호출: symbol={}, url={}", symbol, url);
     try {
       HttpHeaders headers = createHeaders();
@@ -79,37 +87,37 @@ public class YahooFinanceClient {
       byte[] body = response.getBody();
       if (body == null || body.length == 0) {
         log.warn("Yahoo Finance 빈 응답: symbol={}", symbol);
-        return "";
+        return Fetched.failed();
       }
       String content = extractContent(response, body);
       validateJsonResponse(content);
-      return content;
+      return new Fetched(content, looksLikeJson(content));
     } catch (IOException e) {
       log.error("응답 본문 디코딩 실패: symbol={}", symbol, e);
-      return "";
+      return Fetched.failed();
     } catch (HttpStatusCodeException e) {
       return handleStatusError(symbol, e);
     } catch (ResourceAccessException e) {
       // 연결 실패와 타임아웃(스택이 매번 같은 RestTemplate 프레임이라 메시지만)
       collectionStats.recordRequestUnreachable();
       log.warn("Yahoo Finance 차트 연결 실패: symbol={}, error={}", symbol, e.getMessage());
-      return "";
+      return Fetched.failed();
     } catch (Exception e) {
       log.error("Yahoo Finance 차트 API 호출 실패: symbol={}", symbol, e);
-      return "";
+      return Fetched.failed();
     }
   }
 
   // 404 는 상장폐지 · 티커 변경이라 다시 받을 것 없음(비활성으로 돌릴 종목 이름을 INFO 로)
-  private String handleStatusError(String symbol, HttpStatusCodeException e) {
+  private Fetched handleStatusError(String symbol, HttpStatusCodeException e) {
     if (e.getStatusCode().value() == HttpStatus.NOT_FOUND.value()) {
       collectionStats.recordRequestNotFound();
       log.info("Yahoo Finance 차트 404: symbol={}", symbol);
-    } else {
-      collectionStats.recordRequestHttpError();
-      log.warn("Yahoo Finance 차트 {}: symbol={}", e.getStatusCode().value(), symbol);
+      return new Fetched("", true);
     }
-    return "";
+    collectionStats.recordRequestHttpError();
+    log.warn("Yahoo Finance 차트 {}: symbol={}", e.getStatusCode().value(), symbol);
+    return Fetched.failed();
   }
 
   // ===== 내부 메서드 =====
