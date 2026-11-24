@@ -244,7 +244,7 @@ run "alarm_changes_go_to_slack" {
   }
 
   assert {
-    condition     = jsondecode(aws_cloudwatch_event_target.uptime_notice["down"].input_transformer[0].input_template).text == ":rotating_light: 사이트 확인 실패 · <desc>"
+    condition     = jsondecode(aws_cloudwatch_event_target.uptime_notice["down"].input_transformer[0].input_template).text == "사이트 확인 실패 · <desc>"
     error_message = "실패 알림 문구는 슬랙 웹훅이 받는 JSON 이고 알람 설명이 들어감"
   }
 }

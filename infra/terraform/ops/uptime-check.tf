@@ -23,8 +23,8 @@ locals {
 
   # 알람 상태 변화별 슬랙 문구(<desc> · <name> 은 이벤트 값)
   uptime_notices = local.uptime_enabled ? {
-    down = { state = ["ALARM"], previous = ["OK", "INSUFFICIENT_DATA"], text = ":rotating_light: 사이트 확인 실패 · <desc>" }
-    up   = { state = ["OK"], previous = ["ALARM"], text = ":white_check_mark: 사이트 확인 복구 · <name>" }
+    down = { state = ["ALARM"], previous = ["OK", "INSUFFICIENT_DATA"], text = "사이트 확인 실패 · <desc>" }
+    up   = { state = ["OK"], previous = ["ALARM"], text = "사이트 확인 복구 · <name>" }
   } : {}
 }
 
