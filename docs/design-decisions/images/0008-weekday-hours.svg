@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="260" viewBox="0 0 880 260" role="img">
+  <title>켜 두는 시간 — 일반적인 방식과 이 프로젝트</title>
+  <style>
+  .lbl { font: 500 13px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .pg { fill: none; stroke: #D3D1C7; stroke-width: 1; stroke-dasharray: 4 4; }
+  .pp { fill: none; stroke: #9FE1CB; stroke-width: 1; stroke-dasharray: 4 4; }
+  .ng { fill: #F1EFE8; stroke: #B4B2A9; stroke-width: 1; }
+  .np { fill: #E1F5EE; stroke: #5DCAA5; stroke-width: 1; }
+  .tg { font: 500 14px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #2C2C2A; }
+  .sg { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .tp { font: 500 14px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #085041; }
+  .sp { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #0F6E56; }
+  .ar { stroke: #888780; stroke-width: 1.2; fill: none; }
+  .al { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .note { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .ah { fill: #888780; }
+  @media (prefers-color-scheme: dark) {
+    .lbl, .sg, .al, .note { fill: #B4B2A9; }
+    .pg { stroke: #5F5E5A; }
+    .pp { stroke: #0F6E56; }
+    .ng { fill: #2C2C2A; stroke: #5F5E5A; }
+    .np { fill: #04342C; stroke: #1D9E75; }
+    .tg { fill: #F1EFE8; }
+    .tp { fill: #E1F5EE; }
+    .sp { fill: #9FE1CB; }
+  }
+  </style>
+  <rect class="pg" x="20" y="12" width="840" height="94" rx="12"/>
+  <text class="lbl" x="32" y="30">일반적인 방식</text>
+  <rect class="ng" x="382.8" y="44" width="114.3" height="44" rx="8"/>
+  <text class="tg" x="440.0" y="71.0" text-anchor="middle">24시간 켜 둠</text>
+  <rect class="pp" x="20" y="122" width="840" height="126" rx="12"/>
+  <text class="lbl" x="32" y="140">이 프로젝트</text>
+  <rect class="np" x="133.1" y="154" width="84.1" height="58" rx="8"/>
+  <text class="tp" x="175.2" y="176" text-anchor="middle">06:40</text>
+  <text class="sp" x="175.2" y="196" text-anchor="middle">RDS 시작</text>
+  <rect class="np" x="257.2" y="154" width="100.6" height="58" rx="8"/>
+  <text class="tp" x="307.5" y="176" text-anchor="middle">07:00</text>
+  <text class="sp" x="307.5" y="196" text-anchor="middle">노드 셋 시작</text>
+  <rect class="np" x="397.8" y="154" width="84.3" height="58" rx="8"/>
+  <text class="tp" x="440.0" y="176" text-anchor="middle">07:30</text>
+  <text class="sp" x="440.0" y="196" text-anchor="middle">일봉 수집</text>
+  <rect class="np" x="522.2" y="154" width="100.6" height="58" rx="8"/>
+  <text class="tp" x="572.5" y="176" text-anchor="middle">19:00</text>
+  <text class="sp" x="572.5" y="196" text-anchor="middle">노드 셋 중지</text>
+  <rect class="np" x="662.8" y="154" width="84.1" height="58" rx="8"/>
+  <text class="tp" x="704.8" y="176" text-anchor="middle">19:05</text>
+  <text class="sp" x="704.8" y="196" text-anchor="middle">RDS 중지</text>
+  <line class="ar" x1="221.2" y1="183.0" x2="249.2" y2="183.0"/>
+  <path class="ah" d="M255.2 183.0 L248.2 179.0 L248.2 187.0 Z"/>
+  <line class="ar" x1="361.8" y1="183.0" x2="389.8" y2="183.0"/>
+  <path class="ah" d="M395.8 183.0 L388.8 179.0 L388.8 187.0 Z"/>
+  <line class="ar" x1="486.2" y1="183.0" x2="514.2" y2="183.0"/>
+  <path class="ah" d="M520.2 183.0 L513.2 179.0 L513.2 187.0 Z"/>
+  <line class="ar" x1="626.8" y1="183.0" x2="654.8" y2="183.0"/>
+  <path class="ah" d="M660.8 183.0 L653.8 179.0 L653.8 187.0 Z"/>
+  <text class="note" x="440.0" y="234" text-anchor="middle">평일만, 꺼진 시간에는 안내 페이지</text>
+</svg>

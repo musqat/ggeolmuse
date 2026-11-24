@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="260" viewBox="0 0 880 260" role="img">
+  <title>머지 전 검사 — 일반적인 방식과 이 프로젝트</title>
+  <style>
+  .lbl { font: 500 13px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .pg { fill: none; stroke: #D3D1C7; stroke-width: 1; stroke-dasharray: 4 4; }
+  .pp { fill: none; stroke: #9FE1CB; stroke-width: 1; stroke-dasharray: 4 4; }
+  .ng { fill: #F1EFE8; stroke: #B4B2A9; stroke-width: 1; }
+  .np { fill: #E1F5EE; stroke: #5DCAA5; stroke-width: 1; }
+  .tg { font: 500 14px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #2C2C2A; }
+  .sg { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .tp { font: 500 14px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #085041; }
+  .sp { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #0F6E56; }
+  .ar { stroke: #888780; stroke-width: 1.2; fill: none; }
+  .al { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .note { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .ah { fill: #888780; }
+  @media (prefers-color-scheme: dark) {
+    .lbl, .sg, .al, .note { fill: #B4B2A9; }
+    .pg { stroke: #5F5E5A; }
+    .pp { stroke: #0F6E56; }
+    .ng { fill: #2C2C2A; stroke: #5F5E5A; }
+    .np { fill: #04342C; stroke: #1D9E75; }
+    .tg { fill: #F1EFE8; }
+    .tp { fill: #E1F5EE; }
+    .sp { fill: #9FE1CB; }
+  }
+  </style>
+  <rect class="pg" x="20" y="12" width="840" height="94" rx="12"/>
+  <text class="lbl" x="32" y="30">일반적인 방식</text>
+  <rect class="ng" x="187.8" y="44" width="50.5" height="44" rx="8"/>
+  <text class="tg" x="213.1" y="71.0" text-anchor="middle">PR</text>
+  <rect class="ng" x="278.3" y="44" width="150.2" height="44" rx="8"/>
+  <text class="tg" x="353.4" y="71.0" text-anchor="middle">단위 · 통합 테스트</text>
+  <rect class="ng" x="468.5" y="44" width="117.1" height="44" rx="8"/>
+  <text class="tg" x="527.0" y="71.0" text-anchor="middle">머지 · 릴리스</text>
+  <rect class="ng" x="633.6" y="44" width="58.6" height="44" rx="8"/>
+  <text class="tg" x="662.9" y="71.0" text-anchor="middle">E2E</text>
+  <line class="ar" x1="242.3" y1="66.0" x2="270.3" y2="66.0"/>
+  <path class="ah" d="M276.3 66.0 L269.3 62.0 L269.3 70.0 Z"/>
+  <line class="ar" x1="432.5" y1="66.0" x2="460.5" y2="66.0"/>
+  <path class="ah" d="M466.5 66.0 L459.5 62.0 L459.5 70.0 Z"/>
+  <line class="ar" x1="589.6" y1="66.0" x2="625.6" y2="66.0"/>
+  <path class="ah" d="M631.6 66.0 L624.6 62.0 L624.6 70.0 Z"/>
+  <text class="al" x="607.6" y="58.0" text-anchor="middle">밤에</text>
+  <rect class="pp" x="20" y="122" width="840" height="126" rx="12"/>
+  <text class="lbl" x="32" y="140">이 프로젝트</text>
+  <rect class="np" x="138.7" y="154" width="50.5" height="58" rx="8"/>
+  <text class="tp" x="164.0" y="188.0" text-anchor="middle">PR</text>
+  <rect class="np" x="229.2" y="154" width="202.9" height="58" rx="8"/>
+  <text class="tp" x="330.6" y="176" text-anchor="middle">단위 · 통합 + E2E</text>
+  <text class="sp" x="330.6" y="196" text-anchor="middle">스택 전체 · 고정 시세 · 값 확인</text>
+  <rect class="np" x="472.1" y="154" width="112.1" height="58" rx="8"/>
+  <text class="tp" x="528.1" y="188.0" text-anchor="middle">필수 검사 셋</text>
+  <rect class="np" x="624.2" y="154" width="117.1" height="58" rx="8"/>
+  <text class="tp" x="682.7" y="188.0" text-anchor="middle">머지 · 릴리스</text>
+  <line class="ar" x1="193.2" y1="183.0" x2="221.2" y2="183.0"/>
+  <path class="ah" d="M227.2 183.0 L220.2 179.0 L220.2 187.0 Z"/>
+  <line class="ar" x1="436.1" y1="183.0" x2="464.1" y2="183.0"/>
+  <path class="ah" d="M470.1 183.0 L463.1 179.0 L463.1 187.0 Z"/>
+  <line class="ar" x1="588.2" y1="183.0" x2="616.2" y2="183.0"/>
+  <path class="ah" d="M622.2 183.0 L615.2 179.0 L615.2 187.0 Z"/>
+  <text class="note" x="440.0" y="234" text-anchor="middle">필수 검사: ci-result · E2E · gitleaks, 릴리스는 같은 커밋의 E2E 성공만</text>
+</svg>

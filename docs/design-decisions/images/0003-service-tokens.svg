@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="256" viewBox="0 0 880 256" role="img">
+  <title>내부 API 호출 — 일반적인 방식과 이 프로젝트</title>
+  <style>
+  .lbl { font: 500 13px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .pg { fill: none; stroke: #D3D1C7; stroke-width: 1; stroke-dasharray: 4 4; }
+  .pp { fill: none; stroke: #9FE1CB; stroke-width: 1; stroke-dasharray: 4 4; }
+  .ng { fill: #F1EFE8; stroke: #B4B2A9; stroke-width: 1; }
+  .np { fill: #E1F5EE; stroke: #5DCAA5; stroke-width: 1; }
+  .tg { font: 500 14px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #2C2C2A; }
+  .sg { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .tp { font: 500 14px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #085041; }
+  .sp { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #0F6E56; }
+  .ar { stroke: #888780; stroke-width: 1.2; fill: none; }
+  .al { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .note { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .ah { fill: #888780; }
+  @media (prefers-color-scheme: dark) {
+    .lbl, .sg, .al, .note { fill: #B4B2A9; }
+    .pg { stroke: #5F5E5A; }
+    .pp { stroke: #0F6E56; }
+    .ng { fill: #2C2C2A; stroke: #5F5E5A; }
+    .np { fill: #04342C; stroke: #1D9E75; }
+    .tg { fill: #F1EFE8; }
+    .tp { fill: #E1F5EE; }
+    .sp { fill: #9FE1CB; }
+  }
+  </style>
+  <rect class="pg" x="20" y="12" width="840" height="108" rx="12"/>
+  <text class="lbl" x="32" y="30">일반적인 방식</text>
+  <rect class="ng" x="231.2" y="44" width="124.6" height="58" rx="8"/>
+  <text class="tg" x="293.6" y="66" text-anchor="middle">게이트웨이</text>
+  <text class="sg" x="293.6" y="86" text-anchor="middle">사용자 토큰 확인</text>
+  <rect class="ng" x="395.9" y="44" width="88.3" height="58" rx="8"/>
+  <text class="tg" x="440.0" y="78.0" text-anchor="middle">서비스 A</text>
+  <rect class="ng" x="560.5" y="44" width="88.3" height="58" rx="8"/>
+  <text class="tg" x="604.6" y="66" text-anchor="middle">서비스 B</text>
+  <text class="sg" x="604.6" y="86" text-anchor="middle">내부 API</text>
+  <line class="ar" x1="359.9" y1="73.0" x2="387.9" y2="73.0"/>
+  <path class="ah" d="M393.9 73.0 L386.9 69.0 L386.9 77.0 Z"/>
+  <line class="ar" x1="488.2" y1="73.0" x2="552.5" y2="73.0"/>
+  <path class="ah" d="M558.5 73.0 L551.5 69.0 L551.5 77.0 Z"/>
+  <text class="al" x="520.3" y="65.0" text-anchor="middle">토큰 없이</text>
+  <rect class="pp" x="20" y="136" width="840" height="108" rx="12"/>
+  <text class="lbl" x="32" y="154">이 프로젝트</text>
+  <rect class="np" x="103.0" y="168" width="124.6" height="58" rx="8"/>
+  <text class="tp" x="165.3" y="190" text-anchor="middle">게이트웨이</text>
+  <text class="sp" x="165.3" y="210" text-anchor="middle">사용자 토큰 확인</text>
+  <rect class="np" x="267.6" y="168" width="185.6" height="58" rx="8"/>
+  <text class="tp" x="360.4" y="190" text-anchor="middle">서비스 A</text>
+  <text class="sp" x="360.4" y="210" text-anchor="middle">Keycloak 에서 서비스 토큰</text>
+  <rect class="np" x="541.5" y="168" width="235.5" height="58" rx="8"/>
+  <text class="tp" x="659.3" y="190" text-anchor="middle">서비스 B</text>
+  <text class="sp" x="659.3" y="210" text-anchor="middle">/api/internal · service 역할 확인</text>
+  <line class="ar" x1="231.6" y1="197.0" x2="259.6" y2="197.0"/>
+  <path class="ah" d="M265.6 197.0 L258.6 193.0 L258.6 201.0 Z"/>
+  <line class="ar" x1="457.2" y1="197.0" x2="533.5" y2="197.0"/>
+  <path class="ah" d="M539.5 197.0 L532.5 193.0 L532.5 201.0 Z"/>
+  <text class="al" x="495.4" y="189.0" text-anchor="middle">서비스 토큰</text>
+</svg>

@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="260" viewBox="0 0 880 260" role="img">
+  <title>탈퇴 — 일반적인 방식과 이 프로젝트</title>
+  <style>
+  .lbl { font: 500 13px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .pg { fill: none; stroke: #D3D1C7; stroke-width: 1; stroke-dasharray: 4 4; }
+  .pp { fill: none; stroke: #9FE1CB; stroke-width: 1; stroke-dasharray: 4 4; }
+  .ng { fill: #F1EFE8; stroke: #B4B2A9; stroke-width: 1; }
+  .np { fill: #E1F5EE; stroke: #5DCAA5; stroke-width: 1; }
+  .tg { font: 500 14px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #2C2C2A; }
+  .sg { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .tp { font: 500 14px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #085041; }
+  .sp { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #0F6E56; }
+  .ar { stroke: #888780; stroke-width: 1.2; fill: none; }
+  .al { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .note { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .ah { fill: #888780; }
+  @media (prefers-color-scheme: dark) {
+    .lbl, .sg, .al, .note { fill: #B4B2A9; }
+    .pg { stroke: #5F5E5A; }
+    .pp { stroke: #0F6E56; }
+    .ng { fill: #2C2C2A; stroke: #5F5E5A; }
+    .np { fill: #04342C; stroke: #1D9E75; }
+    .tg { fill: #F1EFE8; }
+    .tp { fill: #E1F5EE; }
+    .sp { fill: #9FE1CB; }
+  }
+  </style>
+  <rect class="pg" x="20" y="12" width="840" height="94" rx="12"/>
+  <text class="lbl" x="32" y="30">일반적인 방식</text>
+  <rect class="ng" x="227.0" y="44" width="60.0" height="44" rx="8"/>
+  <text class="tg" x="257.0" y="71.0" text-anchor="middle">탈퇴</text>
+  <rect class="ng" x="327.0" y="44" width="93.0" height="44" rx="8"/>
+  <text class="tg" x="373.5" y="71.0" text-anchor="middle">탈퇴 상태</text>
+  <rect class="ng" x="460.0" y="44" width="93.0" height="44" rx="8"/>
+  <text class="tg" x="506.5" y="71.0" text-anchor="middle">보관 기간</text>
+  <rect class="ng" x="593.0" y="44" width="60.0" height="44" rx="8"/>
+  <text class="tg" x="623.0" y="71.0" text-anchor="middle">파기</text>
+  <line class="ar" x1="291.0" y1="66.0" x2="319.0" y2="66.0"/>
+  <path class="ah" d="M325.0 66.0 L318.0 62.0 L318.0 70.0 Z"/>
+  <line class="ar" x1="424.0" y1="66.0" x2="452.0" y2="66.0"/>
+  <path class="ah" d="M458.0 66.0 L451.0 62.0 L451.0 70.0 Z"/>
+  <line class="ar" x1="557.0" y1="66.0" x2="585.0" y2="66.0"/>
+  <path class="ah" d="M591.0 66.0 L584.0 62.0 L584.0 70.0 Z"/>
+  <rect class="pp" x="20" y="122" width="840" height="126" rx="12"/>
+  <text class="lbl" x="32" y="140">이 프로젝트</text>
+  <rect class="np" x="161.9" y="154" width="60.0" height="58" rx="8"/>
+  <text class="tp" x="191.9" y="188.0" text-anchor="middle">탈퇴</text>
+  <rect class="np" x="261.9" y="154" width="198.6" height="58" rx="8"/>
+  <text class="tp" x="361.2" y="176" text-anchor="middle">user</text>
+  <text class="sp" x="361.2" y="196" text-anchor="middle">사용자 · 계좌 삭제 · 탈퇴 기록</text>
+  <rect class="np" x="565.4" y="154" width="152.7" height="58" rx="8"/>
+  <text class="tp" x="641.7" y="176" text-anchor="middle">trade · backtest</text>
+  <text class="sp" x="641.7" y="196" text-anchor="middle">기록 삭제</text>
+  <line class="ar" x1="225.9" y1="183.0" x2="253.9" y2="183.0"/>
+  <path class="ah" d="M259.9 183.0 L252.9 179.0 L252.9 187.0 Z"/>
+  <line class="ar" x1="464.5" y1="183.0" x2="557.4" y2="183.0"/>
+  <path class="ah" d="M563.4 183.0 L556.4 179.0 L556.4 187.0 Z"/>
+  <text class="al" x="510.9" y="175.0" text-anchor="middle">user.deleted</text>
+  <text class="note" x="440.0" y="234" text-anchor="middle">Keycloak 계정도 지우고, 실패한 단계는 1분마다 끝날 때까지 다시</text>
+</svg>
