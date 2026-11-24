@@ -26,6 +26,8 @@
         <springdoc.version>2.10.0</springdoc.version>
         <testcontainers.version>1.21.4</testcontainers.version>
         <resilience4j.version>2.4.0</resilience4j.version>
+        <!-- 7.x 는 Spring 7(Boot 4) 기준 -->
+        <shedlock.version>6.10.0</shedlock.version>
 
         <!-- 보안 패치.  Spring Boot BOM 의 버전은 프로퍼티로 못 바꿔 아래 dependencyManagement 항목과 짝으로 둠 -->
         <netty.version>4.2.21.Final</netty.version>
@@ -84,6 +86,15 @@
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>
                 <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- ShedLock(스케줄 작업 잠금) 모듈 버전 맞추기 -->
+            <dependency>
+                <groupId>net.javacrumbs.shedlock</groupId>
+                <artifactId>shedlock-bom</artifactId>
+                <version>${shedlock.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
