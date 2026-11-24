@@ -336,3 +336,4 @@ Redis 에는 비밀번호를 건다.
 
 - [문제 해결](docs/problem-solving.md) — 겪은 장애와 버그를 문제 → 원인 → 해결. 판단이 틀렸던 것은 처음 생각과 함께
 - [성능 튜닝](docs/performance-tuning.md) — 성능 튜닝한 기록. 수치마다 잰 조건을 함께 적었다
+- [설계 결정](docs/design-decisions/README.md) — 일반적인 방식과 다르게 간 결정. 편마다 그림 · 이유 · 트레이드오프
