@@ -54,7 +54,7 @@ spec:
                   # 늘 울리는 Watchdog 이 Alertmanager 에 있으면 규칙 평가와 경보 전달은 정상
                   wd=$(curl -s -G --max-time 10 --data-urlencode 'filter=alertname="Watchdog"' "$AM_URL/api/v2/alerts" | grep -c '"alertname":"Watchdog"')
                   if [ -n "$total" ] && [ -z "$down" ] && [ "$code" = 200 ] && [ "$wd" -gt 0 ]; then
-                    msg=":white_check_mark: up"
+                    msg="아침 기동 확인 정상 · 앱 ${total}개 준비 · 사이트 $code"
                   else
                     p=""
                     add() { p="${p:+$p · }$1"; }
@@ -62,7 +62,7 @@ spec:
                     [ -z "$down" ] || add "down: $down"
                     [ "$code" = 200 ] || add "시세 $code"
                     [ "$wd" -gt 0 ] || add "Alertmanager 에 Watchdog 없음"
-                    msg=":warning: $p"
+                    msg="아침 기동 확인 이상 · $p"
                   fi
                   echo "$msg"
                   sent=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 -H 'Content-Type: application/json' \
