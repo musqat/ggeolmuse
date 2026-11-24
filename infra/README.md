@@ -73,8 +73,10 @@ RDS 밖 사본이다. 버킷과 쓰기 권한은 `infra/terraform/ops/db-backup.
 |---|---|---|
 | `ggeolmuse-apps` | `infra/k8s/argocd/root.yaml`(아래 Application 묶음 `infra/k8s/argocd/apps`) | 자동(목록만) |
 | `ggeolmuse` | 앱 차트 `infra/k8s/charts/ggeolmuse`(`values-prod.yaml`) | 자동 |
-| `prometheus` · `loki` · `tempo` | 차트 버전 고정, 값 파일은 `monitoring/` 위에 `infra/k8s/monitoring/` | 수동(prometheus 는 server-side apply) |
+| `prometheus` · `loki` · `tempo` | 차트 버전 고정, 값 파일은 `monitoring/` 위에 `infra/k8s/monitoring/` | 자동(리포에서 빠진 리소스는 지우지 않고, 손으로 고친 것은 되돌리지 않음, prometheus 는 server-side apply) |
 | `argocd` | ArgoCD 자신 | 자동(리포에서 빠진 리소스는 지우지 않고, 손으로 고친 것은 되돌리지 않음) |
 
-앱 차트의 ServiceMonitor · PrometheusRule 이 prometheus 의 CRD 를 쓰므로 prometheus 를 먼저 Sync 한다. 관측 구성은
+앱 차트의 ServiceMonitor · PrometheusRule 이 prometheus 의 CRD 를 써서, 새 클러스터에서는 prometheus 가 CRD 를 올린 뒤에
+`ggeolmuse` 동기화가 끝난다(그 전 실패는 다시 시도). StatefulSet 볼륨처럼 바꿀 수 없는 필드가 바뀌면 동기화가 실패로 남고, 그때는
+손으로 지우고 다시 Sync 한다. 관측 구성은
 [monitoring/README.md](k8s/monitoring/README.md) 에 있다. 배포 중 메모리 · JVM 힙으로 겪은 일은 [문제 해결](../docs/problem-solving.md) 에 있다.

@@ -6,7 +6,7 @@ Java Agent 가 주입돼 있다.
 차트 버전과 값은 ArgoCD 의 `prometheus` · `loki` · `tempo` Application 이 리포로 맞춘다. Application 은
 [`infra/k8s/argocd/apps`](../argocd/apps/values.yaml) 에 있고, 값은 이 폴더의 `prometheus-values.yaml` · `loki-values.yaml` ·
 `tempo-values.yaml` 하나씩이다(저장 클래스 gp3 · 컨트롤 플레인 지표 포함).
-자동 동기화는 꺼 두어, 머지한 뒤 ArgoCD 화면에서 차이를 보고 Sync 한다. 렌더 값은 리포 파일에서만 온다.
+머지하면 자동으로 동기화한다(리포에서 빠진 리소스는 지우지 않고, 손으로 고친 것은 되돌리지 않음). 렌더 값은 리포 파일에서만 온다.
 
 <br>
 
