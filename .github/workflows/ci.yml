@@ -391,7 +391,7 @@ jobs:
           }
           rules infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml
 
-      # 클러스터 Application 묶음 렌더 · 네임스페이스 메타데이터는 네임스페이스마다 한 앱 · ArgoCD 자신의 자동 동기화(지우기 없음 · server-side apply)
+      # 클러스터 Application 묶음 렌더 · 네임스페이스 메타데이터는 네임스페이스마다 한 앱 · ArgoCD 자신 · 모니터링 셋의 자동 동기화(지우기 없음)
       - name: ArgoCD Application 묶음 렌더 · 검사
         run: |
           helm lint infra/k8s/argocd/apps
@@ -401,12 +401,18 @@ jobs:
             echo "::error::managedNamespaceMetadata 를 둔 Application 이 둘 이상인 네임스페이스: $dup"
             exit 1
           fi
-          self=$(awk '/^---/{p=0} /^  name: argocd$/{p=1} p' argocd-apps.yaml)
-          for want in 'automated:' 'prune: false' 'ServerSideApply=true'; do
-            if ! grep -q -- "$want" <<<"$self"; then
-              echo "::error::ArgoCD 자신의 Application 에 $want 없음"
-              exit 1
+          for app in argocd prometheus loki tempo; do
+            body=$(awk -v name="  name: $app" '/^---/{p=0} $0 == name {p=1} p' argocd-apps.yaml)
+            wants=('automated:' 'prune: false')
+            if [ "$app" = argocd ] || [ "$app" = prometheus ]; then
+              wants+=('ServerSideApply=true')
             fi
+            for want in "${wants[@]}"; do
+              if ! grep -q -- "$want" <<<"$body"; then
+                echo "::error::Application $app 에 $want 없음"
+                exit 1
+              fi
+            done
           done
 
       # ArgoCD 가 고정한 버전의 kube-prometheus-stack 렌더에 꺼 둔 차트 기본 알림(요청 과다 둘)은 없고 파드 미준비 알림은 있는지

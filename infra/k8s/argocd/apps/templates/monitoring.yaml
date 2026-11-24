@@ -1,4 +1,4 @@
-{{- /* 모니터링 릴리스마다 Application 하나(자동 동기화 없음, StatefulSet 볼륨이 바뀌면 손으로 지우고 올림) */ -}}
+{{- /* 모니터링 릴리스마다 Application 하나(리포 값으로 자동 동기화, 리포에서 빠진 리소스는 지우지 않고 손으로 고친 것은 되돌리지 않음, StatefulSet 볼륨이 바뀌면 손으로 지우고 올림) */ -}}
 {{- if .Values.monitoring.enabled }}
 {{- range $name, $r := .Values.monitoring.releases }}
 ---
@@ -26,6 +26,9 @@ spec:
     server: https://kubernetes.default.svc
     namespace: {{ $.Values.monitoring.namespace }}
   syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false
     {{- if eq $name $.Values.monitoring.namespaceMetadataOwner }}
     # 앱 차트 NetworkPolicy 가 이 레이블로 모니터링 네임스페이스를 고름(네임스페이스 메타데이터는 한 앱만)
     managedNamespaceMetadata:
@@ -37,5 +40,11 @@ spec:
       {{- if $r.serverSideApply }}
       - ServerSideApply=true
       {{- end }}
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
 {{- end }}
 {{- end }}

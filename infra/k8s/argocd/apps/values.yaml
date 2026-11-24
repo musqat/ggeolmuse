@@ -15,7 +15,7 @@ ggeolmuse:
   valueFiles:
     - values-prod.yaml
 
-# 모니터링 릴리스(이름 = 릴리스 이름, 동기화는 사람이 누를 때만)
+# 모니터링 릴리스(이름 = 릴리스 이름, 리포 값으로 자동 동기화, 지우기 · 되돌리기 없음)
 monitoring:
   enabled: true
   namespace: monitoring
