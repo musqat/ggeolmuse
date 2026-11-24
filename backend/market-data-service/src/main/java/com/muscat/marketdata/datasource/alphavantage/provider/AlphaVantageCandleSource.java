@@ -57,7 +57,7 @@ public class AlphaVantageCandleSource implements MarketDataProvider.CandleSource
     List<CandleDto> dtos = new ArrayList<>();
 
     // AlphaVantage는 최신 날짜 → 과거 날짜 순서로 반환
-    var iterator = timeSeries.fields();
+    var iterator = timeSeries.properties().iterator();
     while (iterator.hasNext()) {
       var entry = iterator.next();
       LocalDate date = LocalDate.parse(entry.getKey());

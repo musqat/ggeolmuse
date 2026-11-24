@@ -46,7 +46,7 @@ public class AlphaVantageDividendSource implements MarketDataProvider.DividendSo
       }
 
       List<DividendDto> dividends = new ArrayList<>();
-      timeSeries.fields().forEachRemaining(entry -> {
+      timeSeries.properties().forEach(entry -> {
         LocalDate date = LocalDate.parse(entry.getKey());
         if (!date.isBefore(fromDate) && !date.isAfter(toDate)) {
           DividendDto dividend = parseDividend(symbol, date, entry.getValue());
