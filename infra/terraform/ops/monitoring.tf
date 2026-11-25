@@ -76,6 +76,66 @@ resource "aws_cloudwatch_metric_alarm" "scheduler_invocation_dropped" {
   }
 }
 
+# RDS 시작 · 중지 스케줄의 대상 호출 오류
+resource "aws_cloudwatch_metric_alarm" "rds_scheduler_target_error" {
+  count = local.rds_resource
+
+  alarm_name        = "${var.project_name}-rds-scheduler-target-error"
+  alarm_description = "RDS 시작/중지 스케줄이 RDS API 호출에 실패"
+
+  namespace   = "AWS/Scheduler"
+  metric_name = "TargetErrorCount"
+
+  dimensions = {
+    ScheduleGroup = aws_scheduler_schedule_group.rds_scheduler[0].name
+  }
+
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 0
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = [aws_sns_topic.alarms.arn]
+
+  tags = {
+    Name        = "${var.project_name}-rds-scheduler-target-error"
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
+
+# 재시도를 다 쓰고 버려진 RDS 시작 · 중지 호출
+resource "aws_cloudwatch_metric_alarm" "rds_scheduler_invocation_dropped" {
+  count = local.rds_resource
+
+  alarm_name        = "${var.project_name}-rds-scheduler-invocation-dropped"
+  alarm_description = "재시도 소진으로 RDS 시작/중지 호출이 버려짐"
+
+  namespace   = "AWS/Scheduler"
+  metric_name = "InvocationDroppedCount"
+
+  dimensions = {
+    ScheduleGroup = aws_scheduler_schedule_group.rds_scheduler[0].name
+  }
+
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 0
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = [aws_sns_topic.alarms.arn]
+
+  tags = {
+    Name        = "${var.project_name}-rds-scheduler-invocation-dropped"
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
+
 # 인스턴스 안에서 멈춤(스케줄러는 성공이라 위 둘에 안 걸림), 3분 연속 실패만
 resource "aws_cloudwatch_metric_alarm" "ec2_status_check" {
   for_each = local.scheduled_instances

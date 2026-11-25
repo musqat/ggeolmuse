@@ -10,12 +10,12 @@
   - 상태 버킷 `ggeolmuse-tfstate-apne2`(버전 관리 · SSE-S3 · 퍼블릭 차단)
   - 모두 `prevent_destroy` 라 plan 이 교체 · 삭제를 잡으면 오류로 멈춘다
 - EventBridge 스케줄러: k8s 노드 셋(`scheduled_instances`) / RDS 평일 시작·중지 (`scheduler.tf`, `rds-scheduler.tf`)
-- CloudWatch 알람 + SNS 이메일: 스케줄 실패 · 노드마다 상태 검사 실패 (`monitoring.tf`)
+- CloudWatch 알람 + SNS 이메일: EC2 · RDS 스케줄 실패 · 노드마다 상태 검사 실패 (`monitoring.tf`)
 - RDS CloudWatch 알람: CPU 5분 평균 80% 초과 15분 · 남은 저장 공간 2GiB 미만 · 연결 수 5분 최댓값 70 초과 10분 (`rds-alarms.tf`).
   SNS 이메일로 오고, `slack_webhook_url` 이 있으면 슬랙에도 알람 · 복구 한 줄씩. RDS 가 꺼진 밤 · 주말은 지표가 없어 알람이
   아니다. 기준은 `rds_alarm_cpu_percent` · `rds_alarm_free_storage_gib` · `rds_alarm_connections`
-- EventBridge 규칙 + API Destination: 노드가 멈추면 슬랙에 `노드 중지 · <노드 이름>` 한 줄, 노드마다 규칙 하나 (`ec2-stop-alert.tf`). `slack_webhook_url` 이 비면
-  만들지 않고, 슬랙에 못 보내면 위 SNS 알람으로 온다
+- EventBridge 규칙 + API Destination: 노드가 멈추면 슬랙에 `노드 중지 · <노드 이름>` 한 줄, 노드마다 규칙 하나 (`ec2-stop-alert.tf`).
+  RDS 가 멈추면 `RDS 중지 · <인스턴스>` 한 줄 (`rds-alarms.tf`). `slack_webhook_url` 이 비면 만들지 않고, 슬랙에 못 보내면 위 SNS 알람으로 온다
 - S3 버킷 `ggeolmuse-db-backup-apne2` + 쓰기 정책: 월간 pg_dump 보관 (`db-backup.tf`, 쓰는 역할은 `db_backup_writer_roles` 의 k8s 노드 역할).
   CronJob 쪽은 `infra/k8s/charts/ggeolmuse` 의 `dbBackup`. 버전 관리를 켜 같은 키로 덮어써도 옛 덤프가 30일 남는다
 - EventBridge Scheduler(그룹 `ggeolmuse-uptime`) + 규칙 + API Destination: 가동 시간(노드 시작 20분 뒤부터 중지 전 정시까지)에

@@ -156,6 +156,48 @@ run "alarm_state_changes_to_slack" {
   }
 }
 
+run "rds_stopped_to_slack" {
+  command = plan
+
+  assert {
+    condition = (
+      jsondecode(aws_cloudwatch_event_rule.rds_stopped[0].event_pattern).source == ["aws.rds"] &&
+      jsondecode(aws_cloudwatch_event_rule.rds_stopped[0].event_pattern).detail.EventID == ["RDS-EVENT-0087"] &&
+      jsondecode(aws_cloudwatch_event_rule.rds_stopped[0].event_pattern).detail.SourceIdentifier == ["ggeolmuse-postgres"]
+    )
+    error_message = "중지 알림 규칙은 이 RDS 의 중지 이벤트만"
+  }
+
+  assert {
+    condition     = jsondecode(aws_cloudwatch_event_target.rds_stopped_slack[0].input).text == "RDS 중지 · ggeolmuse-postgres"
+    error_message = "중지 알림 문구에 인스턴스 이름"
+  }
+
+  assert {
+    condition     = aws_cloudwatch_metric_alarm.rds_stop_alert_failed[0].dimensions.RuleName == "ggeolmuse-rds-stopped"
+    error_message = "슬랙 전송 실패 알람이 중지 알림 규칙에 하나"
+  }
+}
+
+run "rds_scheduler_failures_alarmed" {
+  command = plan
+
+  assert {
+    condition = (
+      aws_cloudwatch_metric_alarm.rds_scheduler_target_error[0].metric_name == "TargetErrorCount" &&
+      aws_cloudwatch_metric_alarm.rds_scheduler_target_error[0].dimensions.ScheduleGroup == "ggeolmuse-rds-scheduler" &&
+      aws_cloudwatch_metric_alarm.rds_scheduler_invocation_dropped[0].metric_name == "InvocationDroppedCount" &&
+      aws_cloudwatch_metric_alarm.rds_scheduler_invocation_dropped[0].dimensions.ScheduleGroup == "ggeolmuse-rds-scheduler"
+    )
+    error_message = "RDS 시작 · 중지 스케줄의 호출 실패 · 재시도 소진 알람"
+  }
+
+  assert {
+    condition     = length(aws_cloudwatch_metric_alarm.rds_scheduler_target_error[0].alarm_actions) == 1 && aws_cloudwatch_metric_alarm.rds_scheduler_invocation_dropped[0].treat_missing_data == "notBreaching"
+    error_message = "스케줄 실패 알람은 SNS 주제 하나로, 꺼진 동안은 알람 아님"
+  }
+}
+
 run "no_slack_only_email" {
   command = plan
 
@@ -164,7 +206,7 @@ run "no_slack_only_email" {
   }
 
   assert {
-    condition     = length(aws_cloudwatch_metric_alarm.rds) == 3 && length(aws_cloudwatch_event_rule.rds_alarm_notice) == 0
+    condition     = length(aws_cloudwatch_metric_alarm.rds) == 3 && length(aws_cloudwatch_event_rule.rds_alarm_notice) == 0 && length(aws_cloudwatch_event_rule.rds_stopped) == 0
     error_message = "웹훅이 없으면 알람은 이메일로만"
   }
 }
@@ -177,7 +219,10 @@ run "no_rds_no_alarms" {
   }
 
   assert {
-    condition     = length(aws_cloudwatch_metric_alarm.rds) == 0 && length(aws_cloudwatch_event_rule.rds_alarm_notice) == 0
+    condition = (
+      length(aws_cloudwatch_metric_alarm.rds) == 0 && length(aws_cloudwatch_event_rule.rds_alarm_notice) == 0 && length(aws_cloudwatch_event_rule.rds_stopped) == 0 &&
+      length(aws_cloudwatch_metric_alarm.rds_scheduler_target_error) == 0 && length(aws_cloudwatch_metric_alarm.rds_scheduler_invocation_dropped) == 0
+    )
     error_message = "rds_instance_id 가 비면 RDS 알람 없음"
   }
 }
