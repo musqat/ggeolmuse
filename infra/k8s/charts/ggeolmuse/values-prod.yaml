@@ -13,6 +13,9 @@ global:
   otel:
     endpoint: http://tempo.monitoring.svc.cluster.local:4318
     environment: prod
+    # 요청 4건 중 1건의 트레이스
+    sampler: parentbased_traceidratio
+    samplerArg: "0.25"
 
   # AWS Secrets Manager
   aws:
@@ -41,9 +44,9 @@ infrastructure:
         memory: 64Mi
         cpu: 50m
 
-  # jdbc-ping 캐시 클러스터(keycloak 26 기본)
+  # 한 대(재시작 · 이동 동안 로그인 · 토큰 갱신 멈춤)
   keycloak:
-    replicas: 2
+    replicas: 1
     env:
       kcDbVendor: postgres  # RDS PostgreSQL 사용
       kcDbUrl: jdbc:postgresql://ggeolmuse-postgres.cxa6ioco4fhg.ap-northeast-2.rds.amazonaws.com:5432/keycloak

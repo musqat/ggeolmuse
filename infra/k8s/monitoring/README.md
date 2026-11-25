@@ -103,9 +103,9 @@ promtail 이 파드 로그를 Loki 로 보낸다. Loki 는 EBS gp3 볼륨(5Gi)�
 | OTEL_EXPORTER_OTLP_ENDPOINT | Tempo 주소 |
 | OTEL_SERVICE_NAME | 서비스별 자동 |
 | OTEL_RESOURCE_ATTRIBUTES | 환경 · 이미지 버전 |
-| OTEL_TRACES_SAMPLER_ARG | 샘플링 비율(부모 따름, 기본 1.0) |
+| OTEL_TRACES_SAMPLER_ARG | 샘플링 비율(부모 따름, 기본 1.0 · 운영 0.25) |
 
-트레이스는 Tempo 로 가고 Grafana 에서 조회한다. EBS gp3 볼륨(5Gi)에 3일 둔다. Tempo 는 트레이스에서
+트레이스는 Tempo 로 가고 Grafana 에서 조회한다. EBS gp3 볼륨(5Gi)에 1일 둔다. Tempo 는 트레이스에서
 서비스 그래프 · 스팬 지표를 만들어 Prometheus 로 보낸다(remote write). Grafana 에서 로그 줄의 `trace_id` 를 누르면
 트레이스로, 트레이스에서는 그 시간의 로그로 넘어간다.
 
