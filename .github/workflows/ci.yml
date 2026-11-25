@@ -335,7 +335,14 @@ jobs:
             --show-only templates/infrastructure/kafka.yaml | grep -A1 'name: KAFKA_LOG_DIRS' | grep -q 'value: "/var/lib/kafka/data/[^"]' \
             || { echo "::error::멀티 노드 Kafka 데이터 폴더(KAFKA_LOG_DIRS)가 볼륨 하위 폴더가 아님"; exit 1; }
 
-      # 노드 셋이 같이 켜질 때 자바 앱 동시 기동을 견디는 기동 검사 허용 시간(10분 이상) 확인
+      # 노드 기동 때 Kafka 보다 먼저 떠 연결 실패로 종료되지 않게 하는 kafka-exporter 의 Kafka 대기 확인
+      - name: kafka-exporter Kafka 대기
+        run: |
+          helm template ggeolmuse infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml \
+            --show-only templates/infrastructure/kafka-exporter.yaml | grep -A1 'initContainers:' | grep -q 'name: wait-for-kafka' \
+            || { echo "::error::kafka-exporter 에 Kafka 를 기다리는 init 컨테이너(wait-for-kafka)가 없음"; exit 1; }
+
+      # 노드 셋이 같이 켜질 때 자바 앱(kafka-ui 포함) 동시 기동을 견디는 기동 검사 허용 시간(10분 이상) 확인
       - name: 멀티 노드 자바 앱 기동 검사 허용 시간
         run: |
           grep -A7 'startupProbe:' rendered-k8s.yaml | awk '
@@ -343,10 +350,10 @@ jobs:
             /initialDelaySeconds:/ { d = $2 }
             /periodSeconds:/ { p = $2 }
             /failureThreshold:/ {
-              if (path == "/actuator/health/readiness") { n++; if (d + p * $2 < 600) { print "::error::기동 검사 허용 시간 " d + p * $2 "초(10분 미만)"; bad = 1 } }
+              if (path ~ /\/actuator\/health(\/readiness)?$/) { n++; if (d + p * $2 < 600) { print "::error::기동 검사 허용 시간 " d + p * $2 "초(10분 미만)"; bad = 1 } }
               path = ""; d = 0
             }
-            END { if (n < 6) { print "::error::자바 앱 기동 검사 " n "개(6개 미만)"; bad = 1 } exit bad }'
+            END { if (n < 7) { print "::error::자바 앱 기동 검사 " n "개(7개 미만)"; bad = 1 } exit bad }'
 
       # 앱 CPU 요청 합계(레플리카 곱) 상한, 워커 하나가 멈춰도 Kafka 같은 하나짜리가 남은 워커로 옮겨 갈 자리
       - name: 운영 앱 CPU 요청 합계

@@ -8,14 +8,14 @@ tempo:
       memory: 2Gi
     requests:
       cpu: 100m
-      memory: 256Mi
+      memory: 512Mi
 
   # flush 중 /ready 가 수십 초 막히는 것은 넘기고 오래 응답이 없을 때만
   livenessProbe:
     failureThreshold: 12
 
-  # 트레이스 3일 보관
-  retention: 72h
+  # 트레이스 1일 보관
+  retention: 24h
 
   # 서비스 그래프 · 스팬 지표를 Prometheus 로 보냄
   metricsGenerator:

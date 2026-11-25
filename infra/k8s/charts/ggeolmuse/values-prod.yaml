@@ -13,6 +13,9 @@ global:
   otel:
     endpoint: http://tempo.monitoring.svc.cluster.local:4318
     environment: prod
+    # 요청 4건 중 1건의 트레이스
+    sampler: parentbased_traceidratio
+    samplerArg: "0.25"
 
   # AWS Secrets Manager
   aws:
@@ -38,12 +41,12 @@ infrastructure:
         memory: 384Mi
         cpu: 300m
       requests:
-        memory: 128Mi
+        memory: 64Mi
         cpu: 50m
 
-  # jdbc-ping 캐시 클러스터(keycloak 26 기본)
+  # 한 대(재시작 · 이동 동안 로그인 · 토큰 갱신 멈춤)
   keycloak:
-    replicas: 2
+    replicas: 1
     env:
       kcDbVendor: postgres  # RDS PostgreSQL 사용
       kcDbUrl: jdbc:postgresql://ggeolmuse-postgres.cxa6ioco4fhg.ap-northeast-2.rds.amazonaws.com:5432/keycloak
@@ -51,10 +54,10 @@ infrastructure:
       kcProxyTrustedAddresses: 10.42.0.0/16  # 파드 대역
     resources:
       limits:
-        memory: 768Mi
+        memory: 1024Mi
         cpu: 500m
       requests:
-        memory: 384Mi
+        memory: 704Mi
         cpu: 50m
 
   # PostgreSQL - AWS RDS 사용
@@ -88,7 +91,7 @@ infrastructure:
         memory: 1Gi
         cpu: 750m
       requests:
-        memory: 512Mi
+        memory: 704Mi
         cpu: 100m
 
   kafkaUi:
@@ -99,7 +102,7 @@ infrastructure:
         memory: 384Mi
         cpu: 200m
       requests:
-        memory: 192Mi
+        memory: 256Mi
         cpu: 50m
 
   tempo:
@@ -128,7 +131,7 @@ configServer:
       memory: 512Mi
       cpu: 1000m
     requests:
-      memory: 256Mi
+      memory: 384Mi
       cpu: 50m
 
 # Gateway Server
@@ -179,7 +182,7 @@ services:
         memory: 1024Mi
         cpu: 600m
       requests:
-        memory: 512Mi
+        memory: 640Mi
         cpu: 50m
 
   tradeService:
@@ -200,7 +203,7 @@ services:
         memory: 1024Mi
         cpu: 600m
       requests:
-        memory: 512Mi
+        memory: 640Mi
         cpu: 50m
 
   marketDataService:
@@ -270,7 +273,7 @@ services:
         memory: 512Mi
         cpu: 400m
       requests:
-        memory: 256Mi
+        memory: 128Mi
         cpu: 50m
 
 # 프론트엔드
@@ -286,7 +289,7 @@ frontend:
       memory: 256Mi
       cpu: 500m
     requests:
-      memory: 128Mi
+      memory: 32Mi
       cpu: 50m
 
 # 네트워크 정책
