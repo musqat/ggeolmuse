@@ -10,7 +10,7 @@
   - 상태 버킷 `ggeolmuse-tfstate-apne2`(버전 관리 · SSE-S3 · 퍼블릭 차단)
   - 모두 `prevent_destroy` 라 plan 이 교체 · 삭제를 잡으면 오류로 멈춘다
 - EventBridge 스케줄러: k8s 노드 셋(`scheduled_instances`) / RDS 평일 시작·중지 (`scheduler.tf`, `rds-scheduler.tf`)
-- CloudWatch 알람 + SNS 이메일: 스케줄 실패 · 노드마다 상태 검사 실패 (`monitoring.tf`)
+- CloudWatch 알람 + SNS 이메일: EC2 · RDS 스케줄 실패 · 노드마다 상태 검사 실패 (`monitoring.tf`)
 - RDS CloudWatch 알람: CPU 5분 평균 80% 초과 15분 · 남은 저장 공간 2GiB 미만 · 연결 수 5분 최댓값 70 초과 10분 (`rds-alarms.tf`).
   SNS 이메일로 오고, `slack_webhook_url` 이 있으면 슬랙에도 알람 · 복구 한 줄씩. RDS 가 꺼진 밤 · 주말은 지표가 없어 알람이
   아니다. 기준은 `rds_alarm_cpu_percent` · `rds_alarm_free_storage_gib` · `rds_alarm_connections`

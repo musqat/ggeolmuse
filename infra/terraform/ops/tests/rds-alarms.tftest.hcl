@@ -179,6 +179,25 @@ run "rds_stopped_to_slack" {
   }
 }
 
+run "rds_scheduler_failures_alarmed" {
+  command = plan
+
+  assert {
+    condition = (
+      aws_cloudwatch_metric_alarm.rds_scheduler_target_error[0].metric_name == "TargetErrorCount" &&
+      aws_cloudwatch_metric_alarm.rds_scheduler_target_error[0].dimensions.ScheduleGroup == "ggeolmuse-rds-scheduler" &&
+      aws_cloudwatch_metric_alarm.rds_scheduler_invocation_dropped[0].metric_name == "InvocationDroppedCount" &&
+      aws_cloudwatch_metric_alarm.rds_scheduler_invocation_dropped[0].dimensions.ScheduleGroup == "ggeolmuse-rds-scheduler"
+    )
+    error_message = "RDS 시작 · 중지 스케줄의 호출 실패 · 재시도 소진 알람"
+  }
+
+  assert {
+    condition     = length(aws_cloudwatch_metric_alarm.rds_scheduler_target_error[0].alarm_actions) == 1 && aws_cloudwatch_metric_alarm.rds_scheduler_invocation_dropped[0].treat_missing_data == "notBreaching"
+    error_message = "스케줄 실패 알람은 SNS 주제 하나로, 꺼진 동안은 알람 아님"
+  }
+}
+
 run "no_slack_only_email" {
   command = plan
 
@@ -200,7 +219,10 @@ run "no_rds_no_alarms" {
   }
 
   assert {
-    condition     = length(aws_cloudwatch_metric_alarm.rds) == 0 && length(aws_cloudwatch_event_rule.rds_alarm_notice) == 0 && length(aws_cloudwatch_event_rule.rds_stopped) == 0
+    condition = (
+      length(aws_cloudwatch_metric_alarm.rds) == 0 && length(aws_cloudwatch_event_rule.rds_alarm_notice) == 0 && length(aws_cloudwatch_event_rule.rds_stopped) == 0 &&
+      length(aws_cloudwatch_metric_alarm.rds_scheduler_target_error) == 0 && length(aws_cloudwatch_metric_alarm.rds_scheduler_invocation_dropped) == 0
+    )
     error_message = "rds_instance_id 가 비면 RDS 알람 없음"
   }
 }
