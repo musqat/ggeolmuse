@@ -10,11 +10,12 @@ global:
   podDisruptionBudget:
     enabled: false
     minAvailable: 1
-  # 같은 앱 파드를 노드마다 고르게(DoNotSchedule 이면 못 맞출 때 안 띄움, nodeTaintsPolicy Honor 면 멈춘 노드를 셈에서 뺌)
+  # 같은 앱 파드를 노드마다 고르게(DoNotSchedule 이면 못 맞출 때 안 띄움, minDomains 는 노드가 그보다 적으면 대기, nodeTaintsPolicy Honor 면 멈춘 노드를 셈에서 뺌)
   topologySpread:
     enabled: false
     maxSkew: 1
     whenUnsatisfiable: ScheduleAnyway
+    minDomains: 0
     nodeTaintsPolicy: ""
   # 노드가 멈췄을 때 파드를 다른 노드로 옮기기 전 기다리는 초(0 이면 클러스터 기본 300초)
   nodeLostTolerationSeconds: 0

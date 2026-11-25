@@ -378,6 +378,17 @@ jobs:
             exit 1
           fi
 
+      # 멈춘 워커에 있던 레플리카를 남은 워커에 몰지 않는 분산(멈춘 워커도 셈, 워커 둘 미만이면 대기) 확인
+      - name: 멀티 노드 분산이 멈춘 워커를 셈
+        run: |
+          spread=$(grep -c 'topologySpreadConstraints:' rendered-k8s.yaml)
+          mind=$(grep -A6 'topologySpreadConstraints:' rendered-k8s.yaml | grep -c 'minDomains: 2')
+          echo "분산 $spread · 워커 둘 기준 $mind"
+          if [ "$spread" -ne "$mind" ] || grep -q 'nodeTaintsPolicy: Honor' rendered-k8s.yaml; then
+            echo "::error::멈춘 워커를 셈에서 빼거나 워커 하나에 몰아 띄우는 분산 규칙이 있음(minDomains: 2, nodeTaintsPolicy 기본값)"
+            exit 1
+          fi
+
       # 익명 받기 횟수 제한(429) 회피용 읽기 전용 토큰
       - name: Docker Hub 로그인
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
