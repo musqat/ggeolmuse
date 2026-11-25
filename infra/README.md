@@ -7,7 +7,7 @@ Cloudflare (DNS · 프록시 · Access · 꺼져 있을 때 안내 Worker)
     │ Cloudflare Tunnel(cloudflared 가 밖으로 연결, 노드로 들어오는 포트 없음)
 AWS EC2 셋 — kubeadm 클러스터
     ├── 컨트롤 플레인 t3a.medium 온디맨드(앱 없음)
-    ├── 워커 m5a.large · t3.large 스팟
+    ├── 워커 r5a.large · r5.large 스팟
     │     ├── cloudflared · ArgoCD (GitOps)
     │     ├── 관측: Prometheus · Grafana · AlertManager · Loki · Tempo (OpenTelemetry Java Agent)
     │     ├── 인프라 파드: Kafka + Zookeeper · Redis · Keycloak

@@ -120,7 +120,7 @@ run "workers_persistent_spot" {
     error_message = "노드는 컨트롤 플레인 · large 워커 둘"
   }
   assert {
-    condition     = aws_instance.nodes["worker-a"].instance_type == "m5a.large" && aws_instance.nodes["worker-b"].instance_type == "t3.large"
+    condition     = aws_instance.nodes["worker-a"].instance_type == "r5a.large" && aws_instance.nodes["worker-b"].instance_type == "r5.large"
     error_message = "워커 종류는 이름 → 종류 맵 그대로"
   }
   assert {
