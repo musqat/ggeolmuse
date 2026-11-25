@@ -270,6 +270,9 @@ topologySpreadConstraints:
 - maxSkew: {{ .maxSkew }}
   topologyKey: kubernetes.io/hostname
   whenUnsatisfiable: {{ .whenUnsatisfiable }}
+  {{- with .minDomains }}
+  minDomains: {{ . }}
+  {{- end }}
   {{- with .nodeTaintsPolicy }}
   nodeTaintsPolicy: {{ . }}
   {{- end }}

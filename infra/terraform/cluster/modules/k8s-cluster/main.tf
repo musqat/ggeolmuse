@@ -110,9 +110,9 @@ resource "aws_instance" "nodes" {
     encrypted   = true
   }
 
-  # 새 AMI · 기동 스크립트가 바뀌어도 노드를 다시 만들지 않음
+  # 새 AMI · 기동 스크립트, 꺼진 동안 공인 IP 없음으로 읽히는 값에 노드를 다시 만들지 않음
   lifecycle {
-    ignore_changes = [ami, user_data]
+    ignore_changes = [ami, user_data, associate_public_ip_address]
   }
 
   tags = merge(local.tags, { Name = "${local.name}-${each.key}", Role = each.value.role })
