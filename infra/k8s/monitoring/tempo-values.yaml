@@ -8,7 +8,7 @@ tempo:
       memory: 2Gi
     requests:
       cpu: 100m
-      memory: 256Mi
+      memory: 512Mi
 
   # flush 중 /ready 가 수십 초 막히는 것은 넘기고 오래 응답이 없을 때만
   livenessProbe:

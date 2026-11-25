@@ -28,17 +28,17 @@ controller:
       memory: 1536Mi
     requests:
       cpu: 100m
-      memory: 512Mi
+      memory: 768Mi
 
 # Repo Server 설정 (Git 저장소 연결)
 repoServer:
   resources:
     limits:
       cpu: 500m
-      memory: 512Mi
+      memory: 768Mi
     requests:
       cpu: 100m
-      memory: 128Mi
+      memory: 384Mi
 
 # Redis 설정
 redis:

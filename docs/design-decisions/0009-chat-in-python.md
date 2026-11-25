@@ -21,7 +21,7 @@ chat-service 하나만 Python(FastAPI 비동기 + 공식 `openai` SDK)이다. �
 
 Spring 에서 LLM 을 부르는 것보다 Python 서비스를 하나 두는 쪽이 간편했고 Python 으로 LLM 을 부르는 방법을 익혀 둔 것을 써 보려고
 골랐다. 요청 하나가 시세 조회 한 번과 LLM 호출 두 번(스킬 고르기 · 답)을 기다리는 일이라 처리 시간 대부분이 바깥 응답 대기다.
-비동기 FastAPI 로 받아 파드 하나가 요청 256Mi · 한도 512Mi 로 돈다.
+비동기 FastAPI 로 받아 파드 하나가 요청 128Mi · 한도 512Mi 로 돈다.
 
 ## 트레이드오프
 

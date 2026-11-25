@@ -38,7 +38,7 @@ infrastructure:
         memory: 384Mi
         cpu: 300m
       requests:
-        memory: 128Mi
+        memory: 64Mi
         cpu: 50m
 
   # jdbc-ping 캐시 클러스터(keycloak 26 기본)
@@ -51,10 +51,10 @@ infrastructure:
       kcProxyTrustedAddresses: 10.42.0.0/16  # 파드 대역
     resources:
       limits:
-        memory: 768Mi
+        memory: 1024Mi
         cpu: 500m
       requests:
-        memory: 384Mi
+        memory: 704Mi
         cpu: 50m
 
   # PostgreSQL - AWS RDS 사용
@@ -88,7 +88,7 @@ infrastructure:
         memory: 1Gi
         cpu: 750m
       requests:
-        memory: 512Mi
+        memory: 704Mi
         cpu: 100m
 
   kafkaUi:
@@ -99,7 +99,7 @@ infrastructure:
         memory: 384Mi
         cpu: 200m
       requests:
-        memory: 192Mi
+        memory: 256Mi
         cpu: 50m
 
   tempo:
@@ -128,7 +128,7 @@ configServer:
       memory: 512Mi
       cpu: 1000m
     requests:
-      memory: 256Mi
+      memory: 384Mi
       cpu: 50m
 
 # Gateway Server
@@ -179,7 +179,7 @@ services:
         memory: 1024Mi
         cpu: 600m
       requests:
-        memory: 512Mi
+        memory: 640Mi
         cpu: 50m
 
   tradeService:
@@ -200,7 +200,7 @@ services:
         memory: 1024Mi
         cpu: 600m
       requests:
-        memory: 512Mi
+        memory: 640Mi
         cpu: 50m
 
   marketDataService:
@@ -270,7 +270,7 @@ services:
         memory: 512Mi
         cpu: 400m
       requests:
-        memory: 256Mi
+        memory: 128Mi
         cpu: 50m
 
 # 프론트엔드
@@ -286,7 +286,7 @@ frontend:
       memory: 256Mi
       cpu: 500m
     requests:
-      memory: 128Mi
+      memory: 32Mi
       cpu: 50m
 
 # 네트워크 정책
