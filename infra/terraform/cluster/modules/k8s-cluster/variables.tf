@@ -35,7 +35,7 @@ variable "workers" {
   type        = map(string)
   default = {
     worker-a = "r5a.large"
-    worker-b = "t3.large"
+    worker-b = "r5.large"
   }
 
   validation {

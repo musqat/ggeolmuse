@@ -2,7 +2,7 @@
 
 운영은 EC2 세 대의 kubeadm 클러스터다(2026-11-22 단일 노드 k3s 에서 옮김).
 
-- 컨트롤 플레인 1(t3a.medium 온디맨드) · 워커 2(r5a.large · t3.large 유지 요청 스팟, 둘이 같이 회수되지 않게 종류를 섞음, 회수되면 멈췄다가 다시 뜸)
+- 컨트롤 플레인 1(t3a.medium 온디맨드) · 워커 2(r5a.large · r5.large 유지 요청 스팟, 메모리 16Gi 씩, 둘이 같이 회수되지 않게 종류를 섞음, 회수되면 멈췄다가 다시 뜸)
 - 진입은 Cloudflare Tunnel 이다. cloudflared 둘이 밖으로만 연결하고 경로 규칙으로 서비스에 바로 넘겨, 노드로 들어오는 포트가 없다
 - 앱은 ArgoCD 가 master 의 운영 차트(`infra/k8s/charts/ggeolmuse` 의 `values-prod.yaml`)로 맞춘다
 - RDS · Secrets Manager 는 클러스터 밖이다. 시크릿은 노드 역할로 External Secrets 가 읽는다
