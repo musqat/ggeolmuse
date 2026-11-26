@@ -314,6 +314,7 @@ AI 대화는 5시간 TTL 로 사라지고, 백업 · 이벤트 기록에는 보�
 **브라우저** — nginx 가 CSP · X-Frame-Options · X-Content-Type-Options(nosniff) · Referrer-Policy 를 응답에 넣는다.
 
 **공급망** — 외부 액션은 커밋 SHA, 베이스 이미지는 digest 로 고정하고 Dependabot 이 월 1회 부 · 수 버전 묶음 PR 을 연다(주 버전은 계획해서 따로).
+베이스 이미지보다 늦게 나온 OS 보안 패치는 이미지 빌드가 날짜마다 새로 받는다(같은 날 빌드는 캐시를 쓴다).
 이미지는 Trivy 로 스캔해 CRITICAL · HIGH 를 GitHub Security 탭에 올리고, 고친 버전이 나온 CRITICAL 이 있으면 PR · 릴리스를 막는다
 (예외는 `.trivyignore`). 운영 이미지도 주 1회 다시 스캔하고, 매니페스트 스캔은 보고만 한다. PR 커밋의 secret 은 gitleaks, 코드는 CodeQL 이 본다.
 
