@@ -30,7 +30,8 @@ RUN npm run build
 # Nginx 서버
 FROM nginx:alpine@sha256:fed7e14be83cbd2661a75cdc5b872d936cf155d46c327084d30b8df19ae88d72
 
-# 베이스 이미지가 늦게 따라오는 알파인 보안 패치를 빌드 때 받음
+# 베이스 이미지가 늦게 따라오는 알파인 보안 패치를 빌드 날짜마다 새로 받음
+ARG PATCH_DATE
 RUN apk upgrade --no-cache
 
 # 빌드된 파일을 nginx로 복사

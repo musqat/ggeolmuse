@@ -6,9 +6,10 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 # 런타임 스테이지
 FROM python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
-# 베이스 이미지 뒤에 나온 zlib 보안 수정판
+# 베이스 이미지가 늦게 따라오는 데비안 보안 패치를 빌드 날짜마다 새로 받음
+ARG PATCH_DATE
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends --only-upgrade zlib1g \
+    && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /install /usr/local

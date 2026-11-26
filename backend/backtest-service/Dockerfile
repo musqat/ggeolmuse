@@ -28,7 +28,8 @@ RUN mvn -B clean package -DskipTests -q
 # 런타임 스테이지
 FROM eclipse-temurin:21-jre-alpine@sha256:ac05c3c42b7c2f1a52c9bd52f01041fa1958231b15ebeae7420429cbc5baf474
 
-# 베이스 이미지가 늦게 따라오는 알파인 보안 패치를 빌드 때 받음
+# 베이스 이미지가 늦게 따라오는 알파인 보안 패치를 빌드 날짜마다 새로 받음
+ARG PATCH_DATE
 RUN apk upgrade --no-cache
 
 WORKDIR /app
