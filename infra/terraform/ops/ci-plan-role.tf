@@ -82,6 +82,9 @@ resource "aws_iam_role_policy" "ci_plan" {
           "cloudwatch:ListTagsForResource",
           "events:Describe*",
           "events:List*",
+          "logs:Describe*",
+          "logs:ListTagsForResource",
+          "logs:ListTagsLogGroup",
         ]
         Resource = "*"
       }

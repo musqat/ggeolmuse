@@ -17,6 +17,12 @@ mock_provider "aws" {
   }
 }
 
+# 중지 이벤트 로그 그룹 ARN 을 plan 때 아는 값으로
+override_resource {
+  target = aws_cloudwatch_log_group.stop_alerts
+  values = { arn = "arn:aws:logs:ap-northeast-2:123456789012:log-group:/aws/events/ggeolmuse-stop-alerts" }
+}
+
 # 슬랙 API Destination 만 다른 ARN(주소별 확인 대상과 구별)
 override_resource {
   target = aws_cloudwatch_event_api_destination.slack
@@ -179,6 +185,20 @@ run "rds_stopped_to_slack" {
   }
 }
 
+run "rds_stopped_logged" {
+  command = apply
+
+  # 지우기 금지 운영 자원은 만들지 않음(정리 단계에서 막힘)
+  plan_options {
+    target = [aws_cloudwatch_event_target.rds_stopped_log]
+  }
+
+  assert {
+    condition     = aws_cloudwatch_event_target.rds_stopped_log[0].arn == "arn:aws:logs:ap-northeast-2:123456789012:log-group:/aws/events/ggeolmuse-stop-alerts"
+    error_message = "RDS 중지 이벤트도 노드 중지와 같은 로그 그룹에 남김"
+  }
+}
+
 run "rds_scheduler_failures_alarmed" {
   command = plan
 
@@ -206,8 +226,8 @@ run "no_slack_only_email" {
   }
 
   assert {
-    condition     = length(aws_cloudwatch_metric_alarm.rds) == 3 && length(aws_cloudwatch_event_rule.rds_alarm_notice) == 0 && length(aws_cloudwatch_event_rule.rds_stopped) == 0
-    error_message = "웹훅이 없으면 알람은 이메일로만"
+    condition     = length(aws_cloudwatch_metric_alarm.rds) == 3 && length(aws_cloudwatch_event_rule.rds_alarm_notice) == 0 && length(aws_cloudwatch_event_rule.rds_stopped) == 0 && length(aws_cloudwatch_log_group.stop_alerts) == 0
+    error_message = "웹훅이 없으면 알람은 이메일로만, 중지 이벤트 로그도 없음"
   }
 }
 

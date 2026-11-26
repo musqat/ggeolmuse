@@ -17,6 +17,12 @@ mock_provider "aws" {
   }
 }
 
+# 중지 이벤트 로그 그룹 ARN 을 plan 때 아는 값으로
+override_resource {
+  target = aws_cloudwatch_log_group.stop_alerts
+  values = { arn = "arn:aws:logs:ap-northeast-2:123456789012:log-group:/aws/events/ggeolmuse-stop-alerts" }
+}
+
 # 슬랙 API Destination 만 다른 ARN(주소별 확인 대상과 구별)
 override_resource {
   target = aws_cloudwatch_event_api_destination.slack
@@ -157,6 +163,34 @@ run "nodes_scheduled_and_watched" {
   assert {
     condition     = toset(keys(aws_cloudwatch_metric_alarm.ec2_status_check)) == toset(["control-plane", "worker-medium", "worker-large"]) && aws_cloudwatch_metric_alarm.ec2_status_check["worker-large"].alarm_name == "ggeolmuse-ec2-status-check-worker-large" && aws_cloudwatch_metric_alarm.ec2_status_check["worker-large"].dimensions.InstanceId == "i-0ccccccccccccccc3"
     error_message = "상태 알람이 노드마다 하나, 이름에 노드 이름"
+  }
+}
+
+run "stop_events_logged" {
+  command = apply
+
+  # 지우기 금지 운영 자원은 만들지 않음(정리 단계에서 막힘)
+  plan_options {
+    target = [
+      aws_cloudwatch_event_target.ec2_stopped_log,
+      aws_cloudwatch_log_resource_policy.stop_alerts,
+    ]
+  }
+
+  assert {
+    condition     = aws_cloudwatch_log_group.stop_alerts[0].name == "/aws/events/ggeolmuse-stop-alerts" && aws_cloudwatch_log_group.stop_alerts[0].retention_in_days == 30
+    error_message = "중지 이벤트 로그 그룹은 /aws/events/ 아래, 30일 보관"
+  }
+  assert {
+    condition     = toset(keys(aws_cloudwatch_event_target.ec2_stopped_log)) == toset(["control-plane", "worker-a", "worker-b"]) && aws_cloudwatch_event_target.ec2_stopped_log["worker-a"].arn == "arn:aws:logs:ap-northeast-2:123456789012:log-group:/aws/events/ggeolmuse-stop-alerts"
+    error_message = "노드 중지 규칙마다 슬랙과 함께 로그 그룹에도 남김"
+  }
+  assert {
+    condition = (
+      jsondecode(aws_cloudwatch_log_resource_policy.stop_alerts[0].policy_document).Statement[0].Principal.Service == "events.amazonaws.com" &&
+      jsondecode(aws_cloudwatch_log_resource_policy.stop_alerts[0].policy_document).Statement[0].Resource == "arn:aws:logs:ap-northeast-2:123456789012:log-group:/aws/events/ggeolmuse-stop-alerts:*"
+    )
+    error_message = "EventBridge 만 이 로그 그룹에 씀"
   }
 }
 
