@@ -115,4 +115,11 @@ run "ci_plan_role" {
     ])
     error_message = "시크릿 · 파라미터 · 키를 읽는 동작이 있음"
   }
+  assert {
+    condition = anytrue([
+      for s in jsondecode(aws_iam_role_policy.ci_plan[0].policy).Statement :
+      contains(flatten([s.Action]), "logs:Describe*") && !anytrue([for a in flatten([s.Action]) : can(regex("^logs:Get", a))])
+    ])
+    error_message = "로그 그룹 설정은 읽되 로그 내용은 읽지 않음"
+  }
 }
