@@ -1,4 +1,4 @@
-# RDS 알람(CPU · 남은 저장 공간 · 연결 수) → SNS 이메일 · 슬랙, RDS 중지 → 슬랙
+# RDS 알람(CPU · 남은 저장 공간 · 연결 수) → SNS 이메일 · 슬랙, RDS 시작 · 중지 → 슬랙
 # 꺼져 있는 밤 · 주말은 지표가 없어 treat_missing_data 는 notBreaching
 
 locals {
@@ -166,6 +166,69 @@ resource "aws_cloudwatch_metric_alarm" "rds_stop_alert_failed" {
 
   tags = {
     Name        = "${var.project_name}-rds-stop-alert-failed"
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
+
+# RDS 시작 이벤트 → 기존 슬랙 API Destination
+resource "aws_cloudwatch_event_rule" "rds_started" {
+  count = local.rds_stop_alert
+
+  name        = "${var.project_name}-rds-started"
+  description = "RDS 시작 이벤트 · ${var.rds_instance_id}"
+
+  event_pattern = jsonencode({
+    source        = ["aws.rds"]
+    "detail-type" = ["RDS DB Instance Event"]
+    detail = {
+      EventID          = ["RDS-EVENT-0088"]
+      SourceIdentifier = [var.rds_instance_id]
+    }
+  })
+
+  tags = {
+    Name        = "${var.project_name}-rds-started"
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
+
+resource "aws_cloudwatch_event_target" "rds_started_slack" {
+  count = local.rds_stop_alert
+
+  rule      = aws_cloudwatch_event_rule.rds_started[0].name
+  target_id = "slack"
+  arn       = aws_cloudwatch_event_api_destination.slack[0].arn
+  role_arn  = aws_iam_role.ec2_stop_alert[0].arn
+  input     = jsonencode({ text = "RDS 시작 · ${var.rds_instance_id}" })
+}
+
+# 재시도를 다 써도 슬랙에 못 보낸 경우
+resource "aws_cloudwatch_metric_alarm" "rds_start_alert_failed" {
+  count = local.rds_stop_alert
+
+  alarm_name        = "${var.project_name}-rds-start-alert-failed"
+  alarm_description = "RDS 시작 알림을 슬랙에 보내지 못함"
+
+  namespace   = "AWS/Events"
+  metric_name = "FailedInvocations"
+
+  dimensions = {
+    RuleName = aws_cloudwatch_event_rule.rds_started[0].name
+  }
+
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 0
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = [aws_sns_topic.alarms.arn]
+
+  tags = {
+    Name        = "${var.project_name}-rds-start-alert-failed"
     Environment = var.environment
     ManagedBy   = "terraform"
   }

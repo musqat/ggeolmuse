@@ -185,6 +185,28 @@ run "rds_stopped_to_slack" {
   }
 }
 
+run "rds_started_to_slack" {
+  command = plan
+
+  assert {
+    condition = (
+      jsondecode(aws_cloudwatch_event_rule.rds_started[0].event_pattern).detail.EventID == ["RDS-EVENT-0088"] &&
+      jsondecode(aws_cloudwatch_event_rule.rds_started[0].event_pattern).detail.SourceIdentifier == ["ggeolmuse-postgres"]
+    )
+    error_message = "시작 알림 규칙은 이 RDS 의 시작 이벤트만"
+  }
+
+  assert {
+    condition     = jsondecode(aws_cloudwatch_event_target.rds_started_slack[0].input).text == "RDS 시작 · ggeolmuse-postgres"
+    error_message = "시작 알림 문구에 인스턴스 이름"
+  }
+
+  assert {
+    condition     = aws_cloudwatch_metric_alarm.rds_start_alert_failed[0].dimensions.RuleName == "ggeolmuse-rds-started"
+    error_message = "슬랙 전송 실패 알람이 시작 알림 규칙에 하나"
+  }
+}
+
 run "rds_stopped_logged" {
   command = apply
 
@@ -226,8 +248,8 @@ run "no_slack_only_email" {
   }
 
   assert {
-    condition     = length(aws_cloudwatch_metric_alarm.rds) == 3 && length(aws_cloudwatch_event_rule.rds_alarm_notice) == 0 && length(aws_cloudwatch_event_rule.rds_stopped) == 0 && length(aws_cloudwatch_log_group.stop_alerts) == 0
-    error_message = "웹훅이 없으면 알람은 이메일로만, 중지 이벤트 로그도 없음"
+    condition     = length(aws_cloudwatch_metric_alarm.rds) == 3 && length(aws_cloudwatch_event_rule.rds_alarm_notice) == 0 && length(aws_cloudwatch_event_rule.rds_stopped) == 0 && length(aws_cloudwatch_event_rule.rds_started) == 0 && length(aws_cloudwatch_log_group.stop_alerts) == 0
+    error_message = "웹훅이 없으면 알람은 이메일로만, 시작 · 중지 알림과 중지 이벤트 로그도 없음"
   }
 }
 

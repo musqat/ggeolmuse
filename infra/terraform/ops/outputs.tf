@@ -5,12 +5,12 @@ output "scheduler_role_arn" {
 
 output "scheduler_start_schedule" {
   description = "EC2 시작 스케줄 (cron / 타임존)"
-  value       = "${aws_scheduler_schedule.ec2_start.schedule_expression} (${var.scheduler_timezone})"
+  value       = "${local.ec2_start_cron} (${var.scheduler_timezone})"
 }
 
 output "scheduler_stop_schedule" {
   description = "EC2 중지 스케줄 (cron / 타임존)"
-  value       = "${aws_scheduler_schedule.ec2_stop.schedule_expression} (${var.scheduler_timezone})"
+  value       = "${local.ec2_stop_cron} (${var.scheduler_timezone})"
 }
 
 output "rds_start_schedule" {

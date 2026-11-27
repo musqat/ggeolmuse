@@ -1,4 +1,4 @@
-# EC2 종료 알림(노드마다 EventBridge 규칙 하나가 API Destination 으로 슬랙 웹훅을 직접 호출, 문구에 노드 이름)
+# EC2 시작 · 중지 · 스팟 회수 예고 알림(노드마다 EventBridge 규칙이 API Destination 으로 슬랙 웹훅을 직접 호출, 문구에 노드 이름)
 # 웹훅 URL 은 state 에 평문으로 남음
 
 locals {
@@ -140,6 +140,130 @@ resource "aws_cloudwatch_metric_alarm" "ec2_stop_alert_failed" {
 
   tags = {
     Name        = "${var.project_name}-ec2-stop-alert-failed-${each.key}"
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
+
+resource "aws_cloudwatch_event_rule" "ec2_started" {
+  for_each = local.stop_alert_nodes
+
+  name        = "${var.project_name}-ec2-started-${each.key}"
+  description = "EC2 running 상태 변경 · ${each.key}"
+
+  event_pattern = jsonencode({
+    source        = ["aws.ec2"]
+    "detail-type" = ["EC2 Instance State-change Notification"]
+    detail = {
+      state         = ["running"]
+      "instance-id" = [each.value]
+    }
+  })
+
+  tags = {
+    Name        = "${var.project_name}-ec2-started-${each.key}"
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
+
+resource "aws_cloudwatch_event_target" "ec2_started_slack" {
+  for_each = local.stop_alert_nodes
+
+  rule      = aws_cloudwatch_event_rule.ec2_started[each.key].name
+  target_id = "slack"
+  arn       = aws_cloudwatch_event_api_destination.slack[0].arn
+  role_arn  = aws_iam_role.ec2_stop_alert[0].arn
+  input     = jsonencode({ text = "노드 시작 · ${each.key}" })
+}
+
+# 재시도를 다 써도 슬랙에 못 보낸 경우
+resource "aws_cloudwatch_metric_alarm" "ec2_start_alert_failed" {
+  for_each = local.stop_alert_nodes
+
+  alarm_name        = "${var.project_name}-ec2-start-alert-failed-${each.key}"
+  alarm_description = "EC2 시작 알림을 슬랙에 보내지 못함 · ${each.key}"
+
+  namespace   = "AWS/Events"
+  metric_name = "FailedInvocations"
+
+  dimensions = {
+    RuleName = aws_cloudwatch_event_rule.ec2_started[each.key].name
+  }
+
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 0
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = [aws_sns_topic.alarms.arn]
+
+  tags = {
+    Name        = "${var.project_name}-ec2-start-alert-failed-${each.key}"
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
+
+# 스팟 회수 2분 전 예고(온디맨드 노드는 오지 않음)
+resource "aws_cloudwatch_event_rule" "ec2_spot_warning" {
+  for_each = local.stop_alert_nodes
+
+  name        = "${var.project_name}-ec2-spot-warning-${each.key}"
+  description = "EC2 스팟 회수 예고 · ${each.key}"
+
+  event_pattern = jsonencode({
+    source        = ["aws.ec2"]
+    "detail-type" = ["EC2 Spot Instance Interruption Warning"]
+    detail = {
+      "instance-id" = [each.value]
+    }
+  })
+
+  tags = {
+    Name        = "${var.project_name}-ec2-spot-warning-${each.key}"
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
+
+resource "aws_cloudwatch_event_target" "ec2_spot_warning_slack" {
+  for_each = local.stop_alert_nodes
+
+  rule      = aws_cloudwatch_event_rule.ec2_spot_warning[each.key].name
+  target_id = "slack"
+  arn       = aws_cloudwatch_event_api_destination.slack[0].arn
+  role_arn  = aws_iam_role.ec2_stop_alert[0].arn
+  input     = jsonencode({ text = "스팟 회수 예고 · ${each.key} (2분 뒤 중지)" })
+}
+
+# 재시도를 다 써도 슬랙에 못 보낸 경우
+resource "aws_cloudwatch_metric_alarm" "ec2_spot_warning_alert_failed" {
+  for_each = local.stop_alert_nodes
+
+  alarm_name        = "${var.project_name}-ec2-spot-warning-alert-failed-${each.key}"
+  alarm_description = "스팟 회수 예고를 슬랙에 보내지 못함 · ${each.key}"
+
+  namespace   = "AWS/Events"
+  metric_name = "FailedInvocations"
+
+  dimensions = {
+    RuleName = aws_cloudwatch_event_rule.ec2_spot_warning[each.key].name
+  }
+
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 0
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = [aws_sns_topic.alarms.arn]
+
+  tags = {
+    Name        = "${var.project_name}-ec2-spot-warning-alert-failed-${each.key}"
     Environment = var.environment
     ManagedBy   = "terraform"
   }
