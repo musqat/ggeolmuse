@@ -218,6 +218,43 @@ run "nodes_started_quiet_without_slack" {
     condition     = length(aws_cloudwatch_event_rule.ec2_started) == 0 && length(aws_cloudwatch_metric_alarm.ec2_start_alert_failed) == 0
     error_message = "웹훅이 없으면 시작 알림 없음"
   }
+  assert {
+    condition     = length(aws_cloudwatch_event_rule.ec2_spot_warning) == 0 && length(aws_cloudwatch_metric_alarm.ec2_spot_warning_alert_failed) == 0
+    error_message = "웹훅이 없으면 스팟 회수 예고 없음"
+  }
+}
+
+run "spot_warning_to_slack" {
+  command = apply
+
+  plan_options {
+    target = [
+      aws_cloudwatch_event_target.ec2_spot_warning_slack,
+      aws_cloudwatch_event_target.ec2_spot_warning_log,
+      aws_cloudwatch_metric_alarm.ec2_spot_warning_alert_failed,
+    ]
+  }
+
+  assert {
+    condition = (
+      toset(keys(aws_cloudwatch_event_rule.ec2_spot_warning)) == toset(["control-plane", "worker-a", "worker-b"]) &&
+      jsondecode(aws_cloudwatch_event_rule.ec2_spot_warning["worker-a"].event_pattern)["detail-type"] == ["EC2 Spot Instance Interruption Warning"] &&
+      jsondecode(aws_cloudwatch_event_rule.ec2_spot_warning["worker-a"].event_pattern).detail["instance-id"] == ["i-0bbbbbbbbbbbbbbb2"]
+    )
+    error_message = "스팟 회수 예고 규칙이 노드마다 하나, 그 노드의 예고만"
+  }
+  assert {
+    condition     = jsondecode(aws_cloudwatch_event_target.ec2_spot_warning_slack["worker-a"].input).text == "스팟 회수 예고 · worker-a (2분 뒤 중지)"
+    error_message = "회수 예고 문구에 노드 이름"
+  }
+  assert {
+    condition     = aws_cloudwatch_event_target.ec2_spot_warning_log["worker-a"].arn == "arn:aws:logs:ap-northeast-2:123456789012:log-group:/aws/events/ggeolmuse-stop-alerts"
+    error_message = "회수 예고 원문도 중지 이벤트 로그 그룹에"
+  }
+  assert {
+    condition     = aws_cloudwatch_metric_alarm.ec2_spot_warning_alert_failed["worker-a"].dimensions.RuleName == "ggeolmuse-ec2-spot-warning-worker-a"
+    error_message = "슬랙 전송 실패 알람이 회수 예고 규칙마다 하나"
+  }
 }
 
 run "stop_events_logged" {
