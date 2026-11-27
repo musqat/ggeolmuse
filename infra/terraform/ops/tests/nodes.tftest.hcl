@@ -178,6 +178,48 @@ run "nodes_scheduled_and_watched" {
   }
 }
 
+run "nodes_started_to_slack" {
+  command = plan
+
+  variables {
+    scheduled_instances = {
+      control-plane = "i-0aaaaaaaaaaaaaaa1"
+      worker-medium = "i-0bbbbbbbbbbbbbbb2"
+      worker-large  = "i-0ccccccccccccccc3"
+    }
+  }
+
+  assert {
+    condition = (
+      toset(keys(aws_cloudwatch_event_rule.ec2_started)) == toset(["control-plane", "worker-medium", "worker-large"]) &&
+      jsondecode(aws_cloudwatch_event_rule.ec2_started["worker-large"].event_pattern).detail.state == ["running"] &&
+      jsondecode(aws_cloudwatch_event_rule.ec2_started["worker-large"].event_pattern).detail["instance-id"] == ["i-0ccccccccccccccc3"]
+    )
+    error_message = "시작 알림 규칙이 노드마다 하나, 그 노드가 running 이 될 때만"
+  }
+  assert {
+    condition     = jsondecode(aws_cloudwatch_event_target.ec2_started_slack["worker-large"].input).text == "노드 시작 · worker-large"
+    error_message = "시작 알림 문구에 노드 이름"
+  }
+  assert {
+    condition     = aws_cloudwatch_metric_alarm.ec2_start_alert_failed["worker-large"].dimensions.RuleName == "ggeolmuse-ec2-started-worker-large"
+    error_message = "슬랙 전송 실패 알람이 시작 알림 규칙마다 하나"
+  }
+}
+
+run "nodes_started_quiet_without_slack" {
+  command = plan
+
+  variables {
+    slack_webhook_url = ""
+  }
+
+  assert {
+    condition     = length(aws_cloudwatch_event_rule.ec2_started) == 0 && length(aws_cloudwatch_metric_alarm.ec2_start_alert_failed) == 0
+    error_message = "웹훅이 없으면 시작 알림 없음"
+  }
+}
+
 run "stop_events_logged" {
   command = apply
 
