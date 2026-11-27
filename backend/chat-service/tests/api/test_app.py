@@ -1,7 +1,11 @@
+import asyncio
+import socket
+
 import httpx
 import pytest
 import respx
 from fastapi.testclient import TestClient
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from app.config import Settings
 from app.core.chat_service import ChatService
@@ -34,6 +38,25 @@ def test_redis_client_sends_password_when_set(password, sent):
     # 운영 · 로컬 Redis 는 requirepass(비밀번호 없는 Redis 에는 안 보냄)
     redis = build_redis(Settings(redis_password=password))
     assert redis.connection_pool.connection_kwargs["password"] == sent
+
+
+async def test_redis_client_gives_up_on_a_silent_server():
+    # 연결만 받고 답하지 않는 서버
+    with socket.socket() as silent:
+        silent.bind(("127.0.0.1", 0))
+        silent.listen()
+        redis = build_redis(Settings(redis_host="127.0.0.1", redis_port=silent.getsockname()[1],
+                                     redis_timeout_seconds=0.2))
+        try:
+            with pytest.raises(RedisTimeoutError):
+                await asyncio.wait_for(redis.get("k"), timeout=3)
+        finally:
+            await redis.aclose()
+
+
+def test_redis_client_limits_connect_time():
+    redis = build_redis(Settings(redis_timeout_seconds=0.2))
+    assert redis.connection_pool.connection_kwargs["socket_connect_timeout"] == 0.2
 
 
 def test_verifier_takes_issuers_and_clients_from_settings():

@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     market_timeout_seconds: float = 5.0
     router_timeout_seconds: float = 5.0
     answer_timeout_seconds: float = 15.0
+    redis_timeout_seconds: float = 2.0  # 연결 · 응답 각각
 
 
 settings = Settings()

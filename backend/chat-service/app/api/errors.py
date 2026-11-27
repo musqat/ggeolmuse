@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 from http import HTTPStatus
 
+import redis
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -36,10 +37,13 @@ ERROR_CODES: dict[type[Exception], tuple[int, str]] = {
     AuthUnavailable: (503, "AUTH_UNAVAILABLE"),
     MarketUnavailable: (503, "MARKET_UNAVAILABLE"),
     AiUnavailable: (503, "AI_UNAVAILABLE"),
+    # Redis 연결 실패 · 시간 초과(한도를 못 세므로 막음)
+    redis.exceptions.ConnectionError: (503, "STORE_UNAVAILABLE"),
+    redis.exceptions.TimeoutError: (503, "STORE_UNAVAILABLE"),
 }
 
 
-OUTAGES = ("AUTH_UNAVAILABLE", "MARKET_UNAVAILABLE", "AI_UNAVAILABLE")
+OUTAGES = ("AUTH_UNAVAILABLE", "MARKET_UNAVAILABLE", "AI_UNAVAILABLE", "STORE_UNAVAILABLE")
 
 INTERNAL_ERROR = "INTERNAL_SERVER_ERROR"
 

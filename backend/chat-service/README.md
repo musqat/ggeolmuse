@@ -44,6 +44,7 @@ app/
 
 **장애**
 - 시세 5초 · 스킬 고르기 5초 · 답 15초가 넘으면 실패로 끝내고 재시도하지 않는다. 게이트웨이 30초 안에 끝난다
+- Redis 연결 · 응답이 2초를 넘거나 연결에 실패하면 `STORE_UNAVAILABLE` 로 끝낸다. 한도를 셀 수 없어 질문도 받지 않는다
 - 거절 · 장애면 한도 칸을 돌려준다
 
 **처리 흐름**
@@ -62,7 +63,7 @@ GET /api/chat/quota   (JWT)
   → { remaining }
 ```
 
-오류 본문은 자바 서비스와 같은 ProblemDetail 이고 코드는 `errorCode`, 문구는 `detail` 에 있다. `VALIDATION_ERROR`(400), `UNAUTHORIZED`(401), `SYMBOL_NOT_FOUND` · `CONVERSATION_NOT_FOUND`(404), `QUOTA_EXCEEDED`(429), `MARKET_UNAVAILABLE` · `AI_UNAVAILABLE` · `AUTH_UNAVAILABLE`(503), `INTERNAL_SERVER_ERROR`(500).
+오류 본문은 자바 서비스와 같은 ProblemDetail 이고 코드는 `errorCode`, 문구는 `detail` 에 있다. `VALIDATION_ERROR`(400), `UNAUTHORIZED`(401), `SYMBOL_NOT_FOUND` · `CONVERSATION_NOT_FOUND`(404), `QUOTA_EXCEEDED`(429), `MARKET_UNAVAILABLE` · `AI_UNAVAILABLE` · `AUTH_UNAVAILABLE` · `STORE_UNAVAILABLE`(503), `INTERNAL_SERVER_ERROR`(500).
 
 ## 테스트
 

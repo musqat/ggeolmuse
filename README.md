@@ -183,7 +183,7 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 | config-server | 5 |
 | ggeolmuse-common | 80 |
 | messaging | 26 |
-| chat-service | 176 |
+| chat-service | 180 |
 | frontend-web | 1,772 |
 | E2E (Playwright) | 72 |
 
