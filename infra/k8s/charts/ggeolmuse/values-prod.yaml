@@ -44,9 +44,9 @@ infrastructure:
         memory: 64Mi
         cpu: 50m
 
-  # 한 대(재시작 · 이동 동안 로그인 · 토큰 갱신 멈춤)
+  # 워커마다 한 대, jdbc-ping 캐시 클러스터(keycloak 26 기본)
   keycloak:
-    replicas: 1
+    replicas: 2
     env:
       kcDbVendor: postgres  # RDS PostgreSQL 사용
       kcDbUrl: jdbc:postgresql://ggeolmuse-postgres.cxa6ioco4fhg.ap-northeast-2.rds.amazonaws.com:5432/keycloak
