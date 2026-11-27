@@ -218,3 +218,52 @@ run "backup_writer_roles" {
     error_message = "더한 역할마다 백업 쓰기 정책 하나"
   }
 }
+
+run "schedule_failures_to_slack" {
+  command = apply
+
+  # 지우기 금지 운영 자원은 만들지 않음(정리 단계에서 막힘)
+  plan_options {
+    target = [
+      aws_cloudwatch_event_target.schedule_alarm_notice,
+      aws_cloudwatch_metric_alarm.schedule_alarm_notice_failed,
+    ]
+  }
+
+  assert {
+    condition = toset(jsondecode(aws_cloudwatch_event_rule.schedule_alarm_notice[0].event_pattern).detail.alarmName) == toset([
+      "ggeolmuse-scheduler-target-error", "ggeolmuse-scheduler-invocation-dropped",
+      "ggeolmuse-rds-scheduler-target-error", "ggeolmuse-rds-scheduler-invocation-dropped",
+      "ggeolmuse-uptime-schedule-target-error", "ggeolmuse-uptime-schedule-invocation-dropped",
+    ])
+    error_message = "EC2 · RDS · 사이트 확인 스케줄의 실패 알람 여섯을 슬랙 규칙 하나가 봄"
+  }
+  assert {
+    condition     = jsondecode(aws_cloudwatch_event_rule.schedule_alarm_notice[0].event_pattern).detail.state.value == ["ALARM"]
+    error_message = "알람이 될 때만 보냄"
+  }
+  assert {
+    condition = (
+      aws_cloudwatch_event_target.schedule_alarm_notice[0].arn == "arn:aws:events:ap-northeast-2:123456789012:api-destination/ggeolmuse-slack/x" &&
+      jsondecode(aws_cloudwatch_event_target.schedule_alarm_notice[0].input_transformer[0].input_template).text == "스케줄 실패 · <desc>"
+    )
+    error_message = "슬랙에 알람 설명 한 줄"
+  }
+  assert {
+    condition     = aws_cloudwatch_metric_alarm.schedule_alarm_notice_failed[0].dimensions.RuleName == "ggeolmuse-schedule-alarm-notice"
+    error_message = "슬랙에 못 보내면 이메일 알람"
+  }
+}
+
+run "schedule_failures_email_only_without_slack" {
+  command = plan
+
+  variables {
+    slack_webhook_url = ""
+  }
+
+  assert {
+    condition     = length(aws_cloudwatch_event_rule.schedule_alarm_notice) == 0 && length(aws_cloudwatch_metric_alarm.schedule_alarm_notice_failed) == 0
+    error_message = "웹훅이 없으면 슬랙 규칙 없음(이메일만)"
+  }
+}

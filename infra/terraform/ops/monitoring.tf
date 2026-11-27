@@ -165,3 +165,77 @@ resource "aws_cloudwatch_metric_alarm" "ec2_status_check" {
     ManagedBy   = "terraform"
   }
 }
+
+# EC2 · RDS · 사이트 확인 스케줄 실패 알람 → 기존 슬랙 API Destination(웹훅이 없으면 이메일만)
+resource "aws_cloudwatch_event_rule" "schedule_alarm_notice" {
+  count = nonsensitive(local.stop_alert_enabled) ? 1 : 0
+
+  name        = "${var.project_name}-schedule-alarm-notice"
+  description = "스케줄 실패 알람 ALARM"
+
+  event_pattern = jsonencode({
+    source        = ["aws.cloudwatch"]
+    "detail-type" = ["CloudWatch Alarm State Change"]
+    detail = {
+      alarmName = concat(
+        [aws_cloudwatch_metric_alarm.scheduler_target_error.alarm_name, aws_cloudwatch_metric_alarm.scheduler_invocation_dropped.alarm_name],
+        aws_cloudwatch_metric_alarm.rds_scheduler_target_error[*].alarm_name,
+        aws_cloudwatch_metric_alarm.rds_scheduler_invocation_dropped[*].alarm_name,
+        [for a in aws_cloudwatch_metric_alarm.uptime_schedule : a.alarm_name],
+      )
+      state = { value = ["ALARM"] }
+    }
+  })
+
+  tags = {
+    Name        = "${var.project_name}-schedule-alarm-notice"
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
+
+resource "aws_cloudwatch_event_target" "schedule_alarm_notice" {
+  count = length(aws_cloudwatch_event_rule.schedule_alarm_notice)
+
+  rule      = aws_cloudwatch_event_rule.schedule_alarm_notice[0].name
+  target_id = "slack"
+  arn       = aws_cloudwatch_event_api_destination.slack[0].arn
+  role_arn  = aws_iam_role.ec2_stop_alert[0].arn
+
+  input_transformer {
+    input_paths = {
+      desc = "$.detail.configuration.description"
+    }
+    input_template = "{\"text\": \"스케줄 실패 · <desc>\"}"
+  }
+}
+
+# 재시도를 다 써도 슬랙에 못 보낸 경우
+resource "aws_cloudwatch_metric_alarm" "schedule_alarm_notice_failed" {
+  count = length(aws_cloudwatch_event_rule.schedule_alarm_notice)
+
+  alarm_name        = "${var.project_name}-schedule-alarm-notice-failed"
+  alarm_description = "스케줄 실패 알람을 슬랙에 보내지 못함"
+
+  namespace   = "AWS/Events"
+  metric_name = "FailedInvocations"
+
+  dimensions = {
+    RuleName = aws_cloudwatch_event_rule.schedule_alarm_notice[0].name
+  }
+
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 0
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = [aws_sns_topic.alarms.arn]
+
+  tags = {
+    Name        = "${var.project_name}-schedule-alarm-notice-failed"
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
