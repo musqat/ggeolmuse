@@ -6,6 +6,8 @@ locals {
   ec2_instance_arns   = [for id in values(local.scheduled_instances) : "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/${id}"]
   # EC2 평일 시작 · 중지와 가동 확인 스케줄 상태
   ec2_schedule_state = coalesce(var.ec2_scheduler_enabled, var.scheduler_enabled) ? "ENABLED" : "DISABLED"
+  ec2_start_cron     = "cron(${var.scheduler_start_minute} ${var.scheduler_start_hour} ? * ${var.scheduler_days} *)"
+  ec2_stop_cron      = "cron(${var.scheduler_stop_minute} ${var.scheduler_stop_hour} ? * ${var.scheduler_days} *)"
 }
 
 # Scheduler가 EC2를 제어할 때 사용할 역할
@@ -68,12 +70,15 @@ resource "aws_scheduler_schedule_group" "ec2_scheduler" {
   }
 }
 
+# 노드마다 스케줄 하나(한 노드가 못 켜져도 나머지는 켜짐)
 resource "aws_scheduler_schedule" "ec2_start" {
-  name       = "${var.project_name}-ec2-start"
+  for_each = local.scheduled_instances
+
+  name       = "${var.project_name}-ec2-start-${each.key}"
   group_name = aws_scheduler_schedule_group.ec2_scheduler.name
   state      = local.ec2_schedule_state
 
-  schedule_expression          = "cron(${var.scheduler_start_minute} ${var.scheduler_start_hour} ? * ${var.scheduler_days} *)"
+  schedule_expression          = local.ec2_start_cron
   schedule_expression_timezone = var.scheduler_timezone
 
   flexible_time_window {
@@ -85,7 +90,7 @@ resource "aws_scheduler_schedule" "ec2_start" {
     role_arn = aws_iam_role.ec2_scheduler.arn
 
     input = jsonencode({
-      InstanceIds = values(local.scheduled_instances)
+      InstanceIds = [each.value]
     })
 
     retry_policy {
@@ -98,12 +103,15 @@ resource "aws_scheduler_schedule" "ec2_start" {
   depends_on = [aws_iam_role_policy.ec2_scheduler]
 }
 
+# 노드마다 스케줄 하나(한 노드를 못 꺼도 나머지는 꺼짐)
 resource "aws_scheduler_schedule" "ec2_stop" {
-  name       = "${var.project_name}-ec2-stop"
+  for_each = local.scheduled_instances
+
+  name       = "${var.project_name}-ec2-stop-${each.key}"
   group_name = aws_scheduler_schedule_group.ec2_scheduler.name
   state      = local.ec2_schedule_state
 
-  schedule_expression          = "cron(${var.scheduler_stop_minute} ${var.scheduler_stop_hour} ? * ${var.scheduler_days} *)"
+  schedule_expression          = local.ec2_stop_cron
   schedule_expression_timezone = var.scheduler_timezone
 
   flexible_time_window {
@@ -115,7 +123,7 @@ resource "aws_scheduler_schedule" "ec2_stop" {
     role_arn = aws_iam_role.ec2_scheduler.arn
 
     input = jsonencode({
-      InstanceIds = values(local.scheduled_instances)
+      InstanceIds = [each.value]
     })
 
     retry_policy {

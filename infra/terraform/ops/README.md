@@ -9,7 +9,7 @@
   - RDS `rds_instance_id`(PostgreSQL 15 · db.t4g.micro · Single-AZ, 저장 공간 자동 늘리기 1000GB 까지 · Performance Insights, 자동 백업 7일 · 창 08:10 ~ 08:40 KST · 삭제 보호 · 지울 때 최종 스냅숏)
   - 상태 버킷 `ggeolmuse-tfstate-apne2`(버전 관리 · SSE-S3 · 퍼블릭 차단)
   - 모두 `prevent_destroy` 라 plan 이 교체 · 삭제를 잡으면 오류로 멈춘다
-- EventBridge 스케줄러: k8s 노드 셋(`scheduled_instances`) / RDS 평일 시작·중지 (`scheduler.tf`, `rds-scheduler.tf`)
+- EventBridge 스케줄러: k8s 노드 셋(`scheduled_instances`, 노드마다 따로) / RDS 평일 시작·중지 (`scheduler.tf`, `rds-scheduler.tf`)
 - CloudWatch 알람 + SNS 이메일: EC2 · RDS 스케줄 실패 · 노드마다 상태 검사 실패 (`monitoring.tf`)
 - RDS CloudWatch 알람: CPU 5분 평균 80% 초과 15분 · 남은 저장 공간 2GiB 미만 · 연결 수 5분 최댓값 70 초과 10분 (`rds-alarms.tf`).
   SNS 이메일로 오고, `slack_webhook_url` 이 있으면 슬랙에도 알람 · 복구 한 줄씩. RDS 가 꺼진 밤 · 주말은 지표가 없어 알람이

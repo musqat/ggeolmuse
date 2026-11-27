@@ -71,7 +71,7 @@ run "scheduler_enabled_turns_all_off" {
   }
 
   assert {
-    condition = alltrue([for s in concat([aws_scheduler_schedule.ec2_start, aws_scheduler_schedule.ec2_stop],
+    condition = alltrue([for s in concat(values(aws_scheduler_schedule.ec2_start), values(aws_scheduler_schedule.ec2_stop),
     aws_scheduler_schedule.rds_start, aws_scheduler_schedule.rds_stop, values(aws_scheduler_schedule.uptime)) : s.state == "DISABLED"])
     error_message = "scheduler_enabled 를 끄면 EC2 · RDS · 가동 확인 스케줄이 모두 꺼짐"
   }
@@ -85,7 +85,7 @@ run "ec2_off_keeps_rds" {
   }
 
   assert {
-    condition     = aws_scheduler_schedule.ec2_start.state == "DISABLED" && aws_scheduler_schedule.ec2_stop.state == "DISABLED"
+    condition     = alltrue([for s in concat(values(aws_scheduler_schedule.ec2_start), values(aws_scheduler_schedule.ec2_stop)) : s.state == "DISABLED"])
     error_message = "ec2_scheduler_enabled 를 끄면 EC2 시작 · 중지가 꺼짐"
   }
   assert {
@@ -110,7 +110,7 @@ run "rds_off_keeps_ec2" {
     error_message = "rds_scheduler_enabled 를 끄면 RDS 시작 · 중지가 꺼짐"
   }
   assert {
-    condition     = aws_scheduler_schedule.ec2_start.state == "ENABLED" && alltrue([for s in aws_scheduler_schedule.uptime : s.state == "ENABLED"])
+    condition     = alltrue([for s in concat(values(aws_scheduler_schedule.ec2_start), values(aws_scheduler_schedule.uptime)) : s.state == "ENABLED"])
     error_message = "RDS 만 끄면 EC2 · 가동 확인은 그대로"
   }
 }
@@ -137,12 +137,24 @@ run "nodes_scheduled_and_watched" {
   }
 
   assert {
-    condition     = toset(jsondecode(aws_scheduler_schedule.ec2_start.target[0].input).InstanceIds) == toset(["i-0aaaaaaaaaaaaaaa1", "i-0bbbbbbbbbbbbbbb2", "i-0ccccccccccccccc3"])
-    error_message = "평일 시작이 노드 셋을 같이 켬"
+    condition = (
+      toset(keys(aws_scheduler_schedule.ec2_start)) == toset(["control-plane", "worker-medium", "worker-large"]) &&
+      jsondecode(aws_scheduler_schedule.ec2_start["worker-large"].target[0].input).InstanceIds == ["i-0ccccccccccccccc3"] &&
+      aws_scheduler_schedule.ec2_start["worker-large"].name == "ggeolmuse-ec2-start-worker-large"
+    )
+    error_message = "평일 시작은 노드마다 스케줄 하나, 그 노드만 켬(한 노드 실패가 다른 노드를 막지 않음)"
   }
   assert {
-    condition     = toset(jsondecode(aws_scheduler_schedule.ec2_stop.target[0].input).InstanceIds) == toset(["i-0aaaaaaaaaaaaaaa1", "i-0bbbbbbbbbbbbbbb2", "i-0ccccccccccccccc3"])
-    error_message = "평일 중지가 노드 셋을 같이 끔"
+    condition = (
+      toset(keys(aws_scheduler_schedule.ec2_stop)) == toset(["control-plane", "worker-medium", "worker-large"]) &&
+      jsondecode(aws_scheduler_schedule.ec2_stop["worker-large"].target[0].input).InstanceIds == ["i-0ccccccccccccccc3"] &&
+      aws_scheduler_schedule.ec2_stop["worker-large"].name == "ggeolmuse-ec2-stop-worker-large"
+    )
+    error_message = "평일 중지는 노드마다 스케줄 하나, 그 노드만 끔"
+  }
+  assert {
+    condition     = alltrue([for s in concat(values(aws_scheduler_schedule.ec2_start), values(aws_scheduler_schedule.ec2_stop)) : s.group_name == "ggeolmuse-ec2-scheduler"])
+    error_message = "노드 스케줄은 모두 한 그룹(실패 알람이 그룹 단위)"
   }
   assert {
     condition     = length(jsondecode(aws_iam_role_policy.ec2_scheduler.policy).Statement[0].Resource) == 3 && alltrue([for a in jsondecode(aws_iam_role_policy.ec2_scheduler.policy).Statement[0].Resource : startswith(a, "arn:aws:ec2:ap-northeast-2:123456789012:instance/i-0")])
