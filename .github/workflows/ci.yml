@@ -358,6 +358,16 @@ jobs:
             --show-only templates/infrastructure/kafka-exporter.yaml | grep -A1 'initContainers:' | grep -q 'name: wait-for-kafka' \
             || { echo "::error::kafka-exporter 에 Kafka 를 기다리는 init 컨테이너(wait-for-kafka)가 없음"; exit 1; }
 
+      # 노드 하나를 잃어도 로그인이 이어지는 Keycloak 두 대와 캐시 클러스터 포트 확인
+      - name: 멀티 노드 Keycloak
+        run: |
+          helm template ggeolmuse infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml \
+            --show-only templates/infrastructure/keycloak.yaml | grep -q '^  replicas: 2$' \
+            || { echo "::error::운영 Keycloak 이 두 대가 아님"; exit 1; }
+          helm template ggeolmuse infra/k8s/charts/ggeolmuse -f infra/k8s/charts/ggeolmuse/values-prod.yaml \
+            --show-only templates/networkpolicy.yaml | grep -q 'port: 7800$' \
+            || { echo "::error::Keycloak 캐시 클러스터 포트(7800) 정책 없음"; exit 1; }
+
       # 노드 셋이 같이 켜질 때 자바 앱(kafka-ui 포함) 동시 기동을 견디는 기동 검사 허용 시간(10분 이상) 확인
       - name: 멀티 노드 자바 앱 기동 검사 허용 시간
         run: |

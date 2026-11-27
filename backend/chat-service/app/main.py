@@ -36,9 +36,11 @@ def build_openai(config: Settings) -> OpenAI:
 
 
 def build_redis(config: Settings) -> aioredis.Redis:
-    """Redis 클라이언트(운영 · 로컬 Redis 는 requirepass 로 비밀번호 요구)"""
+    """Redis 클라이언트(운영 · 로컬 Redis 는 requirepass 로 비밀번호 요구, 연결 · 응답 시간 제한)"""
     return aioredis.Redis(host=config.redis_host, port=config.redis_port,
-                          password=config.redis_password or None, decode_responses=True)
+                          password=config.redis_password or None, decode_responses=True,
+                          socket_connect_timeout=config.redis_timeout_seconds,
+                          socket_timeout=config.redis_timeout_seconds)
 
 
 def build_verifier(config: Settings) -> JwksVerifier:

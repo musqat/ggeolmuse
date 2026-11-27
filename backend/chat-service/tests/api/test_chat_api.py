@@ -1,6 +1,7 @@
 import logging
 
 import pytest
+import redis
 from fastapi.testclient import TestClient
 
 from app.api.auth import current_user_id
@@ -168,6 +169,26 @@ def test_quota_error_is_500_with_code(env, monkeypatch, caplog):
         res = env.client.get("/api/chat/quota")
     assert (res.status_code, res.json()["errorCode"], res.json()["instance"]) == (500, "INTERNAL_SERVER_ERROR", "/api/chat/quota")
     assert "quota user=" in caplog.text and "outcome=error:INTERNAL_SERVER_ERROR" in caplog.text
+
+
+@pytest.mark.parametrize("failure", [
+    redis.exceptions.ConnectionError("Error 111 connecting to redis:6379"),
+    redis.exceptions.TimeoutError("Timeout reading from redis:6379"),
+])
+def test_store_outage_is_503(env, monkeypatch, caplog, failure):
+    async def down(*args, **kwargs):
+        raise failure
+
+    monkeypatch.setattr(env.quota, "remaining", down)
+    with caplog.at_level(logging.WARNING, logger="chat"):
+        res = env.client.get("/api/chat/quota")
+    assert (res.status_code, res.json()["errorCode"], res.json()["errorType"]) == (503, "STORE_UNAVAILABLE", "EXTERNAL_SERVICE")
+    assert "outcome=error:STORE_UNAVAILABLE" in caplog.text and "Traceback" not in caplog.text
+
+    monkeypatch.undo()
+    conversation_id = env.start().json()["conversation_id"]
+    monkeypatch.setattr(env.quota, "try_acquire", down)
+    assert env.ask(conversation_id).json()["errorCode"] == "STORE_UNAVAILABLE"
 
 
 def test_invalid_body_is_400_validation_problem(env):

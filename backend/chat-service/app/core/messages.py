@@ -14,6 +14,7 @@ ERRORS = {
     "AUTH_UNAVAILABLE": "인증 서버에 연결할 수 없습니다.",
     "MARKET_UNAVAILABLE": "시세 데이터 조회에 실패했습니다.",
     "AI_UNAVAILABLE": "AI 응답 생성에 실패했습니다.",
+    "STORE_UNAVAILABLE": "대화 저장소에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.",
     "VALIDATION_ERROR": "입력값 검증에 실패했습니다.",
     "INTERNAL_SERVER_ERROR": "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
 }
