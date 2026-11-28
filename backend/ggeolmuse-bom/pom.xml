@@ -11,25 +11,37 @@
     <packaging>pom</packaging>
 
     <name>GGeolmuse BOM</name>
-    <description>GGeolmuse 서비스가 같이 쓰는 의존성 버전</description>
+    <description>GGeolmuse 모듈이 부모로 쓰는 의존성 버전 · 빌드 설정</description>
 
     <properties>
+        <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-        <!-- Spring Boot and Cloud versions -->
+        <!-- Spring Boot · Cloud -->
         <spring-boot.version>4.2.0</spring-boot.version>
         <spring-cloud.version>2026.0.0</spring-cloud.version>
 
-        <!-- Dependency versions -->
+        <!-- 라이브러리 -->
         <querydsl.version>7.8</querydsl.version>
         <lombok.version>1.18.48</lombok.version>
         <springdoc.version>3.2.1</springdoc.version>
         <resilience4j.version>2.4.0</resilience4j.version>
         <shedlock.version>7.12.0</shedlock.version>
+        <testcontainers-redis.version>2.2.4</testcontainers-redis.version>
 
         <!-- Kafka 클라이언트가 끌어오는 압축 라이브러리 보안 패치(아래 dependencyManagement 항목과 짝) -->
         <lz4.version>1.14.1</lz4.version>
         <snappy.version>1.1.10.12</snappy.version>
+
+        <!-- 빌드 플러그인 -->
+        <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
+        <maven-failsafe-plugin.version>3.6.1</maven-failsafe-plugin.version>
+        <jacoco-maven-plugin.version>0.8.16</jacoco-maven-plugin.version>
+
+        <!-- 모듈 전체 최소 커버리지(모듈 pom 에서 덮어씀) -->
+        <jacoco.line.minimum>0.90</jacoco.line.minimum>
+        <jacoco.branch.minimum>0.80</jacoco.branch.minimum>
     </properties>
 
     <dependencyManagement>
@@ -70,14 +82,12 @@
                 <scope>import</scope>
             </dependency>
 
-            <!-- 서블릿 서비스 공통 코드 · 의존성 -->
+            <!-- 내부 모듈 -->
             <dependency>
                 <groupId>com.muscat</groupId>
                 <artifactId>ggeolmuse-common</artifactId>
                 <version>1.0.0</version>
             </dependency>
-
-            <!-- Messaging Library -->
             <dependency>
                 <groupId>com.muscat</groupId>
                 <artifactId>messaging</artifactId>
@@ -102,7 +112,7 @@
                 <classifier>jpa</classifier>
             </dependency>
 
-            <!-- SpringDoc OpenAPI - webmvc 는 서비스, webflux 는 게이트웨이가 쓴다 -->
+            <!-- SpringDoc OpenAPI(webmvc 는 서비스, webflux 는 게이트웨이) -->
             <dependency>
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
@@ -128,6 +138,13 @@
                 <version>${lombok.version}</version>
             </dependency>
 
+            <!-- Redis Testcontainers -->
+            <dependency>
+                <groupId>com.redis</groupId>
+                <artifactId>testcontainers-redis</artifactId>
+                <version>${testcontainers-redis.version}</version>
+            </dependency>
+
             <!-- 전이 의존이라 여기서 버전을 올려 잡는다 -->
             <dependency>
                 <groupId>at.yawk.lz4</groupId>
@@ -141,5 +158,135 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <!-- 모든 모듈이 쓰는 의존성 -->
+    <dependencies>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <!-- 실행 jar 묶기 -->
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>${spring-boot.version}</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>repackage</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                    <configuration>
+                        <excludes>
+                            <exclude>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                            </exclude>
+                        </excludes>
+                    </configuration>
+                </plugin>
+
+                <!-- 컴파일 · 롬복 처리기(버전은 위 dependencyManagement) -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven-compiler-plugin.version}</version>
+                    <configuration>
+                        <parameters>true</parameters>
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                            </path>
+                        </annotationProcessorPaths>
+                    </configuration>
+                </plugin>
+
+                <!-- 통합 테스트(*IT, verify 단계, Docker 필요) -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>${maven-failsafe-plugin.version}</version>
+                    <configuration>
+                        <!-- repackage 된 jar 대신 컴파일된 클래스로 실행 -->
+                        <classesDirectory>${project.build.outputDirectory}</classesDirectory>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>integration-test</goal>
+                                <goal>verify</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <!-- 커버리지 보고서 · 최소 커버리지 검사(통합 테스트 뒤 verify 단계) -->
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>${jacoco-maven-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>prepare-agent</goal>
+                            </goals>
+                        </execution>
+                        <execution>
+                            <id>report</id>
+                            <phase>verify</phase>
+                            <goals>
+                                <goal>report</goal>
+                            </goals>
+                        </execution>
+                        <execution>
+                            <id>jacoco-check</id>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                            <configuration>
+                                <!-- README 커버리지와 같은 기준. 생성 코드 · 설정 · DTO · 엔티티 제외(롬복 생성 코드는 lombok.config) -->
+                                <excludes>
+                                    <exclude>**/Q*.class</exclude>
+                                    <exclude>**/*Config.class</exclude>
+                                    <exclude>**/dto/**</exclude>
+                                    <exclude>**/entity/**</exclude>
+                                </excludes>
+                                <rules>
+                                    <rule>
+                                        <element>BUNDLE</element>
+                                        <limits>
+                                            <limit>
+                                                <counter>LINE</counter>
+                                                <value>COVEREDRATIO</value>
+                                                <minimum>${jacoco.line.minimum}</minimum>
+                                            </limit>
+                                            <limit>
+                                                <counter>BRANCH</counter>
+                                                <value>COVEREDRATIO</value>
+                                                <minimum>${jacoco.branch.minimum}</minimum>
+                                            </limit>
+                                        </limits>
+                                    </rule>
+                                </rules>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
 
 </project>

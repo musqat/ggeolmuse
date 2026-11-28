@@ -119,7 +119,7 @@ ggeolmuse/
 │   ├── market-data-service/  시세 수집 · 제공
 │   ├── backtest-service/     전략 시뮬레이션
 │   ├── chat-service/         AI 종목 대화 (FastAPI)
-│   ├── ggeolmuse-bom/        의존성 버전 (BOM)
+│   ├── ggeolmuse-bom/        의존성 버전 · 빌드 설정 (부모 pom)
 │   ├── ggeolmuse-common/     공통 라이브러리 (예외 · 로깅 · 유틸)
 │   └── messaging/            Kafka 공통 라이브러리
 ├── frontend-web/         React
