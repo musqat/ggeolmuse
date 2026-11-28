@@ -3,7 +3,7 @@ package com.muscat.jpatest;
 import com.muscat.commonlib.config.QueryDslConfig;
 import com.muscat.user.domain.account.repository.TradeSettlementRepository;
 import com.muscat.user.domain.user.repository.UserRepository;
-import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;

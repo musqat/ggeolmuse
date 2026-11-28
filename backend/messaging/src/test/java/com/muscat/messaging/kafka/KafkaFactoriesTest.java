@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.mock;
 
+import com.muscat.messaging.event.AssetCreatedEvent;
 import com.muscat.messaging.event.TradeCompletedEvent;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.charset.StandardCharsets;
@@ -32,8 +33,8 @@ import org.springframework.kafka.listener.MessageListenerContainer;
 import org.springframework.kafka.mock.MockProducerFactory;
 import org.springframework.kafka.support.serializer.DeserializationException;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
-import org.springframework.kafka.support.serializer.JsonDeserializer;
-import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.kafka.support.serializer.JacksonJsonDeserializer;
+import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
 
 @DisplayName("서비스 Kafka 설정 공통 값")
 class KafkaFactoriesTest {
@@ -51,7 +52,7 @@ class KafkaFactoriesTest {
     assertThat(props)
       .containsEntry(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP)
       .containsEntry(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class)
-      .containsEntry(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class)
+      .containsEntry(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JacksonJsonSerializer.class)
       .containsEntry(ProducerConfig.ACKS_CONFIG, "all")
       .containsEntry(ProducerConfig.RETRIES_CONFIG, 3)
       .containsEntry(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true)
@@ -71,10 +72,27 @@ class KafkaFactoriesTest {
       .containsEntry(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
       .containsEntry(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class)
       .containsEntry(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class)
-      .containsEntry(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class.getName())
-      .containsEntry(JsonDeserializer.VALUE_DEFAULT_TYPE, TradeCompletedEvent.class.getName())
-      .containsEntry(JsonDeserializer.TRUSTED_PACKAGES, "com.muscat.*")
-      .containsEntry(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
+      .containsEntry(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, EventJsonDeserializer.class.getName())
+      .containsEntry(JacksonJsonDeserializer.VALUE_DEFAULT_TYPE, TradeCompletedEvent.class.getName())
+      .containsEntry(JacksonJsonDeserializer.TRUSTED_PACKAGES, "com.muscat.*")
+      .containsEntry(JacksonJsonDeserializer.USE_TYPE_INFO_HEADERS, false);
+  }
+
+  @Test
+  @DisplayName("설정대로 만든 값 역직렬화기는 null 로 온 참거짓 칸을 false 로 읽는다")
+  void jsonConsumerProps_ReadsNullPrimitiveAsDefault() {
+    Map<String, Object> props =
+      KafkaFactories.jsonConsumerProps(BOOTSTRAP, "market-data-asset-consumer", AssetCreatedEvent.class);
+    byte[] json = "{\"symbol\":\"FQA\",\"collectData\":null}".getBytes(StandardCharsets.UTF_8);
+
+    try (ErrorHandlingDeserializer<Object> deserializer = new ErrorHandlingDeserializer<>()) {
+      deserializer.configure(props, false);
+      Object read = deserializer.deserialize("market.asset.created", json);
+
+      assertThat(read).isInstanceOf(AssetCreatedEvent.class);
+      assertThat(((AssetCreatedEvent) read).getSymbol()).isEqualTo("FQA");
+      assertThat(((AssetCreatedEvent) read).isCollectData()).isFalse();
+    }
   }
 
   @Test
@@ -126,7 +144,7 @@ class KafkaFactoriesTest {
     assertThat(template.getProducerFactory().getConfigurationProperties())
       .containsEntry(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP)
       .containsEntry(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class)
-      .containsEntry(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class)
+      .containsEntry(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JacksonJsonSerializer.class)
       .containsEntry(ProducerConfig.ACKS_CONFIG, "all");
   }
 
@@ -191,7 +209,7 @@ class KafkaFactoriesTest {
   @DisplayName("다시 해도 안 되는 메시지는 <토픽>.DLT 로 같은 키로 넘기고 kafka.dlt.records 를 올린다")
   void deadLetterErrorHandler_PublishesToDltAndCounts() {
     MockProducer<String, Object> producer =
-      new MockProducer<>(true, new StringSerializer(), new JsonSerializer<>());
+      new MockProducer<>(true, null, new StringSerializer(), new JacksonJsonSerializer<>());
     KafkaTemplate<String, Object> dlt = new KafkaTemplate<>(new MockProducerFactory<>(() -> producer));
     SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
     CommonErrorHandler errorHandler = KafkaFactories.deadLetterErrorHandler(dlt, meterRegistry);

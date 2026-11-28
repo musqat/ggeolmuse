@@ -4,10 +4,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.security.oauth2.resource.reactive.ReactiveOAuth2ResourceServerAutoConfiguration;
-import org.springframework.boot.autoconfigure.security.reactive.ReactiveSecurityAutoConfiguration;
-import org.springframework.boot.autoconfigure.security.reactive.ReactiveUserDetailsServiceAutoConfiguration;
-import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
+import org.springframework.boot.security.autoconfigure.ReactiveUserDetailsServiceAutoConfiguration;
+import org.springframework.boot.security.autoconfigure.web.reactive.ReactiveWebSecurityAutoConfiguration;
+import org.springframework.boot.webflux.test.autoconfigure.WebFluxTest;
 import org.springframework.http.HttpMethod;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
@@ -15,9 +14,8 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 @WebFluxTest(
   controllers = FallbackController.class,
   excludeAutoConfiguration = {
-    ReactiveSecurityAutoConfiguration.class,
-    ReactiveUserDetailsServiceAutoConfiguration.class,
-    ReactiveOAuth2ResourceServerAutoConfiguration.class
+    ReactiveWebSecurityAutoConfiguration.class,
+    ReactiveUserDetailsServiceAutoConfiguration.class
   })
 class FallbackControllerTest {
 

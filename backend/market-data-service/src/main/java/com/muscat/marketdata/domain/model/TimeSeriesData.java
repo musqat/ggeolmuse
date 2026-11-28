@@ -1,6 +1,6 @@
 package com.muscat.marketdata.domain.model;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 
 // Yahoo Finance 시계열 데이터
 public record TimeSeriesData(

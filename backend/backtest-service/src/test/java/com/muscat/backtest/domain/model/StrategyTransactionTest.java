@@ -3,9 +3,7 @@ package com.muscat.backtest.domain.model;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.muscat.backtest.ServiceJson;
 import com.muscat.backtest.common.enums.type.TradeReason;
 import com.muscat.backtest.common.enums.type.TransactionKind;
 import java.math.BigDecimal;
@@ -13,11 +11,14 @@ import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 @DisplayName("StrategyTransaction 종류 · 팩터리 · 사본 · 응답 JSON · 매수 원가")
 class StrategyTransactionTest {
 
-  private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+  // 응답에 쓰는 서비스 JSON 설정
+  private final JsonMapper objectMapper = ServiceJson.mapper();
 
   private static StrategyTransaction.StrategyTransactionBuilder buy() {
     LocalDate date = LocalDate.of(2024, 3, 4);
@@ -65,7 +66,7 @@ class StrategyTransactionTest {
       .build();
 
     assertThat(objectMapper.writeValueAsString(sale)).isEqualTo("{\"symbol\":\"SPY\",\"reason\":\"TAKE_PROFIT\","
-      + "\"date\":[2024,3,4],\"actualDate\":[2024,3,5],\"price\":120.5,\"shares\":-4.00000000,\"amount\":0,"
+      + "\"date\":\"2024-03-04\",\"actualDate\":\"2024-03-05\",\"price\":120.5,\"shares\":-4.00000000,\"amount\":0,"
       + "\"fxRate\":1350,\"trigger\":\"10.0%익절\",\"fee\":0.48,\"proceeds\":481.52,\"cashUsed\":null,"
       + "\"realizedProfit\":81.52,\"taxPaid\":null}");
   }

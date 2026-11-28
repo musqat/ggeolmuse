@@ -2,18 +2,18 @@ package com.muscat.messaging.event;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.kafka.support.JacksonUtils;
+import org.springframework.kafka.support.JacksonMapperUtils;
+import tools.jackson.databind.ObjectMapper;
 
 // Kafka JSON 직렬화기와 같은 ObjectMapper 로 칸 모양을 대조(이미 발행된 메시지와 호환)
 @DisplayName("이벤트 JSON 칸 모양")
 class EventJsonTest {
 
-  private final ObjectMapper mapper = JacksonUtils.enhancedObjectMapper();
+  private final ObjectMapper mapper = JacksonMapperUtils.enhancedJsonMapper();
 
   @Test
   @DisplayName("배당 몫의 배당락일은 yyyy-MM-dd 문자열로 쓰고 읽는다")

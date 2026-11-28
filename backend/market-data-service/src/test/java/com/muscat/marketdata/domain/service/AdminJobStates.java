@@ -1,11 +1,11 @@
 package com.muscat.marketdata.domain.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import javax.sql.DataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
+import tools.jackson.databind.ObjectMapper;
 
 // 테스트용 관리자 작업 상태: 마이그레이션 SQL 로 만든 H2 하나에 파드마다 상태 객체 하나
 final class AdminJobStates {
@@ -19,6 +19,6 @@ final class AdminJobStates {
   }
 
   static AdminJobState pod(DataSource dataSource) {
-    return new AdminJobState(new JdbcTemplate(dataSource), new ObjectMapper().findAndRegisterModules());
+    return new AdminJobState(new JdbcTemplate(dataSource), new ObjectMapper());
   }
 }

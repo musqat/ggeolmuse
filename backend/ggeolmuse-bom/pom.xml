@@ -17,22 +17,18 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- Spring Boot and Cloud versions -->
-        <spring-boot.version>3.5.16</spring-boot.version>
-        <spring-cloud.version>2025.0.3</spring-cloud.version>
+        <spring-boot.version>4.2.0</spring-boot.version>
+        <spring-cloud.version>2026.0.0</spring-cloud.version>
 
         <!-- Dependency versions -->
         <querydsl.version>7.8</querydsl.version>
         <lombok.version>1.18.48</lombok.version>
-        <springdoc.version>2.10.0</springdoc.version>
-        <testcontainers.version>1.21.4</testcontainers.version>
+        <springdoc.version>3.2.1</springdoc.version>
         <resilience4j.version>2.4.0</resilience4j.version>
-        <!-- 7.x 는 Spring 7(Boot 4) 기준 -->
-        <shedlock.version>6.10.0</shedlock.version>
+        <shedlock.version>7.12.0</shedlock.version>
 
         <!-- 보안 패치.  Spring Boot BOM 의 버전은 프로퍼티로 못 바꿔 아래 dependencyManagement 항목과 짝으로 둠 -->
         <netty.version>4.2.21.Final</netty.version>
-        <jackson-bom.version>2.23.0</jackson-bom.version>
-        <tomcat.version>10.1.62</tomcat.version>
         <httpclient5.version>5.6.5</httpclient5.version>
         <httpcore5.version>5.5</httpcore5.version>
         <postgresql.version>42.7.14</postgresql.version>
@@ -53,13 +49,6 @@
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
                 <version>${netty.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>com.fasterxml.jackson</groupId>
-                <artifactId>jackson-bom</artifactId>
-                <version>${jackson-bom.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -146,7 +135,7 @@
             <!-- Resilience4j 스프링 부트 연동 -->
             <dependency>
                 <groupId>io.github.resilience4j</groupId>
-                <artifactId>resilience4j-spring-boot3</artifactId>
+                <artifactId>resilience4j-spring-boot4</artifactId>
                 <version>${resilience4j.version}</version>
             </dependency>
 
@@ -155,13 +144,6 @@
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
                 <version>${lombok.version}</version>
-            </dependency>
-
-            <!-- Test Dependencies -->
-            <dependency>
-                <groupId>org.testcontainers</groupId>
-                <artifactId>junit-jupiter</artifactId>
-                <version>${testcontainers.version}</version>
             </dependency>
 
             <!-- BouncyCastle - 전이 의존이라 여기서 버전을 올려 잡는다 -->
@@ -198,21 +180,6 @@
                 <groupId>org.xerial.snappy</groupId>
                 <artifactId>snappy-java</artifactId>
                 <version>${snappy.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.tomcat.embed</groupId>
-                <artifactId>tomcat-embed-core</artifactId>
-                <version>${tomcat.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.tomcat.embed</groupId>
-                <artifactId>tomcat-embed-el</artifactId>
-                <version>${tomcat.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.tomcat.embed</groupId>
-                <artifactId>tomcat-embed-websocket</artifactId>
-                <version>${tomcat.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.httpcomponents.client5</groupId>

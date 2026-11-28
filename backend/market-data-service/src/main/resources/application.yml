@@ -1,6 +1,12 @@
 spring:
   application:
     name: market-data-service
+  # null primitive 칸은 기본값 · 응답 칸은 선언 순서
+  jackson:
+    deserialization:
+      fail-on-null-for-primitives: false
+    mapper:
+      sort-properties-alphabetically: false
   task:
     scheduling:
       # 기본 1이면 수집 집계가 크론 작업 뒤로 밀림

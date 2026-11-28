@@ -10,9 +10,12 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.springframework.core.env.Environment;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 // 서비스 사이 호출에 싣는 Keycloak 서비스 토큰(client_credentials, 만료 30초 전까지 재사용, 받기 실패 뒤 5초는 다시 요청 안 함)
 public class ServiceTokenProvider {
@@ -22,6 +25,11 @@ public class ServiceTokenProvider {
   private static final Duration REFRESH_MARGIN = Duration.ofSeconds(30);
 
   private static final Duration RETRY_AFTER_FAILURE = Duration.ofSeconds(5);
+
+  // 토큰 응답 변환기
+  private static final JsonMapper TOKEN_JSON = JsonMapper.builder()
+    .disable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
+    .build();
 
   private final RestClient restClient;
   private final String tokenUrl;
@@ -36,7 +44,10 @@ public class ServiceTokenProvider {
 
   public ServiceTokenProvider(RestClient.Builder builder, String tokenUrl, String clientId, String clientSecret,
                               Clock clock) {
-    this.restClient = builder.build();
+    this.restClient = builder
+      .messageConverters(converters -> converters.replaceAll(converter ->
+        converter instanceof JacksonJsonHttpMessageConverter ? new JacksonJsonHttpMessageConverter(TOKEN_JSON) : converter))
+      .build();
     this.tokenUrl = tokenUrl;
     this.clientId = clientId;
     this.clientSecret = clientSecret;

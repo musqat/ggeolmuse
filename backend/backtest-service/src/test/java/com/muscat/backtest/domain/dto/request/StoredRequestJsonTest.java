@@ -2,21 +2,20 @@ package com.muscat.backtest.domain.dto.request;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.muscat.backtest.common.enums.type.PeriodEnd;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.cfg.DateTimeFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 @DisplayName("이력에 저장된 요청 JSON 다시 읽기")
 class StoredRequestJsonTest {
 
-  private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule())
-    .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+  private final ObjectMapper objectMapper = JsonMapper.builder().disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS).build();
 
   // 적립식 · 조건부 · 이동평균 교차 · 밴드 · 시뮬레이션 요청을 이력에 저장한 JSON
   private static final List<String> STORED = List.of(

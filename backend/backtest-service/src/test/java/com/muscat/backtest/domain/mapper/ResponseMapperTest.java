@@ -4,9 +4,8 @@ import com.muscat.backtest.common.enums.type.TransactionKind;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.muscat.backtest.domain.calculation.ComparisonCalculationResult;
 import com.muscat.backtest.domain.calculation.StrategyCalculationResult;
 import com.muscat.backtest.common.enums.type.ExecutionTiming;
@@ -58,7 +57,7 @@ class ResponseMapperTest {
 
   // 응답이 실제로 내보내는 JSON(값이 null 인 칸도 키로 남음)
   private static JsonNode toJson(Object response) {
-    return new ObjectMapper().registerModule(new JavaTimeModule()).valueToTree(response);
+    return new ObjectMapper().valueToTree(response);
   }
 
   private static StockPriceDto price(String currentPrice) {

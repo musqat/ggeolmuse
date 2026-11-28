@@ -21,8 +21,8 @@ import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
-import org.springframework.kafka.support.serializer.JsonDeserializer;
-import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.kafka.support.serializer.JacksonJsonDeserializer;
+import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
 import org.springframework.util.backoff.FixedBackOff;
 
 // 서비스 Kafka 프로듀서 · 컨슈머 · DLT 설정 공통 값
@@ -41,7 +41,7 @@ public final class KafkaFactories {
     Map<String, Object> props = new HashMap<>();
     props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
     props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-    props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+    props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JacksonJsonSerializer.class);
     props.put(ProducerConfig.ACKS_CONFIG, "all");
     props.put(ProducerConfig.RETRIES_CONFIG, 3);
     props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
@@ -57,10 +57,10 @@ public final class KafkaFactories {
     props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
     props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-    props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class.getName());
-    props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, type.getName());
-    props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.muscat.*");
-    props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
+    props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, EventJsonDeserializer.class.getName());
+    props.put(JacksonJsonDeserializer.VALUE_DEFAULT_TYPE, type.getName());
+    props.put(JacksonJsonDeserializer.TRUSTED_PACKAGES, "com.muscat.*");
+    props.put(JacksonJsonDeserializer.USE_TYPE_INFO_HEADERS, false);
     return props;
   }
 
@@ -101,7 +101,7 @@ public final class KafkaFactories {
     Map<String, Object> props = new HashMap<>();
     props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
     props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-    props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+    props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JacksonJsonSerializer.class);
     props.put(ProducerConfig.ACKS_CONFIG, "all");
     return new KafkaTemplate<>(producerFactory(props, meterRegistry));
   }

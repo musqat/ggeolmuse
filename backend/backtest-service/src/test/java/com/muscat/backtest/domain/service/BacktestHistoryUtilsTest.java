@@ -8,9 +8,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.domain.dto.request.SimulationRequest;
 import com.muscat.backtest.domain.entity.BacktestHistory;
@@ -23,6 +20,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("BacktestHistoryUtils 이력 저장")
@@ -31,7 +30,7 @@ class BacktestHistoryUtilsTest {
   @Mock
   private BacktestHistoryRepository repository;
 
-  private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+  private final ObjectMapper objectMapper = new ObjectMapper();
 
   private static SimulationRequest request(BigDecimal purchaseFx, BigDecimal currentFx) {
     return SimulationRequest.builder().symbol("AAPL").purchaseDate(LocalDate.of(2024, 1, 15))
@@ -79,9 +78,9 @@ class BacktestHistoryUtilsTest {
 
   @Test
   @DisplayName("요청을 JSON 으로 못 바꾸면 저장하지 않고 예외도 내지 않는다")
-  void jsonFailure() throws JsonProcessingException {
+  void jsonFailure() throws JacksonException {
     ObjectMapper broken = mock(ObjectMapper.class);
-    given(broken.writeValueAsString(any())).willThrow(new JsonProcessingException("boom") {});
+    given(broken.writeValueAsString(any())).willThrow(new JacksonException("boom") {});
 
     assertThatCode(() -> new BacktestHistoryUtils(repository, broken)
       .saveBacktestHistory("user-1", BacktestType.COMPARISON, request(null, null))).doesNotThrowAnyException();
@@ -90,7 +89,7 @@ class BacktestHistoryUtilsTest {
 
   @Test
   @DisplayName("환율 모드를 못 읽으면 auto 로 저장한다")
-  void fxModeFailure() throws JsonProcessingException {
+  void fxModeFailure() throws JacksonException {
     ObjectMapper broken = mock(ObjectMapper.class);
     given(broken.writeValueAsString(any())).willReturn("{}");
     given(broken.valueToTree(any())).willThrow(new IllegalArgumentException("tree"));

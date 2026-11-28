@@ -4,6 +4,7 @@ WORKDIR /app
 
 # Central 미러(keycloak 부모 pom 이 끌고 오는 jboss 저장소가 응답 없음)
 COPY .mvn/ci-settings.xml /root/.m2/settings.xml
+COPY backend/lombok.config /lombok.config
 # Central 이 잠깐 5xx 를 줘도 다시 받음(기본은 429 · 503 만 재시도)
 ENV MAVEN_ARGS="-Daether.connector.http.retryHandler.count=3 -Daether.connector.http.retryHandler.serviceUnavailable=429,500,502,503,504"
 

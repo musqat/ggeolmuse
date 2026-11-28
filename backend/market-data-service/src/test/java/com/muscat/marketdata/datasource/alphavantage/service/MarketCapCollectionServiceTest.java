@@ -8,7 +8,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.muscat.marketdata.common.enums.response.MarketDataResponse;
 import com.muscat.marketdata.common.exception.AlphaVantageException;
 import com.muscat.marketdata.datasource.alphavantage.client.AlphaVantageClient;
@@ -22,6 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
+import tools.jackson.databind.ObjectMapper;
 
 // OVERVIEW 의 MarketCapitalization 으로 시총이 빈 종목을 배치 크기만큼씩 채움
 @DisplayName("AlphaVantage 시총 수집")

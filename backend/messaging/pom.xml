@@ -19,7 +19,6 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
     <lombok.version>1.18.48</lombok.version>
-    <jackson.version>2.23.0</jackson.version>
   </properties>
 
   <!-- spring-kafka · Micrometer · OpenTelemetry · 테스트 라이브러리 버전 -->
@@ -46,14 +45,8 @@
 
     <!-- Jackson for JSON serialization/deserialization -->
     <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
+      <groupId>tools.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
-      <version>${jackson.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.datatype</groupId>
-      <artifactId>jackson-datatype-jsr310</artifactId>
-      <version>${jackson.version}</version>
     </dependency>
 
     <!-- Kafka 설정 · 발행 헬퍼. 실행 때는 서비스 클래스패스의 것 -->

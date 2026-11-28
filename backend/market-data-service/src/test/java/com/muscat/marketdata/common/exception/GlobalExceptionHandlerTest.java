@@ -10,7 +10,7 @@ import com.muscat.marketdata.api.controller.MarketController;
 import com.muscat.marketdata.common.enums.response.MarketDataResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController;
+import org.springframework.boot.webmvc.autoconfigure.error.BasicErrorController;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;

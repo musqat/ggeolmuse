@@ -1,7 +1,5 @@
 package com.muscat.marketdata.datasource.yf.client;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.muscat.marketdata.common.enums.response.MarketDataResponse;
 import com.muscat.marketdata.common.exception.YahooFinanceException;
 import com.muscat.marketdata.datasource.common.AssetTypeRule;
@@ -22,6 +20,8 @@ import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
 @Component
@@ -131,7 +131,7 @@ public class YahooParser {
     }
 
     Map<LocalDate, BigDecimal> result = new HashMap<>();
-    Iterator<String> keys = splits.fieldNames();
+    Iterator<String> keys = splits.propertyNames().iterator();
     while (keys.hasNext()) {
       String key = keys.next();
       JsonNode event = splits.get(key);
@@ -230,7 +230,7 @@ public class YahooParser {
                                                   LocalDate fromDate, LocalDate toDate) {
     List<DividendDto> results = new ArrayList<>();
 
-    Iterator<String> fieldNames = dividends.fieldNames();
+    Iterator<String> fieldNames = dividends.propertyNames().iterator();
     while (fieldNames.hasNext()) {
       String eventKey = fieldNames.next();
       JsonNode event = dividends.get(eventKey);
