@@ -1,5 +1,5 @@
 name: Trivy image scan
-description: 컨테이너 이미지를 스캔해 결과를 GitHub Security 탭에 올리고, 고친 버전이 나온 CRITICAL 이 있으면 실패한다
+description: 컨테이너 이미지를 스캔해 결과를 GitHub Security 탭에 올리고(upload 가 false 면 안 올림), 고친 버전이 나온 CRITICAL 이 있으면 실패한다
 
 inputs:
   image:
@@ -12,6 +12,10 @@ inputs:
     description: true 면 리포트가 없을 때(설치 · DB 받기 실패) 실패, 아니면 경고만
     required: false
     default: 'false'
+  upload:
+    description: false 면 Security 탭에 올리지 않고 판정만(security-events 쓰기 권한이 없는 잡)
+    required: false
+    default: 'true'
 
 runs:
   using: composite
@@ -50,7 +54,7 @@ runs:
 
     - name: GitHub Security 탭에 업로드
       uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
-      if: always()
+      if: always() && inputs.upload == 'true'
       continue-on-error: true
       with:
         sarif_file: trivy-results-${{ inputs.name }}.sarif

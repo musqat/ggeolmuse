@@ -194,6 +194,7 @@ jobs:
           labels: org.opencontainers.image.revision=${{ needs.plan.outputs.sha }}
           cache-from: type=gha,scope=${{ matrix.service }}
 
+      # 판정만 하고 Security 탭에는 올리지 않음
       - name: Trivy 이미지 스캔
         if: steps.hub.outputs.skip != 'true'
         uses: ./.github/actions/trivy-image-scan
@@ -201,6 +202,7 @@ jobs:
           image: muscathan/${{ matrix.service }}:${{ fromJSON(needs.plan.outputs.tags)[matrix.service] }}
           name: release-${{ matrix.service }}
           require-report: 'true'
+          upload: 'false'
 
       - name: Hub 에 푸시
         if: steps.hub.outputs.skip != 'true'

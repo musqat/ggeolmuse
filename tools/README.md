@@ -18,4 +18,4 @@ CI · 릴리스 · 운영 확인에 쓰는 Go 명령이다.
 | `internal/release` | 봇 커밋 제목 만들기 · 읽기 |
 | `internal/values` | 값 파일 읽기 · 쓰기 |
 | `internal/kube` | kubeconfig 로 클러스터 클라이언트 만들기 |
-| `repocheck` | 리포 설정 테스트 — 외부 액션 커밋 고정 · 베이스 이미지 digest 고정 · 이미지 스캔 판정 · 워크플로 연결 · 저장소 쿼리는 QueryDSL · 네이티브 잠금 하나만 `@Query` · Dependabot 묶음(opentelemetry 함께 · maven 빌드 이미지 JDK 버전 고정) |
+| `repocheck` | 리포 설정 테스트 — 외부 액션 커밋 고정 · 베이스 이미지 digest 고정 · 이미지 패치 날짜 · 이미지 스캔 판정 · 스캔 결과 올리기(권한 · 범주) · 워크플로 연결 · 저장소 쿼리는 QueryDSL · 네이티브 잠금 하나만 `@Query` · Dependabot 묶음(opentelemetry 함께 · maven 빌드 이미지 JDK 버전 고정) |
