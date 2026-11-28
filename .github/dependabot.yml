@@ -83,9 +83,10 @@ updates:
       interval: monthly
       time: "09:00"
       timezone: Asia/Seoul
+    # 수 버전 · digest 를 디렉터리 전부 PR 하나로
     groups:
-      minor-and-patch:
-        update-types: [minor, patch]
+      base-images:
+        patterns: ["*"]
     # 파이썬 · node 버전이 바뀌는 부 버전은 막고 수 버전 · digest 만
     ignore:
       - dependency-name: "*"
