@@ -39,7 +39,7 @@ public class DividendRepositoryCustomImpl implements DividendRepositoryCustom {
 
   @Override
   public Map<String, BigDecimal> sumRegularAmountBySymbolsSince(Collection<String> symbols, LocalDate from, BigDecimal specialRatio) {
-    NumberExpression<BigDecimal> total = dividend.amount.sum();
+    NumberExpression<BigDecimal> total = dividend.amount.sumAggregate();
     return queryFactory
       .select(dividend.symbol, total)
       .from(dividend)

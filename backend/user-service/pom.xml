@@ -198,10 +198,10 @@
                             <version>1.18.48</version>
                         </path>
                         <path>
-                            <groupId>com.querydsl</groupId>
+                            <groupId>io.github.openfeign.querydsl</groupId>
                             <artifactId>querydsl-apt</artifactId>
-                            <version>5.1.0</version>
-                            <classifier>jakarta</classifier>
+                            <version>7.8</version>
+                            <classifier>jpa</classifier>
                         </path>
                         <path>
                             <groupId>jakarta.persistence</groupId>
