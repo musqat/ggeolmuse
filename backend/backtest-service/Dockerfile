@@ -27,7 +27,7 @@ COPY backend/backtest-service/src ./src
 RUN mvn -B clean package -DskipTests -q
 
 # 런타임 스테이지
-FROM eclipse-temurin:21-jre-alpine@sha256:ac05c3c42b7c2f1a52c9bd52f01041fa1958231b15ebeae7420429cbc5baf474
+FROM eclipse-temurin:21-jre-alpine@sha256:5d7689f47d670aca766b9503a70bccc2d73b4eb9221ae8f714ae958313c4ce70
 
 # 베이스 이미지가 늦게 따라오는 알파인 보안 패치를 빌드 날짜마다 새로 받음
 ARG PATCH_DATE
