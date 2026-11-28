@@ -102,11 +102,12 @@ jobs:
         image: ${{ fromJSON(needs.prod-images.outputs.images) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # 태그 없이 서비스 이름만(버전이 바뀌어도 같은 Security 탭 범주)
       - name: 리포트 이름
         id: name
         env:
           IMAGE: ${{ matrix.image }}
-        run: echo "name=prod-$(sed -E 's#^muscathan/##; s#[:/]#-#g' <<<"$IMAGE")" >> "$GITHUB_OUTPUT"
+        run: echo "name=prod-$(sed -E 's#^muscathan/##; s#[:@].*##' <<<"$IMAGE")" >> "$GITHUB_OUTPUT"
       - uses: ./.github/actions/trivy-image-scan
         with:
           image: ${{ matrix.image }}
