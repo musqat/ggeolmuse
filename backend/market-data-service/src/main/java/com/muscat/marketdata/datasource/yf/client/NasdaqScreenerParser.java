@@ -1,7 +1,7 @@
 package com.muscat.marketdata.datasource.yf.client;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.muscat.marketdata.datasource.common.AssetTypeRule;
 import com.muscat.marketdata.domain.entity.Asset;
 import lombok.extern.slf4j.Slf4j;

@@ -1,10 +1,5 @@
 package com.muscat.marketdata.config;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -19,9 +14,11 @@ import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.cache.RedisCacheWriter;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 
 // Redis 캐시 설정
 @Slf4j
@@ -80,17 +77,10 @@ public class CacheConfig {
 
   // 캐시 값 직렬화(값과 함께 타입 정보 저장)
   // 모르는 필드는 무시(되돌린 옛 코드가 새 코드가 넣은 값을 읽을 때 실패하지 않게)
-  static GenericJackson2JsonRedisSerializer valueSerializer() {
-    ObjectMapper objectMapper = new ObjectMapper();
-    objectMapper.registerModule(new JavaTimeModule());
-    objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    objectMapper.activateDefaultTyping(
-      BasicPolymorphicTypeValidator.builder()
-        .allowIfBaseType(Object.class)
-        .build(),
-      ObjectMapper.DefaultTyping.NON_FINAL,
-      JsonTypeInfo.As.PROPERTY
-    );
-    return new GenericJackson2JsonRedisSerializer(objectMapper);
+  static GenericJacksonJsonRedisSerializer valueSerializer() {
+    return GenericJacksonJsonRedisSerializer.builder()
+      .enableDefaultTyping(BasicPolymorphicTypeValidator.builder().allowIfBaseType(Object.class).build())
+      .customize(b -> b.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES))
+      .build();
   }
 }

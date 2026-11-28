@@ -2,19 +2,19 @@ package com.muscat.trade.infra.client.dto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 // Spring 기본 ObjectMapper 와 같은 설정으로 user 응답 JSON 읽기
 @DisplayName("환전 기록 JSON")
 class ExchangeRecordDtoJsonTest {
 
-  private final ObjectMapper objectMapper = Jackson2ObjectMapperBuilder.json().build();
+  private final ObjectMapper objectMapper = JsonMapper.builder().build();
 
   @Test
   @DisplayName("user 환전 기록 응답의 칸이 이름 그대로 읽힌다")

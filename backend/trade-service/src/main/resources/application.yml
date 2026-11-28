@@ -1,6 +1,12 @@
 spring:
   application:
     name: trade-service
+  # null primitive 칸은 기본값 · 응답 칸은 선언 순서
+  jackson:
+    deserialization:
+      fail-on-null-for-primitives: false
+    mapper:
+      sort-properties-alphabetically: false
   config:
     import:
       - "optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}"

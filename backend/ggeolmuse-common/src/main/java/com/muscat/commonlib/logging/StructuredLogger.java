@@ -1,7 +1,5 @@
 package com.muscat.commonlib.logging;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -9,6 +7,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Marker;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 @Component
 @RequiredArgsConstructor
@@ -26,7 +26,7 @@ public class StructuredLogger {
     try {
       String jsonLog = objectMapper.writeValueAsString(enrichedData);
       log.info(marker, "STRUCTURED_EVENT action={} data={}", action, jsonLog);
-    } catch (JsonProcessingException e) {
+    } catch (JacksonException e) {
       log.error("구조화 로그 생성 실패: action={}", action, e);
       log.info(marker, "STRUCTURED_EVENT action={} data={}", action, enrichedData.toString());
     }

@@ -157,7 +157,7 @@ repository · service)이고, 기능 하나를 단계로 나누는 trade · mark
 
 | 영역 | 기술 |
 |---|---|
-| Backend | Java 21 · Spring Boot 3.5 · Spring Cloud Gateway · Spring Security |
+| Backend | Java 21 · Spring Boot 4.2 · Spring Cloud Gateway · Spring Security |
 | AI | FastAPI (Python) · OpenAI gpt-4o / gpt-4o-mini |
 | Data | PostgreSQL · Redis · Kafka |
 | Frontend | React · TypeScript · Vite |

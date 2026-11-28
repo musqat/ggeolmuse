@@ -1,6 +1,6 @@
 package com.muscat.marketdata.datasource.alphavantage.provider;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.muscat.marketdata.datasource.alphavantage.client.AlphaVantageClient;
 import com.muscat.marketdata.datasource.alphavantage.client.AlphaVantageRateLimiter;
 import com.muscat.marketdata.datasource.common.MarketDataProvider;

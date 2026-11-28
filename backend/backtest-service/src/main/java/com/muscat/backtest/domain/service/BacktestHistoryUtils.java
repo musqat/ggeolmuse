@@ -1,12 +1,12 @@
 package com.muscat.backtest.domain.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.muscat.backtest.common.enums.type.BacktestType;
 import com.muscat.backtest.domain.entity.BacktestHistory;
 import com.muscat.backtest.domain.repository.BacktestHistoryRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 @Component
 @Slf4j
@@ -38,7 +38,7 @@ public class BacktestHistoryUtils {
         .build();
       backtestHistoryRepository.save(history);
       log.debug("백테스트 히스토리 저장 완료: userId={}, type={}, fxMode={}", userId, backtestType, fxRateMode);
-    } catch (JsonProcessingException e) {
+    } catch (JacksonException e) {
       log.warn("JSON 변환 오류: userId={}, error={}", userId, e.getMessage());
     } catch (RuntimeException e) {
       log.warn("백테스트 히스토리 저장 실패: userId={}, error={}", userId, e.getMessage());

@@ -1,7 +1,5 @@
 package com.muscat.marketdata.domain.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.muscat.marketdata.common.enums.response.MarketDataResponse;
 import com.muscat.marketdata.common.exception.MarketDataException;
 import java.time.Duration;
@@ -10,6 +8,8 @@ import java.util.Optional;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 // 관리자 작업의 진행 중 여부 · 마지막 상태(admin_job_state 테이블로 파드 사이 공유)
 @Component
@@ -64,7 +64,7 @@ public class AdminJobState {
     }
     try {
       return Optional.of(mapper.readValue(value, type));
-    } catch (JsonProcessingException e) {
+    } catch (JacksonException e) {
       throw new MarketDataException(MarketDataResponse.ADMIN_JOB_STATE_UNREADABLE, e);
     }
   }
@@ -82,7 +82,7 @@ public class AdminJobState {
   private String json(Object detail) {
     try {
       return detail == null ? null : mapper.writeValueAsString(detail);
-    } catch (JsonProcessingException e) {
+    } catch (JacksonException e) {
       throw new MarketDataException(MarketDataResponse.ADMIN_JOB_STATE_UNWRITABLE, e);
     }
   }

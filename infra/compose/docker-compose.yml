@@ -570,7 +570,7 @@ services:
   # prod(infra/k8s/monitoring)와 같은 조합의 로컬 관측
 
   prometheus:
-    image: prom/prometheus:v3.1.0
+    image: prom/prometheus:v3.7.3
     container_name: ggeolmuse-prometheus
     ports:
       # 호스트 9090 은 서비스 actuator 포트와 겹쳐 9091

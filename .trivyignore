@@ -1,15 +1,6 @@
 # Trivy 가 빼는 항목(이미지 취약점은 고칠 버전이 없거나 영향이 없는 것만 줄마다 CVE 하나와 까닭 · 다시 볼 날짜, 매니페스트 설정 검사는 규칙 하나와 까닭)
 # exp: 날짜가 지나면 다시 잡힘
 
-# spring-webmvc XsltView 원격 코드 실행 — XsltView 안 씀, 고친 버전은 Spring 7(Boot 4)뿐 · 다시 볼 날짜 2026-12-17
-CVE-2026-47884 exp:2026-12-17
-
-# spring-webmvc SSE 응답 깨짐 — SseEmitter · text/event-stream 응답 안 씀, 고친 버전은 Spring 7(Boot 4)뿐 · 다시 볼 날짜 2026-12-17
-CVE-2026-47890 exp:2026-12-17
-
-# spring-webflux 함수형 엔드포인트 헤더 조건 우회(gateway) — RouterFunction · RequestPredicates 안 씀(라우팅은 Spring Cloud Gateway 라우트 조건), 고친 버전은 Spring 7(Boot 4)뿐 · 다시 볼 날짜 2026-12-17
-CVE-2026-47892 exp:2026-12-17
-
 # 매니페스트 · default 네임스페이스 워크로드 — 앱 네임스페이스에 앱만 있고 인그레스 기본 거부로 나눔
 AVD-KSV-0110
 

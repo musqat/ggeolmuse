@@ -1,6 +1,5 @@
 package com.muscat.marketdata.datasource.alphavantage.provider;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.muscat.commonlib.util.MoneyUtils;
 import com.muscat.marketdata.datasource.alphavantage.client.AlphaVantageClient;
 import com.muscat.marketdata.datasource.alphavantage.client.AlphaVantageRateLimiter;
@@ -13,6 +12,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.JsonNode;
 
 /**
  * AlphaVantage 환율 데이터 소스

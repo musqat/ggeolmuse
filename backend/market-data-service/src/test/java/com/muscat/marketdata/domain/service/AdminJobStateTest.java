@@ -54,7 +54,7 @@ class AdminJobStateTest {
     assertThatThrownBy(() -> podB.detail(JOB, Integer.class))
       .isInstanceOf(MarketDataException.class)
       .extracting("code").isEqualTo(MarketDataResponse.ADMIN_JOB_STATE_UNREADABLE);
-    assertThatThrownBy(() -> podA.save(JOB, new Object()))
+    assertThatThrownBy(() -> podA.save(JOB, new Unwritable()))
       .isInstanceOf(MarketDataException.class)
       .extracting("code").isEqualTo(MarketDataResponse.ADMIN_JOB_STATE_UNWRITABLE);
   }
@@ -104,5 +104,12 @@ class AdminJobStateTest {
   void emptyWhenNoRecord() {
     assertThat(podB.detail(JOB, Map.class)).isEmpty();
     assertThat(podB.isRunning(JOB)).isFalse();
+  }
+
+  // 직렬화 실패 값
+  static class Unwritable {
+    public String getValue() {
+      throw new IllegalStateException("직렬화 불가");
+    }
   }
 }

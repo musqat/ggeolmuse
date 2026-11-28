@@ -1,8 +1,8 @@
 package com.muscat.user.domain.user.dto.response;
 
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.swagger.v3.oas.annotations.media.Schema;
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.annotation.JsonNaming;
 
 @Schema(description = "로그인 응답 정보")
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)

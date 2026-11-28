@@ -1,6 +1,5 @@
 package com.muscat.marketdata.datasource.alphavantage.provider;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.muscat.marketdata.datasource.alphavantage.client.AlphaVantageClient;
 import com.muscat.marketdata.datasource.alphavantage.client.AlphaVantageRateLimiter;
 import com.muscat.marketdata.datasource.common.MarketDataProvider;
@@ -17,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.JsonNode;
 
 /**
  * AlphaVantage 캔들 데이터 소스

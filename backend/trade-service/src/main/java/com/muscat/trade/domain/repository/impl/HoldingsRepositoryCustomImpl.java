@@ -30,7 +30,7 @@ public class HoldingsRepositoryCustomImpl implements HoldingsRepositoryCustom {
   public PortfolioSummaryProjection calculatePortfolioSummary(String userId) {
     return queryFactory
       .select(Projections.constructor(PortfolioSummaryProjection.class,
-        holdings.totalInvestedAmount.sum(),
+        holdings.totalInvestedAmount.sumAggregate(),
         holdings.count().intValue()
       ))
       .from(holdings)

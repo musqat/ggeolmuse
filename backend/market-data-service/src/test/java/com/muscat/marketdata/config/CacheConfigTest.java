@@ -1,10 +1,14 @@
 package com.muscat.marketdata.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
+import com.muscat.marketdata.domain.dto.OHLCPriceDto;
 import com.muscat.marketdata.domain.dto.StockPriceDto;
+import com.muscat.marketdata.domain.entity.FxRate;
 import com.muscat.marketdata.domain.model.DividendYieldRule;
 import com.muscat.marketdata.domain.repository.AssetRepository;
 import com.muscat.marketdata.domain.service.DividendYieldOrder;
@@ -20,19 +24,21 @@ import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.cache.Cache;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
+import org.springframework.data.redis.serializer.SerializationException;
 
 class CacheConfigTest {
 
   @Test
   @DisplayName("캐시 값에 모르는 필드가 있어도 읽는다. 되돌린 옛 코드가 새 코드가 넣은 값을 읽을 때")
   void readsCachedValueWithUnknownField() {
-    GenericJackson2JsonRedisSerializer serializer = CacheConfig.valueSerializer();
+    GenericJacksonJsonRedisSerializer serializer = CacheConfig.valueSerializer();
     String stored = new String(
       serializer.serialize(StockPriceDto.builder().symbol("AAPL").available(true).build()),
       StandardCharsets.UTF_8);
@@ -43,6 +49,49 @@ class CacheConfigTest {
 
     assertThat(read).isInstanceOf(StockPriceDto.class);
     assertThat(((StockPriceDto) read).getSymbol()).isEqualTo("AAPL");
+  }
+
+  // Boot 3 가 Redis 에 저장한 값
+  private static final String STORED_PRICE = "{\"@class\":\"com.muscat.marketdata.domain.dto.StockPriceDto\",\"symbol\":\"AAPL\","
+    + "\"name\":\"Apple Inc.\",\"currentPrice\":[\"java.math.BigDecimal\",238.15],\"previousClose\":[\"java.math.BigDecimal\",235.90],"
+    + "\"changePercent\":[\"java.math.BigDecimal\",0.95],\"volume\":45678900,\"date\":[2026,1,9],\"currency\":\"USD\","
+    + "\"available\":true,\"active\":true,\"marketCap\":3500000000000,\"assetType\":\"STOCK\","
+    + "\"dividendYieldPercent\":[\"java.math.BigDecimal\",0.44]}";
+  private static final String STORED_OHLC = "{\"@class\":\"com.muscat.marketdata.domain.dto.OHLCPriceDto\",\"symbol\":\"AAPL\","
+    + "\"date\":[2026,1,9],\"openPrice\":[\"java.math.BigDecimal\",236.00],\"highPrice\":[\"java.math.BigDecimal\",239.10],"
+    + "\"lowPrice\":[\"java.math.BigDecimal\",235.50],\"closePrice\":[\"java.math.BigDecimal\",238.15],"
+    + "\"adjustedClose\":[\"java.math.BigDecimal\",238.15],\"volume\":45678900,\"currency\":\"USD\",\"available\":false}";
+  private static final String STORED_FX = "{\"@class\":\"com.muscat.marketdata.domain.entity.FxRate\",\"date\":[2026,1,9],"
+    + "\"rate\":[\"java.math.BigDecimal\",1452.30],\"currencyPair\":\"USD/KRW\"}";
+
+  @Test
+  @DisplayName("올리기 전에 저장한 현재가 · 캔들 · 환율 캐시 값을 그대로 읽는다")
+  void readsValuesStoredBeforeUpgrade() {
+    GenericJacksonJsonRedisSerializer serializer = CacheConfig.valueSerializer();
+
+    StockPriceDto price = (StockPriceDto) serializer.deserialize(STORED_PRICE.getBytes(StandardCharsets.UTF_8));
+    assertThat(price.getCurrentPrice()).isEqualByComparingTo("238.15");
+    assertThat(price.getDate()).isEqualTo(LocalDate.of(2026, 1, 9));
+    assertThat(price.isAvailable()).isTrue();
+
+    OHLCPriceDto ohlc = (OHLCPriceDto) serializer.deserialize(STORED_OHLC.getBytes(StandardCharsets.UTF_8));
+    assertThat(ohlc.getClosePrice()).isEqualByComparingTo("238.15");
+    assertThat(ohlc.getDate()).isEqualTo(LocalDate.of(2026, 1, 9));
+
+    FxRate fx = (FxRate) serializer.deserialize(STORED_FX.getBytes(StandardCharsets.UTF_8));
+    assertThat(fx.getRate()).isEqualByComparingTo("1452.30");
+    assertThat(fx.getDate()).isEqualTo(LocalDate.of(2026, 1, 9));
+  }
+
+  @Test
+  @DisplayName("올리기 전에 타입 없이 저장한 정렬 순서 목록은 못 읽고, 캐시 오류 처리기가 캐시 미스로 넘긴다")
+  void listStoredBeforeUpgradeFallsBackToMiss() {
+    byte[] stored = "[\"KO\",\"T\"]".getBytes(StandardCharsets.UTF_8);
+
+    assertThatThrownBy(() -> CacheConfig.valueSerializer().deserialize(stored)).isInstanceOf(SerializationException.class);
+    assertThatCode(() -> new CacheErrorConfig().errorHandler()
+      .handleCacheGetError(new SerializationException("old"), mock(Cache.class), "ALL:false"))
+      .doesNotThrowAnyException();
   }
 
   @Test
@@ -82,7 +131,7 @@ class CacheConfigTest {
     given(assetRepository.findActiveSymbolsByDividendYield(false, "ALL", rule)).willReturn(List.of("KO", "T"));
     List<String> order = new DividendYieldOrder(assetRepository).symbols("ALL", false, rule);
 
-    GenericJackson2JsonRedisSerializer serializer = CacheConfig.valueSerializer();
+    GenericJacksonJsonRedisSerializer serializer = CacheConfig.valueSerializer();
 
     assertThat(serializer.deserialize(serializer.serialize(order))).isEqualTo(List.of("KO", "T"));
   }

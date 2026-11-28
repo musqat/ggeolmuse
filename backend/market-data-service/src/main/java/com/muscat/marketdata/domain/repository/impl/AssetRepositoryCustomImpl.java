@@ -113,7 +113,7 @@ public class AssetRepositoryCustomImpl implements AssetRepositoryCustom {
 
   @Override
   public List<String> findActiveSymbolsByDividendYield(boolean ascending, String assetType, DividendYieldRule rule) {
-    NumberExpression<BigDecimal> yearly = dividend.amount.sum();
+    NumberExpression<BigDecimal> yearly = dividend.amount.sumAggregate();
     // 수익률을 못 구하거나(배당 없음 · 종가 없음 · 0 이하) 상한을 넘는 종목
     BooleanExpression noYield = yearly.isNull()
       .or(asset.latestClose.isNull())

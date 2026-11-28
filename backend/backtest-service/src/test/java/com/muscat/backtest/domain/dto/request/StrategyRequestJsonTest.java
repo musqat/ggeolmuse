@@ -2,8 +2,6 @@ package com.muscat.backtest.domain.dto.request;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.muscat.backtest.common.enums.type.DcaFrequency;
 import com.muscat.backtest.common.enums.type.ExecutionTiming;
 import com.muscat.backtest.common.enums.type.PortfolioAllocation;
@@ -19,11 +17,12 @@ import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
 
 // 전략 타입 getter · 금액 · 주식 수 · 이동평균 기간 검사가 이력 저장 JSON 모양을 바꾸지 않는지
 class StrategyRequestJsonTest {
 
-  private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+  private final ObjectMapper objectMapper = new ObjectMapper();
 
   @Test
   @DisplayName("요청마다 자기 전략 타입을 담는다")
