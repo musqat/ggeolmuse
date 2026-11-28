@@ -14,3 +14,4 @@
 | [0007](0007-public-backtest.md) | 백테스트는 로그인 없이 연다 |
 | [0008](0008-weekday-hours.md) | 평일 07 ~ 19시에만 켠다 |
 | [0009](0009-chat-in-python.md) | AI 대화만 Python 으로 둔다 |
+| [0010](0010-rebuild-control-plane.md) | 컨트롤 플레인을 잃으면 백업에서 되돌리지 않고 새로 만든다 |
