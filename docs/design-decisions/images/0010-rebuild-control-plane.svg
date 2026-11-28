@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="280" viewBox="0 0 880 280" role="img">
+  <title>컨트롤 플레인을 잃었을 때 — 일반적인 방식과 이 프로젝트</title>
+  <style>
+  .lbl { font: 500 13px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .pg { fill: none; stroke: #D3D1C7; stroke-width: 1; stroke-dasharray: 4 4; }
+  .pp { fill: none; stroke: #9FE1CB; stroke-width: 1; stroke-dasharray: 4 4; }
+  .ng { fill: #F1EFE8; stroke: #B4B2A9; stroke-width: 1; }
+  .np { fill: #E1F5EE; stroke: #5DCAA5; stroke-width: 1; }
+  .tg { font: 500 14px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #2C2C2A; }
+  .sg { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .tp { font: 500 14px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #085041; }
+  .sp { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #0F6E56; }
+  .ar { stroke: #888780; stroke-width: 1.2; fill: none; }
+  .note { font: 400 12px -apple-system, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; fill: #5F5E5A; }
+  .ah { fill: #888780; }
+  @media (prefers-color-scheme: dark) {
+    .lbl, .sg, .note { fill: #B4B2A9; }
+    .pg { stroke: #5F5E5A; }
+    .pp { stroke: #0F6E56; }
+    .ng { fill: #2C2C2A; stroke: #5F5E5A; }
+    .np { fill: #04342C; stroke: #1D9E75; }
+    .tg { fill: #F1EFE8; }
+    .tp { fill: #E1F5EE; }
+    .sp { fill: #9FE1CB; }
+  }
+  </style>
+  <rect class="pg" x="20" y="12" width="840" height="112" rx="12"/>
+  <text class="lbl" x="32" y="30">일반적인 방식</text>
+  <rect class="ng" x="110" y="46" width="180" height="58" rx="8"/>
+  <text class="tg" x="200" y="69" text-anchor="middle">컨트롤 플레인 잃음</text>
+  <text class="sg" x="200" y="89" text-anchor="middle">디스크 · 인스턴스</text>
+  <rect class="ng" x="350" y="46" width="180" height="58" rx="8"/>
+  <text class="tg" x="440" y="69" text-anchor="middle">스냅숏으로 되돌림</text>
+  <text class="sg" x="440" y="89" text-anchor="middle">etcd · 인증서(S3)</text>
+  <rect class="ng" x="590" y="46" width="180" height="58" rx="8"/>
+  <text class="tg" x="680" y="69" text-anchor="middle">그대로 이어 붙음</text>
+  <text class="sg" x="680" y="89" text-anchor="middle">워커 · 볼륨 · 앱</text>
+  <line class="ar" x1="294" y1="75" x2="342" y2="75"/>
+  <path class="ah" d="M348 75 L341 71 L341 79 Z"/>
+  <line class="ar" x1="534" y1="75" x2="582" y2="75"/>
+  <path class="ah" d="M588 75 L581 71 L581 79 Z"/>
+  <rect class="pp" x="20" y="140" width="840" height="128" rx="12"/>
+  <text class="lbl" x="32" y="158">이 프로젝트</text>
+  <rect class="np" x="40" y="174" width="180" height="58" rx="8"/>
+  <text class="tp" x="130" y="197" text-anchor="middle">컨트롤 플레인 잃음</text>
+  <text class="sp" x="130" y="217" text-anchor="middle">etcd 백업 없음</text>
+  <rect class="np" x="250" y="174" width="180" height="58" rx="8"/>
+  <text class="tp" x="340" y="197" text-anchor="middle">새로 만듦</text>
+  <text class="sp" x="340" y="217" text-anchor="middle">kubeadm · addons.sh</text>
+  <rect class="np" x="460" y="174" width="180" height="58" rx="8"/>
+  <text class="tp" x="550" y="197" text-anchor="middle">git 에서 다시 맞춤</text>
+  <text class="sp" x="550" y="217" text-anchor="middle">ArgoCD · External Secrets</text>
+  <rect class="np" x="670" y="174" width="170" height="58" rx="8"/>
+  <text class="tp" x="755" y="197" text-anchor="middle">데이터는 그대로</text>
+  <text class="sp" x="755" y="217" text-anchor="middle">RDS · Secrets Manager</text>
+  <line class="ar" x1="224" y1="203" x2="242" y2="203"/>
+  <path class="ah" d="M248 203 L241 199 L241 207 Z"/>
+  <line class="ar" x1="434" y1="203" x2="452" y2="203"/>
+  <path class="ah" d="M458 203 L451 199 L451 207 Z"/>
+  <line class="ar" x1="644" y1="203" x2="662" y2="203"/>
+  <path class="ah" d="M668 203 L661 199 L661 207 Z"/>
+  <text class="note" x="440" y="254" text-anchor="middle">Kafka · 지표 · 로그 볼륨은 빈 채로 시작, 워커는 다시 join</text>
+</svg>
